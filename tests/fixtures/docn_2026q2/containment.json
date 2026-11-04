@@ -1,0 +1,31 @@
+{
+  "analysis_date": "2026-10-19",
+  "ticker": "DOCN",
+  "original_tool_outputs": [
+    "# Company Fundamentals for DOCN  Name: DigitalOcean Holdings, Inc. Sector: Technology Industry: Software - Infrastructure Market Cap: 11734066176 USD PE Ratio (TTM): 46.253456 Forward PE: 54.261387 PEG Ratio: 1.54 Price to Book: 11.32333 EPS (TTM): 2.17 USD Forward EPS: 1.84975 USD Dividend Yield: 0.0% Beta: 1.701 52 Week High: 187.5 USD 52 Week Low: 37.835 USD 50 Day Average: 125.294 USD 200 Day Average: 109.1834 USD Revenue (TTM): 1011113024 USD Gross Profit: 578574976 USD EBITDA: 308633984 USD Net Income: 235239008 USD Profit Margin: 0.23265 Operating Margin: 0.104449995 Return on Equity: 0.62273 Return on Assets: 0.038629998 Debt to Equity: 212.506% (2.13x) Current Ratio: 1.311 Book Value: 8.864 USD Free Cash Flow: -23832624 USD",
+    "# Income Statement for DOCN (quarterly), USD in millions unless the row says otherwise # SEC EDGAR facts filed on or before 2026-10-19, at the values filed then  ,2020-03-31,2020-06-30,2020-09-30,2021-03-31,2021-06-30,2021-09-30,2021-12-31,2022-03-31,2022-06-30,2022-09-30,2022-12-31,2023-03-31,2023-06-30,2023-09-30,2023-12-31,2024-03-31,2024-06-30,2024-09-30,2024-12-31,2025-03-31,2025-06-30,2025-09-30,2026-03-31,2026-06-30 Revenue,73,77,81,94,104,111,,127,134,152,,165,170,177,181,185,192,198,205,211,219,230,258,281 Cost of Revenue,35,35,37,40,43,44,,47,48,57,,75,70,73,78,76,78,82,79,81,88,93,113,127 Gross Profit,38,42,44,54,61,68,,80,86,95,,91,100,104,103,109,114,117,126,129,131,137,145,155 Operating Income,-12,2,-7,3,-3,-2,,-14,-8,7,,-33,-2,35,11,12,22,25,33,38,36,45,37,29 Net Income,-17,-3,-10,-3,-2,-2,-12,-19,-7,8,-10,-16,1,19,16,14,19,33,18,38,37,158,16,35 Diluted EPS (USD/shares),-0.42,-0.06,-0.24,-0.07,-0.02,-0.02,,-0.17,-0.07,0.08,,-0.17,0.01,0.20,0.17,0.15,0.20,0.33,0.19,0.39,0.39,1.51,0.15,0.29",
+    "# Balance Sheet for DOCN (quarterly), USD in millions unless the row says otherwise # SEC EDGAR facts filed on or before 2026-10-19, at the values filed then  ,2018-12-31,2019-12-31,2020-03-31,2020-06-30,2020-09-30,2020-12-31,2021-03-31,2021-06-30,2021-09-30,2021-12-31,2022-03-31,2022-06-30,2022-09-30,2022-12-31,2023-03-31,2023-06-30,2023-09-30,2023-12-31,2024-03-31,2024-06-30,2024-09-30,2024-12-31,2025-03-31,2025-06-30,2025-09-30,2025-12-31,2026-03-31,2026-06-30 Total Assets,,,,,,430,893,915,966,2101,1957,1591,1624,1816,1584,1498,1425,1461,1486,1537,1526,1639,1642,1720,1726,1838,2570,3123 Current Assets,,,,,,148,607,629,643,1770,1612,1231,908,946,699,642,471,503,516,544,552,542,479,510,368,427,944,1018 Cash and Equivalents,,,91,126,121,100,560,577,590,1713,465,72,24,141,21,120,79,317,419,443,440,428,360,388,237,254,741,767 Total Liabilities,,,,,,329,48,57,59,1523,1529,1542,1593,1768,1787,1765,1784,1775,1772,1791,1738,1842,1852,1895,1795,1866,1683,2192 Current Liabilities,,,,,,85,46,55,58,58,62,74,99,166,171,167,184,193,189,220,176,221,198,225,325,619,647,776 Stockholders Equity,-57,-72,-74,-70,-65,-72,845,858,906,578,427,47,27,48,-203,-268,-359,-314,-286,-254,-212,-203,-211,-175,-70,-29,887,931",
+    "# Cash Flow Statement for DOCN (quarterly), USD in millions unless the row says otherwise # SEC EDGAR facts filed on or before 2026-10-19, at the values filed then  ,2020-03-31,2020-06-30 (6 months),2020-09-30 (9 months),2021-03-31,2021-06-30 (6 months),2021-09-30 (9 months),2022-03-31,2022-06-30 (6 months),2022-09-30 (9 months),2023-03-31,2023-06-30 (6 months),2023-09-30 (9 months),2024-03-31,2024-06-30 (6 months),2024-09-30 (9 months),2025-03-31,2025-06-30 (6 months),2025-09-30 (9 months),2026-03-31,2026-06-30 (6 months) Operating Cash Flow,1,17,40,20,60,100,30,76,132,36,100,154,67,138,211,64,157,252,47,157 Investing Cash Flow,-28,-59,-85,-24,-50,-81,-1121,-1160,-1202,108,244,248,46,12,-48,-65,-100,-139,-61,-150 Financing Cash Flow,84,135,133,464,466,470,-158,-558,-611,-264,-365,-473,-11,-24,-41,-67,-97,-307,501,505 Capital Expenditure,21,48,70,22,47,66,23,49,80,23,47,67,44,76,133,62,95,103,40,82"
+  ],
+  "original_unsupported_claim_examples": [
+    "**(b) Equity went from –$29M to +$931M, but only ~$51M came from earnings.** H1 2026 net financing inflow was only **+$505M** ($501M in Q1, ~$4M in Q2) against a **~$960M** equity increase and net income of just $51M. That leaves roughly **$400M of equity increase unexplained by disclosed cash flows or earnings** — most plausibly non-cash convertible-note conversion or an in-kind equity event. **This is a top-priority diligence item** (statement of stockholders' equity in the Q1/Q2 10-Qs; diluted share count trajectory).",
+    "**⚠️ Vendor FCF discrepancy:** the fundamentals feed reports **Free Cash Flow of –$23.8M**. This cannot be reconciled to OCF less capex (+$194M). The likely explanation is a vendor definition that subtracts *total* investing outflows (which include purchases/maturities of investments, not just capex). **Treat the –$23.8M figure as a definition artifact, not operating cash burn.** Verify against the 10-Q's investing section.",
+    "DOCN is **not building** the capacity behind its acceleration — it is **renting/buying third-party compute** (GPU, colocation, power, bandwidth). That is the mechanical cause of the gross-margin compression, and it means:",
+    "**Price Target**: 96.0"
+  ],
+  "expected_hand_authored": {
+    "equity": "Require a statement-of-equity bridge; do not infer conversion from financing totals.",
+    "fcf": "Unresolved until definitions and periods reconcile.",
+    "capex": "Cash capex alone cannot establish a build-versus-rent strategy.",
+    "target": "Omit 96 without a reproducible valuation bridge."
+  },
+  "provenance": {
+    "tool_output": "Exact selected Data entries from historical message_tool.log; original whitespace retained.",
+    "claims": "Exact selected report lines, examples of flawed analysis, not verified facts.",
+    "source_sha256": {
+      "message_tool.log": "2bf8cb2606cb94015ad6a92eac4667386f0215388cb6cfb92498b67bedfa44c9",
+      "reports/fundamentals_report.md": "decf0b6306204654441bdd1f0cc64f035c3e216f573653d7913f80971fddb97b",
+      "reports/final_trade_decision.md": "31b2ff098f042c2ea4a68499cdf944142af922525cc9f94aca67cbb3fe499976"
+    }
+  }
+}

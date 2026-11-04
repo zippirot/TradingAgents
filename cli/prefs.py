@@ -33,6 +33,12 @@ REMEMBERED = (
 )
 
 
+def _prefs_path() -> Path:
+    """Allow isolated development runs without changing the runtime home."""
+    override = os.environ.get("TRADINGAGENTS_PREFS_PATH", "").strip()
+    return Path(override).expanduser() if override else _PREFS_PATH
+
+
 def load_last_run() -> dict:
     """The previous run's answers, or an empty dict when there is nothing usable.
 
@@ -40,7 +46,7 @@ def load_last_run() -> dict:
     error in the user's way.
     """
     try:
-        data = json.loads(_PREFS_PATH.read_text(encoding="utf-8"))
+        data = json.loads(_prefs_path().read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
@@ -52,9 +58,9 @@ def save_last_run(selections: dict) -> None:
     kept["analysts"] = [getattr(a, "value", a) for a in kept.get("analysts", [])] or None
     kept = {k: v for k, v in kept.items() if v is not None}
     try:
-        _PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _prefs_path().parent.mkdir(parents=True, exist_ok=True)
         # A concurrent run reads one file or the other.
-        replace_file(_PREFS_PATH, lambda temp: Path(temp).write_text(json.dumps(kept, indent=2), encoding="utf-8"))
+        replace_file(_prefs_path(), lambda temp: Path(temp).write_text(json.dumps(kept, indent=2), encoding="utf-8"))
     except OSError:
         return
 

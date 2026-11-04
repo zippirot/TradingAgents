@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-04",
+  "milestone": 1,
+  "status": "offline containment verified; live proof pending",
+  "baseline": "3411158f91eb267aab8760fc90afbf43556eb0bb",
+  "compute": "Machine 1 M1 Pro/16 GB",
+  "python": "3.12.13",
+  "checks": {
+    "prompt_red": "8 expected assertion failures before implementation",
+    "prefs_red": "1 expected failure; 20 passed",
+    "focused_final": "120 passed in 0.79s",
+    "lint": "All checks passed",
+    "dependencies": "No broken requirements found",
+    "diff_check": "passed"
+  },
+  "test_command": ".venv/bin/python -m pytest -q tests/test_evidence_containment_prompts.py tests/test_cli_prefs.py tests/test_structured_agent_prompts.py tests/test_news_analyst_prompt.py tests/test_debate_opening.py tests/test_structured_agents.py tests/test_cli_headless.py tests/test_cli_config_precedence.py",
+  "source_sha256": {
+    "cli/prefs.py": "940506cd5ae7c72d33a4784d442b8f22de35cd642e081da294dc79c78a71b44b",
+    "tests/test_cli_prefs.py": "0db24813a2bc3d8871f72b9d6c90ba27d5fd07b63c065d0119740e36f12edb26",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "9cc4a40b055d8eaaa846703980dac137bf21abbb4cc4f1607c83c00f1cc32c6a",
+    "tradingagents/agents/analysts/market_analyst.py": "f5a62371c72e491442c52d8187920c664db5686ac7ff0c864a8ede7706d6adb9",
+    "tradingagents/agents/analysts/news_analyst.py": "cd13e23c7921f8dc3defdaab1c0b442bd7e90a335be772ad270fabde579d2841",
+    "tradingagents/agents/analysts/sentiment_analyst.py": "e0792b42dce6d5cd8954c4f82bfdb54c067916e4ee7f964948bbc8a840f796e6",
+    "tradingagents/agents/context.py": "34787798bb309bd29bef24b9b11ff9249552460eda34e1005d35de60f0d54a85",
+    "tradingagents/agents/managers/portfolio_manager.py": "acf6b42ffc1301bd8a4525f60752e5dffb3107538cd37d9d742ac29639b1f5b2",
+    "tradingagents/agents/managers/research_manager.py": "c62c701158a5b68fe2a35f7510bd0d76ed4e35b1e947ab8d5e5d06d1b4f87148",
+    "tradingagents/agents/researchers/bear_researcher.py": "13b9d45352d89834139e52b627be58e256bdfbac5edb0125fca2a35755e272a0",
+    "tradingagents/agents/researchers/bull_researcher.py": "20dc612f54e93147c75d6972ea41a19e8646777f5673843ad33aadf51a0f89d7",
+    "tests/test_evidence_containment_prompts.py": "2eda081a5ec236f153550311bf6481c8332574fc6a8282d3b5be555d24bcf0ba"
+  },
+  "fixture_sha256": "ded5c6c6d490b257644ee3c058770f92037a99546e0a4d9e3fafed31cf202336",
+  "limitations": [
+    "No paid/live proof run; no claim of model compliance.",
+    "Primary disclosure excerpts still need acquisition with configured SEC identity.",
+    "Milestones 2\u20136 not started.",
+    "Full offline suite and independent final audit remain required."
+  ],
+  "paid_spend_usd": 0
+}

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    EVIDENCE_DISCIPLINE,
+    get_instrument_context_from_state,
+    get_language_instruction,
+)
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
@@ -46,9 +50,9 @@ Write these sections, in this order, starting with the recommendation on its own
 
 - **Recommendation**: exactly one of Buy / Overweight / Hold / Underweight / Sell
 - **Rationale**: which arguments decided it
-- **Strategic Actions**: concrete steps for the trader, sized against a standard allocation
+- **Strategic Actions**: qualitative steps for the trader; numerical sizing requires actual portfolio and loss-budget inputs
 
-{NO_EXTERNAL_TOOLS}""" + get_language_instruction()
+{NO_EXTERNAL_TOOLS}""" + EVIDENCE_DISCIPLINE + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

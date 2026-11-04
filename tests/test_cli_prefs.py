@@ -159,3 +159,17 @@ def test_a_remembered_endpoint_is_offered_back(monkeypatch):
     cli_selections.get_user_selections()
 
     assert offered["default"] == "http://localhost:1234/v1"
+
+
+def test_explicit_development_prefs_path_preserves_normal_preferences(monkeypatch, tmp_path):
+    import cli.prefs as prefs
+    normal = tmp_path / "normal.json"
+    normal.write_text('{"output_language": "Spanish"}')
+    monkeypatch.setattr(prefs, "_PREFS_PATH", normal)
+    isolated = tmp_path / "development" / "prefs.json"
+    monkeypatch.setenv("TRADINGAGENTS_PREFS_PATH", str(isolated))
+    assert load_last_run() == {}
+    save_last_run(SAVED)
+    assert load_last_run() == SAVED
+    assert isolated.exists()
+    assert normal.read_text() == '{"output_language": "Spanish"}'
