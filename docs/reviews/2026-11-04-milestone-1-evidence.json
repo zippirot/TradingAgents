@@ -1,7 +1,7 @@
 {
   "date": "2026-11-04",
   "milestone": 1,
-  "status": "offline containment verified; live proof pending",
+  "status": "complete; final acceptance recorded in milestone 6",
   "baseline": "3411158f91eb267aab8760fc90afbf43556eb0bb",
   "compute": "Machine 1 M1 Pro/16 GB",
   "python": "3.12.13",
@@ -29,11 +29,15 @@
     "tests/test_evidence_containment_prompts.py": "2eda081a5ec236f153550311bf6481c8332574fc6a8282d3b5be555d24bcf0ba"
   },
   "fixture_sha256": "ded5c6c6d490b257644ee3c058770f92037a99546e0a4d9e3fafed31cf202336",
-  "limitations": [
+  "paid_spend_usd": 0,
+  "historical_checkpoint_status": "offline containment verified; live proof pending",
+  "historical_checkpoint_limitations": [
     "No paid/live proof run; no claim of model compliance.",
     "Primary disclosure excerpts still need acquisition with configured SEC identity.",
     "Milestones 2\u20136 not started.",
     "Full offline suite and independent final audit remain required."
   ],
-  "paid_spend_usd": 0
+  "final_acceptance_record": "2026-11-04-milestone-6-evidence.json",
+  "final_source_candidate": "a0eb92c9a4bd009cca786b998fde184e7046c864",
+  "final_acceptance_note": "User deferred early live SEC proof to final acceptance. Real early containment runs, final critical-source success/recovery, and controlled SEC-unavailable REVIEW/no-memory now verified; optional gaps remain explicit."
 }

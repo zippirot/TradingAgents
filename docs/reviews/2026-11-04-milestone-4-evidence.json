@@ -1,5 +1,5 @@
 {
-  "status": "milestone 4 offline implementation checkpoint; full final acceptance not complete",
+  "status": "complete; final acceptance recorded in milestone 6",
   "compute": "Machine 1 M1 Pro 16 GB",
   "baseline_feature_commit": "df8c606",
   "green": "369 passed in 5.32s",
@@ -29,13 +29,6 @@
     "dependencies": "pip check passed",
     "diff": "git diff --check passed"
   },
-  "limitations": [
-    "Synthetic tables are not actual primary-source DOCN proof; required live source-complete and failure/recovery CLI proofs remain deferred to final acceptance",
-    "Supported table layouts are deliberately bounded; ambiguous real layouts remain unavailable and must be addressed when required proof exercises them",
-    "Source rounding precision is never guessed; unknown EPS precision preserves calculated ratio as unavailable comparison",
-    "Milestone 5 target enforcement, report artifacts, authoritative output/memory/settlement/scoring exclusions remain required",
-    "Full offline suite, final independent whole-change audit, rendered report inspection and affected live recovery proof remain outstanding"
-  ],
   "spend_usd": 0,
   "source_sha256": {
     "tests/test_accounting_checks.py": "2da699bac865954494bc10bf6ed8368008976a349da7cdc843dcf5fad95c3bce",
@@ -56,5 +49,16 @@
     "tradingagents/dataflows/vendors/sec_documents.py": "d23c3c5354a39b5d940d8a7613fc27e5672d8acd28a867e4664fa61356f7066c",
     "tradingagents/dataflows/vendors/sec_edgar.py": "c48be72343b4dbe0d86625585a4f84c4fb9f22fd9d9d70f71d36c989e1920169",
     "tradingagents/graph/setup.py": "f881054fa41877f6b7e99e78f75fc53f281e7a036f92d70aaae01e8101e2a1c0"
-  }
+  },
+  "historical_checkpoint_status": "milestone 4 offline implementation checkpoint; full final acceptance not complete",
+  "historical_checkpoint_limitations": [
+    "Synthetic tables are not actual primary-source DOCN proof; required live source-complete and failure/recovery CLI proofs remain deferred to final acceptance",
+    "Supported table layouts are deliberately bounded; ambiguous real layouts remain unavailable and must be addressed when required proof exercises them",
+    "Source rounding precision is never guessed; unknown EPS precision preserves calculated ratio as unavailable comparison",
+    "Milestone 5 target enforcement, report artifacts, authoritative output/memory/settlement/scoring exclusions remain required",
+    "Full offline suite, final independent whole-change audit, rendered report inspection and affected live recovery proof remain outstanding"
+  ],
+  "final_acceptance_record": "2026-11-04-milestone-6-evidence.json",
+  "final_source_candidate": "a0eb92c9a4bd009cca786b998fde184e7046c864",
+  "final_acceptance_note": "User deferred early live SEC proof to final acceptance. Real early containment runs, final critical-source success/recovery, and controlled SEC-unavailable REVIEW/no-memory now verified; optional gaps remain explicit."
 }

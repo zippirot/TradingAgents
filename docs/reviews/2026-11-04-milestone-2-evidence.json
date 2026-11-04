@@ -1,5 +1,5 @@
 {
-  "status": "milestone 2 offline implementation verified; final live acceptance pending",
+  "status": "complete; final acceptance recorded in milestone 6",
   "baseline_feature_commit": "ebdbbc04cf388e7c3001fe3302608fab7a64c5ab",
   "compute": "Machine 1",
   "red": "14 expected selection/precision failures; separate DOCN exposure regression failed before rows added",
@@ -14,13 +14,17 @@
     "tradingagents/agents/analysts/fundamentals_analyst.py": "e20f454b5590798037b50b6b3a078c65e238f5f99cefa70e80cf08639d9a2b92",
     "tests/test_financial_evidence.py": "6476649dedba8d5c4991c39b3d90114700c37e05d8390f5f7bab8ed89fb90538"
   },
-  "limitations": [
+  "spend_usd": 0,
+  "review": "Independent bounded review findings closed: ambiguous period start, par-value label, malformed containers, decreasing gross flows, conflicting annual/TTM values, model context cap, and warning provenance. Each behavior has regression coverage.",
+  "dependency_check": "pip check passed",
+  "lint": "Touched-area ruff check and git diff --check passed",
+  "historical_checkpoint_status": "milestone 2 offline implementation verified; final live acceptance pending",
+  "historical_checkpoint_limitations": [
     "No live retrieval or model compliance proof; user deferred live SEC checks to final acceptance",
     "Issuer-specific equipment obligations and narrative definitions require milestone 3",
     "Typed facts and lineage do not validate arbitrary prose; canonical graph enforcement remains milestone 4"
   ],
-  "spend_usd": 0,
-  "review": "Independent bounded review findings closed: ambiguous period start, par-value label, malformed containers, decreasing gross flows, conflicting annual/TTM values, model context cap, and warning provenance. Each behavior has regression coverage.",
-  "dependency_check": "pip check passed",
-  "lint": "Touched-area ruff check and git diff --check passed"
+  "final_acceptance_record": "2026-11-04-milestone-6-evidence.json",
+  "final_source_candidate": "a0eb92c9a4bd009cca786b998fde184e7046c864",
+  "final_acceptance_note": "User deferred early live SEC proof to final acceptance. Real early containment runs, final critical-source success/recovery, and controlled SEC-unavailable REVIEW/no-memory now verified; optional gaps remain explicit."
 }

@@ -1,6 +1,6 @@
 {
   "milestone": 5,
-  "status": "offline implementation checkpoint; acceptance incomplete",
+  "status": "complete; final acceptance recorded in milestone 6",
   "parent_commit": "3b8a59f1e6eec5c7f16f6fb141f13dabba2688d1",
   "machine": "Machine 1, Apple M1 Pro, 16 GB",
   "worktree": "/Users/zipp/Developer/tradingagents-integrity/feature",
@@ -14,17 +14,21 @@
     "diff": "git diff --check passed"
   },
   "paid_spend_usd": 0,
-  "remaining": [
+  "historical_checkpoint_status": "offline implementation checkpoint; acceptance incomplete",
+  "historical_checkpoint_limitations": [
+    "Synthetic source and model fixtures do not establish live SEC layout coverage or model compliance.",
+    "Management outlook adapter requires source-supported period/currency/basis; ambiguous extracts remain unavailable.",
+    "Publication uses deterministic evidence summary where arbitrary model narrative cannot be reconciled; original narrative retained separately.",
+    "Earlier cache Windows-lock test fixtures use errno.EDEADLOCK absent on macOS; full-suite resolution remains required."
+  ],
+  "historical_checkpoint_remaining": [
     "full offline suite and pre-existing platform failure assessment",
     "checkpoint signature version and actual recovery proof",
     "final independent whole-change audit and material finding closure",
     "rendered report inspection",
     "real CLI source-complete and unavailable-source REVIEW/no-memory proof"
   ],
-  "limitations": [
-    "Synthetic source and model fixtures do not establish live SEC layout coverage or model compliance.",
-    "Management outlook adapter requires source-supported period/currency/basis; ambiguous extracts remain unavailable.",
-    "Publication uses deterministic evidence summary where arbitrary model narrative cannot be reconciled; original narrative retained separately.",
-    "Earlier cache Windows-lock test fixtures use errno.EDEADLOCK absent on macOS; full-suite resolution remains required."
-  ]
+  "final_acceptance_record": "2026-11-04-milestone-6-evidence.json",
+  "final_source_candidate": "a0eb92c9a4bd009cca786b998fde184e7046c864",
+  "final_acceptance_note": "User deferred early live SEC proof to final acceptance. Real early containment runs, final critical-source success/recovery, and controlled SEC-unavailable REVIEW/no-memory now verified; optional gaps remain explicit."
 }

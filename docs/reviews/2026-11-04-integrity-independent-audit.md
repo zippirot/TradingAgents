@@ -1,5 +1,24 @@
 # Independent report-integrity audit — 2026-11-04
 
+## Final acceptance verdict
+
+No remaining confirmed material M1–M6 gap. Independent final artifact assertions on a0eb92c9a4bd009cca786b998fde184e7046c864 verify eight critical source checks, 31 financial claims, 1,019 facts/four documents, exact state/evidence/quality agreement, unsupported target omission, one decision-memory entry, and controlled checkpoint recovery with identical raw analyst report hashes and zero repeated analyst calls. The separate real CLI SEC-unavailable proof verifies insufficient/REVIEW, no target, zero memory entries and terminal checkpoint cleanup. Both processes exited successfully. The primary agent inspected actual rendered reports, including warnings, canonical calculations and target omission.
+
+| Milestone | Final evidence |
+| --- | --- |
+| 1 — containment | Early real CLI REVIEW reports and final source/unavailable reports; live SEC ordering deferred explicitly by user. |
+| 2 — precise facts | SEC vintage/unit/definition fixtures, 1,816-test final offline suite and current live financial package. |
+| 3 — filing/disclosure retrieval | Recorded actual DOCN release context/KPI/definition/financing fixtures and adversarial/second-issuer cases; four live selected documents. |
+| 4 — accounting/evidence gate | Eight live critical checks pass; exact canonical bridges; source-failure REVIEW. |
+| 5 — targets/consumers | Final target omitted, report/state agreement, real memory outcomes, offline settlement/scoring/backtest/publication checks. |
+| 6 — verification/recovery | Full offline suite, dependency/source-hash checks, independent review closure, actual source and unavailable CLI, interruption/resume, visual inspection and committed acceptance records. |
+
+The final suite passed 1,816 tests, 100 subtests, one optional dependency skip and one configured integration deselection. All 214 source hashes/four fixture hashes match the tested candidate. Aggregate provider usage is $0.444111567; no $10 provider-cap guarantee is claimed under the explicit existing-key exception. See milestone-6 evidence for exact paths, commands, manifests and assertions.
+
+Limits: final live optional extraction accepted Cash only; AI Customer ARR's defined-KPI contract is proved by recorded source and prior actual-model replay, not this final live extraction. Optional gaps/selected excerpts and arbitrary narrative limitations remain explicit. Visible IDs/locators resolve to URLs in evidence.json; clickable report citations are not implemented. The literal newline separator at target omission and dense ID presentation are deferred cosmetics, not financial/recovery findings. No integration or release is authorized.
+
+## Historical review and closure record
+
 The independent reviewer inspected the complete change from staging 3411158f91eb267aab8760fc90afbf43556eb0bb through milestone 5 and re-reviewed the affected milestone-6 source corrections. Coverage included SEC vintage/source selection, bounded filing retrieval, accounting tables and bridges, valuation, publication/streaming, CLI/report artifacts, memory, settlement and backtests. Review was read-only on Machine 1; it did not make paid calls or substitute for runtime acceptance.
 
 ## Material findings and closure

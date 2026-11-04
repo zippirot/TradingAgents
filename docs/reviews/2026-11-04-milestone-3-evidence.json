@@ -1,5 +1,5 @@
 {
-  "status": "recorded primary-source acceptance closed; final affected live acceptance tracked in milestone 6",
+  "status": "complete; final acceptance recorded in milestone 6",
   "compute": "Machine 1 M1 Pro 16 GB",
   "baseline_feature_commit": "b07fe7c",
   "green": "251 passed in 4.95s",
@@ -32,12 +32,6 @@
     "Reject common forward-looking cues classified as historical",
     "Support explicit simple table heading units without guessing multi-column alignment"
   ],
-  "limitations": [
-    "Supported context grammar is deliberately bounded; omitted or ambiguous sections/definitions/comparisons remain visibly unvalidated.",
-    "Complex multi-column KPI tables and cross-document context are not guessed.",
-    "Recorded-source extraction uses constructed proposals; final live model compliance remains a separate proof.",
-    "Source and arithmetic checks do not certify every narrative interpretation."
-  ],
   "original_checkpoint_source_sha256": {
     "tradingagents/dataflows/disclosure_evidence.py": "b4a90c304408c49c59984c4d976910ba4877d7f59447c40d400a789d8c1a4a17",
     "tradingagents/dataflows/vendors/sec_documents.py": "2cb80e980a96157c3bea000f99896c5e35dcc23906791da2a58ee1db55e950d1",
@@ -58,5 +52,15 @@
     "tests": "49 recorded-context and adversarial tests pass; full offline suite1812 passed",
     "review": "All reproduced material context findings closed on independent re-audit"
   },
-  "actual_model_replay": "../evidence/m6-final-source/row-isolation-replay.json; live model AI Customer ARR proposal validates after malformed unrelated rows are isolated; this is an offline replay, not a final-candidate live proof."
+  "actual_model_replay": "../evidence/m6-final-source/row-isolation-replay.json; live model AI Customer ARR proposal validates after malformed unrelated rows are isolated; this is an offline replay, not a final-candidate live proof.",
+  "historical_checkpoint_status": "recorded primary-source acceptance closed; final affected live acceptance tracked in milestone 6",
+  "historical_checkpoint_limitations": [
+    "Supported context grammar is deliberately bounded; omitted or ambiguous sections/definitions/comparisons remain visibly unvalidated.",
+    "Complex multi-column KPI tables and cross-document context are not guessed.",
+    "Recorded-source extraction uses constructed proposals; final live model compliance remains a separate proof.",
+    "Source and arithmetic checks do not certify every narrative interpretation."
+  ],
+  "final_acceptance_record": "2026-11-04-milestone-6-evidence.json",
+  "final_source_candidate": "a0eb92c9a4bd009cca786b998fde184e7046c864",
+  "final_acceptance_note": "User deferred early live SEC proof to final acceptance. Real early containment runs, final critical-source success/recovery, and controlled SEC-unavailable REVIEW/no-memory now verified; optional gaps remain explicit."
 }
