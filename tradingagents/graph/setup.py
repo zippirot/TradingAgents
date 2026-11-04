@@ -59,7 +59,10 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     that turn ends it whatever it answers, so a model that keeps calling tools
     cannot run the graph into its recursion limit (#1420).
     """
-    output = TypedDict(f"{spec.key.capitalize()}Report", {spec.report_key: str})
+    output_fields = {spec.report_key: str}
+    if spec.key == "fundamentals":
+        output_fields["disclosure_evidence"] = dict
+    output = TypedDict(f"{spec.key.capitalize()}Report", output_fields)
     graph = StateGraph(AgentState, output_schema=output)
     graph.add_node("agent", agent)
     graph.add_edge(START, "agent")

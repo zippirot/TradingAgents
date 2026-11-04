@@ -1,0 +1,53 @@
+{
+  "status": "milestone 3 offline implementation checkpoint; recorded primary-document and live acceptance outstanding",
+  "compute": "Machine 1 M1 Pro 16 GB",
+  "baseline_feature_commit": "b07fe7c",
+  "green": "251 passed in 4.95s",
+  "test_files": [
+    "test_disclosure_evidence",
+    "test_sec_documents",
+    "test_financial_evidence",
+    "test_sec_fact_integrity",
+    "test_sec_edgar",
+    "test_evidence_containment_prompts",
+    "test_statement_knowledge_time",
+    "test_fundamentals_units",
+    "test_fundamentals_lookahead",
+    "test_graph_end_to_end",
+    "test_date_boundaries",
+    "test_tool_date_enforcement",
+    "test_undated_tools_as_of",
+    "test_analyst_execution",
+    "test_checkpoint_resume",
+    "test_checkpoint_lifecycle"
+  ],
+  "log": "../evidence/m3-combined-checkpoint.log",
+  "lint": "All touched files passed Ruff; git diff --check passed",
+  "dependencies": "pip check passed",
+  "review_corrections": [
+    "Reserve earnings/financing filings before generic events under cap",
+    "Preserve table headings/rows through nested paragraph tags",
+    "Preserve disclosure evidence at fundamentals subgraph output",
+    "Reject reporting year as monetary value by requiring unit association",
+    "Reject common forward-looking cues classified as historical",
+    "Support explicit simple table heading units without guessing multi-column alignment"
+  ],
+  "limitations": [
+    "Synthetic fixtures prove retrieval/extraction behavior, not actual DOCN filing coverage",
+    "Recorded DOCN primary documents and live SEC proof remain pending per user deferral",
+    "Source span and cue checks do not prove all semantic interpretations; accounting and material-claim checks remain milestone 4",
+    "Ambiguous multi-column KPI tables remain unextracted with visible rejection; no guessed units/columns",
+    "Full offline suite and final independent audit remain milestone 6"
+  ],
+  "spend_usd": 0,
+  "source_sha256": {
+    "tradingagents/dataflows/disclosure_evidence.py": "b4a90c304408c49c59984c4d976910ba4877d7f59447c40d400a789d8c1a4a17",
+    "tradingagents/dataflows/vendors/sec_documents.py": "2cb80e980a96157c3bea000f99896c5e35dcc23906791da2a58ee1db55e950d1",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "3c93bedb18570a92144042f2e51b2b40bc68aaca6f69febc8154e682e9ab1a0d",
+    "tradingagents/agents/tools.py": "316a709e9d8d48438f3acf32b06e203a0296ac414fc17aceea452510b639f5e1",
+    "tradingagents/agents/state.py": "2563d60b76c42f994615a32137d1db8216929f62d06782aec7a2e4236a1bbe47",
+    "tradingagents/graph/setup.py": "9bb3ab8f69ff02b0246d350b42ecf3f1509cdd37e288bf793da941ccef8a67e7",
+    "tests/test_disclosure_evidence.py": "ac58e642e1aefc0208d2a12a04d1390b9beebc877bb1003b196e842c8a58bcf7",
+    "tests/test_sec_documents.py": "7be05db37c10a2847f0351091057e89282d2d41a7e76befbc6217d1bf7d89865"
+  }
+}

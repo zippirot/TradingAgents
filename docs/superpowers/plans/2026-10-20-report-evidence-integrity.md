@@ -31,6 +31,12 @@ Read-only `git ls-remote origin refs/heads/staging refs/heads/production refs/he
 
 Exact statement display, metadata-preserving selection, dimension/invalid-value exclusion, unit/period ambiguity rejection and expanded accounting rows are implemented. The saved DOCN companyfacts fixture retains original filing records and a cache-content hash; it is not live retrieval evidence. 182 affected tests passed, including existing SEC vintage/unit/YTD, tool cutoff and graph checks. Immutable typed source/fact packages, bounded model views, and compatible quarter/TTM derivations are implemented. Independent review corrections preserve gross-flow reconciliation gaps, reported annual precedence and warning-linked evidence in partial tool views. See ../../reviews/2026-11-04-milestone-2-evidence.json. Issuer-specific narrative coverage is milestone 3; canonical accounting gates and final live proof remain outstanding.
 
+## Milestone 3 checkpoint — 2026-11-04
+
+Bounded SEC filing/subsequent-event discovery, safe exhibit retrieval, source hashes and dated section/table excerpts are implemented. Fundamentals exposes the retrieval tool, emits bounded structured disclosures, validates literal source spans/numbers/units and preserves the result through its private subgraph. Coverage gaps and rejected extractions are explicit; these checks do not certify semantic or accounting completeness. Independent review corrections reserve earnings/financing documents under the cap, preserve table context, and reject years mistaken for amounts and forward-looking statements classified as historical. 251 focused tests passed including analyst graph and checkpoint compatibility; dependency and lint checks passed. See ../../reviews/2026-11-04-milestone-3-evidence.json.
+
+Synthetic fixtures are not recorded DOCN disclosure proof. Actual primary-document fixtures and live verification remain outstanding under the user-approved deferral; ambiguous multi-column KPI extraction remains visibly unavailable. The next implementation is the milestone-4 deterministic accounting/claim gate, while final acceptance must still close these source-proof gaps.
+
 ## Outcome and delivery estimate
 
 Produce stock research whose material financial facts trace to dated evidence, whose accounting and valuation arithmetic is reproducible, and whose final report does not disguise incomplete evidence as an actionable recommendation. Preserve the current local CLI workflow and report sequence.
