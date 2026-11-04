@@ -259,7 +259,22 @@ def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str], *, 
         raw = json.loads(matches[0])
         if not isinstance(raw, list) or len(raw) > 32:
             raise ValueError("expected up to 32 records")
-        claims = [DisclosureClaim.model_validate(item) for item in raw]
     except (ValueError, TypeError):
         return DisclosureResult(rejected=("Malformed disclosure extraction",))
-    return validate_disclosure_claims(claims, blocks, packages=packages)
+    claims, original_indices, rejected = [], [], []
+    for index, item in enumerate(raw):
+        try:
+            claims.append(DisclosureClaim.model_validate(item))
+            original_indices.append(index)
+        except (ValueError, TypeError):
+            rejected.append((index, f"record {index}: malformed disclosure record"))
+    checked = validate_disclosure_claims(claims, blocks, packages=packages)
+    for reason in checked.rejected:
+        match = re.match(r"record (\d+):", reason)
+        index = original_indices[int(match[1])]
+        rejected.append((index, f"record {index}:" + reason[match.end():]))
+    return DisclosureResult(
+        claims=checked.claims,
+        rejected=tuple(reason for _, reason in sorted(rejected)),
+        warnings=checked.warnings,
+    )

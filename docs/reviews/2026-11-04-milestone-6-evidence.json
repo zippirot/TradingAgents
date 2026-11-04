@@ -3,11 +3,11 @@
   "status": "in progress; acceptance incomplete",
   "base_commit": "48d8d79e71aa24b7e493e1c2b97b4627811978c4",
   "offline_suite": {
-    "passed": 1812,
+    "passed": 1816,
     "skipped": 1,
     "deselected": 1,
-    "log": "../evidence/m6-context-final-suite.log",
-    "source_manifest": "../evidence/m6-context-final-manifest.json",
+    "log": "../evidence/m6-row-final-suite.log",
+    "source_manifest": "../evidence/m6-row-final-manifest.json",
     "limitation": "Offline checks; does not replace real CLI proof"
   },
   "recovery_focused": {
@@ -47,7 +47,7 @@
     "remaining": "inspect actual live saved reports"
   },
   "paid_model_calls": "Per-run manifests and llm-diagnostics record observed usage; initial run had no per-call diagnostic capture",
-  "paid_spend_usd": "0.194279844",
+  "paid_spend_usd": "0.293303511",
   "remaining": [
     "Final affected live source proof",
     "Controlled unavailable-source real CLI/no memory",
@@ -104,5 +104,20 @@
     "focused_context_tests": 49,
     "independent_findings": "closed; source subject/definition identity, growth-basis overrides and source URL identity guarded",
     "remaining": "final affected live proof"
+  },
+  "additional_live_recovery": {
+    "candidate": "8e885e573e2ef5eef0eb62f04098e86163b6a598",
+    "run": "../evidence/m6-final-source",
+    "summary": "../evidence/m6-final-source/verified-summary.json",
+    "result": "Exit0; Underweight/limited; unsupported target omitted; completed analyst reports preserved after interruption/resume.",
+    "limitation": "Pre-row-isolation candidate; final affected proof still required."
+  },
+  "optional_row_isolation": {
+    "problem": "One malformed comma-formatted optional disclosure value erased all otherwise valid records.",
+    "correction": "Reject malformed rows individually; retain global envelope limits and unchanged source validation with original record indices.",
+    "focused_tests": 4,
+    "actual_model_replay": "../evidence/m6-final-source/row-isolation-replay.json",
+    "replay_result": "AI Customer ARR with exact quarter/definition and dated cash claim retained; 28 rejections remain visible, including malformed record28.",
+    "independent_review": "No material finding; full offline suite1816 passed, one optional Bedrock skip, one integration deselection."
   }
 }

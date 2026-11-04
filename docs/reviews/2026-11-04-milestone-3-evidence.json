@@ -57,5 +57,6 @@
     "claims": "AI Customer ARR $376 million for Third Quarter2026, full AI-customer revenue definition, reported288% increase with referenced YoY basis; separate Q4 2026 guidance44\u201345%",
     "tests": "49 recorded-context and adversarial tests pass; full offline suite1812 passed",
     "review": "All reproduced material context findings closed on independent re-audit"
-  }
+  },
+  "actual_model_replay": "../evidence/m6-final-source/row-isolation-replay.json; live model AI Customer ARR proposal validates after malformed unrelated rows are isolated; this is an offline replay, not a final-candidate live proof."
 }
