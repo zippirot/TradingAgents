@@ -21,7 +21,9 @@ import json
 import logging
 import os
 import time
+from copy import deepcopy
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import requests
@@ -71,6 +73,54 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                                  "PaymentsToAcquireProductiveAssets")),
     ],
 }
+
+# Keep totals and components separate. These rows do not imply additive debt
+# perimeters: equipment financing and issuer-specific items need filed narrative.
+_STATEMENTS["balance_sheet"] += [
+    ("Long-term Borrowings (including current)", ("LongTermDebt",)),
+    ("Current Long-term Borrowings", ("LongTermDebtCurrent",)),
+    ("Noncurrent Long-term Borrowings", ("LongTermDebtNoncurrent",)),
+    ("Short-term Borrowings", ("ShortTermBorrowings",)),
+    ("Finance Lease Liabilities", ("FinanceLeaseLiability",)),
+    ("Current Finance Lease Liabilities", ("FinanceLeaseLiabilityCurrent",)),
+    ("Noncurrent Finance Lease Liabilities", ("FinanceLeaseLiabilityNoncurrent",)),
+    ("Operating Lease Liabilities", ("OperatingLeaseLiability",)),
+    ("Current Operating Lease Liabilities", ("OperatingLeaseLiabilityCurrent",)),
+    ("Noncurrent Operating Lease Liabilities", ("OperatingLeaseLiabilityNoncurrent",)),
+    ("Restricted Cash", ("RestrictedCash",)),
+    ("Cash Including Restricted Cash", ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",)),
+    ("Common Stock Equity", ("CommonStockValue",)),
+    ("Additional Paid-in Capital", ("AdditionalPaidInCapital",)),
+    ("Retained Earnings or Accumulated Deficit", ("RetainedEarningsAccumulatedDeficit",)),
+    ("Accumulated Other Comprehensive Income", ("AccumulatedOtherComprehensiveIncomeLossNetOfTax",)),
+    ("Treasury Stock at Cost", ("TreasuryStockValue",)),
+    ("Common Shares Outstanding", ("CommonStockSharesOutstanding",)),
+]
+_STATEMENTS["income_statement"] += [
+    ("Basic EPS", ("EarningsPerShareBasic",)),
+    ("Basic Earnings Numerator", ("NetIncomeLossAvailableToCommonStockholdersBasic",)),
+    ("Diluted Earnings Numerator", ("NetIncomeLossAvailableToCommonStockholdersDiluted",)),
+    ("Weighted Average Basic Shares", ("WeightedAverageNumberOfSharesOutstandingBasic",)),
+    ("Weighted Average Diluted Shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",)),
+    ("Income Tax Expense or Benefit", ("IncomeTaxExpenseBenefit",)),
+    ("Nonoperating Interest Expense", ("InterestExpenseNonoperating",)),
+    ("Debt Interest Expense", ("InterestExpenseDebt",)),
+    ("Finance Lease Interest Expense", ("FinanceLeaseInterestExpense",)),
+    ("Convertible Interest Net of Tax", ("InterestOnConvertibleDebtNetOfTax",)),
+]
+_STATEMENTS["cashflow"] += [
+    ("Common Stock Issuance Proceeds", ("ProceedsFromIssuanceOfCommonStock",)),
+    ("Stock Repurchase Payments", ("PaymentsForRepurchaseOfCommonStock",)),
+    ("Long-term Debt Issuance Proceeds", ("ProceedsFromIssuanceOfLongTermDebt",)),
+    ("Long-term Debt Repayments", ("RepaymentsOfLongTermDebt",)),
+    ("Finance Lease Principal Payments", ("FinanceLeasePrincipalPayments",)),
+    ("Equipment on Lease Payments", ("PaymentsToAcquireEquipmentOnLease",)),
+    ("Software Development Payments", ("PaymentsToDevelopSoftware",)),
+    ("Cash-flow Share-based Compensation", ("ShareBasedCompensation",)),
+    ("Equity Share-based Compensation", ("AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue",)),
+    ("Noncash Finance Lease Additions", ("RightOfUseAssetObtainedInExchangeForFinanceLeaseLiability",)),
+    ("Noncash Operating Lease Additions", ("RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability",)),
+]
 
 # A statement's figures cover a span: a quarter is about 90 days, a year about
 # 365. One filing reports both the quarter and the year to date under the same
@@ -150,41 +200,77 @@ def _span_index(fact: dict, spans: tuple[tuple[int, int], ...]) -> int | None:
     return next((i for i, (low, high) in enumerate(spans) if low <= days <= high), None)
 
 
-def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, spans: tuple[tuple[int, int], ...],
-           forms: tuple[str, ...] = ()) -> tuple[dict, str]:
-    """({(period end, span index): value}, unit) for the tags the filer reports, as known then.
+def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
+                   spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = ()) -> dict:
+    """Select consolidated facts with their original filing context and exact value.
 
-    A period reported more than once takes its latest filing on or before the
-    date, so an amendment counts from the day it was filed and not before. The
-    unit comes from the filing: most lines are USD, earnings per share are
-    USD/shares, and scaling those alike would print a real figure as zero. A
-    duration fact (revenue, cash flow) must cover one of ``spans``; an instant
-    fact (a balance) has no span and serves any.
+    Tag preference is applied per period, never summed. Reject ambiguity rather
+    than let JSON ordering choose a currency, duration or contradictory value.
+    A recast can come from any form, but an annual period must have been reported
+    in an annual filing with the same start date and unit by the cutoff.
     """
-    values: dict[tuple[str, int], float] = {}
-    chosen_unit = "USD"
-    # Tags are tried in order and a period keeps the first one that reports it:
-    # filers renamed lines over the years, so one tag covers only part of the
-    # history. Values are never added across tags, which would double count.
+    cutoff = date.fromisoformat(as_of_date)
+    chosen = {}
     for tag in tags:
-        for unit, unit_values in ((facts.get(tag) or {}).get("units", {})).items():
-            latest: dict[tuple[str, int], dict] = {}
-            covered: set[tuple[str, int]] = set()   # periods a filing of ``forms`` reports
-            for fact in unit_values:
-                index = _span_index(fact, spans)
-                key = (fact["end"], index)
-                if fact["filed"] > as_of_date or index is None or key in values:
+        candidates = {}
+        covered = set()
+        for unit, values in ((facts.get(tag) or {}).get("units") or {}).items():
+            if not isinstance(unit, str) or not isinstance(values, list):
+                continue
+            for fact in values:
+                if not isinstance(fact, dict) or fact.get("segment") or fact.get("dimensions"):
                     continue
-                if not forms or fact.get("form", "").startswith(forms):
-                    covered.add(key)
-                seen = latest.get(key)
-                if seen is None or fact["filed"] >= seen["filed"]:
-                    latest[key] = fact
-            latest = {key: fact for key, fact in latest.items() if key in covered}
-            if latest:
-                chosen_unit = unit
-                values.update({key: fact["val"] for key, fact in latest.items()})
-    return dict(sorted(values.items())), chosen_unit
+                try:
+                    end = date.fromisoformat(fact["end"])
+                    filed = date.fromisoformat(fact["filed"])
+                    value = fact["val"]
+                    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+                        continue
+                    if not Decimal(str(value)).is_finite() or end > cutoff or filed > cutoff:
+                        continue
+                    index = _span_index(fact, spans)
+                except (KeyError, ValueError, TypeError, InvalidOperation):
+                    continue
+                if index is None:
+                    continue
+                key = (fact["end"], index)
+                if key in chosen:
+                    continue
+                record = {**deepcopy(fact), "tag": tag, "unit": unit}
+                candidates.setdefault(key, []).append(record)
+                if not forms or str(fact.get("form", "")).startswith(forms):
+                    covered.add((key, fact.get("start"), unit))
+        for key, records in candidates.items():
+            eligible = [r for r in records if (key, r.get("start"), r["unit"]) in covered]
+            if not eligible:
+                continue
+            newest = max(r["filed"] for r in eligible)
+            latest = [r for r in eligible if r["filed"] == newest]
+            meanings = {(r.get("start"), r["unit"], Decimal(str(r["val"]))) for r in latest}
+            if len(meanings) != 1:
+                raise VendorUnavailableError(f"SEC fact ambiguous for {tag} at {key[0]}")
+            # Duplicate equivalent facts use a stable accession ordering.
+            chosen[key] = max(latest, key=lambda r: str(r.get("accn", "")))
+    return dict(sorted(chosen.items()))
+
+
+def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str,
+           spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = ()) -> tuple[dict, str]:
+    """Compatibility view: exact values and one unambiguous unit per CSV row."""
+    records = _as_of_records(facts, tags, as_of_date, spans, forms)
+    units = {record["unit"] for record in records.values()}
+    if len(units) > 1:
+        raise VendorUnavailableError(f"SEC statement row has incompatible units for {tags[0]}")
+    return {key: record["val"] for key, record in records.items()}, next(iter(units), "USD")
+
+
+def _display_value(value, unit: str) -> str:
+    """Scale USD for familiar tables without rounding away source precision."""
+    exact = Decimal(str(value))
+    if unit == "USD":
+        exact /= Decimal(1000000)
+    text = format(exact, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -> str:
@@ -232,7 +318,7 @@ def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -
         cells = []
         for end, index in periods:
             value = values.get((end, index)) if chosen[label].get(end) == index else None
-            cells.append("" if value is None else f"{value / 1e6:.0f}" if unit == "USD" else f"{value:.2f}")
+            cells.append("" if value is None else _display_value(value, unit))
         rows.append(",".join([name] + cells))
     return header + "\n".join(rows) + "\n"
 

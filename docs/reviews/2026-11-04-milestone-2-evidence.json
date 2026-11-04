@@ -1,0 +1,19 @@
+{
+  "status": "partial milestone 2 checkpoint",
+  "baseline_feature_commit": "3881ee3d1195ccc9e797fd351192b83addf22fdb",
+  "compute": "Machine 1",
+  "red": "14 expected selection/precision failures; separate DOCN exposure regression failed before rows added",
+  "green": "65 passed in 0.67s",
+  "command": ".venv/bin/python -m pytest -q tests/test_sec_fact_integrity.py tests/test_sec_edgar.py tests/test_statement_knowledge_time.py tests/test_fundamentals_units.py tests/test_fundamentals_lookahead.py",
+  "source_sha256": {
+    "tradingagents/dataflows/vendors/sec_edgar.py": "8356b1aa511a7b7f0eec0a1753df4701d02f065bc5a18198bae6a704cdd1d938",
+    "tests/test_sec_fact_integrity.py": "8790cbaba1f8929c2d0c900ede3502183225946c56f5d40bf07db4aba43c2d77",
+    "tests/fixtures/docn_2026q2/companyfacts.json": "4bf33e13f238b63d184b1bd5c19becf90cd0d23b81279819d397d5f5c64b7655"
+  },
+  "limitations": [
+    "No live retrieval or model compliance proof",
+    "No derived-period or typed evidence package implementation yet",
+    "Expanded tag rows do not claim issuer-specific equipment obligations are fully covered"
+  ],
+  "spend_usd": 0
+}
