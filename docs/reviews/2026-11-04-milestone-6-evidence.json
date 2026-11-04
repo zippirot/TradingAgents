@@ -3,11 +3,11 @@
   "status": "in progress; acceptance incomplete",
   "base_commit": "48d8d79e71aa24b7e493e1c2b97b4627811978c4",
   "offline_suite": {
-    "passed": 1762,
+    "passed": 1763,
     "skipped": 1,
     "deselected": 1,
-    "log": "../evidence/m6-final-candidate-suite.log",
-    "source_manifest": "../evidence/m6-final-candidate-manifest.json",
+    "log": "../evidence/m6-prompt-candidate-suite.log",
+    "source_manifest": null,
     "limitation": "Offline checks; does not replace real CLI proof"
   },
   "recovery_focused": {
@@ -37,20 +37,38 @@
     "merged_facts": 1019
   },
   "rendered_inspection": {
-    "kind": "synthetic recorded screenshots",
+    "kind": "Synthetic recorded-source HTML plus actual live REVIEW header/reasons inspected",
     "paths": [
       "../evidence/rendered-m6/complete.png",
-      "../evidence/rendered-m6/evidence-tables-cdp.png"
+      "../evidence/rendered-m6/evidence-tables-cdp.png",
+      "../evidence/m6-cli-initial/report-top.png"
     ],
     "remaining": "inspect actual live saved reports"
   },
-  "paid_model_calls": 0,
-  "paid_spend_usd": 0,
+  "paid_model_calls": "Three real CLI runs; per-call metadata captured for the latter two",
+  "paid_spend_usd": "0.074460683",
   "remaining": [
     "source-complete real CLI",
     "controlled unavailable-source real CLI with no trading memory",
     "real restart/checkpoint recovery",
     "inspect actual saved reports",
     "final evidence commit and clean worktree"
-  ]
+  ],
+  "live_cli_attempts": [
+    {
+      "run": "../evidence/m6-cli-initial",
+      "result": "REVIEW; empty fundamentals; no memory or target",
+      "cost_usd": "0.008960245"
+    },
+    {
+      "run": "../evidence/m6-cli-diagnostic",
+      "result": "REVIEW; confirmed fundamentals output-token exhaustion (8192 reasoning allowance); no memory or target"
+    },
+    {
+      "run": "../evidence/m6-cli-source-complete",
+      "result": "REVIEW; full report used generic JSON fences. Diagnostic-only fence relabeling validated all 32 financial claims. Not a successful CLI proof."
+    }
+  ],
+  "live_setup_correction": "Output cap increased from 8192 to 32768 after finish_reason=length and 8192 completion tokens entirely spent on reasoning. Conservative reserve recalculated; actual aggregate $10 ceiling unchanged.",
+  "prompt_correction": "Show literal financial_claims/disclosures fences and narrow exact quote contract; no parser/validator changes. 74 focused checks and full offline suite (1763 passed) succeeded; independent narrow review found no material issue."
 }

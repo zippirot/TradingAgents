@@ -443,3 +443,20 @@ def test_rounded_table_cannot_hide_two_disagreeing_unknown_precision_sources():
     assert reported_fact_conflicts(evidence, precision)
     for invalid in (Decimal("NaN"), Decimal("-1000")):
         assert reported_fact_conflicts(evidence, {equity.fact_id: invalid})
+
+
+def test_extraction_prompts_show_the_literal_parser_fences():
+    from tradingagents.agents.analysts.fundamentals_analyst import (
+        DISCLOSURE_EXTRACTION,
+        FINANCIAL_CLAIM_EXTRACTION,
+    )
+
+    # A real model returned two valid JSON arrays under generic json fences.
+    # The parser deliberately requires distinct names; the prompt must show them.
+    fence = chr(96) * 3
+    for prompt, label in (
+        (FINANCIAL_CLAIM_EXTRACTION, "financial_claims"),
+        (DISCLOSURE_EXTRACTION, "disclosures"),
+    ):
+        assert fence + label + '\n' in prompt
+        assert "generic" in prompt

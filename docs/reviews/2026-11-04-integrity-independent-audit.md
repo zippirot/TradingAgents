@@ -18,3 +18,7 @@ Recorded-source integration distinguishes carrying debt from lease/equipment obl
 The candidate passed 1,762 offline tests, with one optional Bedrock dependency skip and one configured integration deselection. Changed Python files passed Ruff; dependency and diff checks passed. The retained live-source package passes all eight critical checks, with optional warnings. Exact source/test manifests and logs are recorded in milestone-6 evidence.
 
 This is not universal semantic verification of arbitrary prose or complete-document coverage. Unsupported interpretations, excerpt limits and optional gaps remain visible. Real CLI source-complete, controlled failure/no-memory, restart/recovery and actual saved-report inspection remain required before goal completion.
+
+## Live prompt follow-up
+
+Independent read-only review of the literal named extraction fences and narrower quotation instructions found no material issue. Parser contracts and provenance checks are unchanged. Live compliance remains a required proof; prompt inspection alone does not establish it.
