@@ -115,6 +115,8 @@ ADDITIVE_METRICS = frozenset(
         "Software Development Payments",
         "Cash-flow Share-based Compensation",
         "Equity Share-based Compensation",
+        "Other Comprehensive Income Attributable to Parent",
+        "Employee Stock Purchase Plan Issuance Value",
         "Noncash Finance Lease Additions",
         "Noncash Operating Lease Additions",
         "Income Tax Expense or Benefit",
@@ -361,3 +363,18 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
         if len(proposed.model_dump_json()) <= 64000:
             selected, result = candidate, proposed
     return result
+
+
+def derive_cash_outflow(reported: FinancialFact) -> FinancialFact:
+    """Convert an explicitly classified signed payment to its gross magnitude."""
+    if reported.metric != "Equipment Financing Principal Payments" or reported.origin != "reported":
+        raise ValueError("requires an explicitly reported equipment-financing principal payment")
+    if reported.value is None or reported.period_start is None or reported.unit != "USD":
+        raise ValueError("requires complete dated USD payment evidence")
+    return _derived(
+        (reported,),
+        reported.period_start,
+        reported.period_end,
+        reported.value.copy_abs(),
+        "reported_cash_outflow_magnitude_v1",
+    )

@@ -241,3 +241,17 @@ def test_reported_annual_value_takes_precedence_over_conflicting_ttm():
     enriched = add_period_calculations(package)
     assert not any(f.formula_id == "four_quarter_sum_v1" for f in enriched.facts)
     assert any("reconciliation" in w and "annual" in w for w in enriched.warnings)
+
+
+def test_signed_principal_outflow_has_explicit_magnitude_lineage():
+    from tradingagents.dataflows.financial_evidence import derive_cash_outflow
+
+    original = fact("-1234000", metric="Equipment Financing Principal Payments")
+    magnitude = derive_cash_outflow(original)
+    assert magnitude.value == Decimal("1234000")
+    assert magnitude.origin == "derived"
+    assert magnitude.input_fact_ids == ("a",)
+    assert magnitude.formula_id == "reported_cash_outflow_magnitude_v1"
+    assert original.value == Decimal("-1234000")
+    with pytest.raises(ValueError):
+        derive_cash_outflow(fact("-1234000", metric="Revenue"))

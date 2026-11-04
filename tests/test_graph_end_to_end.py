@@ -102,6 +102,13 @@ class _Client:
 @pytest.fixture
 def offline(monkeypatch, tmp_path):
     """Every vendor answers offline; returns the set of router methods called."""
+    # These legacy graph/stream/recovery fixtures supply generic strings,
+    # not SEC financial evidence. Exercise their full decision path under an
+    # explicitly unmapped issuer scope. US-filer REVIEW/complete-evidence paths
+    # are tested separately; complete-source acceptance remains required.
+    from tradingagents.dataflows.vendors import sec_documents, sec_edgar
+    monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: None)
+    monkeypatch.setattr(sec_documents, "cik_for", lambda ticker: None)
     called: set[str] = set()
     for method, vendors in router.VENDOR_METHODS.items():
         for vendor in vendors:
@@ -136,6 +143,7 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
     state, signal = graph.propagate("NVDA", TRADE_DATE)
 
     assert signal == state["final_rating"] == "Overweight"
+    assert state["evidence_quality"]["scope"] == "not_applicable"
     for key in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
                 "investment_plan", "trader_investment_plan", "final_trade_decision"):
         assert state[key].strip(), key
@@ -387,3 +395,25 @@ def test_the_memory_step_reads_lessons_as_of_the_trade_date_and_settles_once(tmp
 
     assert asked == ["2026-01-20", "2026-01-20"]
     assert (tmp_path / "log.md").read_text() == log_after_first
+
+
+def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypatch, offline):
+    import json
+
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    from tradingagents.dataflows.vendors import sec_edgar
+
+    def unavailable(ticker):
+        raise VendorUnavailableError("SEC source unavailable in controlled proof")
+
+    monkeypatch.setattr(sec_edgar, "cik_for", unavailable)
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel())
+    state, signal = graph.propagate("NVDA", TRADE_DATE)
+    assert signal == "REVIEW"
+    assert state["investment_plan"] == state["trader_investment_plan"] == ""
+    assert "SEC source unavailable" in state["final_trade_decision"]
+    path = tmp_path / "results/NVDA/TradingAgentsStrategy_logs" / f"full_states_log_{TRADE_DATE}.json"
+    saved = json.loads(path.read_text())
+    assert saved["final_rating"] == "REVIEW"
+    assert saved["fundamentals_report"]
+    assert saved["investment_debate_state"]["history"] == ""

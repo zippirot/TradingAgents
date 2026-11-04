@@ -325,3 +325,19 @@ def test_reserved_event_amendment_retains_original():
         f.primary_document for f in filings
     }
     assert gaps
+
+
+def test_section_completeness_is_local_to_the_retained_block():
+    from tradingagents.dataflows.vendors.sec_documents import extract_sections
+
+    table = "<table><tr><td>Stockholders equity</td><td>100</td></tr></table>"
+    blocks, _, gaps = extract_sections(table + "<p>" + "boilerplate " * 100 + "</p>", max_chars=100)
+    kept = next(block for block in blocks if "Stockholders equity" in block.text)
+    assert not kept.truncated
+    assert gaps
+    blocks, _, _ = extract_sections(
+        "<table><tr><td>Stockholders equity " + "100 " * 100 + "</td></tr></table>", max_chars=100
+    )
+    assert blocks[0].truncated
+    blocks, _, _ = extract_sections("<table><tr><td>Stockholders equity</td><td>100</td></tr>")
+    assert blocks[-1].truncated

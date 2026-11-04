@@ -56,6 +56,14 @@ class AgentState(MessagesState):
 
     disclosure_evidence: Annotated[dict, "Dated filing excerpts, grounded extraction and retrieval gaps; not a coverage guarantee"]
 
+    filing_evidence: Annotated[dict, "Canonical dated filing documents for this run"]
+    filing_fact_extraction: Annotated[dict, "Verified filing cells and table coverage"]
+    financial_evidence: Annotated[dict, "Canonical immutable source facts for this run"]
+    financial_calculations: Annotated[list, "Deterministic accounting checks and calculated values"]
+    financial_claim_validation: Annotated[dict, "Canonical fact claims and original unvalidated research"]
+    evidence_quality: Annotated[dict, "Authoritative evidence status and check-level reasons"]
+    canonical_financial_context: Annotated[str, "Deterministic financial context for downstream agents"]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"

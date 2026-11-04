@@ -187,3 +187,28 @@ def test_bounded_view_retains_reconciliation_warning_inputs(monkeypatch):
     ids = {fact.fact_id for fact in view.facts}
     for warning in view.warnings:
         assert set(re.findall(r"\b[0-9a-f]{64}\b", warning)) <= ids
+
+
+def test_docn_equity_movements_keep_statement_specific_values(monkeypatch):
+    import json
+    from pathlib import Path
+
+    data = json.loads(
+        (Path(__file__).parent / "fixtures/docn_2026q2/companyfacts.json").read_text()
+    )
+    monkeypatch.setattr(sec, "cik_for", lambda ticker: "0001582961")
+    monkeypatch.setattr(sec, "_cached_json", lambda *a: data)
+    package = sec.get_financial_evidence("DOCN", "2026-10-19")
+    expected = {
+        "Other Comprehensive Income Attributable to Parent": -796000,
+        "Employee Stock Purchase Plan Issuance Value": 2494000,
+    }
+    for metric, value in expected.items():
+        found = [
+            fact
+            for fact in package.facts
+            if fact.metric == metric
+            and str(fact.period_start) == "2026-01-01"
+            and str(fact.period_end) == "2026-06-30"
+        ]
+        assert len(found) == 1 and found[0].value == value

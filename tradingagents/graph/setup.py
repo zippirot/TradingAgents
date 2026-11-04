@@ -21,6 +21,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
+from tradingagents.agents.evidence_validation import create_evidence_gate
 from tradingagents.agents.state import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
@@ -166,7 +167,13 @@ class GraphSetup:
             first_steps.append("Memory Log")
         for node in first_steps:
             workflow.add_edge(START, node)
-        workflow.add_edge(first_steps, "Bull Researcher")
+        workflow.add_node("Evidence Check", create_evidence_gate(selected_analysts))
+        workflow.add_edge(first_steps, "Evidence Check")
+        workflow.add_conditional_edges(
+            "Evidence Check",
+            lambda state: END if state.get("evidence_quality", {}).get("status") == "insufficient" else "Bull Researcher",
+            {END: END, "Bull Researcher": "Bull Researcher"},
+        )
 
         # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
         for debate_node in ("Bull Researcher", "Bear Researcher"):

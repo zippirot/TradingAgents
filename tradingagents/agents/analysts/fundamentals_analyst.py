@@ -42,6 +42,7 @@ def create_fundamentals_analyst(llm):
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements, and `get_insider_transactions` for recent insider buying and selling."
             + " Call get_financial_evidence for exact dated facts and source IDs before drawing financial conclusions. Cite fact IDs and retain reported versus derived status. It does not prove narrative disclosure coverage is complete."
+            + FINANCIAL_CLAIM_EXTRACTION
             + DISCLOSURE_EXTRACTION
             + EVIDENCE_DISCIPLINE
             + get_language_instruction()
@@ -115,3 +116,14 @@ def _disclosures(state, report):
         "extraction": parse_disclosure_report(report, blocks).model_dump(mode="json"),
         "coverage_gaps": list(dict.fromkeys(gaps)),
     }
+
+
+FINANCIAL_CLAIM_EXTRACTION = (
+    " Include exactly one fenced financial_claims JSON list in your final report, at most 32 entries."
+    " For each material statement-fact claim include kind (reported or derived), fact_id, metric, value (exact decimal string), unit, period_start (date or null), period_end."
+    " Copy these fields from get_financial_evidence; do not substitute labels, guessed amounts, periods or units."
+    " Include the core balance-sheet, equity movement, borrowing/lease/cash and cash-flow facts used in your conclusions."
+    " A transaction explanation not established by those facts must be a separate object with kind=hypothesis and text; hypotheses are not verified evidence."
+    " Never infer a transaction from a residual. If structured source evidence is unavailable, emit an empty list and explain the limitation."
+    " The source records and deterministic calculations control the downstream financial summary; your narrative is retained as unvalidated research."
+)

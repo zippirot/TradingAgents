@@ -48,6 +48,7 @@ class SourceBlock(BaseModel):
     locator: str
     section: str
     text: str
+    truncated: bool = False
 
 
 class FilingDocument(BaseModel):
@@ -228,7 +229,10 @@ class _Sections(HTMLParser):
         if text:
             self.blocks.append(
                 SourceBlock(
-                    locator=f"block-{len(self.blocks) + 1}", section=self.section, text=text
+                    locator=f"block-{len(self.blocks) + 1}",
+                    section=self.section,
+                    text=text,
+                    truncated=bool(self.table_depth),
                 )
             )
             if self.heading:
@@ -342,7 +346,12 @@ def extract_sections(text: str, max_chars: int = 60000):
                 if j not in {i for i, _ in selected} and j != index
             ):
                 continue
-            selected.append((index, block.model_copy(update={"text": block.text[:remaining]})))
+            selected.append(
+                (
+                    index,
+                    block.model_copy(update={"text": block.text[:remaining], "truncated": True}),
+                )
+            )
             gaps.append("Document text limit reached; section truncated")
             break
         selected.append((index, block))

@@ -1,0 +1,60 @@
+{
+  "status": "milestone 4 offline implementation checkpoint; full final acceptance not complete",
+  "compute": "Machine 1 M1 Pro 16 GB",
+  "baseline_feature_commit": "df8c606",
+  "green": "369 passed in 5.32s",
+  "log": "../evidence/m4-acceptance-checkpoint.log",
+  "checks": [
+    "Exact source/derived-fact lineage",
+    "Common-date core statements and balance identity",
+    "Source-cell equity roll-forward completeness",
+    "Disjoint borrowing/lease/equipment perimeters",
+    "Enumerated cash capital spending and separately classified principal payments",
+    "Matched GAAP earnings/shares and source-backed adjusted bridges",
+    "Pre-debate REVIEW routing and complete terminal state",
+    "Canonical financial context and grounded disclosure excerpts",
+    "Successful synthetic-source real graph path and saved unavailable-source Python path",
+    "Existing stream/analyst/checkpoint compatibility"
+  ],
+  "review_closed": [
+    "Cash issuance proceeds cannot substitute equity issuance value",
+    "Derived productive-assets capex retains overlap provenance",
+    "Generic equipment acquisitions cannot be labeled financing principal",
+    "Generic total debt cannot imply disjoint borrowings, including trailing inclusion footnotes",
+    "Identical cross-source balances are deduplicated for selection; conflicting values fail",
+    "Intact retained tables are distinct from genuinely truncated blocks"
+  ],
+  "verification": {
+    "lint": "Touched Python files passed Ruff after import corrections",
+    "dependencies": "pip check passed",
+    "diff": "git diff --check passed"
+  },
+  "limitations": [
+    "Synthetic tables are not actual primary-source DOCN proof; required live source-complete and failure/recovery CLI proofs remain deferred to final acceptance",
+    "Supported table layouts are deliberately bounded; ambiguous real layouts remain unavailable and must be addressed when required proof exercises them",
+    "Source rounding precision is never guessed; unknown EPS precision preserves calculated ratio as unavailable comparison",
+    "Milestone 5 target enforcement, report artifacts, authoritative output/memory/settlement/scoring exclusions remain required",
+    "Full offline suite, final independent whole-change audit, rendered report inspection and affected live recovery proof remain outstanding"
+  ],
+  "spend_usd": 0,
+  "source_sha256": {
+    "tests/test_accounting_checks.py": "2da699bac865954494bc10bf6ed8368008976a349da7cdc843dcf5fad95c3bce",
+    "tests/test_evidence_gate.py": "b31471dd37b18c9c114f78f305eeb1a2050703ee4be94cd4e80b289a5d81adf8",
+    "tests/test_evidence_validation.py": "d03aa535a5463a2fc0a7f20639085fe41d307350b796f8f16b4f6a88ceb95cff",
+    "tests/test_filing_facts.py": "ae4d17501b257bdb20da6bdde7686d63f8f815e97274fd37f28c9749cd3994d2",
+    "tests/test_financial_evidence.py": "31eed84d140815ccef1b7d26cf7cbda1c376e4f719d3c6e5bfa7f121b24d9237",
+    "tests/test_graph_end_to_end.py": "f9435b9a336c8fada5dba7eb26f1e9f235750b1622aeee48485b12609d389569",
+    "tests/test_sec_documents.py": "247ad2370e39416fc951d2fa35f005bffaa9b30a4f04bac2b3cc3f970283504c",
+    "tests/test_sec_fact_integrity.py": "4eba9f7d290c6bf4a3ed264319c6dbdcb82404475be59a5086e791d92d968241",
+    "tradingagents/agents/accounting_checks.py": "a13408df36d468a4760b617db2e23a59fcded875823062ed38b6e3d539b6bccc",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "a063035ae179924d1bf7b713cf69ba4634196fda18522a04e5aa37fae38bf265",
+    "tradingagents/agents/context.py": "282d071dd1d9eae8ebc43778efccd47427b1563310173f8c4ae3f9da1b710ccd",
+    "tradingagents/agents/evidence_validation.py": "c71c964d2b046ed9e541cb0db478740cd9420ad167ffe65f75d6edbb86ed5180",
+    "tradingagents/agents/state.py": "7918f6785f258fc00f004eb79d28b181a51b0ba6dccb1a4bfc608ee46dc7c9ce",
+    "tradingagents/dataflows/filing_facts.py": "e92d7d167e6eae5b5dac09c10e9a8cf4b19cf2d123ce6ab71e3abb6fc98629c4",
+    "tradingagents/dataflows/financial_evidence.py": "424ac4d736dae3b7ffc011b54ab52e29e1d370acaa0841b5da9972a3f8c0d935",
+    "tradingagents/dataflows/vendors/sec_documents.py": "d23c3c5354a39b5d940d8a7613fc27e5672d8acd28a867e4664fa61356f7066c",
+    "tradingagents/dataflows/vendors/sec_edgar.py": "c48be72343b4dbe0d86625585a4f84c4fb9f22fd9d9d70f71d36c989e1920169",
+    "tradingagents/graph/setup.py": "f881054fa41877f6b7e99e78f75fc53f281e7a036f92d70aaae01e8101e2a1c0"
+  }
+}

@@ -123,6 +123,11 @@ _STATEMENTS["cashflow"] += [
     ("Noncash Operating Lease Additions", ("RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability",)),
 ]
 
+_STATEMENTS["cashflow"] += [
+    ("Other Comprehensive Income Attributable to Parent", ("OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",)),
+    ("Employee Stock Purchase Plan Issuance Value", ("StockIssuedDuringPeriodValueEmployeeStockPurchasePlan",)),
+]
+
 # A statement's figures cover a span: a quarter is about 90 days, a year about
 # 365. One filing reports both the quarter and the year to date under the same
 # end date, so a match on the end date alone can report half a year as a quarter.
