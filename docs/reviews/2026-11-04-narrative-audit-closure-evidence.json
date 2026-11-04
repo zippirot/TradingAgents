@@ -1,14 +1,14 @@
 {
-  "status": "offline verified; real CLI proofs pending",
+  "status": "complete; locally committed feature acceptance, unreleased",
   "base_commit": "7da7fd4d6dc5edd31c8cc515f977815d998cf348",
   "compute": "Machine 1 M1 Pro/16GB",
-  "focused": "122 passed",
-  "full_suite": "1825 passed, 1 skipped, 1 deselected, 100 subtests",
-  "full_suite_log": "../evidence/narrative-full-first.log",
+  "focused": "123 passed",
+  "full_suite": "1826 passed, 1 skipped, 1 deselected, 100 subtests",
+  "full_suite_log": "../evidence/narrative-final-suite.log",
   "lint": "full repository Ruff passed",
   "dependencies": "pip check passed",
   "source_sha256": {
-    "tests/test_narrative_presentation.py": "31ee8cb969ae0c6cd00a4a83b6a6db58492537cdfa6e2bbb48c2e0e4d16f3842",
+    "tests/test_narrative_presentation.py": "3001073e1c6e0f192231db869c3caacbbcfa5a62c2d71d257c4aee158b1b2008",
     ".github/workflows/ci.yml": "c7ce24a3408f971cd86b11d012688690e5b77f84f5d5c0b2a56c8e54f39894f7",
     "cli/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "cli/display.py": "dcafdce25b510aa0b06ede8039846a6f7ab3a88777fe3989e73715f4acd1fb5d",
@@ -233,12 +233,550 @@
     "../evidence/narrative-replay/source/replay.json",
     "../evidence/narrative-replay/unavailable/replay.json"
   ],
-  "review": "Independent correction review found no material issue; final live artifacts pending",
-  "remaining": [
-    "real source-complete CLI",
-    "real SEC-unavailable CLI REVIEW/no memory",
-    "real technical-only CLI",
-    "final visual/artifact review and clean committed evidence"
+  "review": "Independent complete correction review and per-run final artifact assertions found no remaining material issue; actual rendered product behavior reviewed, not only safety tests.",
+  "remaining": [],
+  "prior_aggregate_api_spend_usd": "0.444111567",
+  "tested_commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+  "aggregate_api_spend_usd": "0.675044417",
+  "followup_api_spend_usd": "0.230932850",
+  "provider_usage": {
+    "usage": 0.675044417,
+    "limit": 250,
+    "limit_remaining": 249.324955583,
+    "limit_reset": "weekly",
+    "queried_at": "2026-11-04T22:43:04.639766+00:00",
+    "aggregate_ceiling_usd": 10,
+    "prior_build_usd": "0.444111567"
+  },
+  "ci_validation": {
+    "yaml_parsed": true,
+    "jobs_unchanged": true,
+    "concurrency_unchanged": true,
+    "pull_requests_unchanged": true,
+    "push_branches": [
+      "main",
+      "staging",
+      "production",
+      "v[0-9]+.[0-9]+.[0-9]+"
+    ],
+    "remote_ci": "not run; no publication authorized"
+  },
+  "live_proofs": {
+    "source": {
+      "summary": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "exit_code": 0,
+        "rating": "Underweight",
+        "quality_status": "limited",
+        "critical_checks": [
+          {
+            "code": "core_statements",
+            "status": "pass",
+            "message": "Core statements cover 2026-09-30; quarter and YTD durations remain separately labeled"
+          },
+          {
+            "code": "source_integrity",
+            "status": "pass",
+            "message": "Canonical source references and supported derivations checked"
+          },
+          {
+            "code": "balance_sheet",
+            "status": "pass",
+            "message": "Within source rounding bounds"
+          },
+          {
+            "code": "material_claims",
+            "status": "pass",
+            "message": "Material fact claims matched canonical values; original prose retained as unvalidated"
+          },
+          {
+            "code": "equity_movement",
+            "status": "pass",
+            "message": "Within source rounding bounds"
+          },
+          {
+            "code": "obligation_perimeter",
+            "status": "pass",
+            "message": "Declared dated obligation perimeter; excludes undisclosed categories"
+          },
+          {
+            "code": "cash_flow_perimeter",
+            "status": "pass",
+            "message": "Enumerated cash capital spending and explicitly classified lease/equipment principal are separate measures"
+          },
+          {
+            "code": "disclosure_coverage",
+            "status": "pass",
+            "message": "Dated primary filing and selected subsequent disclosure retrieval checked; excerpt scope remains explicit"
+          }
+        ],
+        "validated_financial_claims": 31,
+        "target_status": "unsupported",
+        "target_value": null,
+        "retained_labeled_sections": {
+          "market_report": {
+            "file": "1_analysts/market.md",
+            "original_chars": 17353,
+            "labeled_once": true
+          },
+          "fundamentals_report": {
+            "file": "1_analysts/fundamentals.md",
+            "original_chars": 53447,
+            "labeled_once": true
+          },
+          "bull": {
+            "file": "2_research/bull.md",
+            "original_chars": 6179,
+            "labeled_once": true
+          },
+          "bear": {
+            "file": "2_research/bear.md",
+            "original_chars": 8229,
+            "labeled_once": true
+          },
+          "research_manager": {
+            "file": "2_research/manager.md",
+            "original_chars": 6827,
+            "labeled_once": true
+          },
+          "trader": {
+            "file": "3_trading/trader.md",
+            "original_chars": 4417,
+            "labeled_once": true
+          },
+          "aggressive": {
+            "file": "4_risk/aggressive.md",
+            "original_chars": 6147,
+            "labeled_once": true
+          },
+          "conservative": {
+            "file": "4_risk/conservative.md",
+            "original_chars": 8547,
+            "labeled_once": true
+          },
+          "neutral": {
+            "file": "4_risk/neutral.md",
+            "original_chars": 5621,
+            "labeled_once": true
+          },
+          "portfolio": {
+            "file": "5_portfolio/decision.md",
+            "original_chars": 6916,
+            "labeled_once": true
+          }
+        },
+        "fundamentals_from_raw_report": true,
+        "canonical_decision_and_memory_exclude_restored_research": true,
+        "memory_entries": [
+          "[2026-11-04 | DOCN | Underweight | pending]"
+        ],
+        "saved_evidence_quality_target_agree": true,
+        "checkpoint_cleared": true,
+        "portfolio_model_path": "structured",
+        "accepted_optional_disclosures": [
+          {
+            "metric": "Cash and cash equivalents",
+            "value": "666",
+            "period": "as of September 30, 2026"
+          }
+        ],
+        "optional_rejections": 27,
+        "report_directory": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-source/results/reports/DOCN_20261104_153314",
+        "limitation": "Live source-complete report restoration; model-authored research is displayed as unvalidated, not a semantically verified narrative. Optional disclosure extraction coverage is limited to accepted claims listed here; structured-output status is recorded from diagnostics.",
+        "trader_model_path": "free-text fallback after failed structured-output invocation (cli.log)",
+        "portfolio_valuation_request_status": "No supported valuation target; structured Portfolio Manager output did not supply a validated target"
+      },
+      "manifest": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "started_at": "2026-11-04T22:24:37.021592+00:00",
+        "date": "2026-11-04",
+        "command": [
+          "/Users/zipp/Developer/tradingagents-integrity/feature/.venv/bin/python",
+          "-c",
+          "import os,runpy,yfinance; runpy.run_path(\"/Users/zipp/Developer/tradingagents-integrity/evidence/m6-capture-llm.py\"); yfinance.set_tz_cache_location(os.path.join(os.environ['TRADINGAGENTS_CACHE_DIR'],'yfinance')); runpy.run_module('cli.main',run_name='__main__')",
+          "--checkpoint",
+          "--ticker",
+          "DOCN",
+          "--date",
+          "2026-11-04",
+          "--analysts",
+          "market,fundamentals",
+          "--save",
+          "--no-show",
+          "--html"
+        ],
+        "settings": {
+          "TRADINGAGENTS_RESULTS_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-source/results",
+          "TRADINGAGENTS_CACHE_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-source/cache",
+          "TRADINGAGENTS_MEMORY_LOG_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-source/memory.md",
+          "TRADINGAGENTS_PREFS_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-source/prefs.json",
+          "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
+          "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
+          "TRADINGAGENTS_QUICK_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_DEEP_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1",
+          "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+          "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_RISK_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_TOOL_ROUNDS": "3",
+          "TRADINGAGENTS_LLM_MAX_RETRIES": "0",
+          "TRADINGAGENTS_MAX_TOKENS": "65536",
+          "TRADINGAGENTS_CHECKPOINT_ENABLED": "true"
+        },
+        "usage_before": {
+          "usage": 0.444111567,
+          "limit": 250,
+          "limit_remaining": 249.555888433,
+          "limit_reset": "weekly"
+        },
+        "reserved_conservative_usd": "9.4371840",
+        "aggregate_ceiling_usd": 10,
+        "provider_cap_exception": "User authorized existing $250 weekly key; actual aggregate goal ceiling remains $10",
+        "source_proof": "Real CLI/model/vendor run; no model or source substitutions",
+        "recovery_resume": false,
+        "prior_attempt_manifest": null,
+        "usage_after": {
+          "usage": 0.562017739,
+          "limit": 250,
+          "limit_remaining": 249.437982261,
+          "limit_reset": "weekly"
+        },
+        "finished_at": "2026-11-04T22:33:15.071507+00:00",
+        "exit_code": 0,
+        "actual_run_usd": "0.117906172"
+      }
+    },
+    "unavailable": {
+      "summary": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "exit_code": 0,
+        "rating": "REVIEW",
+        "quality_status": "insufficient",
+        "critical_checks": [
+          {
+            "code": "core_statements",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "source_integrity",
+            "status": "unavailable",
+            "message": "SEC EDGAR request failed (ConnectionError)"
+          },
+          {
+            "code": "balance_sheet",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "material_claims",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "equity_movement",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "obligation_perimeter",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "cash_flow_perimeter",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          },
+          {
+            "code": "disclosure_coverage",
+            "status": "unavailable",
+            "message": "Required evidence check not completed"
+          }
+        ],
+        "target_status": "unsupported",
+        "target_value": null,
+        "source_failure_injection": "Isolated SEC network failure; logged blocked requests target SEC only",
+        "blocked_source_requests": 6,
+        "memory_entries": 0,
+        "saved_evidence_quality_target_agree": true,
+        "review_report_nonactionable": true,
+        "unvalidated_research_withheld_from_review_presentation": true,
+        "checkpoint_cleared": true,
+        "report_directory": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-unavailable/results/reports/DOCN_20261104_153522",
+        "limitation": "Real controlled unavailable-source CLI path; it verifies fail-safe REVIEW and no memory, not source-complete research. The diagnostic final_trade_decision is itself the canonical REVIEW explanation, not a suppressed PM model output."
+      },
+      "manifest": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "started_at": "2026-11-04T22:34:30.621142+00:00",
+        "date": "2026-11-04",
+        "command": [
+          "/Users/zipp/Developer/tradingagents-integrity/feature/.venv/bin/python",
+          "-c",
+          "import os,runpy,yfinance; runpy.run_path(\"/Users/zipp/Developer/tradingagents-integrity/evidence/m6-capture-llm.py\"); runpy.run_path(\"/Users/zipp/Developer/tradingagents-integrity/evidence/m6-unavailable-sec.py\"); yfinance.set_tz_cache_location(os.path.join(os.environ['TRADINGAGENTS_CACHE_DIR'],'yfinance')); runpy.run_module('cli.main',run_name='__main__')",
+          "--checkpoint",
+          "--ticker",
+          "DOCN",
+          "--date",
+          "2026-11-04",
+          "--analysts",
+          "fundamentals",
+          "--save",
+          "--no-show",
+          "--html"
+        ],
+        "settings": {
+          "TRADINGAGENTS_RESULTS_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-unavailable/results",
+          "TRADINGAGENTS_CACHE_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-unavailable/cache",
+          "TRADINGAGENTS_MEMORY_LOG_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-unavailable/memory.md",
+          "TRADINGAGENTS_PREFS_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-unavailable/prefs.json",
+          "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
+          "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
+          "TRADINGAGENTS_QUICK_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_DEEP_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1",
+          "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+          "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_RISK_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_TOOL_ROUNDS": "3",
+          "TRADINGAGENTS_LLM_MAX_RETRIES": "0",
+          "TRADINGAGENTS_MAX_TOKENS": "32768",
+          "TRADINGAGENTS_CHECKPOINT_ENABLED": "true"
+        },
+        "usage_before": {
+          "usage": 0.610403207,
+          "limit": 250,
+          "limit_remaining": 249.389596793,
+          "limit_reset": "weekly"
+        },
+        "reserved_conservative_usd": "8.4934656",
+        "aggregate_ceiling_usd": 10,
+        "provider_cap_exception": "User authorized existing $250 weekly key; actual aggregate goal ceiling remains $10",
+        "source_proof": "Real CLI/model; isolated SEC network failure injection, no model substitution",
+        "recovery_resume": false,
+        "prior_attempt_manifest": null,
+        "usage_after": {
+          "usage": 0.610403207,
+          "limit": 250,
+          "limit_remaining": 249.389596793,
+          "limit_reset": "weekly"
+        },
+        "finished_at": "2026-11-04T22:35:22.788352+00:00",
+        "exit_code": 0,
+        "actual_run_usd": "0E-9"
+      }
+    },
+    "technical": {
+      "summary": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "exit_code": 0,
+        "rating": "Underweight",
+        "quality_status": "limited",
+        "quality_scope": "not_applicable",
+        "scope_check": {
+          "code": "scope",
+          "status": "not_applicable",
+          "message": "Fundamentals not selected; no US accounting validation performed"
+        },
+        "target_status": "unsupported",
+        "target_value": null,
+        "retained_labeled_sections": {
+          "market": {
+            "file": "1_analysts/market.md",
+            "original_chars": 18424,
+            "labeled_once": true
+          },
+          "bull": {
+            "file": "2_research/bull.md",
+            "original_chars": 7726,
+            "labeled_once": true
+          },
+          "bear": {
+            "file": "2_research/bear.md",
+            "original_chars": 9141,
+            "labeled_once": true
+          },
+          "research_manager": {
+            "file": "2_research/manager.md",
+            "original_chars": 5024,
+            "labeled_once": true
+          },
+          "trader": {
+            "file": "3_trading/trader.md",
+            "original_chars": 3517,
+            "labeled_once": true
+          },
+          "aggressive": {
+            "file": "4_risk/aggressive.md",
+            "original_chars": 6243,
+            "labeled_once": true
+          },
+          "conservative": {
+            "file": "4_risk/conservative.md",
+            "original_chars": 5062,
+            "labeled_once": true
+          },
+          "neutral": {
+            "file": "4_risk/neutral.md",
+            "original_chars": 7155,
+            "labeled_once": true
+          },
+          "portfolio": {
+            "file": "5_portfolio/decision.md",
+            "original_chars": 5889,
+            "labeled_once": true
+          }
+        },
+        "no_fundamentals_selected": true,
+        "no_sec_financial_or_filing_package": true,
+        "canonical_decision_and_memory_exclude_restored_research": true,
+        "memory_entries": [
+          "[2026-11-04 | DOCN | Underweight | pending]"
+        ],
+        "saved_evidence_quality_target_agree": true,
+        "checkpoint_cleared": true,
+        "portfolio_model_path": "structured",
+        "report_directory": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-technical/results/reports/DOCN_20261104_154201",
+        "limitation": "Technical-only real CLI proof restores labeled research without asserting SEC accounting validation; no fundamental target is supported. Non-SEC scope remains covered by offline integrated tests rather than a separate paid live run.",
+        "trader_model_path": "free-text fallback after failed structured-output invocation (cli.log)"
+      },
+      "manifest": {
+        "commit": "d675a0b146e4a5bf559c0bd57fac769377e14aa1",
+        "started_at": "2026-11-04T22:35:53.468092+00:00",
+        "date": "2026-11-04",
+        "command": [
+          "/Users/zipp/Developer/tradingagents-integrity/feature/.venv/bin/python",
+          "-c",
+          "import os,runpy,yfinance; runpy.run_path(\"/Users/zipp/Developer/tradingagents-integrity/evidence/m6-capture-llm.py\"); yfinance.set_tz_cache_location(os.path.join(os.environ['TRADINGAGENTS_CACHE_DIR'],'yfinance')); runpy.run_module('cli.main',run_name='__main__')",
+          "--checkpoint",
+          "--ticker",
+          "DOCN",
+          "--date",
+          "2026-11-04",
+          "--analysts",
+          "market",
+          "--save",
+          "--no-show",
+          "--html"
+        ],
+        "settings": {
+          "TRADINGAGENTS_RESULTS_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-technical/results",
+          "TRADINGAGENTS_CACHE_DIR": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-technical/cache",
+          "TRADINGAGENTS_MEMORY_LOG_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-technical/memory.md",
+          "TRADINGAGENTS_PREFS_PATH": "/Users/zipp/Developer/tradingagents-integrity/evidence/narrative-technical/prefs.json",
+          "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
+          "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
+          "TRADINGAGENTS_QUICK_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_DEEP_THINK_LLM": "deepseek/deepseek-v4.1-flash-1017",
+          "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1",
+          "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+          "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_RISK_ROUNDS": "1",
+          "TRADINGAGENTS_MAX_TOOL_ROUNDS": "3",
+          "TRADINGAGENTS_LLM_MAX_RETRIES": "0",
+          "TRADINGAGENTS_MAX_TOKENS": "32768",
+          "TRADINGAGENTS_CHECKPOINT_ENABLED": "true"
+        },
+        "usage_before": {
+          "usage": 0.610922289,
+          "limit": 250,
+          "limit_remaining": 249.389077711,
+          "limit_reset": "weekly"
+        },
+        "reserved_conservative_usd": "8.4934656",
+        "aggregate_ceiling_usd": 10,
+        "provider_cap_exception": "User authorized existing $250 weekly key; actual aggregate goal ceiling remains $10",
+        "source_proof": "Real CLI/model/vendor run; no model or source substitutions",
+        "recovery_resume": false,
+        "prior_attempt_manifest": null,
+        "usage_after": {
+          "usage": 0.667308897,
+          "limit": 250,
+          "limit_remaining": 249.332691103,
+          "limit_reset": "weekly"
+        },
+        "finished_at": "2026-11-04T22:42:02.315622+00:00",
+        "exit_code": 0,
+        "actual_run_usd": "0.056386608"
+      }
+    }
+  },
+  "artifact_sha256": {
+    "../evidence/narrative-source/verified-summary.json": "a597490c8ff0c2c8c2cb193632985c28b9876fbd0e9d64f70fd7b1a9ae574c85",
+    "../evidence/narrative-source/manifest.json": "4b82d57e067d91ceccd02af0465f933fa0dfcf55da74d15bfeecf81d66fd9afb",
+    "../evidence/narrative-source/report-evidence.png": "ea6c6f01f74cc469d161adcce651784511db264caa223da611d37b4df422a116",
+    "../evidence/narrative-source/report-evidence-right.png": "1ca77d8325be4f936400648907bf6ad4c3e5625f1fc465ac760ef0cb5f2781de",
+    "../evidence/narrative-source/report-top.png": "9c2d44b1523e4053196ce0204f4b2d193e78c00bbc575e7496a4073e1f8c88ba",
+    "../evidence/narrative-source/report-fundamentals.png": "888f59e2802f70d8ef95773ce85ab1f52c55ed02ea8b377e76e6f8f3ef73d260",
+    "../evidence/narrative-source/report-research.png": "3b88ef33cd7d669172ad68078c9e3f088ecc741ce91d9b076d4b0d486949cf4c",
+    "../evidence/narrative-source/report-calculations.png": "ed807c1d367d0e47841d5d92207b1d0f74757684421259d7ca393ff7bf862f1a",
+    "../evidence/narrative-source/report-decision.png": "e17c45378b1279c0ba6876d93380fceb83143dec0d3a07a02a0e263ccd8e07a0",
+    "../evidence/narrative-source/report-trader.png": "b30f41160c664edd3b2f847b366a2b270a9acdc8e3bbfddc0545b04e81892133",
+    "../evidence/narrative-source/report-target.png": "37d9c683c28223e329e91ebfb3593bc1a00d911750da30fc1e7a4f40fe2ea54b",
+    "../evidence/narrative-source/results/reports/DOCN_20261104_153314/evidence.json": "71717124c76387513d4b2288d45fe5a91cfe3b809478936f7cf4fbd61747f4a5",
+    "../evidence/narrative-source/results/reports/DOCN_20261104_153314/quality.json": "d574106e08bf3a895ef3b2e29bfa04a2543fdd714bacba55d7da3b1a17bb3185",
+    "../evidence/narrative-source/results/reports/DOCN_20261104_153314/complete_report.md": "fe1f4aa7c38f4fb8978d60069cd9ad73db954c841dfbd59ab9067215db0d597a",
+    "../evidence/narrative-source/results/reports/DOCN_20261104_153314/complete_report.html": "efc33c99fc8f45d3212bc9def48481814e112e942b26089143295dc5d54a5d7f",
+    "../evidence/narrative-unavailable/verified-summary.json": "2c6cb4d019d9dc658ca37b384225d04db7f3de1144f430e8acbc5231f55ba278",
+    "../evidence/narrative-unavailable/manifest.json": "e51b24c55bef934e0e63f00bb1259885c0a6183d10604e866af9a28100c017e3",
+    "../evidence/narrative-unavailable/report-evidence.png": "d91cd580cfb5a306e0b385378429bf8a774d75c0c6d496558c1263643f3ee8c2",
+    "../evidence/narrative-unavailable/report-evidence-right.png": "d91cd580cfb5a306e0b385378429bf8a774d75c0c6d496558c1263643f3ee8c2",
+    "../evidence/narrative-unavailable/report-top.png": "c6acf6d1d910d9f1c95bb943913156c7b7ec8a894e0d04762dc539e0c5db4ce4",
+    "../evidence/narrative-unavailable/report-decision.png": "584602405cfacae3d134c1f8c3f7577a6522e5e8a1aa911677bf06639d9ae6d8",
+    "../evidence/narrative-unavailable/results/reports/DOCN_20261104_153522/evidence.json": "9e60ef5b96fc15d067e01b8e8c675379b5f70d089137d2b54cacca33840d12bd",
+    "../evidence/narrative-unavailable/results/reports/DOCN_20261104_153522/quality.json": "77cb948fb139ae23edf38ab46c66d0162d4d539a47e7d8bf388c2fc495bbe98b",
+    "../evidence/narrative-unavailable/results/reports/DOCN_20261104_153522/complete_report.md": "fea826c5d7a337d30165cfbc5e266578778b7f13c9ce1050696e10ecebccb424",
+    "../evidence/narrative-unavailable/results/reports/DOCN_20261104_153522/complete_report.html": "7ecfa829afabfe1b8f90ad27321ace8bacda69508ee394820ffe7d400f98c50b",
+    "../evidence/narrative-technical/verified-summary.json": "a8d4b0615010d766a727f7e491526b4f4eb11d437582c5fef105c8f4cefa0448",
+    "../evidence/narrative-technical/manifest.json": "524a2502438f04a9a643012906963e1ebb8361d6ac3d5795d5b16de7c64a95c9",
+    "../evidence/narrative-technical/report-evidence.png": "668dc8f7e5955445d00b4b824bbaf764fab5a316c76f148b10c5caa97d324c4c",
+    "../evidence/narrative-technical/report-evidence-right.png": "668dc8f7e5955445d00b4b824bbaf764fab5a316c76f148b10c5caa97d324c4c",
+    "../evidence/narrative-technical/report-top.png": "e14708a0bea7c7cfc12845919d5362c3ca1810946bbe5d1d04c1dabb4e024a1d",
+    "../evidence/narrative-technical/report-research.png": "7bbf5d6ee4fdc03a3243e751469a1e8e166a836fc437bdbe1f7ceb1a2ddc8c59",
+    "../evidence/narrative-technical/report-decision.png": "9b6fbf706729dd68127cdc0bf97379720effbb92c48c0c7e70a5032de1ced71b",
+    "../evidence/narrative-technical/report-trader.png": "dd085edbd633e4dfcd33119b315e7ecab98e1a9cb2a265d25095b5e1baf73f3f",
+    "../evidence/narrative-technical/report-target.png": "798c258fa541f37cf9f9f688dc1d06f7ef995197b62e3576ab6d4090819e3b4f",
+    "../evidence/narrative-technical/results/reports/DOCN_20261104_154201/evidence.json": "8dc0df31e7003e2600c43fae358d993e38181622459bcda03b203a8fa362e7e7",
+    "../evidence/narrative-technical/results/reports/DOCN_20261104_154201/quality.json": "55c17b4dc14d7244d80627b89aede7a33c6b539d5641e15e63d4df63bc9b4837",
+    "../evidence/narrative-technical/results/reports/DOCN_20261104_154201/complete_report.md": "7a04ec004a400017b6a96be2ec47b8481eb961a18c87918291faf8ec72a3bc94",
+    "../evidence/narrative-technical/results/reports/DOCN_20261104_154201/complete_report.html": "4f80efeb5f5e233ba3bc7cb6a0f172ef5d94b8fc8fd589d1e0c867e97e4f04f6",
+    "../evidence/narrative-final-suite.log": "9319af1165717610c367015059908f58ff3568ff8c36dfeafcbf14e04ce93390",
+    "../evidence/narrative-final-focused.log": "e80e6d08522c6eda9e2fbcb07a59992b0aa51ea8ff874d09fad4c197f9935c90"
+  },
+  "commands": {
+    "focused": ".venv/bin/python -m pytest -q tests/test_narrative_presentation.py tests/test_output_publication.py tests/test_evidence_reporting.py tests/test_stream_publication.py tests/test_review_authority.py tests/test_review_memory_backtest.py tests/test_portfolio_valuation.py tests/test_reporting.py tests/test_report_html.py tests/test_cli_headless.py tests/test_checkpoint_resume.py",
+    "offline": ".venv/bin/python -m pytest -q",
+    "lint": ".venv/bin/ruff check .",
+    "dependencies": ".venv/bin/python -m pip check"
+  },
+  "python": "Python 3.12.13",
+  "fixture_hashes": {
+    "tests/fixtures/docn_2026q2/companyfacts.json": "4bf33e13f238b63d184b1bd5c19becf90cd0d23b81279819d397d5f5c64b7655",
+    "tests/fixtures/docn_2026q2/containment.json": "ded5c6c6d490b257644ee3c058770f92037a99546e0a4d9e3fafed31cf202336",
+    "tests/fixtures/docn_2026q3/filing_tables.json": "bddb57d9c44d3211ac0e45fc65e22a93bf860dfa751ba5defadd46a833761a4a",
+    "tests/fixtures/docn_2026q3/release_context.json": "9437cea6c88c152630898fc77ee1454ca478650c25048034647349cd8154a784"
+  },
+  "rendered_inspection": "Actual source fundamentals/trader/portfolio research, authoritative target omission/newline and source warnings inspected; unavailable REVIEW/no-action explanation inspected; technical-only canonical limits, restored narrative and scope warning inspected. Headless Chrome ran on Machine 1 with isolated profiles.",
+  "recovery_reuse": {
+    "basis": "No graph/checkpoint/state schema or memory authority changed. Presentation copy is post-graph; only canonical decision change is paragraph newline formatting. Current checkpoint suite and retained actual resumed-state export passed.",
+    "prior_live_proof": "../evidence/m6-acceptance-source/verified-summary.json",
+    "current_replay": "../evidence/narrative-replay/source/replay.json",
+    "signature": "unchanged; evidence=1/publication=1"
+  },
+  "findings": {
+    "F1": "Closed: labeled original research retained across corresponding report sections, CLI presentation and public Python prepare_report_state helper; canonical decision/memory remain separate.",
+    "F2": "Closed: actual new report shows paragraph separation instead of literal newline escapes.",
+    "F3": "CI trigger mismatch corrected locally; jobs/matrix unchanged. Remote CI remains pending separate publication authorization.",
+    "F4": "Actual source and technical runs used Trader fallback and structured Portfolio Manager responses; neither produced a supported valuation request. Supported valuation calculation and fallback are covered offline; no live supported valuation success claimed.",
+    "F5": "Unchanged explicit limitation: final live source accepted Cash only with 27 optional disclosure rejections. Recorded AI Customer ARR validation is not live extraction success."
+  },
+  "limitations": [
+    "Model research is displayed as unvalidated; this does not validate arbitrary financial claims or execution proposals.",
+    "Remote CI, Python 3.11/3.13/3.14 and CI clean-install smoke are not run on this unpublished commit. Local Python 3.12 tests/lint/dependencies and actual CLI proofs passed.",
+    "Non-SEC presentation is covered offline; the separate live scope proof is technical-only.",
+    "Dense source IDs and model-authored Unicode escape text are retained; no source-link redesign or arbitrary model-text normalization added.",
+    "Prior acceptance was overbroad: it proved safety but missed unconditional narrative suppression. This correction verifies readable product behavior explicitly."
   ],
-  "prior_aggregate_api_spend_usd": "0.444111567"
+  "focused_log": "../evidence/narrative-final-focused.log",
+  "final_test_only_closure": "Independent audit identified missing integrated non-SEC saved-report test. Added actual non-stock evidence gate through Markdown/HTML writer with research/scope/quality assertions. Ten presentation tests and full suite passed. Application source remains exactly d675a0b; final commit adds this test and records, so live proof is reused by exact runtime identity."
 }

@@ -1,5 +1,7 @@
 # Independent report-integrity audit — 2026-11-04
 
+> Acceptance correction (2026-11-04): the original safety acceptance below missed unconditional narrative suppression. The approved follow-up restores labeled research while preserving canonical memory/REVIEW boundaries, verified by 1,826 offline tests and three actual CLI proofs on unchanged application source d675a0b. See docs/reviews/2026-11-04-narrative-audit-closure-evidence.json and the 2026-11-04-report-narrative-audit-closure plan for current evidence and limits. Historical checkpoint statements below are retained as history.
+
 ## Final acceptance verdict
 
 No remaining confirmed material M1–M6 gap. Independent final artifact assertions on a0eb92c9a4bd009cca786b998fde184e7046c864 verify eight critical source checks, 31 financial claims, 1,019 facts/four documents, exact state/evidence/quality agreement, unsupported target omission, one decision-memory entry, and controlled checkpoint recovery with identical raw analyst report hashes and zero repeated analyst calls. The separate real CLI SEC-unavailable proof verifies insufficient/REVIEW, no target, zero memory entries and terminal checkpoint cleanup. Both processes exited successfully. The primary agent inspected actual rendered reports, including warnings, canonical calculations and target omission.

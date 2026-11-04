@@ -1,6 +1,6 @@
 # Restore readable research while preserving evidence authority
 
-Date: 2026-11-04. Status: implementation authorized by the user on 2026-11-04; publication remains unauthorized.
+Date: 2026-11-04. Status: implemented and verified on Machine 1; publication remains unauthorized.
 
 ## Outcome
 
@@ -111,3 +111,14 @@ Machine 1 identity, clean existing feature HEAD 7da7fd4 and exact canonical stag
 Nine regression cases cover visible narrative, retained real fundamentals, scopes, REVIEW, supported target beside conflicting research, CLI display, idempotence and memory isolation. Focused suite: 122 passed. Full suite: 1,825 passed, one optional Bedrock skip, one configured integration deselection, 100 subtests. Full Ruff and dependency checks passed. Source/unavailable retained-state replays passed; rendered portfolio research was visually inspected. Independent correction review found no material issue. Actual final CLI source, unavailable and technical-only proof remains required; implementation is not complete.
 
 The prior recovery proof is reused only for unchanged checkpoint/graph/memory authority; current checkpoint tests and actual resumed-state export replay passed. No live interruption is needed for this presentation-only change and the newline formatting correction.
+
+
+## Final acceptance — 2026-11-04
+
+Implementation d675a0b146e4a5bf559c0bd57fac769377e14aa1 passed 1,826 offline tests, 123 focused checks, full-repository Ruff and dependency checks. The final audit added one integrated non-SEC saved-report case; all 216 recorded source/workflow hashes match the final offline candidate. Application source remains exactly d675a0b; the final commit adds only that test and acceptance records, so the live proofs remain valid. Independent correction and final artifact review found no material remaining gap.
+
+Three actual CLI runs passed on that implementation. Source-complete: eight critical checks, 31 financial claims, ten labeled original research sections (including original fundamentals), canonical Underweight memory with no restored research, target omitted. SEC-unavailable: readable insufficient/REVIEW, no target or memory entry. Technical-only: nine labeled research sections, scope explicitly not_applicable with no US accounting validation, canonical decision/memory separation. Saved state/evidence/quality agree. Actual rendered reports were inspected. Source and technical runs exercised Trader fallback and structured Portfolio Manager output, but not a supported live valuation request. Only Cash was accepted as an optional live disclosure; broader KPI claims remain unverified.
+
+Aggregate provider usage is $0.675044417 across both builds; this follow-up adds $0.230932850. The existing-key exception remains explicit, and no more paid proof is planned. CI push triggers now include staging/production, with jobs/matrix/concurrency unchanged; remote CI and unavailable Python versions remain unrun until separately authorized publication. Previous checkpoint recovery evidence is reused for unchanged persistence/authority, supported by current checkpoint tests and export replay of the actual resumed state.
+
+See ../../reviews/2026-11-04-narrative-audit-closure-evidence.json for exact manifests, hashes, commands, proof paths, audit findings and limitations. The earlier completion claim was too broad because safety verification missed narrative suppression; this acceptance includes explicit product-behavior proof. No push, merge, release, installation, production change or historical artifact replacement occurred.

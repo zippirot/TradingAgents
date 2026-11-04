@@ -1,5 +1,7 @@
 # TradingAgents report evidence and calculation integrity
 
+> Acceptance correction (2026-11-04): the original safety acceptance below missed unconditional narrative suppression. The approved follow-up restores labeled research while preserving canonical memory/REVIEW boundaries, verified by 1,826 offline tests and three actual CLI proofs on unchanged application source d675a0b. See docs/reviews/2026-11-04-narrative-audit-closure-evidence.json and the 2026-11-04-report-narrative-audit-closure plan for current evidence and limits. Historical checkpoint statements below are retained as history.
+
 ## Execution authority and current checkpoint — 2026-11-04
 
 This execution record supersedes the historical machine assignment and not-started status below. The user activated implementation and approved publishing staging at `3411158f91eb267aab8760fc90afbf43556eb0bb`. GitHub staging, remote origin/staging and local staging were verified equal before feature creation. Only that bootstrap push is authorized; feature integration/push and release remain separate decisions.

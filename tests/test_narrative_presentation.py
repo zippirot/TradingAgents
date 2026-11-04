@@ -50,9 +50,19 @@ def test_research_retained_in_presentation_not_canonical_decision(scope):
     assert prepare_report_state(shown) == shown
 
 
-def test_saved_reports_retain_qualified_prose_and_evidence_is_canonical(tmp_path):
+@pytest.mark.parametrize("scope", ["US SEC filer", "non-SEC"])
+def test_saved_reports_retain_qualified_prose_and_evidence_is_canonical(tmp_path, scope):
     import json
     state = narrative_state()
+    scope_warning = None
+    if scope == "non-SEC":
+        from tradingagents.agents.evidence_validation import create_evidence_gate
+
+        state["asset_type"] = "crypto"
+        state.pop("canonical_financial_context")
+        state.update(create_evidence_gate(["fundamentals"])(state))
+        scope_warning = state["evidence_quality"]["warnings"][0]
+        assert state["evidence_quality"]["scope"] == "not_applicable"
     before = deepcopy(state)
     write_report_tree(state, "DOCN", tmp_path)
     assert state == before
@@ -62,6 +72,10 @@ def test_saved_reports_retain_qualified_prose_and_evidence_is_canonical(tmp_path
         assert "Bull: demand strengthens." in text
         assert "Unvalidated model research" in text
         assert "Fundamental price target: unavailable." in text
+        if scope_warning:
+            assert scope_warning in text
+    quality = json.loads((tmp_path / "quality.json").read_text())
+    assert quality == state["evidence_quality"]
     evidence = json.loads((tmp_path / "evidence.json").read_text())
     assert evidence["target_validation"]["target"] is None
     assert evidence["raw_diagnostics"]["unvalidated_outputs"]["final_trade_decision"] == state["final_trade_decision"]
