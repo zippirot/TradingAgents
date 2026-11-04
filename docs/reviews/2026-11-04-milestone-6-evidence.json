@@ -3,11 +3,11 @@
   "status": "in progress; acceptance incomplete",
   "base_commit": "48d8d79e71aa24b7e493e1c2b97b4627811978c4",
   "offline_suite": {
-    "passed": 1763,
+    "passed": 1812,
     "skipped": 1,
     "deselected": 1,
-    "log": "../evidence/m6-prompt-candidate-suite.log",
-    "source_manifest": null,
+    "log": "../evidence/m6-context-final-suite.log",
+    "source_manifest": "../evidence/m6-context-final-manifest.json",
     "limitation": "Offline checks; does not replace real CLI proof"
   },
   "recovery_focused": {
@@ -41,18 +41,17 @@
     "paths": [
       "../evidence/rendered-m6/complete.png",
       "../evidence/rendered-m6/evidence-tables-cdp.png",
-      "../evidence/m6-cli-initial/report-top.png"
+      "../evidence/m6-cli-initial/report-top.png",
+      "../evidence/m6-cli-source-recovery-v2/report-top.png"
     ],
     "remaining": "inspect actual live saved reports"
   },
-  "paid_model_calls": "Three real CLI runs; per-call metadata captured for the latter two",
-  "paid_spend_usd": "0.074460683",
+  "paid_model_calls": "Per-run manifests and llm-diagnostics record observed usage; initial run had no per-call diagnostic capture",
+  "paid_spend_usd": "0.194279844",
   "remaining": [
-    "source-complete real CLI",
-    "controlled unavailable-source real CLI with no trading memory",
-    "real restart/checkpoint recovery",
-    "inspect actual saved reports",
-    "final evidence commit and clean worktree"
+    "Final affected live source proof",
+    "Controlled unavailable-source real CLI/no memory",
+    "Final rendered/evidence audit and clean committed worktree"
   ],
   "live_cli_attempts": [
     {
@@ -70,5 +69,40 @@
     }
   ],
   "live_setup_correction": "Output cap increased from 8192 to 32768 after finish_reason=length and 8192 completion tokens entirely spent on reasoning. Conservative reserve recalculated; actual aggregate $10 ceiling unchanged.",
-  "prompt_correction": "Show literal financial_claims/disclosures fences and narrow exact quote contract; no parser/validator changes. 74 focused checks and full offline suite (1763 passed) succeeded; independent narrow review found no material issue."
+  "prompt_correction": "Show literal financial_claims/disclosures fences and narrow exact quote contract; no parser/validator changes. 74 focused checks and full offline suite (1763 passed) succeeded; independent narrow review found no material issue.",
+  "offline_recovery_checks": [
+    {
+      "log": "../evidence/m6-recovery-checkpoint.log",
+      "passed": 39
+    },
+    {
+      "log": "../evidence/m6-full-state-atomic-green.log",
+      "passed": 31
+    },
+    {
+      "log": "../evidence/m6-two-issuer-isolation.log",
+      "passed": 3
+    }
+  ],
+  "live_source_recovery": {
+    "candidate": "3a9efe1f6f2b8726579c0fba4e55df8a72d458bc",
+    "run": "../evidence/m6-cli-source-recovery-v2",
+    "summary": "../evidence/m6-cli-source-recovery-v2/verified-summary.json",
+    "critical_checks_passed": 8,
+    "quality": "limited",
+    "rating": "Underweight",
+    "target": null,
+    "interruption": "SIGTERM after checkpoint step2; restarted same candidate/settings",
+    "resumed_analyst_calls": 0,
+    "analyst_reports_preserved_in_final_diagnostics": true,
+    "checkpoint_cleared_after_success": true,
+    "limitation": "Proves critical source-complete path and recovery on this candidate. M3 cross-block operating KPI acceptance identified by final audit still requires implementation/verification."
+  },
+  "operating_kpi_context": {
+    "status": "recorded-source and adversarial verification passed",
+    "proof": "../evidence/m6-recorded-kpi-context-proof.json",
+    "focused_context_tests": 49,
+    "independent_findings": "closed; source subject/definition identity, growth-basis overrides and source URL identity guarded",
+    "remaining": "final affected live proof"
+  }
 }

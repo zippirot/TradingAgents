@@ -1,0 +1,1232 @@
+{
+  "provenance": {
+    "kind": "recorded SEC release from pre-interruption live checkpoint",
+    "source_checkpoint": "evidence/m6-cli-source-recovery-v2/checkpoint-before-interruption.db",
+    "checkpoint_sha256": "41cd4ee88646052d65e7ef1c05e6d1c72394958fd66e0e5e7af841947f49294e",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm",
+    "source_content_hash": "ddbed982d9e6463a2ef545e26afbf69f4493be25334bba7ca6e5610d98bda141",
+    "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+    "extraction_max_chars": 40000
+  },
+  "package": {
+    "schema_version": 1,
+    "cik": "0001582961",
+    "as_of": "2026-11-04",
+    "documents": [
+      {
+        "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+        "filing": {
+          "cik": "0001582961",
+          "accession": "0001628280-26-069125",
+          "form": "8-K",
+          "filed_date": "2026-11-03",
+          "report_date": "2026-11-02",
+          "primary_document": "docn-20261103.htm",
+          "items": "2.02,8.01,9.01",
+          "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/docn-20261103.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm",
+        "retrieved_at": "2026-11-04T20:28:27.856991Z",
+        "content_hash": "ddbed982d9e6463a2ef545e26afbf69f4493be25334bba7ca6e5610d98bda141",
+        "blocks": [
+          {
+            "locator": "block-1",
+            "section": "Document",
+            "text": "EX-99.1 4 a2026-q3dopressrelease.htm EX-99.1",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-2",
+            "section": "Document",
+            "text": "Exhibit 99.1",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-3",
+            "section": "Document",
+            "text": "DigitalOcean Announces Third Quarter 2026 Financial Results",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-4",
+            "section": "Document",
+            "text": "Raising Q4 2026 exit revenue growth outlook to 44-45% and increasing expected 2027 revenue growth to 60%+",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-5",
+            "section": "Document",
+            "text": "Q3 2026 Revenue of $321 million grew 40% year-over-year",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-6",
+            "section": "Document",
+            "text": "Million+ Dollar Customer ARR grew 273% year-over-year to $386 million",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-7",
+            "section": "Document",
+            "text": "AI Customer ARR grew 288% year-over-year to $376 million",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-8",
+            "section": "Document",
+            "text": "Record $160 million in incremental ARR",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-9",
+            "section": "Document",
+            "text": "BROOMFIELD, Colo., November 3, 2026 – DigitalOcean Holdings, Inc. (NYSE: DOCN), the AI-Native Cloud purpose-built for inference and agentic workloads, today announced results for its third quarter ended September 30, 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-10",
+            "section": "Document",
+            "text": "“Revenue growth accelerated year-over-year to 40%, our fifth consecutive quarter of acceleration, and we added a record $160 million of ARR,” said Paddy Srinivasan, CEO of DigitalOcean. “The center of gravity in AI has shifted from people chatting with models to agents doing work, and agents need a different kind of cloud: one where inference, agent runtime, data, and learning operate as a single loop to enable agents to recursively self improve. We built that cloud, and the most sophisticated AI natives are building on it. Customers spending over $100,000 a year now represent 41% of our revenue, and they are not renting capacity; they are adopting the platform. Inference Engine token volume grew roughly 10x quarter-over-quarter and we launched Managed Agents, Agent Learning Services, and Agent Data Services to complete the loop. We are different by design with a unique platform, durable and profitable growth, a diverse customer base, 2026 capacity delivered on or ahead of schedule and 20 incremental megawatts secured for 2028, and a flexible balance sheet. We continue to accelerate and are raising our outlook again: we now expect Q4 2026 revenue growth of 44-45% and to deliver 60%+ revenue growth for full year 2027.”",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-11",
+            "section": "Document",
+            "text": "Third Quarter 2026 Financial Highlights(1):",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-12",
+            "section": "Document",
+            "text": "•Revenue was $321 million, an increase of 40%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-13",
+            "section": "Document",
+            "text": "•Annual Run-Rate Revenue (“ARR”) ended the quarter at $1,285 million, an increase of 40%. AI Customer ARR was $376 million, an increase of 288%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-14",
+            "section": "Document",
+            "text": "•Record $160 million of ARR added during the quarter, an increase of 266%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-15",
+            "section": "Document",
+            "text": "•Net loss attributable to common stockholders was $43 million, a decrease of 127%, and net loss margin was 13%. Net loss included an induced conversion expense of $57 million related to the partial repurchase of our 2030 Convertible Notes in the third quarter of 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-16",
+            "section": "Document",
+            "text": "•Operating income was $33 million, a decrease of 27%, and operating income margin was 10%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-17",
+            "section": "Document",
+            "text": "•Adjusted operating income was $74 million, an increase of 6%, and adjusted operating income margin was 23%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-18",
+            "section": "Document",
+            "text": "•Adjusted EBITDA was $144 million, an increase of 45%, and adjusted EBITDA margin was 45%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-19",
+            "section": "Document",
+            "text": "•Diluted net loss per share was $0.37 and non-GAAP diluted net income per share was $0.45, which excludes a $0.46 decrease related to the induced conversion expense from the partial repurchase of our 2030 Convertible Notes in the third quarter of 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-20",
+            "section": "Document",
+            "text": "•Net cash from operating activities increased to $161 million at a 50% margin, from $96 million at a 42% margin in the third quarter of 2025.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-21",
+            "section": "Document",
+            "text": "•Adjusted free cash flow increased to $130 million at a 41% margin, from $85 million at a 37% margin in the third quarter of 2025.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-22",
+            "section": "Document",
+            "text": "•Cash and cash equivalents was $666 million as of September 30, 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-23",
+            "section": "Document",
+            "text": "•Repurchased approximately $472 million of our 2030 Convertible Notes, funded by a concurrent registered direct offering, reducing leverage with minimal cash usage and minimal dilution, with issued shares mostly offset by the retired notes.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-24",
+            "section": "Document",
+            "text": "•Remaining Performance Obligation (“RPO”)(2) was $800 million, of which, $345 million is expected to be recognized over the next 12 months. RPO was $61 million in the third quarter of 2025.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-25",
+            "section": "Document",
+            "text": "1",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-26",
+            "section": "Document",
+            "text": "Third Quarter 2026 Operational Highlights(1):",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-27",
+            "section": "Document",
+            "text": "•Launched Managed Agents, unifying all agentic tooling on one platform and enriched our AI-Native Cloud with Agent Droplets, Agent Learning Services and Agent Data Services, all announced at our inaugural Open Intelligence Summit on October 13.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-28",
+            "section": "Document",
+            "text": "•Launched our Memphis data center ahead of schedule, delivering all three 2026 data centers on time or early.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-29",
+            "section": "Document",
+            "text": "•Secured an incremental 20 megawatts (“MW”) of committed data center capacity expected to come online in 2028, bringing total committed capacity to approximately 180 MW, with additional capacity actively being pursued.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-30",
+            "section": "Document",
+            "text": "•Shipped over 70 releases in 65 business days in Q3: 21 new models added to our catalog, a new data center and 49 product and platform releases.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-31",
+            "section": "Document",
+            "text": "•Secured a $785 million equipment lease facility to fund the expansion of capacity to meet growing customer demand.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-32",
+            "section": "Document",
+            "text": "•The number of $100K+ Customers(3) grew 11%, while the revenue from these customers, which now represents 41% of total revenue, grew 133%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-33",
+            "section": "Document",
+            "text": "•The number of $500K+ and $1M+ Customers grew 47% and 96%, respectively. Revenue from these customers, which now represents 33% and 30% of total revenue, grew 214% and 273%, respectively.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-34",
+            "section": "Document",
+            "text": "______________",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-35",
+            "section": "Document",
+            "text": "(1)All growth rates are year-over-year unless otherwise specified.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-36",
+            "section": "Document",
+            "text": "(2)Beginning in the fourth quarter of 2025, the RPO amount represents all contracts regardless of the duration of their original expected term. Prior periods have been recast to conform to the current period presentation. Refer to our Annual Report on Form 10-K for the year ended December 31, 2025 for further details.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-37",
+            "section": "Document",
+            "text": "(3)Beginning in the fourth quarter of 2025, we redefined our total customer count and our customer category naming and disaggregation. Prior periods have been recast to conform to the current period presentation. Refer to our Annual Report on Form 10-K for the year ended December 31, 2025 for further details.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-38",
+            "section": "Document",
+            "text": "2",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-39",
+            "section": "Document",
+            "text": "Financial Outlook:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-40",
+            "section": "Document",
+            "text": "DigitalOcean is providing guidance for the fourth quarter ending December 31, 2026 as follows:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-41",
+            "section": "Document",
+            "text": "•Total revenue of $348 to $351 million, up 44% to 45% year-over-year.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-42",
+            "section": "Document",
+            "text": "•Adjusted EBITDA margin of 42% to 43%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-43",
+            "section": "Document",
+            "text": "•Non-GAAP diluted net income per share of $0.30 to $0.32.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-44",
+            "section": "Document",
+            "text": "•Fully diluted weighted average shares outstanding of approximately 128 to 129 million shares.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-45",
+            "section": "Document",
+            "text": "For the full year 2026, we now expect:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-46",
+            "section": "Document",
+            "text": "•Total revenue of $1.208 to $1.211 billion, up approximately 34% year-over-year.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-47",
+            "section": "Document",
+            "text": "•Adjusted EBITDA margin of 41% to 42%.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-48",
+            "section": "Document",
+            "text": "•Adjusted free cash flow margin in the range of 20% to 22% of revenue.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-49",
+            "section": "Document",
+            "text": "•Non-GAAP diluted net income per share of $1.60 to $1.62",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-50",
+            "section": "Document",
+            "text": "•Fully diluted weighted average shares outstanding of approximately 122 to 123 million shares.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-51",
+            "section": "Document",
+            "text": "A reconciliation of non-GAAP outlook measures to corresponding GAAP measures is not available on a forward-looking basis without unreasonable effort due to the uncertainty regarding, and the potential variability of, expenses that may be incurred in the future. For example, stock-based compensation expense-related charges are impacted by the timing of employee stock transactions, the future fair market value of our common stock, and our future hiring and retention needs, all of which are difficult to predict and subject to constant change. Accordingly, a reconciliation is not available without unreasonable effort and we are unable to assess the probable significance of the unavailable information, although it is important to note that these factors could be material to our results computed in accordance with GAAP.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-52",
+            "section": "Document",
+            "text": "The financial guidance presented in this release are estimates based on information available to management as of the date of this release. There can be no assurance that our actual results will not differ from the financial guidance presented in this release.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-53",
+            "section": "Document",
+            "text": "Conference Call Information:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-54",
+            "section": "Document",
+            "text": "DigitalOcean will host a conference call today, November 3, 2026, at 8:00 a.m. ET to review its results. The conference call and presentation can be accessed by registering for the webcast at https://events.q4inc.com/attendee/928533190. A live webcast and replay of the conference call in addition to the presentation can be accessed from the DigitalOcean investor relations website at investors.digitalocean.com.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-55",
+            "section": "Document",
+            "text": "About DigitalOcean",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-56",
+            "section": "Document",
+            "text": "DigitalOcean (NYSE: DOCN) is the AI-Native Cloud, purpose-built for inference and agentic workloads. Its five-layer integrated platform, spanning GPU and CPU infrastructure, core cloud, inference, data, and managed agent orchestration, is open throughout with no vendor lock-in, giving builders everything they need to start fast, scale production AI workloads, and improve unit economics. More than 680,000 customers and millions of developers globally trust DigitalOcean to build, ship, and scale their applications. Learn more at digitalocean.com.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-57",
+            "section": "Document",
+            "text": "Forward‑Looking Statements",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-58",
+            "section": "Document",
+            "text": "This release contains forward-looking statements within the meaning of Section 27A of the Securities Act of 1933, as amended, and Section 21E of the Securities Exchange Act of 1934, as amended, regarding our expected future performance, including but not limited to statements in the section titled “Financial Outlook” and the quotations of our CEO. In some cases, you can identify forward-looking statements because they contain words such as “anticipate,” “believe,” “contemplate,” “continue,” “could,” “estimate,” “expect,” “intend,” “may,” “plan,” “potential,” “predict,” “project,” “should,” “target,” “will” or “would” or the negative of these words or other similar terms or expressions. The forward-looking statements contained in this release and the accompanying earnings call referenced in this release are subject to known and unknown risks, uncertainties, assumptions, and other factors that may cause actual results or outcomes to be materially different from any future results or outcomes expressed or implied by the forward-looking statements. These risks, uncertainties, assumptions, and other factors include, but are not limited to: (1) fluctuations in our",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-59",
+            "section": "Document",
+            "text": "3",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-60",
+            "section": "Document",
+            "text": "financial results make it difficult to project future results; (2) our ability to sustain profitability in the future; (3) our ability to expand usage of our platform by existing customers and/or attract new customers and/or retain existing customers; (4) the speed at which the market for our platform and solutions develops; (5) the success of the development and use of our artificial intelligence and machine learning (“AI/ML”) product offerings or use of third-party AI/ML-based tools; (6) our ability to release updates and new features to our platform and adapt and respond effectively to rapidly changing technology or customer needs; (7) our ability to control costs, including our operating expenses, and the timing of payment for expenses; (8) the amount and timing of non-cash expenses, including stock-based compensation, goodwill impairments and other non-cash charges; (9) breaches in our security measures allowing unauthorized access to our platform, our data, or our customers’ data; (10) the competitive markets in which we participate; (11) our ability to effectively integrate and retain new members of our executive leadership team and senior management; (12) the effects of acquisitions and their integration; (13) general market, political, macroeconomic, and business conditions, including changes in trade policies, such as trade wars, tariffs and other restrictions or the threat of such actions; (14) the impact of new accounting pronouncements; (15) our ability to control fraudulent registrations and usage of our platform, reduce bad debt and lessen capacity constraints on our data centers, servers and equipment; (16) our customers’ ability to have continued and unimpeded access to our platform, including as a result of evolving laws and industry standards; (17) our plans with respect to accelerating investments in data centers and GPU capacity; and (18) the timing and availability of data center capacity, power, GPUs and other equipment.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-61",
+            "section": "Document",
+            "text": "Further information on these and additional risks, uncertainties, assumptions and other factors that could cause actual results or outcomes to differ materially from those included in or contemplated by the forward-looking statements contained in this release are included under the caption “Risk Factors” and elsewhere in our Annual Report on Form 10-K for the year ended December 31, 2025 and subsequent filings and reports we make with the SEC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-62",
+            "section": "Document",
+            "text": "We operate in a very competitive and rapidly changing environment. New risks and uncertainties emerge from time to time, and it is not possible for us to predict all risks and uncertainties that could have an impact on the forward-looking statements contained in this release. The results, events and circumstances reflected in the forward-looking statements may not be achieved or occur. The forward-looking statements made in this release relate only to events as of the date on which the statements are made. We assume no obligation to, and do not currently intend to, update any such forward-looking statements after the date of this release, except as required by law.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-63",
+            "section": "Document",
+            "text": "About Non-GAAP Financial Measures",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-64",
+            "section": "Document",
+            "text": "To supplement our consolidated financial statements, which are prepared and presented in accordance with generally accepted accounting principles in the United States, or GAAP, we provide investors with non-GAAP financial measures including: (i) adjusted operating income and adjusted operating income margin, (ii) adjusted EBITDA and adjusted EBITDA margin, (iii) non-GAAP net income and non-GAAP diluted net income per share, (iv) adjusted free cash flow and adjusted free cash flow margin and (v) unlevered adjusted free cash flow and unlevered adjusted free cash flow margin. These measures are presented for supplemental informational purposes only, have limitations as analytical tools and should not be considered in isolation or as a substitute for financial information presented in accordance with GAAP.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-65",
+            "section": "Document",
+            "text": "We believe that adjusted operating income margin and adjusted EBITDA, when taken together with our GAAP financial results, provide meaningful supplemental information regarding our operating performance (including our long-term performance in the case of adjusted operating income) and facilitate internal comparisons of our historical operating performance on a more consistent basis by excluding certain items that may not be indicative of our business, results of operations or outlook. In particular, we believe that the use of adjusted operating income and adjusted EBITDA is helpful to our investors as they are measures used by management in assessing the health of our business, evaluating our operating performance, and for internal planning and forecasting purposes.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-66",
+            "section": "Document",
+            "text": "We believe non-GAAP net income and non-GAAP diluted net income per share provides our management and investors consistency and comparability with our past financial performance and facilitates period-to-period comparisons of operations, as this metric generally eliminates the effects of unusual or non-recurring items from period to period for reasons unrelated to overall operating performance.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-67",
+            "section": "Document",
+            "text": "Our calculations of each of these measures may differ from the calculations of measures with the same or similar titles by other companies and therefore comparability may be limited. Because of these limitations, when evaluating our performance, you should consider each of these non-GAAP financial measures alongside other financial performance measures, including the most directly comparable financial measure calculated in accordance with GAAP and our other GAAP results. A reconciliation of each of our non-GAAP financial measures to the most directly comparable financial",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-68",
+            "section": "Document",
+            "text": "4",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-69",
+            "section": "Document",
+            "text": "measure calculated in accordance with GAAP is set forth in the tables in the section “Reconciliation of GAAP to Non-GAAP Data.”",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-70",
+            "section": "Document",
+            "text": "Adjusted Operating Income and Adjusted Operating Income Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-71",
+            "section": "Document",
+            "text": "We define adjusted operating income as operating income, adjusted to exclude stock-based compensation, amortization of acquired intangible assets, acquisition related compensation, acquisition and integration related costs, restructuring and other charges, restructuring related charges, impairment of certain long-lived assets and other charges. We define adjusted operating income margin as adjusted operating income as a percentage of revenue.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-72",
+            "section": "Document",
+            "text": "Adjusted EBITDA and Adjusted EBITDA Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-73",
+            "section": "Document",
+            "text": "We define adjusted EBITDA as net income attributable to common stockholders, adjusted to exclude depreciation and amortization, stock-based compensation, interest expense, acquisition related compensation, acquisition and integration related costs, income tax expense (benefit), restructuring and other charges, restructuring related charges, impairment of certain long-lived assets, interest income and other income, net, (gain) loss on extinguishment of debt, net, induced conversion expense, and other charges. We define adjusted EBITDA margin as adjusted EBITDA as a percentage of revenue.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-74",
+            "section": "Document",
+            "text": "Non-GAAP Net Income and Non-GAAP Diluted Net Income Per Share",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-75",
+            "section": "Document",
+            "text": "We define non-GAAP net income as net income attributable to common stockholders, excluding stock-based compensation, acquisition related compensation, amortization of acquired intangibles, acquisition and integration related costs, restructuring and other charges, restructuring related charges, impairment of certain long-lived assets, (gain) loss on extinguishment of debt, net, induced conversion expense and other charges. In addition to these exclusions, we subtract an assumed non-GAAP provision for income taxes to calculate non-GAAP net income that excludes the current period income tax benefit (expense). We utilize a fixed long-term projected tax rate in our computation of the non-GAAP income tax provision in order to provide better consistency across reporting periods. We define non-GAAP diluted net income per share as non-GAAP net income divided by the weighted-average diluted shares outstanding, which includes the potentially dilutive effect of our stock options, RSUs, PRSUs, and Convertible Notes and, beginning in the first quarter of 2026, excludes the in-the-money portion of our 2030 Convertible Notes as they are covered by our capped call transactions, which are expected to mitigate the dilutive effect of our 2030 Convertible Notes.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-76",
+            "section": "Document",
+            "text": "Adjusted Free Cash Flow and Adjusted Free Cash Flow Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-77",
+            "section": "Document",
+            "text": "Adjusted free cash flow is a non-GAAP financial measure that we define as net cash provided by operating activities less purchases of property and equipment, capitalized internal-use software costs, purchase of intangible assets, and excluding cash paid for restructuring and other charges, acquisition related compensation, restructuring related charges, and acquisition and integration related costs. Adjusted free cash flow margin is calculated as adjusted free cash flow divided by total revenue.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-78",
+            "section": "Document",
+            "text": "We believe that adjusted free cash flow and adjusted free cash flow margin are useful indicators of liquidity that provide information to management and investors about the amount of cash generated from our core operations that can be used for strategic initiatives, including investing in our business and selectively pursuing acquisitions and strategic investments. We further believe that historical and future trends in adjusted free cash flow and adjusted free cash flow margin, even if negative, provide useful information about the amount of net cash provided by operating activities that is available (or not available) to be used for strategic initiatives. Adjusted free cash flow and adjusted free cash flow margin exclude acquisitions of equipment under financing arrangements, finance leases, and our future contractual commitments. Additionally, adjusted free cash flow does not represent the residual cash flow available for discretionary expenses given our debt obligations and the total increase or decrease in our cash balance for a given period.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-79",
+            "section": "Document",
+            "text": "Unlevered Adjusted Free Cash Flow and Unlevered Adjusted Free Cash Flow Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-80",
+            "section": "Document",
+            "text": "Unlevered adjusted free cash flow is a non-GAAP financial measure that we define as adjusted free cash flow excluding cash paid for interest and interest income. Unlevered adjusted free cash flow margin is calculated as unlevered adjusted free cash flow divided by total revenue.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-81",
+            "section": "Document",
+            "text": "We believe that unlevered adjusted free cash flow and unlevered adjusted free cash flow margin provide additional information to adjusted free cash flow about our liquidity and, measured over time, enable management and investors to monitor the underlying business’ growth pattern and ability to generate cash. We further believe that unlevered adjusted free cash flow is an important metric, as it provides a clear view of our cash generation before the impact of financing decisions and many investors and analysts use unlevered adjusted free cash flow as the basis of their enterprise value",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-82",
+            "section": "Document",
+            "text": "5",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-83",
+            "section": "Document",
+            "text": "calculations as they assess the value of our business. Unlevered adjusted free cash flow and unlevered adjusted free cash flow margin exclude certain charges that will be settled in cash, such as interest paid to service our debt and equipment financing obligations. Additionally, unlevered adjusted free cash flow does not represent the residual cash flow available for discretionary expenses given our debt obligations and the total increase or decrease in our cash balance for a given period.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-84",
+            "section": "Document",
+            "text": "Key Business Metrics:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-85",
+            "section": "Document",
+            "text": "We utilize the key metrics set forth below to help us evaluate our business and growth, identify trends, formulate financial projections and make strategic decisions.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-86",
+            "section": "Document",
+            "text": "Customers",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-87",
+            "section": "Document",
+            "text": "We calculate customer count as the average number of customers as of the last day of the month for each month in the most recent quarter. Customers are classified in the following categories based on the amount of their spend in a given month and individual customers may fall within different categories within a reporting period (customer spend in a month in whole dollars):",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-88",
+            "section": "Document",
+            "text": "•Digital Native Enterprise Customers: users that spend more than $500 in a month.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-89",
+            "section": "Document",
+            "text": "•$100K+ Customers: users that spend more than $8,333 in a month.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-90",
+            "section": "Document",
+            "text": "•$500K+ Customers: users that spend more than $41,667 in a month.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-91",
+            "section": "Document",
+            "text": "•$1M+ Customers: users that spend more than $83,333 in a month.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-92",
+            "section": "Document",
+            "text": "ARR",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-93",
+            "section": "Document",
+            "text": "We calculate ARR by multiplying total revenue for the most recent quarter by four.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-94",
+            "section": "Document",
+            "text": "AI Customer ARR",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-95",
+            "section": "Document",
+            "text": "We calculate AI Customer ARR by multiplying total AI Customer Revenue for the most recent quarter by four. AI Customer Revenue is defined as the total revenue generated from customers who utilize one or more of our AI/ML offerings, inclusive of their revenue from our IaaS and PaaS/SaaS offerings during the period.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-96",
+            "section": "Document",
+            "text": "Other Metrics:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-97",
+            "section": "Document",
+            "text": "Remaining Performance Obligation",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-98",
+            "section": "Document",
+            "text": "Remaining performance obligation (“RPO”) represents commitments in customer contracts for future services that have not yet been recognized in the condensed consolidated financial statements. RPO is not necessarily indicative of future revenue growth because it does not account for the timing of customers’ consumption or their usage beyond their contracted capacity. Additionally, RPO may increase when customers transition from usage-based to commitment-based agreements, which does not always reflect incremental revenue growth. RPO is influenced by a number of factors, including the timing and size of renewals, the timing and size of purchases of additional capacity and average contract term. Due to these factors, it is important to review RPO in conjunction with revenue and other financial metrics contained in this release and elsewhere in our Annual Report on Form 10-K for the year ended December 31, 2025 and subsequent filings and reports we make with the SEC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-99",
+            "section": "Document",
+            "text": "Investor Contact",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-100",
+            "section": "Document",
+            "text": "investors@digitalocean.com",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-101",
+            "section": "Document",
+            "text": "Media Contact",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-102",
+            "section": "Document",
+            "text": "press@digitalocean.com",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-103",
+            "section": "Document",
+            "text": "6",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-104",
+            "section": "Document",
+            "text": "DIGITALOCEAN HOLDINGS, INC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-105",
+            "section": "Document",
+            "text": "CONDENSED CONSOLIDATED BALANCE SHEETS",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-106",
+            "section": "Document",
+            "text": "(in thousands, except share amounts)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-107",
+            "section": "Document",
+            "text": "(unaudited)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-108",
+            "section": "Document",
+            "text": "| | | | | | | | | | | ; | September 30, 2026 | | December 31, 2025 ; ; Current assets: | | | ; Cash and cash equivalents | $ | 666,096 | | | $ | 254,475 | ; Marketable securities | 178,645 | | | — | ; Accounts receivable, less allowance for credit losses of $7,289 and $6,374, respectively | 139,811 | | | 90,908 | ; Prepaid expenses and other current assets | 86,234 | | | 81,598 | ; Total current assets | 1,070,786 | | | 426,981 | ; Property and equipment, net | 1,407,705 | | | 589,094 | ; Restricted cash | 156 | | | 158 | ; Goodwill | 350,651 | | | 348,674 | ; Intangible assets, net | 88,303 | | | 99,504 | ; Operating lease right-of-use assets, net | 704,847 | | | 270,854 | ; Deferred tax assets | 88,097 | | | 90,310 | ; Other assets | 24,969 | | | 12,130 | ; Total assets | $ | 3,735,514 | | | $ | 1,837,705 | ; | | | ; Current liabilities: | | | ; Accounts payable | $ | 44,660 | | | $ | 38,836 | ; Accrued other expenses | 92,994 | | | 42,679 | ; Deferred revenue | 52,707 | | | 5,882 | ; Debt, current | 312,052 | | | 325,109 | ; Operating lease liabilities, current | 147,078 | | | 108,037 | ; Finance lease liabilities and equipment financing obligations, current | 204,778 | | | 31,411 | ; Other current liabilities | 72,908 | | | 67,510 | ; Total current liabilities | 927,177 | | | 619,464 | ; Deferred tax liabilities | 3,949 | | | 4,092 | ; Debt, long-term | 149,578 | | | 970,653 | ; Operating lease liabilities, long-term | 519,533 | | | 166,895 ; Finance lease liabilities and equipment financing obligations, long-term | 718,821 | | | 99,103 | ; Other non-current liabilities | — | | | 6,188 ; Total liabilities | 2,319,058 | | | 1,866,395 | ; Commitments and contingencies (Note 10) | | | ; | | | ; ; ; Preferred stock ($0.000025 par value per share; 10,000,000 shares authorized; 0 shares issued and outstanding as of September 30, 2026 and December 31, 2025) | — | | | — | ; Common stock ($0.000025 par value per share; 750,000,000 shares authorized; 117,920,731 and 91,947,614 issued and outstanding as of September 30, 2026 and December 31, 2025, respectively) | 2 | | | 2 | ; ; Additional paid-in capital | 1,453,589 | | | 16,005 | ; Accumulated other comprehensive loss | (1,997) | | | (960) | ; Accumulated deficit | (35,138) | | | (43,737) ; Total stockholders’ equity (deficit) | 1,416,456 | | | (28,690) | ; Total liabilities and stockholders’ equity | $ | 3,735,514 | | | $ | 1,837,705 |",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-109",
+            "section": "Document",
+            "text": "7",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-110",
+            "section": "Document",
+            "text": "DIGITALOCEAN HOLDINGS, INC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-111",
+            "section": "Document",
+            "text": "CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-112",
+            "section": "Document",
+            "text": "(in thousands, except per share amounts)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-113",
+            "section": "Document",
+            "text": "(unaudited)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-114",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS ; (in thousands, except per share amounts)",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | ; | Three Months Ended | | Nine Months Ended ; | September 30, | | September 30, ; | 2026 | | 2025 | | 2026 | | 2025 ; Revenue | $ | 321,192 | | | $ | 229,634 | | | $ | 860,281 | | | $ | 659,037 | ; Cost of revenue | 160,122 | | | 92,701 | | | 399,839 | | | 261,715 | ; Gross profit | 161,070 | | | 136,933 | | | 460,442 | | | 397,322 | ; Operating expenses: | | | | | | | ; Research and development | 58,786 | | | 38,119 | | | 165,131 | | | 117,357 | ; Sales and marketing | 24,207 | | | 21,228 | | | 68,444 | | | 59,917 | ; General and administrative | 45,052 | | | 32,654 | | | 127,900 | | | 101,855 | ; ; Total operating expenses | 128,045 | | | 92,001 | | | 361,475 | | | 279,129 | ; | | | | | | | ; Operating income | 33,025 | | | 44,932 | | | 98,967 | | | 118,193 | ; | | | | | | | ; Other (expense) income: | | | | | | | ; Interest expense | (16,408) | | | (5,042) | | | (34,424) | | | (9,489) | ; Gain (loss) on extinguishment of debt, net | — | | | 48,373 | | | (2,700) | | | 48,104 | ; Induced conversion expense | (57,110) | | | — | | | (57,110) | | | — | ; Interest income and other income, net | 4,068 | | | 2,051 | | | 10,480 | | | 17,334 | ; Other (expense) income, net | (69,450) | | | 45,382 | | | (83,754) | | | 55,949 | ; | | | | | | | ; Income (loss) before income taxes | (36,425) | | | 90,314 | | | 15,213 | | | 174,142 | ; Income tax benefit (expense) | (6,184) | | | 68,057 | | | (6,614) | | | 59,460 | ; Net income (loss) attributable to common stockholders | $ | (42,609) | | | $ | 158,371 | | | $ | 8,599 | | | $ | 233,602 | ; Net income (loss) per share attributable to common stockholders ; Basic | $ | (0.37) | | | $ | 1.74 | | | $ | 0.08 | | | $ | 2.56 | ; Diluted | $ | (0.37) | | | $ | 1.51 | | | $ | 0.08 | | | $ | 2.31 | ; Weighted-average shares used to compute net income per share attributable to common stockholders ; Basic | 114,682 | | | 91,191 | | | 104,190 | | | 91,421 | ; Diluted | 114,682 | | | 105,520 | | | 108,049 | | | 103,036 |",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-115",
+            "section": "Document",
+            "text": "8",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-116",
+            "section": "Document",
+            "text": "DIGITALOCEAN HOLDINGS, INC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-117",
+            "section": "Document",
+            "text": "CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-118",
+            "section": "Document",
+            "text": "(in thousands)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-119",
+            "section": "Document",
+            "text": "(unaudited)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-120",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+            "text": "| | | | | | | | | | | ; | Nine Months Ended September 30, ; | 2026 | | 2025 ; Operating activities | | | ; Net income attributable to common stockholders | $ | 8,599 | | | $ | 233,602 | ; Adjustments to reconcile net income to net cash provided by operating activities: | | | ; Depreciation and amortization | 171,771 | | | 97,035 | ; Stock-based compensation | 91,276 | | | 60,313 | ; Provision for expected credit losses | 13,078 | | | 13,337 | ; Loss (gain) on extinguishment of debt, net | 2,700 | | | (48,104) | ; Induced conversion expense | 57,110 | | | — | ; Deferred income taxes | — | | | (72,522) | ; Operating lease right-of-use assets and liabilities, net | (42,520) | | | (7,746) | ; Non-cash interest expense | 3,872 | | | 5,451 | ; Net accretion of discounts and amortization of premiums on investments | (1,088) | | | — | ; ; ; ; Other | 7,737 | | | (7,652) | ; Changes in operating assets and liabilities: | | | ; Accounts receivable | (62,040) | | | (25,060) | ; Prepaid expenses and other current assets | (4,602) | | | (4,875) | ; Accounts payable and accrued expenses | 24,618 | | | 18 | ; Deferred revenue | 46,825 | | | 3,190 | ; Other assets and liabilities | 780 | | | 5,337 | ; Net cash provided by operating activities | 318,116 | | | 252,324 | ; | | | ; Investing activities | | | ; Capital expenditures - property and equipment | (105,124) | | | (102,931) | ; Capital expenditures - internal-use software | (19,279) | | | (6,541) | ; Acquisition of equipment under financing arrangements | (75,143) | | | (27,622) | ; Purchase of intangible assets | (754) | | | (1,835) | ; Cash paid for acquisition of businesses, net of cash acquired | (4,042) | | | — | ; Purchase of marketable securities | (177,632) | | | — | ; ; ; ; ; ; ; Proceeds from sale of equipment | — | | | 157 | ; Net cash used in investing activities | (381,974) | | | (138,772) | ; | | | ; Financing activities | | | ; Proceeds from direct offering for induced conversion of 2030 Convertible Notes, net of related costs | 1,473,883 | | | — | ; Repayment of 2030 Convertible Notes upon induced conversion | (1,478,102) | | | — | ; Proceeds from follow-on public offering, net of underwriting discounts and issuance costs | 887,888 | | | — | ; Proceeds from drawdown of Term Loan Facility | 120,000 | | | — | ; Principal repayment of Term Loan Facility | (500,000) | | | — | ; Payment of issuance costs related to Equipment Lease Facility | (7,239) | | | — | ; Proceeds related to issuance of common stock under equity incentive plan | 3,678 | | | 3,628 |",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-121",
+            "section": "Document",
+            "text": "9",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-122",
+            "section": "Document",
+            "text": "DIGITALOCEAN HOLDINGS, INC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-123",
+            "section": "Document",
+            "text": "CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-124",
+            "section": "Document",
+            "text": "(in thousands)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-125",
+            "section": "Document",
+            "text": "(unaudited)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-126",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+            "text": "| | | | | | | | | | | ; | Nine Months Ended September 30, ; | 2026 | | 2025 ; Proceeds from issuance of common stock under employee stock purchase plan | 2,494 | | | 2,660 | ; Employee payroll taxes paid related to net settlement of equity awards | (62,054) | | | (22,222) | ; Proceeds from issuance of 2030 Convertible Notes, net of issuance costs | — | | | 606,827 | ; Purchases of capped calls related to 2030 Convertible Notes | — | | | (83,875) | ; Proceeds from 2025 Credit Facility, net of issuance costs | — | | | 375,919 | ; Repayments of 2026 Convertible Notes including related costs | — | | | (1,131,458) | ; Proceeds from financing arrangements | 75,143 | | | 27,622 | ; Principal repayments of finance leases and financing arrangements | (39,895) | | | (4,154) | ; Repurchase and retirement of common stock including related costs | — | | | (82,124) | ; Net cash provided by (used in) financing activities | 475,796 | | | (307,177) | ; ; ; Effect of exchange rate changes on cash, cash equivalents, and restricted cash | (319) | | | (7) | ; Increase (decrease) in cash, cash equivalents and restricted cash | 411,619 | | | (193,632) | ; Cash, cash equivalents and restricted cash - beginning of period | 254,633 | | | 430,193 | ; Cash, cash equivalents and restricted cash - end of period | $ | 666,252 | | | $ | 236,561 | ; ; ; ; ; ; ; ; ; ; ; ; ; ; ;",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-127",
+            "section": "Document",
+            "text": "10",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-128",
+            "section": "Document",
+            "text": "DIGITALOCEAN HOLDINGS, INC.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-129",
+            "section": "Document",
+            "text": "RECONCILIATION OF GAAP TO NON-GAAP DATA",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-130",
+            "section": "Document",
+            "text": "(unaudited)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-131",
+            "section": "Document",
+            "text": "Adjusted Operating Income and Operating Income Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-132",
+            "section": "Document",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | ; ; | Three Months Ended | | Nine Months Ended ; | September 30, | | September 30, ; (In thousands) | 2026 | | 2025 | | 2026 | | 2025 ; Operating income | $ | 33,025 | | | $ | 44,932 | | | $ | 98,967 | | | $ | 118,193 | ; | | | | | | | ; Adjustments: | | | | | | | ; Stock-based compensation | 36,045 | | | 19,800 | | | 91,276 | | | 60,313 | ; Amortization of acquired intangible assets | 5,071 | | | 4,914 | | | 15,079 | | | 15,142 | ; Impairment of certain long-lived assets | — | | | — | | | 311 | | | — | ; Adjusted operating income | $ | 74,141 | | | $ | 69,646 | | | $ | 205,633 | | | $ | 193,648 | ; As a percentage of revenue: | | | | | | | ; Operating income margin | 10 | % | | 20 | % | | 12 | % | | 18 | % ; Adjusted operating income margin | 23 | % | | 30 | % | | 24 | % | | 29 | %",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-133",
+            "section": "Document",
+            "text": "Adjusted EBITDA and Adjusted EBITDA Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-134",
+            "section": "Document",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | ; ; | Three Months Ended | | Nine Months Ended ; | September 30, | | September 30, ; (In thousands) | 2026 | | 2025 | | 2026 | | 2025 ; GAAP Net income (loss) attributable to common stockholders | $ | (42,609) | | | $ | 158,371 | | | $ | 8,599 | | | $ | 233,602 | ; | | | | | | | ; Adjustments: | | | | | | | ; Depreciation and amortization | 75,142 | | | 35,060 | | | 171,771 | | | 97,035 | ; Stock-based compensation | 36,045 | | | 19,800 | | | 91,276 | | | 60,313 | ; Induced conversion expense | 57,110 | | | — | | | 57,110 | | | — | ; Interest expense | 16,408 | | | 5,042 | | | 34,424 | | | 9,489 | ; ; ; Income tax (benefit) expense | 6,184 | | | (68,057) | | | 6,614 | | | (59,460) | ; Loss (gain) on extinguishment of debt, net | — | | | (48,373) | | | 2,700 | | | (48,104) | ; ; ; Impairment of certain long-lived assets | — | | | — | | | 311 | | | — | ; ; ; Interest income and other income, net(1) | (4,068) | | | (2,051) | | | (10,480) | | | (17,334) | ; Adjusted EBITDA | $ | 144,212 | | | $ | 99,792 | | | $ | 362,325 | | | $ | 275,541 | ; As a percentage of revenue: | | | | | | | ; Net income (loss) margin | (13) | % | | 69 | % | | 1 | % | | 35 | % ; Adjusted EBITDA margin | 45 | % | | 43 | % | | 42 | % | | 42 | %",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-135",
+            "section": "Document",
+            "text": "___________________",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-137",
+            "section": "Document",
+            "text": "11",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-138",
+            "section": "Document",
+            "text": "Non-GAAP Net Income and Non-GAAP Diluted Net Income Per Share",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-139",
+            "section": "Document",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | ; ; | Three Months Ended | | Nine Months Ended ; | September 30, | | September 30, ; (In thousands, except per share amounts) | 2026 | | 2025 | | 2026 | | 2025 ; GAAP Net income (loss) attributable to common stockholders | $ | (42,609) | | | $ | 158,371 | | | $ | 8,599 | | | $ | 233,602 | ; Stock-based compensation | 36,045 | | | 19,800 | | | 91,276 | | | 60,313 | ; ; Induced conversion expense | 57,110 | | | — | | | 57,110 | | | — | ; Amortization of acquired intangible assets | 5,071 | | | 4,914 | | | 15,079 | | | 15,142 | ; ; Loss (gain) on extinguishment of debt, net(1) | — | | | (48,373) | | | 2,700 | | | (48,104) | ; ; ; Impairment of certain long-lived assets | — | | | — | | | 311 | | | — | ; ; ; Other charges(7) | 3,387 | | | — | | | 3,387 | | | — | ; Non-GAAP income tax adjustment(2) | (4,246) | | | (78,722) | | | (22,998) | | | (91,699) | ; Non-GAAP Net income | $ | 54,758 | | | $ | 55,990 | | | $ | 155,464 | | | $ | 169,254 | ; | | | | | | | ; Non-cash charges related to convertible notes(3) | $ | 678 | | | $ | 1,320 | | | $ | 2,868 | | | $ | 4,511 | ; Non-GAAP Net income used to compute net income per share, diluted | $ | 55,436 | | | $ | 57,310 | | | $ | 158,332 | | | $ | 173,765 | ; | | | | | | | ; GAAP Net income (loss) per share attributable to common stockholders, diluted(6) | $ | (0.37) | | | $ | 1.51 | | | $ | 0.08 | | | $ | 2.31 | ; Stock-based compensation | 0.29 | | | 0.19 | | | 0.77 | | | 0.59 | ; Induced conversion expense | 0.46 | | | — | | | 0.48 | | | — | ; Amortization of acquired intangible assets | 0.04 | | | 0.05 | | | 0.13 | | | 0.15 | ; ; Loss (gain) on extinguishment of debt, net(1) | — | | | (0.46) | | | $ | 0.02 | | | (0.47) | ; ; ; ; Impairment of certain long-lived assets | — | | | — | | | — | | | — | ; ; Non-cash charges related to convertible notes(3) | 0.01 | | | 0.01 | | | 0.02 | | | 0.04 | ; Other charges(7) | 0.03 | | | — | | | 0.03 | | | — | ; Non-GAAP income tax adjustment(2) | (0.01) | | | (0.76) | | | (0.20) | | | (0.93) | ; Non-GAAP Net income per share, diluted(4) | $ | 0.45 | | | $ | 0.54 | | | $ | 1.33 | | | $ | 1.69 | ; | | | | | | | ; GAAP Weighted-average shares used to compute net income per share, diluted | 114,682 | | 105,520 | | 108,049 | | 103,036 ; Add: Weighted-average dilutive effect of potentially dilutive securities | 12,152 | | | — | | | 14,662 | | | — | ; Less: Anti-dilutive impact of capped call transaction(5) | (3,470) | | | — | | | (4,024) | | | — | ; Non-GAAP Weighted-average shares used to compute net income per share, diluted(6) | 123,364 | | 105,520 | | 118,687 | | 103,036",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-140",
+            "section": "Document",
+            "text": "______________",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-141",
+            "section": "Document",
+            "text": "(1)For the three and nine months ended September 30, 2026, excludes tax impact which is presented in Non-GAAP income tax adjustment.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-143",
+            "section": "Document",
+            "text": "(3)Consists of non-cash interest expense for amortization of debt issuance costs related to our Convertible Notes.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-144",
+            "section": "Document",
+            "text": "(4)May not foot due to rounding.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-145",
+            "section": "Document",
+            "text": "12",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-146",
+            "section": "Document",
+            "text": "(5)Excludes the in-the-money portion of our 2030 Convertible Notes for non-GAAP weighted-average diluted shares as they are covered by our capped call transactions. Our outstanding capped call transactions are antidilutive under GAAP, but are expected to mitigate the dilutive effect of our 2030 Convertible Notes, and therefore are included in the calculation of non-GAAP diluted shares outstanding. The capped calls have an antidilutive impact when the average stock price of our common stock in a given period is higher than their exercise price.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-147",
+            "section": "Document",
+            "text": "(6)Includes the potentially dilutive effect of our convertible notes as if the entire principal amount outstanding were converted into shares for all periods presented. The Company has the election of settling any conversion in cash, shares of our common stock, or a combination of both. Refer to our Quarterly Report on Form 10-Q for the three months ended September 30, 2026 for further details.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-149",
+            "section": "Document",
+            "text": "Adjusted Free Cash Flow, Unlevered Adjusted Free Cash Flow, Adjusted Free Cash Flow Margin and Unlevered Adjusted Free Cash Flow Margin",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-150",
+            "section": "Document",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | ; | Three Months Ended | | Nine Months Ended ; | September 30, | | September 30, ; (In thousands) | 2026 | | 2025 | | 2026 | | 2025 ; GAAP Net cash provided by operating activities | $ | 161,227 | | | $ | 95,787 | | | $ | 318,116 | | | $ | 252,324 | ; Adjustments: | | | | | | | ; Capital expenditures - property and equipment | (23,548) | | | (7,771) | | | (105,124) | | | (102,931) | ; Capital expenditures - internal-use software development | (7,494) | | | (3,128) | | | (19,279) | | | (6,541) | ; Purchase of intangible assets | — | | | — | | | (754) | | | (1,835) | ; Restructuring and other charges | — | | | — | | | — | | | 64 | ; ; ; ; Adjusted free cash flow | $ | 130,185 | | | $ | 84,888 | | | $ | 192,959 | | | $ | 141,081 | ; Plus: Cash paid for interest | 10,891 | | | 2,473 | | | 25,240 | | | 2,722 | ; Less: Interest income | (5,083) | | | (2,630) | | | (14,350) | | | (9,489) | ; Unlevered adjusted free cash flow | $ | 135,993 | | | $ | 84,731 | | | $ | 203,849 | | | $ | 134,314 | ; As a percentage of revenue: | | | | | | | ; GAAP Net cash provided by operating activities | 50 | % | | 42 | % | | 37 | % | | 38 | % ; Adjusted free cash flow margin | 41 | % | | 37 | % | | 22 | % | | 21 | % ; Unlevered adjusted free cash flow margin | 42 | % | | 37 | % | | 24 | % | | 20 | %",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-151",
+            "section": "Document",
+            "text": "13",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": [
+          "Document text limit reached; selected sections omit other content"
+        ]
+      }
+    ],
+    "gaps": [
+      "0001582961-26-000019: Document text limit reached; selected sections omit other content",
+      "0001628280-26-069125: Document text limit reached; selected sections omit other content",
+      "0001628280-26-069141: Document text limit reached; selected sections omit other content"
+    ],
+    "scope": "Selected SEC annual/quarterly filings and subsequent earnings/financing disclosures",
+    "selected_accessions": [
+      "0001628280-26-069125"
+    ]
+  }
+}

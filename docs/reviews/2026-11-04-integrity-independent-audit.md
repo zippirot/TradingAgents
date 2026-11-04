@@ -22,3 +22,7 @@ This is not universal semantic verification of arbitrary prose or complete-docum
 ## Live prompt follow-up
 
 Independent read-only review of the literal named extraction fences and narrower quotation instructions found no material issue. Parser contracts and provenance checks are unchanged. Live compliance remains a required proof; prompt inspection alone does not establish it.
+
+## Recorded operating-KPI context follow-up
+
+The acceptance audit identified that the recorded release separates KPI value, period, definition and growth basis. The bounded same-document context implementation was reviewed independently against the actual source. Reproduced subject-substring/definition-name confusion, prior/forward qualifiers, overridden comparison bases, duplicate/missing source context and URL issuer identity were corrected with recorded regressions. Final narrow re-audit found no remaining material current-context finding. A missing definition remains an optional warning; arbitrary text cannot masquerade as a definition. Forty-nine context tests and the final 1,812-test offline suite pass. This is not a claim that live model extraction or all possible source prose is verified.

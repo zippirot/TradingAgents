@@ -15,6 +15,14 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+class DisclosureComparison(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    quote: str = Field(min_length=1, max_length=600)
+    value: Decimal = Field(ge=0)
+    unit: Literal["%"]
+    basis_locator: str = Field(min_length=1, max_length=256)
+
+
 class DisclosureClaim(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
     source_id: str = Field(min_length=1, max_length=128)
@@ -27,6 +35,10 @@ class DisclosureClaim(BaseModel):
     kind: Literal["historical", "guidance", "ambition"]
     quote: str = Field(min_length=1, max_length=2400)
     definition: str | None = Field(default=None, min_length=1, max_length=2400)
+
+    period_locator: str | None = Field(default=None, min_length=1, max_length=256)
+    definition_locator: str | None = Field(default=None, min_length=1, max_length=256)
+    comparison: DisclosureComparison | None = None
 
     @model_validator(mode="after")
     def range_order(self):
@@ -137,7 +149,7 @@ def _local_amount_subject(claim: DisclosureClaim) -> bool:
     return all(word in connectors for word in words)
 
 
-def _unambiguous_association(claim: DisclosureClaim) -> bool:
+def _unambiguous_association(claim: DisclosureClaim, period_external: bool = False) -> bool:
     """Reject a bag of matching tokens drawn from different source claims.
 
     The prose contract is one metric, one declared period and one amount/range
@@ -150,7 +162,7 @@ def _unambiguous_association(claim: DisclosureClaim) -> bool:
     if ";" in prose or re.search(r"[.!?]\s+\S", prose):
         return False
     remaining = claim.quote
-    for field in (claim.metric, claim.period):
+    for field in ((claim.metric,) if period_external else (claim.metric, claim.period)):
         left = r"(?<!\w)" if field[0].isalnum() else ""
         right = r"(?!\w)" if field[-1].isalnum() else ""
         pattern = left + re.escape(field) + right
@@ -172,7 +184,7 @@ def _phrase(text: str, phrase: str) -> bool:
 
 
 def validate_disclosure_claims(
-    claims: list[DisclosureClaim], blocks: dict[tuple[str, str], str]
+    claims: list[DisclosureClaim], blocks: dict[tuple[str, str], str], *, packages=()
 ) -> DisclosureResult:
     """Ground up to 32 proposed records in immutable source/locator text.
 
@@ -182,16 +194,21 @@ def validate_disclosure_claims(
     """
     if len(claims) > 32:
         raise ValueError("at most 32 disclosure records may be extracted")
+    from tradingagents.dataflows.disclosure_context import validate_context
+
     accepted, rejected, warnings = [], [], []
     for index, claim in enumerate(claims):
         text = blocks.get((claim.source_id, claim.locator))
+        period_external, definition_external, context_error = validate_context(claim, blocks, packages)
         reason = None
-        if text is None:
+        if context_error:
+            reason = context_error
+        elif text is None:
             reason = "source or locator unavailable"
         elif claim.quote not in text:
             reason = "quotation is not an exact retrieved source span"
         elif not all(
-            _phrase(claim.quote, field) for field in (claim.metric, claim.unit, claim.period)
+            _phrase(claim.quote, field) for field in ((claim.metric, claim.unit) if period_external else (claim.metric, claim.unit, claim.period))
         ):
             reason = "metric, unit or period is not present in the quoted span"
         elif claim.value not in _numbers(claim.quote) or (
@@ -200,9 +217,9 @@ def validate_disclosure_claims(
             reason = "numeric value is not present in the quoted span"
         elif not _value_has_unit(claim):
             reason = "numeric value is not explicitly associated with the asserted unit"
-        elif not _unambiguous_association(claim):
+        elif not _unambiguous_association(claim, period_external):
             reason = "metric, period and value lack an unambiguous local association"
-        elif claim.definition and claim.definition not in text:
+        elif claim.definition and not definition_external and claim.definition not in text:
             reason = "definition is not an exact retrieved source span"
         else:
             ambition = bool(
@@ -233,7 +250,7 @@ def validate_disclosure_claims(
     )
 
 
-def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str]) -> DisclosureResult:
+def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str], *, packages=()) -> DisclosureResult:
     """Parse one bounded model extraction; missing/malformed output stays unvalidated."""
     matches = re.findall(r"```disclosures\s*\n(.*?)\n```", report, re.S)
     if len(matches) != 1 or len(matches[0]) > 48000:
@@ -245,4 +262,4 @@ def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str]) -> 
         claims = [DisclosureClaim.model_validate(item) for item in raw]
     except (ValueError, TypeError):
         return DisclosureResult(rejected=("Malformed disclosure extraction",))
-    return validate_disclosure_claims(claims, blocks)
+    return validate_disclosure_claims(claims, blocks, packages=packages)

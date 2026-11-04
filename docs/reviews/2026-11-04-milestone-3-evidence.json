@@ -1,5 +1,5 @@
 {
-  "status": "milestone 3 offline implementation checkpoint; recorded primary-document and live acceptance outstanding",
+  "status": "recorded primary-source acceptance closed; final affected live acceptance tracked in milestone 6",
   "compute": "Machine 1 M1 Pro 16 GB",
   "baseline_feature_commit": "b07fe7c",
   "green": "251 passed in 4.95s",
@@ -33,14 +33,12 @@
     "Support explicit simple table heading units without guessing multi-column alignment"
   ],
   "limitations": [
-    "Synthetic fixtures prove retrieval/extraction behavior, not actual DOCN filing coverage",
-    "Recorded DOCN primary documents and live SEC proof remain pending per user deferral",
-    "Source span and cue checks do not prove all semantic interpretations; accounting and material-claim checks remain milestone 4",
-    "Ambiguous multi-column KPI tables remain unextracted with visible rejection; no guessed units/columns",
-    "Full offline suite and final independent audit remain milestone 6"
+    "Supported context grammar is deliberately bounded; omitted or ambiguous sections/definitions/comparisons remain visibly unvalidated.",
+    "Complex multi-column KPI tables and cross-document context are not guessed.",
+    "Recorded-source extraction uses constructed proposals; final live model compliance remains a separate proof.",
+    "Source and arithmetic checks do not certify every narrative interpretation."
   ],
-  "spend_usd": 0,
-  "source_sha256": {
+  "original_checkpoint_source_sha256": {
     "tradingagents/dataflows/disclosure_evidence.py": "b4a90c304408c49c59984c4d976910ba4877d7f59447c40d400a789d8c1a4a17",
     "tradingagents/dataflows/vendors/sec_documents.py": "2cb80e980a96157c3bea000f99896c5e35dcc23906791da2a58ee1db55e950d1",
     "tradingagents/agents/analysts/fundamentals_analyst.py": "3c93bedb18570a92144042f2e51b2b40bc68aaca6f69febc8154e682e9ab1a0d",
@@ -49,5 +47,15 @@
     "tradingagents/graph/setup.py": "9bb3ab8f69ff02b0246d350b42ecf3f1509cdd37e288bf793da941ccef8a67e7",
     "tests/test_disclosure_evidence.py": "ac58e642e1aefc0208d2a12a04d1390b9beebc877bb1003b196e842c8a58bcf7",
     "tests/test_sec_documents.py": "7be05db37c10a2847f0351091057e89282d2d41a7e76befbc6217d1bf7d89865"
+  },
+  "spend_at_original_checkpoint_usd": 0,
+  "recorded_source_acceptance": {
+    "fixture": "tests/fixtures/docn_2026q3/release_context.json",
+    "fixture_sha256": "9437cea6c88c152630898fc77ee1454ca478650c25048034647349cd8154a784",
+    "proof": "../evidence/m6-recorded-kpi-context-proof.json",
+    "source": "DOCN Q3 2026 EX-99.1, filed2026-11-03; original source URL/hash/retrieval time preserved",
+    "claims": "AI Customer ARR $376 million for Third Quarter2026, full AI-customer revenue definition, reported288% increase with referenced YoY basis; separate Q4 2026 guidance44\u201345%",
+    "tests": "49 recorded-context and adversarial tests pass; full offline suite1812 passed",
+    "review": "All reproduced material context findings closed on independent re-audit"
   }
 }

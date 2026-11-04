@@ -152,7 +152,7 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
                 if block_counts[block.locator] == 1 and not block.truncated:
                     blocks[(doc.source_id, block.locator)] = block.section + "\n" + block.text
                     documents[(doc.source_id, block.locator)] = doc
-        extraction = parse_disclosure_report(report, blocks)
+        extraction = parse_disclosure_report(report, blocks, packages=(disclosures,))
         results = {}
         for claim in extraction.claims:
             if claim.kind not in {"guidance", "ambition"}:

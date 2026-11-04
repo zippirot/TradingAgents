@@ -446,13 +446,22 @@ def assess_financial_package(
             for doc in disclosures.documents
             for block in doc.blocks
         }
-        grounded = parse_disclosure_report(state.get("fundamentals_report", ""), blocks)
+        grounded = parse_disclosure_report(state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
         disclosure_lines = [
             "Source-grounded disclosure excerpts (definitions and stated periods retained)"
         ]
         for claim in grounded.claims:
             disclosure_lines.append(
-                f"- {claim.kind}: {claim.quote} Definition: {claim.definition or 'not extracted'}. Source {claim.source_id}, {claim.locator}"
+                f"- {claim.kind}: {claim.quote} Period: {claim.period}"
+                f" (source {claim.source_id}, {claim.period_locator or claim.locator})."
+                f" Definition: {claim.definition or 'not extracted'}"
+                f" (source {claim.source_id}, {claim.definition_locator or claim.locator})."
+                f" Value source {claim.source_id}, {claim.locator}."
+                + (
+                    f" Reported comparison: {claim.comparison.quote}; year-over-year basis source"
+                    f" {claim.source_id}, {claim.comparison.basis_locator}. No comparator amount inferred."
+                    if claim.comparison else ""
+                )
             )
         disclosure_summary = "\n".join(disclosure_lines) if grounded.claims else ""
         notices = [*grounded.rejected, *grounded.warnings]
@@ -484,6 +493,12 @@ def assess_financial_package(
             package, [balance, *calculations]
         ),
     }
+    if disclosures is not None:
+        update["disclosure_evidence"] = {
+            "packages": [disclosures.model_dump(mode="json")],
+            "extraction": grounded.model_dump(mode="json"),
+            "coverage_gaps": list(disclosures.gaps),
+        }
     if quality["warnings"]:
         update["canonical_financial_context"] += "\n\nEvidence coverage warnings:\n" + "\n".join(
             "- " + warning for warning in quality["warnings"]
