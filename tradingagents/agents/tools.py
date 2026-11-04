@@ -11,7 +11,11 @@ from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
+from tradingagents.dataflows.financial_evidence import bounded_evidence_view
 from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
+from tradingagents.dataflows.vendors.sec_edgar import (
+    get_financial_evidence as build_financial_evidence,
+)
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
@@ -289,3 +293,23 @@ def get_prediction_markets(
         str: A formatted markdown report of matching prediction markets
     """
     return route_to_vendor("get_prediction_markets", topic, limit, trade_date or None)
+
+
+@tool
+def get_financial_evidence(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "Evidence cutoff date in yyyy-mm-dd format"],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """Exact dated SEC statement facts with source IDs, units and calculation lineage.
+
+    Coverage excludes issuer-specific narratives and untagged disclosures.
+    Derived quarters and TTM flows are labeled; EPS and shares are never added.
+    """
+    cutoff = as_of(curr_date, trade_date)
+    try:
+        return bounded_evidence_view(build_financial_evidence(ticker, cutoff)).model_dump_json()
+    except NoMarketDataError as exc:
+        return no_data_available(exc)
+    except VendorUnavailableError as exc:
+        return vendor_unavailable("get_financial_evidence", exc)

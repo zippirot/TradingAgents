@@ -17,12 +17,13 @@ EDGAR's ticker map falls through to the next configured vendor.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import time
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -89,7 +90,7 @@ _STATEMENTS["balance_sheet"] += [
     ("Noncurrent Operating Lease Liabilities", ("OperatingLeaseLiabilityNoncurrent",)),
     ("Restricted Cash", ("RestrictedCash",)),
     ("Cash Including Restricted Cash", ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",)),
-    ("Common Stock Equity", ("CommonStockValue",)),
+    ("Common Stock Par or Stated Value (Issued)", ("CommonStockValue",)),
     ("Additional Paid-in Capital", ("AdditionalPaidInCapital",)),
     ("Retained Earnings or Accumulated Deficit", ("RetainedEarningsAccumulatedDeficit",)),
     ("Accumulated Other Comprehensive Income", ("AccumulatedOtherComprehensiveIncomeLossNetOfTax",)),
@@ -214,7 +215,10 @@ def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
     for tag in tags:
         candidates = {}
         covered = set()
-        for unit, values in ((facts.get(tag) or {}).get("units") or {}).items():
+        container = facts.get(tag) or {}
+        if not isinstance(container, dict) or not isinstance(container.get("units", {}), dict):
+            raise VendorUnavailableError(f"Malformed SEC units for {tag}")
+        for unit, values in container.get("units", {}).items():
             if not isinstance(unit, str) or not isinstance(values, list):
                 continue
             for fact in values:
@@ -244,6 +248,8 @@ def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
             eligible = [r for r in records if (key, r.get("start"), r["unit"]) in covered]
             if not eligible:
                 continue
+            if len({(r.get("start"), r["unit"]) for r in eligible}) > 1:
+                raise VendorUnavailableError(f"SEC period or unit ambiguous for {tag} at {key[0]}")
             newest = max(r["filed"] for r in eligible)
             latest = [r for r in eligible if r["filed"] == newest]
             meanings = {(r.get("start"), r["unit"], Decimal(str(r["val"]))) for r in latest}
@@ -341,3 +347,66 @@ def get_income_statement(ticker: str, freq: str = "quarterly", as_of_date: str |
 def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:
     """Cash flow statement as filed on or before ``as_of_date``."""
     return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")
+
+
+def get_financial_evidence(ticker: str, as_of_date: str):
+    """Bounded exact SEC facts, retaining the source fragment for each value.
+
+    This path never substitutes undated vendor snapshots for filed evidence.
+    Twelve recent statement ends and five fiscal year ends bound model context.
+    """
+    from tradingagents.dataflows.financial_evidence import (
+        EvidencePackage,
+        FinancialFact,
+        SourceRecord,
+        add_period_calculations,
+    )
+
+    cutoff = date.fromisoformat(as_of_date)
+    cik = cik_for(ticker)
+    if cik is None:
+        raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
+    data = _cached_json(_FACTS_URL.format(cik=cik), f"CIK{cik}.json")
+    if str(data.get("cik", "")).zfill(10) != cik:
+        raise VendorUnavailableError("SEC companyfacts issuer does not match requested CIK")
+    facts = (data.get("facts") or {}).get("us-gaap")
+    if not isinstance(facts, dict) or not facts:
+        raise NoMarketDataError(ticker, ticker, "US filer with no us-gaap facts")
+    cache = Path(get_config()["data_cache_dir"]) / "sec_edgar" / f"CIK{cik}.json"
+    observed = datetime.fromtimestamp(cache.stat().st_mtime, UTC) if cache.exists() else datetime.now(UTC)
+    snapshot_hash = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    quarterly_spans = (_SPANS["quarterly"], *((low, high) for low, high, _ in _YEAR_TO_DATE))
+    selected = {}
+    quarterly_ends, annual_ends = set(), set()
+    for rows in _STATEMENTS.values():
+        for metric, tags in rows:
+            quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans)
+            annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS)
+            quarterly_ends.update(k[0] for k in quarter)
+            annual_ends.update(k[0] for k in annual)
+            selected[metric] = (quarter, annual)
+    allowed_quarters = set(sorted(quarterly_ends)[-12:])
+    allowed_annual = set(sorted(annual_ends)[-5:])
+    sources, records = {}, {}
+    for metric, (quarter, annual) in selected.items():
+        picked = [v for (end, _), v in quarter.items() if end in allowed_quarters]
+        picked += [v for (end, _), v in annual.items() if end in allowed_annual]
+        if not picked:
+            identity = hashlib.sha256(f"{cik}:{as_of_date}:{metric}:missing".encode()).hexdigest()
+            records[identity] = FinancialFact(fact_id=identity, metric=metric, value=None, unit="unknown",
+                cik=cik, period_end=cutoff, as_of=cutoff, locator="Selected US-GAAP tags",
+                missing_reason="No usable consolidated fact in the selected tags and periods")
+        for record in picked:
+            identity = hashlib.sha256(json.dumps([cik, metric, record], sort_keys=True).encode()).hexdigest()
+            locator = f"us-gaap/{record['tag']}/{record['unit']}/{record.get('start', 'instant')}/{record['end']}/{record['filed']}"
+            source_id = "sec-" + identity
+            sources[source_id] = SourceRecord(source_id=source_id, cik=cik, url=_FACTS_URL.format(cik=cik),
+                filed_date=record["filed"], retrieved_at=observed, content_hash=snapshot_hash,
+                locator=locator, accession=record.get("accn"), form=record.get("form", "unknown"))
+            records[identity] = FinancialFact(fact_id=identity, metric=metric, value=Decimal(str(record["val"])),
+                unit=record["unit"], cik=cik, period_start=record.get("start"), period_end=record["end"],
+                as_of=cutoff, source_ids=(source_id,), locator=locator)
+    if not sources:
+        raise NoMarketDataError(ticker, ticker, f"no statement evidence filed by {as_of_date}")
+    return add_period_calculations(EvidencePackage(cik=cik, as_of=cutoff, facts=tuple(records.values()), sources=tuple(sources.values()),
+        warnings=("Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.",)))
