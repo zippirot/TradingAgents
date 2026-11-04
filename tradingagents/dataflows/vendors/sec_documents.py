@@ -49,6 +49,8 @@ class SourceBlock(BaseModel):
     section: str
     text: str
     truncated: bool = False
+    currency: str | None = None
+    currency_locator: str | None = None
 
 
 class FilingDocument(BaseModel):
@@ -210,7 +212,7 @@ def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
 
 
 class _Sections(HTMLParser):
-    def __init__(self):
+    def __init__(self, unit_currencies=None):
         super().__init__(convert_charrefs=True)
         self.hidden = 0
         self.section = "Document"
@@ -222,32 +224,128 @@ class _Sections(HTMLParser):
         self.heading = False
         self.table_depth = 0
         self.row_cells = 0
+        self.unit_currencies = unit_currencies or {}
+        self.table_currencies = set()
+        self.table_currency_refs = set()
+        self.table_section = None
+        self.notes_heading = None
+        self.notes_scale = None
+        self.note_title = None
+        self.last_table_locator = None
+        self.last_table_statement_context = None
+        self.table_statement_context = None
 
-    def flush(self):
+    def _table_context(self):
+        prior = self.blocks
+        statement = []
+        if prior and prior[-1].locator == self.last_table_locator:
+            # Consecutive statement tables can share a single immediately
+            # preceding heading/scale; no prose may intervene.
+            statement = self.last_table_statement_context or []
+        else:
+            end = len(prior)
+            if end and re.fullmatch(r"\(?unaudited\)?", prior[end - 1].text, re.I):
+                end -= 1
+            if end >= 2:
+                heading, scale = prior[end - 2].text, prior[end - 1].text
+                if re.search(r"\bSTATEMENTS? OF\b", heading, re.I) and re.match(
+                    r"^\(?in (?:thousands|millions|billions)\b", scale, re.I
+                ):
+                    statement = [heading, scale]
+        self.table_statement_context = statement if not self.notes_heading else None
+        if self.notes_heading and self.notes_scale:
+            context = [self.notes_heading, self.notes_scale]
+            if self.note_title:
+                context.append(self.note_title)
+        else:
+            context = statement
+        if prior and prior[-1].text.endswith("as follows:"):
+            context.append(prior[-1].text)
+        return " ; ".join(dict.fromkeys(filter(None, [self.section, *context])))[:600]
+
+    def flush(self, table=False):
         text = " ".join("".join(self.parts).split())
         self.parts = []
         if text:
+            currency = (
+                next(iter(self.table_currencies))
+                if table and len(self.table_currencies) == 1
+                else None
+            )
             self.blocks.append(
                 SourceBlock(
                     locator=f"block-{len(self.blocks) + 1}",
-                    section=self.section,
+                    section=self.table_section if table and self.table_section else self.section,
                     text=text,
                     truncated=bool(self.table_depth),
+                    currency=currency,
+                    currency_locator=(
+                        next(
+                            (
+                                f"inline XBRL unitRef {ref} -> iso4217:{currency}"
+                                for ref in sorted(self.table_currency_refs)
+                                if self.unit_currencies.get(ref) == currency
+                            ),
+                            None,
+                        )
+                        if currency
+                        else None
+                    ),
                 )
             )
+            if table:
+                self.last_table_locator = self.blocks[-1].locator
+                self.last_table_statement_context = self.table_statement_context
             if self.heading:
                 self.section = text[:200]
+            if not table:
+                if re.match(r"^NOTES TO .*FINANCIAL STATEMENTS$", text, re.I):
+                    self.notes_heading, self.notes_scale, self.note_title = text, None, None
+                elif (
+                    self.notes_heading
+                    and not self.notes_scale
+                    and re.match(r"^\(in (?:thousands|millions|billions)\b", text, re.I)
+                ):
+                    self.notes_scale = text
+                elif self.notes_heading and re.match(r"^Note \d+\.", text, re.I):
+                    self.note_title = text[:200]
+                elif re.match(r"^(?:Item \d+\.|PART [IVX]+\b)", text, re.I):
+                    self.notes_heading = self.notes_scale = self.note_title = None
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag in ("script", "style", "ix:hidden", "head"):
-            self.hidden += 1
         if self.hidden:
+            if tag not in {
+                "area",
+                "base",
+                "br",
+                "embed",
+                "hr",
+                "img",
+                "input",
+                "link",
+                "meta",
+                "source",
+                "wbr",
+            }:
+                self.hidden += 1
+            return
+        style = re.sub(r"\s+", "", attrs.get("style", "")).lower()
+        if (
+            tag in ("script", "style", "ix:hidden", "ix:header", "head")
+            or "display:none" in style
+            or "visibility:hidden" in style
+            or "hidden" in attrs
+        ):
+            self.hidden = 1
             return
         if tag == "table":
             if not self.table_depth:
                 self.flush()
                 self.heading = False
+                self.table_section = self._table_context()
+                self.table_currencies = set()
+                self.table_currency_refs = set()
             self.table_depth += 1
         if self.table_depth:
             if tag == "tr":
@@ -265,15 +363,37 @@ class _Sections(HTMLParser):
             self.heading = tag.startswith("h") and len(tag) == 2
         if tag == "br":
             self.parts.append(" ")
+        if tag == "ix:nonfraction" and self.table_depth:
+            currency = self.unit_currencies.get(attrs.get("unitref"))
+            if currency:
+                self.table_currencies.add(currency)
+                self.table_currency_refs.add(attrs["unitref"])
         if tag == "a":
             self.href = attrs.get("href")
             self.link_text = []
 
-    def handle_endtag(self, tag):
-        if tag in ("script", "style", "ix:hidden", "head") and self.hidden:
-            self.hidden -= 1
+    def handle_startendtag(self, tag, attrs):
+        # HTMLParser emits an end event for <meta/> and <link/>. Hidden
+        # containers must not close when those void children end.
+        if self.hidden and tag in {
+            "area",
+            "base",
+            "br",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "source",
+            "wbr",
+        }:
             return
+        super().handle_startendtag(tag, attrs)
+
+    def handle_endtag(self, tag):
         if self.hidden:
+            self.hidden -= 1
             return
         if tag == "a" and self.href is not None:
             self.links.append((self.href, "".join(self.link_text).strip()))
@@ -281,7 +401,10 @@ class _Sections(HTMLParser):
         if tag == "table" and self.table_depth:
             self.table_depth -= 1
             if not self.table_depth:
-                self.flush()
+                self.flush(table=True)
+                self.table_section = None
+                self.table_currencies = set()
+                self.table_currency_refs = set()
         elif self.table_depth:
             if tag in ("p", "div"):
                 self.parts.append(" ")
@@ -297,7 +420,15 @@ class _Sections(HTMLParser):
 
 
 def extract_sections(text: str, max_chars: int = 60000):
-    parser = _Sections()
+    unit_currencies = {
+        ref: code.upper()
+        for ref, code in re.findall(
+            r"<xbrli:unit\b[^>]*\bid=[\"\']([^\"\']+)[\"\'][^>]*>\s*<xbrli:measure>\s*iso4217:([A-Za-z]{3})\s*</xbrli:measure>",
+            text,
+            re.I,
+        )
+    }
+    parser = _Sections(unit_currencies)
     gaps = []
     try:
         parser.feed(text)
@@ -317,16 +448,43 @@ def extract_sections(text: str, max_chars: int = 60000):
         financial = re.compile(
             r"equity|lease|financ|commitment|guidance|outlook|revenue|net retention|"
             r"remaining performance|earnings|reconciliation|cash flow|capital|debt|"
-            r"shares|stock|AI customer|AI product",
+            r"shares|stock|AI customer|AI product|borrow|loan|credit|convertible|"
+            r"drawdown|acquisit|equipment",
             re.I,
         )
 
         # Prefer relevant notes even when they occur after cover pages and risk
         # boilerplate. Stable locators still refer to original document order.
+        financing_scope = re.compile(
+            r"net carrying amount.{0,100}debt|credit agreement|term loan facility|"
+            r"revolving facility|drawn? down|drawdowns|"
+            r"net cash (?:used in investing|provided by financing) activities",
+            re.I,
+        )
+
         def priority(pair):
             _, block = pair
             hits = len(financial.findall(block.text))
+            table = "|" in block.text
+            statement_table = table and re.search(r"\bSTATEMENTS? OF\b", block.section, re.I)
+            obligation_table = table and re.search(
+                r"\bNote \d+\.\s*(?:Debt|Finance Leases?|Equipment Financing)\b",
+                block.section,
+                re.I,
+            )
+            # Source statements and obligation tables establish the numbers;
+            # adjacent financing/acquisition prose establishes their scope.
+            tier = (
+                3
+                if statement_table or obligation_table
+                else 2
+                if financing_scope.search(block.text)
+                else 1
+                if hits
+                else 0
+            )
             return (
+                tier,
                 hits + bool(re.search(r"\d", block.text)) * bool(hits),
                 bool(financial.search(block.section)),
             )
@@ -378,7 +536,7 @@ def exhibit_url(filing: FilingReference, href: str) -> str | None:
 class DocumentClient:
     """Finite per-run HTTP acquisition with immutable-content cache metadata."""
 
-    def __init__(self, max_bytes=2_000_000, max_requests=10, max_seconds=90):
+    def __init__(self, max_bytes=2_500_000, max_requests=10, max_seconds=90):
         self.max_bytes = max_bytes
         self.max_requests = max_requests
         self.deadline = time.monotonic() + max_seconds
@@ -510,6 +668,10 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                         exhibit_url(filing, href)
                         for href, label in links
                         if re.search(r"(?:99[._-]?\d|ex99)", href + " " + label, re.I)
+                        or (
+                            "2.02" in filing.items
+                            and re.search(r"\bpress release issued by\b", label, re.I)
+                        )
                     ]
                     exhibits = list(dict.fromkeys(u for u in exhibits if u and u != filing.url))
                     pending.extend(exhibits[:2])

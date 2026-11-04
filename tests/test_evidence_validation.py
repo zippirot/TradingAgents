@@ -300,3 +300,146 @@ def test_identical_balance_facts_from_two_sources_do_not_create_false_ambiguity(
         latest_balance_check(base.model_copy(update={"facts": (*records, conflict)})).status
         == "unavailable"
     )
+
+
+def rounded_equity_fixture(delta=400, *, different_vintage=False):
+    from decimal import Decimal
+
+    from tests.test_filing_facts import EQUITY, package as filing_package
+    from tradingagents.agents.evidence_validation import filing_accounting_evidence
+
+    disclosures = filing_package(EQUITY)
+    empty = EvidencePackage(cik=disclosures.cik, as_of=disclosures.as_of)
+    evidence, _, extraction = filing_accounting_evidence(empty, disclosures)
+    equity = next(
+        f
+        for f in evidence.facts
+        if f.metric == "Stockholders Equity" and str(f.period_end) == "2026-06-30"
+    )
+    duplicate = equity.model_copy(
+        update={"fact_id": "companyfacts-value", "value": equity.value + Decimal(delta)}
+    )
+    sources = evidence.sources
+    if different_vintage:
+        from datetime import date
+
+        old = next(s for s in sources if s.source_id == equity.source_ids[0])
+        changed = old.model_copy(
+            update={
+                "source_id": "different-filing",
+                "filed_date": date(2026, 9, 1),
+                "accession": "0001582961-26-000002",
+            }
+        )
+        sources = (*sources, changed)
+        duplicate = duplicate.model_copy(update={"source_ids": (changed.source_id,)})
+    return (
+        evidence.model_copy(update={"facts": (*evidence.facts, duplicate), "sources": sources}),
+        extraction.rounding_quantum_by_fact,
+        equity,
+    )
+
+
+def test_same_vintage_table_rounding_is_not_a_reported_fact_conflict():
+    from tradingagents.agents.evidence_validation import reported_fact_conflicts
+
+    evidence, precision, equity = rounded_equity_fixture()
+    assert precision[equity.fact_id] == 1000
+    assert reported_fact_conflicts(evidence, precision) == []
+    assert len(evidence.facts) > 1  # original exact source facts remain intact
+
+
+def test_excess_difference_missing_precision_and_different_vintage_stay_conflicts():
+    from tradingagents.agents.evidence_validation import reported_fact_conflicts
+
+    evidence, precision, _ = rounded_equity_fixture(501)
+    assert reported_fact_conflicts(evidence, precision)
+    evidence, precision, _ = rounded_equity_fixture(400)
+    assert reported_fact_conflicts(evidence, {})
+    evidence, precision, _ = rounded_equity_fixture(400, different_vintage=True)
+    assert reported_fact_conflicts(evidence, precision)
+
+
+def test_rounded_duplicate_balance_selector_applies_only_known_source_allowance():
+    from decimal import Decimal
+
+    from tradingagents.agents.evidence_validation import latest_balance_check
+
+    evidence, precision, equity = rounded_equity_fixture()
+    a = equity.model_copy(
+        update={
+            "fact_id": "assets",
+            "metric": "Total Assets",
+            "value": equity.value + Decimal(100000400),
+        }
+    )
+    liabilities = equity.model_copy(
+        update={
+            "fact_id": "liabilities",
+            "metric": "Total Liabilities",
+            "value": Decimal(100000000),
+        }
+    )
+    evidence = evidence.model_copy(update={"facts": (*evidence.facts, a, liabilities)})
+    before = evidence.model_dump_json()
+    result = latest_balance_check(evidence, precision)
+    assert result.status == "pass" and result.tolerance == Decimal(500)
+    assert equity.fact_id in result.input_fact_ids
+    assert evidence.model_dump_json() == before
+    assert latest_balance_check(evidence).status == "unavailable"
+
+
+def test_rounding_never_merges_different_unit_basis_or_period():
+    from datetime import date
+
+    from tradingagents.agents.evidence_validation import _instant_at
+
+    evidence, precision, equity = rounded_equity_fixture()
+    for update in [{"unit": "EUR"}, {"basis": "management-adjusted"}]:
+        changed = evidence.facts[-1].model_copy(update=update)
+        mixed = evidence.model_copy(update={"facts": (*evidence.facts[:-1], changed)})
+        assert _instant_at(mixed, "Stockholders Equity", equity.period_end, precision) is None
+    changed = evidence.facts[-1].model_copy(update={"period_end": date(2026, 3, 31)})
+    separate = evidence.model_copy(update={"facts": (*evidence.facts[:-1], changed)})
+    selected = _instant_at(separate, "Stockholders Equity", equity.period_end, precision)
+    assert selected.fact_id == equity.fact_id
+
+
+def test_duration_selector_uses_the_same_rounding_policy_as_instant_selector():
+    from decimal import Decimal
+
+    from tests.test_filing_facts import EQUITY, package as filing_package
+    from tradingagents.agents.evidence_validation import _duration_at, filing_accounting_evidence
+
+    disclosures = filing_package(EQUITY)
+    empty = EvidencePackage(cik=disclosures.cik, as_of=disclosures.as_of)
+    evidence, _, extraction = filing_accounting_evidence(empty, disclosures)
+    income = next(fact for fact in evidence.facts if fact.metric == "Net Income")
+    other = income.model_copy(
+        update={"fact_id": "companyfacts-income", "value": income.value + Decimal(400)}
+    )
+    current = evidence.model_copy(update={"facts": (*evidence.facts, other)})
+    assert _duration_at(current, "Net Income", income.period_start, income.period_end) is None
+    chosen = _duration_at(
+        current,
+        "Net Income",
+        income.period_start,
+        income.period_end,
+        extraction.rounding_quantum_by_fact,
+    )
+    assert chosen.fact_id == income.fact_id
+
+
+def test_rounded_table_cannot_hide_two_disagreeing_unknown_precision_sources():
+    from decimal import Decimal
+
+    from tradingagents.agents.evidence_validation import reported_fact_conflicts
+
+    evidence, precision, equity = rounded_equity_fixture(400)
+    another = equity.model_copy(
+        update={"fact_id": "another-companyfacts-value", "value": equity.value + Decimal(300)}
+    )
+    evidence = evidence.model_copy(update={"facts": (*evidence.facts, another)})
+    assert reported_fact_conflicts(evidence, precision)
+    for invalid in (Decimal("NaN"), Decimal("-1000")):
+        assert reported_fact_conflicts(evidence, {equity.fact_id: invalid})

@@ -215,3 +215,82 @@ def test_explicit_table_heading_units_and_single_value_row_are_grounded():
     assert not validate_disclosure_claims(
         [record.model_copy(update={"quote": ambiguous})], {("s", "p1"): ambiguous}
     ).claims
+
+
+WRONG_PERIOD = "US-GAAP calendar year 2027 revenue guidance is USD 1.2 billion; US-GAAP calendar year 2026 revenue guidance is USD 1.5 billion."
+
+
+def test_value_from_other_period_cannot_bind_to_claimed_period():
+    record = claim(
+        metric="revenue",
+        value="1.5",
+        unit="billion",
+        period="calendar year 2027",
+        kind="guidance",
+        quote=WRONG_PERIOD,
+        definition=None,
+    )
+    result = validate_disclosure_claims([record], {("s", "p1"): WRONG_PERIOD})
+    assert not result.claims
+    assert any("association" in reason for reason in result.rejected)
+
+
+def test_narrow_correct_period_value_quote_remains_accepted():
+    quote = WRONG_PERIOD.split(";")[0]
+    record = claim(
+        metric="revenue",
+        value="1.2",
+        unit="billion",
+        period="calendar year 2027",
+        kind="guidance",
+        quote=quote,
+        definition=None,
+    )
+    assert validate_disclosure_claims([record], {("s", "p1"): WRONG_PERIOD}).claims
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "Calendar year 2027 revenue guidance is USD 1.2 billion and adjusted EBITDA guidance is USD 1.5 billion.",
+        "Calendar year 2027 revenue guidance is discussed; adjusted EBITDA guidance is USD 1.5 billion.",
+        "Calendar year 2027 revenue guidance is discussed. Adjusted EBITDA guidance is USD 1.5 billion.",
+    ],
+)
+def test_other_metric_value_does_not_supply_revenue_claim(quote):
+    record = claim(
+        metric="revenue",
+        value="1.5",
+        unit="billion",
+        period="calendar year 2027",
+        kind="guidance",
+        quote=quote,
+        definition=None,
+    )
+    assert not validate_disclosure_claims([record], {("s", "p1"): quote}).claims
+
+
+def test_table_header_with_two_periods_is_not_single_dated_column():
+    quote = "Amounts in millions\nRevenue | June 30, 2026 and June 30, 2027 ; Revenue | 234"
+    record = claim(metric="Revenue", value="234", unit="millions", quote=quote, definition=None)
+    assert not validate_disclosure_claims([record], {("s", "p1"): quote}).claims
+
+
+def test_table_numeric_token_in_explanatory_cell_is_not_reported_value():
+    quote = "Amounts in millions\nRevenue | June 30, 2026 ; Revenue | Not disclosed until 2026"
+    record = claim(metric="Revenue", value="2026", unit="millions", quote=quote, definition=None)
+    assert not validate_disclosure_claims([record], {("s", "p1"): quote}).claims
+
+
+@pytest.mark.parametrize("quote", [
+    "Calendar year 2027 revenue guidance is discussed and adjusted EBITDA guidance is USD 1.5 billion.",
+    "Calendar year 2027 revenue guidance is discussed, adjusted EBITDA guidance is USD 1.5 billion.",
+    "Calendar year 2027 revenue and adjusted EBITDA guidance is USD 1.5 billion.",
+])
+def test_amount_for_another_metric_cannot_be_assigned_to_revenue(quote):
+    proposed = claim(metric="revenue", value="1.5", unit="billion",
+                     period="calendar year 2027", kind="guidance",
+                     quote=quote, definition=None)
+    result = validate_disclosure_claims([proposed], {("s", "p1"): quote})
+    assert not result.claims
+    assert result.rejected

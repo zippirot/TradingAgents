@@ -341,3 +341,154 @@ def test_section_completeness_is_local_to_the_retained_block():
     assert blocks[0].truncated
     blocks, _, _ = extract_sections("<table><tr><td>Stockholders equity</td><td>100</td></tr>")
     assert blocks[-1].truncated
+
+
+def test_earnings_press_release_link_in_separate_exhibit_cell_is_retrieved(monkeypatch):
+    import hashlib
+    import json
+
+    data = submissions()
+    recent = {key: list(value) for key, value in data["filings"]["recent"].items()}
+    recent["primaryDocument"][2] = "docn-20261103.htm"
+    data["filings"]["recent"] = recent
+    monkeypatch.setattr(docs, "cik_for", lambda _: "0001582961")
+    called = []
+    primary = """<h2>Item 2.02 Results of Operations and Financial Condition</h2>
+    <p>On November 3, 2026, the company issued a press release.</p>
+    <h2>Item 9.01 Exhibits</h2><table><tr><th>Exhibit No.</th><th>Description</th></tr>
+    <tr><td>99.1</td><td><a href="a2026-q3dopressrelease.htm">Press release issued by
+    DigitalOcean Holdings, Inc. dated</a></td></tr></table>"""
+
+    def fetch(self, url):
+        called.append(url)
+        text = (
+            json.dumps(data)
+            if "submissions" in url
+            else primary
+            if url.endswith("docn-20261103.htm")
+            else "<h2>Q3 Results</h2><p>Revenue of $100 million.</p>"
+        )
+        return {
+            "url": url,
+            "text": text,
+            "retrieved_at": "2026-11-04T12:00:00+00:00",
+            "content_hash": hashlib.sha256(text.encode()).hexdigest(),
+        }
+
+    monkeypatch.setattr(docs.DocumentClient, "fetch", fetch)
+    package = docs.get_filing_evidence("DOCN", "2026-10-19")
+    assert any(url.endswith("a2026-q3dopressrelease.htm") for url in called)
+    assert not any("earnings exhibit unavailable" in gap for gap in package.gaps)
+    assert any(doc.url.endswith("a2026-q3dopressrelease.htm") for doc in package.documents)
+
+
+def test_hidden_inline_xbrl_header_does_not_consume_visible_text_budget():
+    html = (
+        "<html><head><meta charset=utf-8><title>Filing</title></head><body>"
+        "<div style=display:none><ix:header><ix:hidden><ix:nonNumeric>"
+        + "x" * 300
+        + "</ix:nonNumeric></ix:hidden><xbrli:context>"
+        + "z" * 300
+        + "</xbrli:context></ix:header></div>"
+        "<h2>Consolidated Statements of Cash Flows</h2>"
+        "<p>Amounts in thousands</p>"
+        "<table><caption>Cash flows, in thousands</caption><tr><th>Q3 2026</th></tr>"
+        "<tr><td>Net cash provided by operating activities 123</td></tr></table></body></html>"
+    )
+    blocks, _, gaps = docs.extract_sections(html, max_chars=160)
+    assert any("Net cash provided" in block.text for block in blocks)
+    assert any("Cash flows, in thousands" in block.text for block in blocks)
+    assert not any("xxxx" in block.text or "zzzz" in block.text for block in blocks)
+    assert not gaps
+
+
+def test_sec_table_context_keeps_adjacent_and_scoped_units_and_xbrl_currency():
+    html = """<html><body><div style="display:none"><ix:header>
+    <xbrli:unit id="usd"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+    </ix:header></div>
+    <p>CONDENSED CONSOLIDATED STATEMENTS OF STOCKHOLDERS’ EQUITY (DEFICIT)</p>
+    <p>(in thousands, except share amounts)</p><p>(unaudited)</p>
+    <table><tr><th>Common Stock</th><th>Total</th></tr>
+    <tr><td>Balance at December 31, 2025</td><td><ix:nonFraction unitRef="usd">28,690</ix:nonFraction></td></tr></table>
+    <p>NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS</p>
+    <p>(in thousands, except share and per share amounts)</p>
+    <p>Note 9. Finance Leases and Equipment Financing Obligations</p>
+    <p>Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:</p>
+    <table><tr><th>Finance Leases</th></tr><tr><td><ix:nonFraction unitRef="usd">192,716</ix:nonFraction></td></tr></table>
+    </body></html>"""
+    blocks, _, gaps = docs.extract_sections(html)
+    equity = next(block for block in blocks if "28,690" in block.text)
+    lease = next(block for block in blocks if "192,716" in block.text)
+    assert "(in thousands, except share amounts)" in equity.section
+    assert "STOCKHOLDERS’ EQUITY" in equity.section
+    assert "(in thousands, except share and per share amounts)" in lease.section
+    assert "Maturities of finance lease" in lease.section
+    assert equity.currency == lease.currency == "USD"
+    assert (
+        equity.currency_locator
+        == lease.currency_locator
+        == ("inline XBRL unitRef usd -> iso4217:USD")
+    )
+    assert not gaps
+
+
+def test_default_document_cap_accommodates_observed_2025_annual_filing():
+    # Actual DOCN FY2025 annual HTML decoded to 2,210,338 bytes in free SEC preflight.
+    assert 2_210_338 <= docs.DocumentClient().max_bytes <= 2_500_000
+
+
+def test_mixed_inline_xbrl_currencies_do_not_claim_usd_table():
+    html = """<div style="display:none"><ix:header>
+    <xbrli:unit id="usd"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+    <xbrli:unit id="eur"><xbrli:measure>iso4217:EUR</xbrli:measure></xbrli:unit>
+    </ix:header></div><table><tr>
+    <td><ix:nonFraction unitRef="usd">100</ix:nonFraction></td>
+    <td><ix:nonFraction unitRef="eur">90</ix:nonFraction></td>
+    </tr></table>"""
+    blocks, _, _ = docs.extract_sections(html)
+    assert blocks[0].currency is None
+    assert blocks[0].currency_locator is None
+
+
+def test_unrelated_prose_breaks_prior_statement_scale_before_table():
+    from tradingagents.dataflows.filing_facts import _rows, _scale
+
+    html = """<p>CONSOLIDATED STATEMENTS OF STOCKHOLDERS EQUITY</p>
+    <p>(in thousands, USD)</p>
+    <p>Unrelated operational statistics in whole dollars</p>
+    <table><tr><td>Three Months Ended September 30, 2026</td></tr>
+    <tr><th>Movement</th><th>Total stockholders equity</th></tr>
+    <tr><td>Balance at June 30, 2026</td><td>100</td></tr>
+    <tr><td>Balance at September 30, 2026</td><td>120</td></tr></table>"""
+    blocks, _, _ = docs.extract_sections(html)
+    table = blocks[-1]
+    assert "CONSOLIDATED STATEMENTS" not in table.section
+    assert "thousands" not in table.section
+    with pytest.raises(ValueError, match="scale"):
+        _scale(table, _rows(table))
+
+
+def test_bounded_selection_keeps_debt_facility_and_investing_scope_evidence():
+    distractor = "<p>Revenue equity stock capital guidance outlook</p>" * 10
+    html = (
+        distractor
+        + "<p>NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS</p>"
+        + "<p>(in thousands, except share amounts)</p>"
+        + "<p>Note 7. Debt</p><p>The net carrying amount of debt consisted of the following:</p>"
+        + "<table><tr><th>Debt</th><th>September 30, 2026</th></tr>"
+        + "<tr><td>Convertible Notes</td><td>153</td></tr><tr><td>Total obligations</td><td>465</td></tr></table>"
+        + "<p>The Credit Agreement established a Term Loan Facility and Revolving Facility.</p>"
+        + "<p>The company drew down the Term Loan Facility and repaid it in full.</p>"
+        + "<p>No drawdowns have been made under the Revolving Facility.</p>"
+        + "<p>Net cash used in investing activities rose because cash payments for acquisition "
+        + "of equipment under financing arrangements increased.</p>"
+        + distractor
+    )
+    blocks, _, gaps = docs.extract_sections(html, max_chars=510)
+    selected = " ".join(block.text for block in blocks)
+    assert "Total obligations | 465" in selected
+    assert "Credit Agreement established" in selected
+    assert "repaid it in full" in selected
+    assert "No drawdowns" in selected
+    assert "acquisition of equipment" in selected
+    assert gaps

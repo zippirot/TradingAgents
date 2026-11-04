@@ -1,0 +1,145 @@
+{
+  "provenance": {
+    "kind": "recorded primary SEC source excerpts, not synthetic",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+    "source_sha256": "f5f9cd5e507ba82006afbbe1776e5b8e4912d442a634c990b7c58068df5604e5",
+    "retrieved_at": "2026-11-04T19:40:15.075791+00:00",
+    "selection": "Whole current quarter and current/prior year-to-date equity tables, cash-flow statement, debt carrying table and explicit facility scope/repayment paragraphs, present-value lease/equipment table, and explanatory financed-acquisition/financing paragraphs. Values/wording unchanged; source-scoped headings and inline-XBRL currency metadata retained."
+  },
+  "disclosures": {
+    "schema_version": 1,
+    "cik": "0001582961",
+    "as_of": "2026-11-04",
+    "documents": [
+      {
+        "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+        "filing": {
+          "cik": "0001582961",
+          "accession": "0001628280-26-069141",
+          "form": "10-Q",
+          "filed_date": "2026-11-03",
+          "report_date": "2026-09-30",
+          "primary_document": "docn-20260930.htm",
+          "items": "",
+          "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+        "retrieved_at": "2026-11-04T19:40:15.075791Z",
+        "content_hash": "f5f9cd5e507ba82006afbbe1776e5b8e4912d442a634c990b7c58068df5604e5",
+        "blocks": [
+          {
+            "locator": "block-62",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF STOCKHOLDERS\u2019 EQUITY (DEFICIT) ; (in thousands, except share amounts)",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ; | Common Stock | | Additional Paid-In Capital | | Accumulated Other Comprehensive Loss | | Retained Earnings (Accumulated Deficit) | | Total ; | Shares | | Amount | | | | ; Balance at June 30, 2026 | 105,002,427 | | | $ | 2 | | | $ | 925,014 | | | $ | (1,756) | | | $ | 7,471 | | | $ | 930,731 | ; Issuance of common stock under equity incentive plan, net of taxes withheld | 374,389 | | | \u2014 | | | (21,405) | | | \u2014 | | | \u2014 | | | (21,405) | ; ; ; ; ; Issuance of common stock in connection with induced conversion of 2030 Convertible Notes, net of transaction costs and tax | 12,543,915 | | | \u2014 | | | 515,696 | | | \u2014 | | | \u2014 | | | 515,696 | ; Stock-based compensation | \u2014 | | | \u2014 | | | 34,284 | | | \u2014 | | | \u2014 | | | 34,284 | ; ; Other comprehensive loss | \u2014 | | | \u2014 | | | \u2014 | | | (241) | | | \u2014 | | | (241) | ; Net loss attributable to common stockholders | \u2014 | | | \u2014 | | | \u2014 | | | \u2014 | | | (42,609) | | | (42,609) | ; Balance at September 30, 2026 | 117,920,731 | | | $ | 2 | | | $ | 1,453,589 | | | $ | (1,997) | | | $ | (35,138) | | | $ | 1,416,456 |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-70",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF STOCKHOLDERS\u2019 EQUITY (DEFICIT) ; (in thousands, except share amounts)",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ; | Common Stock | | Additional Paid-In Capital | | Accumulated Other Comprehensive Loss | | Retained Earnings (Accumulated Deficit) | | Total ; | Shares | | Amount | | | | ; Balance at December 31, 2025 | 91,947,614 | | | $ | 2 | | | $ | 16,005 | | | $ | (960) | | | $ | (43,737) | | | $ | (28,690) | ; Issuance of common stock under equity incentive plan, net of taxes withheld | 1,394,281 | | | \u2014 | | | (58,740) | | | \u2014 | | | \u2014 | | | (58,740) | ; Issuance of common stock under employee stock purchase plan, net of taxes withheld | 86,869 | | | \u2014 | | | 2,494 | | | \u2014 | | | \u2014 | | | 2,494 | ; ; ; Issuance of common stock in connection with follow-on public offering, net of underwriter discounts and issuance costs | 11,948,052 | | | \u2014 | | | 887,888 | | | \u2014 | | | \u2014 | | | 887,888 | ; Issuance of common stock in connection with induced conversion of 2030 Convertible Notes, net of transaction costs and tax | 12,543,915 | | | \u2014 | | | 515,696 | | | \u2014 | | | \u2014 | | | 515,696 | ; Stock-based compensation | \u2014 | | | \u2014 | | | 90,246 | | | \u2014 | | | \u2014 | | | 90,246 | ; ; Other comprehensive loss | \u2014 | | | \u2014 | | | \u2014 | | | (1,037) | | | \u2014 | | | (1,037) | ; Net income attributable to common stockholders | \u2014 | | | \u2014 | | | \u2014 | | | \u2014 | | | 8,599 | | | 8,599 | ; Balance at September 30, 2026 | 117,920,731 | | | $ | 2 | | | $ | 1,453,589 | | | $ | (1,997) | | | $ | (35,138) | | | $ | 1,416,456 |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-71",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF STOCKHOLDERS\u2019 EQUITY (DEFICIT) ; (in thousands, except share amounts)",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ; | Common Stock | | Additional Paid-In Capital | | Accumulated Other Comprehensive Income (Loss) | | Retained Earnings (Accumulated Deficit) | | Total ; | Shares | | Amount | | | | ; Balance at December 31, 2024 | 92,234,517 | | | $ | 2 | | | $ | 57,282 | | | $ | (1,497) | | | $ | (258,742) | | | $ | (202,955) | ; Issuance of common stock under equity incentive plan, net of taxes withheld | 1,484,481 | | | \u2014 | | | (18,058) | | | \u2014 | | | \u2014 | | | (18,058) | ; Issuance of common stock under employee stock purchase plan, net of taxes withheld | 103,805 | | | \u2014 | | | 2,660 | | | \u2014 | | | \u2014 | | | 2,660 | ; Repurchase and retirement of common stock including related costs | (2,356,547) | | | \u2014 | | | (82,416) | | | \u2014 | | | \u2014 | | | (82,416) | ; Stock-based compensation | \u2014 | | | \u2014 | | | 61,940 | | | \u2014 | | | \u2014 | | | 61,940 | ; Purchases of capped calls related to 2030 Convertible Notes, net of tax | \u2014 | | | \u2014 | | | (20,688) | | | \u2014 | | | (44,257) | | | (64,945) | ; Other comprehensive income | \u2014 | | | \u2014 | | | \u2014 | | | 554 | | | \u2014 | | | 554 | ; Net income attributable to common stockholders | \u2014 | | | \u2014 | | | \u2014 | | | \u2014 | | | 233,602 | | | 233,602 | ; Balance at September 30, 2025 | 91,466,256 | | | $ | 2 | | | $ | 720 | | | $ | (943) | | | $ | (69,397) | | | $ | (69,618) |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-78",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+            "text": "| | | | | | | | | | | ; | Nine Months Ended September 30, ; | 2026 | | 2025 ; Operating activities | | | ; Net income attributable to common stockholders | $ | 8,599 | | | $ | 233,602 | ; Adjustments to reconcile net income to net cash provided by operating activities: | | | ; Depreciation and amortization | 171,771 | | | 97,035 | ; Stock-based compensation | 91,276 | | | 60,313 | ; Provision for expected credit losses | 13,078 | | | 13,337 | ; Loss (gain) on extinguishment of debt, net | 2,700 | | | (48,104) | ; Induced conversion expense | 57,110 | | | \u2014 | ; Deferred income taxes | \u2014 | | | (72,522) | ; Operating lease right-of-use assets and liabilities, net | (42,520) | | | (7,746) | ; Non-cash interest expense | 3,872 | | | 5,451 | ; ; Net accretion of discounts and amortization of premiums on investments | (1,088) | | | \u2014 | ; ; ; ; Other | 7,737 | | | (7,652) | ; Changes in operating assets and liabilities: | | | ; Accounts receivable | (62,040) | | | (25,060) | ; Prepaid expenses and other current assets | (4,602) | | | (4,875) | ; Accounts payable and accrued expenses | 24,618 | | | 18 | ; Deferred revenue | 46,825 | | | 3,190 | ; Other assets and liabilities | 780 | | | 5,337 | ; Net cash provided by operating activities | 318,116 | | | 252,324 | ; | | | ; Investing activities | | | ; Capital expenditures - property and equipment | (105,124) | | | (102,931) | ; Capital expenditures - internal-use software | (19,279) | | | (6,541) | ; Acquisition of equipment under financing arrangements | (75,143) | | | (27,622) | ; Purchase of intangible assets | (754) | | | (1,835) | ; Cash paid for acquisition of businesses, net of cash acquired | (4,042) | | | \u2014 | ; ; Purchase of marketable securities | (177,632) | | | \u2014 | ; ; ; ; ; Proceeds from sale of equipment | \u2014 | | | 157 | ; Net cash used in investing activities | (381,974) | | | (138,772) | ; | | | ; Financing activities | | | ; Proceeds from direct offering for induced conversion of 2030 Convertible Notes, net of related costs | 1,473,883 | | | \u2014 | ; Repayment of 2030 Convertible Notes upon induced conversion | (1,478,102) | | | \u2014 | ; Proceeds from follow-on public offering, net of underwriting discounts and issuance costs | 887,888 | | | \u2014 | ; Proceeds from drawdown of Term Loan Facility | 120,000 | | | \u2014 | ; ; Principal repayment of Term Loan Facility | (500,000) | | | \u2014 | ; Payment of issuance costs related to Equipment Lease Facility | (7,239) | | | \u2014 | ; Proceeds related to issuance of common stock under equity incentive plan | 3,678 | | | 3,628 | ; Proceeds from issuance of common stock under employee stock purchase plan | 2,494 | | | 2,660 | ; Employee payroll taxes paid related to net settlement of equity awards | (62,054) | | | (22,222) | ; Proceeds from issuance of 2030 Convertible Notes, net of issuance costs | \u2014 | | | 606,827 |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-85",
+            "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+            "text": "| | | | | | | | | | | ; | Nine Months Ended September 30, ; | 2026 | | 2025 ; Purchases of capped calls related to 2030 Convertible Notes | \u2014 | | | (83,875) | ; Proceeds from 2025 Credit Facility, net of issuance costs | \u2014 | | | 375,919 | ; Repayments of 2026 Convertible Notes including related costs | \u2014 | | | (1,131,458) | ; Proceeds from financing arrangements | 75,143 | | | 27,622 | ; Principal repayments of finance leases and financing arrangements | (39,895) | | | (4,154) | ; Repurchase and retirement of common stock including related costs | \u2014 | | | (82,124) | ; Net cash provided by (used in) financing activities | 475,796 | | | (307,177) | ; | | | ; Effect of exchange rate changes on cash, cash equivalents, and restricted cash | (319) | | | (7) | ; Increase (decrease) in cash, cash equivalents and restricted cash | 411,619 | | | (193,632) | ; Cash, cash equivalents and restricted cash - beginning of period | 254,633 | | | 430,193 | ; Cash, cash equivalents and restricted cash - end of period | $ | 666,252 | | | $ | 236,561 | ; | | | ; Supplemental disclosures of cash flow information: | | | ; Cash paid for interest | $ | 25,240 | | | $ | 2,722 | ; Cash paid for taxes, net of refunds | 3,389 | | | 4,910 | ; Operating cash flows paid for operating leases | 118,645 | | | 95,738 | ; Non-cash investing and financing activities: | | | ; Capitalized stock-based compensation | $ | 3,599 | | | $ | 1,627 | ; Property and equipment received but not yet paid, included in accounts payable and accrued other expenses | 57,578 | | | 76,345 | ; ; ; ; Debt and equipment lease facility issuance costs incurred but not yet paid, included in accounts payable and accrued liabilities | 35 | | | 750 | ; ; Operating right-of-use assets obtained in exchange for operating lease liabilities | 492,929 | | | 161,219 | ; Finance right-of-use assets obtained in exchange for finance lease liabilities | 750,038 | | | 1,486 | ;",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-173",
+            "section": "Document",
+            "text": "The net carrying amount of the Company\u2019s debt consisted of the following:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-174",
+            "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 7. Debt",
+            "text": "| | | | | | | | | | | ; | Outstanding as of ; | September 30, 2026 | | December 31, 2025 ; 2030 Convertible Notes | $ | 153,172 | | | $ | 625,000 | ; 2026 Convertible Notes | 312,322 | | | 312,322 | ; Term Loan Facility | \u2014 | | | 380,000 | ; Total obligations | 465,494 | | | 1,317,322 | ; Unamortized debt issuance costs | (3,864) | | | (21,560) | ; Carrying value of debt | 461,630 | | | 1,295,762 | ; Less: Debt, current | (312,052) | | | (325,109) | ; Debt, long-term | $ | 149,578 | | | $ | 970,653 |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-197",
+            "section": "Document",
+            "text": "On May 5, 2025, the Company entered into a credit agreement (the \u201cCredit Agreement\u201d) by and among the Company, its wholly owned subsidiary, DigitalOcean, LLC, as borrower, Morgan Stanley Senior Funding, Inc., as administrative agent, and the other parties thereto for a $500,000 senior secured delayed draw term loan facility (\u201cTerm Loan Facility\u201d, and any loans thereunder \u201cTerm Loans\u201d) and a $300,000 senior secured revolving credit facility (\u201cRevolving Facility\u201d, and any loans thereunder \u201cRevolving Loans\u201d) which includes a $30,000 sublimit for the issuance of letters of credit (collectively the \u201c2025 Credit Facility\u201d). On May 4, 2026, the Company entered into an amendment to the Credit Agreement (the \u201cFirst Amendment\u201d), which, among other modifications, (i) increased the Revolving Facility to $412,500, (ii) increased the letter of credit sublimit to $80,000, and (iii) amended the definition of \u201cIndebtedness\u201d to provide that capitalized leases shall be deemed to be an amount equal to 25% of the capitalized amount. The Term Loan Facility and Revolving Facility mature on May 5, 2030, and are subject to a springing maturity date in the event certain conditions occur as described in the Credit Agreement. Revolving Loans may be borrowed, repaid and reborrowed, until their maturity date. Term Loans may be borrowed until February 5, 2026 and, once borrowed and repaid, cannot be reborrowed.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-198",
+            "section": "Document",
+            "text": "On February 3, 2026, the Company drew down the remaining $120,000 available principal under its Term Loan Facility resulting in a total outstanding principal amount of $500,000. On March 27, 2026, the Company repaid the $500,000 outstanding principal of its Term Loan Facility in cash from the proceeds of its follow-on offering (see Note 11. Stockholders\u2019 Equity) and wrote-off $2,700 of related unamortized issuance cost as loss on extinguishment of debt in other (expense) income, net on the Company\u2019s condensed consolidated statements of operations during the nine months ended September 30, 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-200",
+            "section": "Document",
+            "text": "The Company was issued letters of credit under the letter of credit sublimit of its Revolving Facility of $9,734 and $15,584 during the three and nine months ended September 30, 2026, respectively. No drawdowns have been made under the Company\u2019s letters of credit and the Revolving Facility. The Company\u2019s total available borrowing capacity under the Revolving Facility was $396,916 as of September 30, 2026.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-226",
+            "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+            "text": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | | $ | 187,420 | | | $ | 923,599 | ; Less: Finance lease liabilities and equipment financing obligations, current | (159,047) | | | (45,731) | | | (204,778) | ; Finance lease liabilities and equipment financing obligations, long-term | $ | 577,132 | | | $ | 141,689 | | | $ | 718,821 |",
+            "truncated": false,
+            "currency": "USD",
+            "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+          },
+          {
+            "locator": "block-444",
+            "section": "Document",
+            "text": "Net cash used in investing activities was $382.0 million and $138.8 million for the nine months ended September 30, 2026 and 2025, respectively. The change was primarily driven by purchases of marketable securities of $177.6 million, a $14.9 million increase in cash payments for capital expenditures, an increase of $47.5 million in cash payments for the acquisition of equipment under financing arrangements (for which we received an equivalent amount of proceeds discussed below in \u201cFinancing Activities\u201d), and a $4.0 million payment for acquisition of an AI-related business.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-446",
+            "section": "Document",
+            "text": "Net cash provided by financing activities was $475.8 million for the nine months ended September 30, 2026, compared to net cash used in financing activities of $307.2 million for the nine months ended September 30, 2025. The change was primarily driven by proceeds of $1,473.9 million from our direct offering for induced conversion of 2030 Convertible Notes, proceeds of $887.9 million from our 2026 Follow-on Offering, $120.0 million drawdown on our Term Loan Facility and $75.1 million from equipment financing arrangements, partially offset by a $1,478.1 million settlement payment of the 2030 convertible senior notes, $500.0 million repayment of our Term Loan Facility, $62.1 million of payments of employee payroll taxes related to net share settlement of equity awards and $39.9 million of principal repayments for finance leases and financing arrangements for data center equipment.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": []
+      }
+    ],
+    "gaps": [
+      "Recorded selected excerpts; not full filing coverage"
+    ],
+    "selected_accessions": [
+      "0001628280-26-069141"
+    ]
+  }
+}

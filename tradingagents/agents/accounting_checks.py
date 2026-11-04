@@ -139,6 +139,8 @@ def _signed_components(package, ids, signed_components):
 _EQUITY_MOVEMENTS = frozenset(
     {
         "Net Income",
+        "Net Income Attributable to Common Stockholders",
+        "Equity Incentive Plan Issuance Net of Withholding",
         "Equity Common Stock Issuance Value",
         "Equity Share-based Compensation",
         "Employee Stock Purchase Plan Issuance Value",
@@ -168,7 +170,17 @@ def check_equity_rollforward(
             raise ValueError(
                 "unsupported equity movement role; residuals and cash-flow proxies are not movements"
             )
-        if len({f.metric for f in components}) != len(components):
+        metrics = {f.metric for f in components}
+        if {"Net Income", "Net Income Attributable to Common Stockholders"} <= metrics:
+            raise ValueError("total net income and common-stockholder subset overlap")
+        if (
+            "Equity Incentive Plan Issuance Net of Withholding" in metrics
+            and "Equity Award Tax Withholding" in metrics
+        ):
+            raise ValueError(
+                "net incentive issuance and separate tax withholding require disjoint source scope"
+            )
+        if len(metrics) != len(components):
             raise ValueError(
                 "duplicate equity movement role requires explicit source disaggregation"
             )
@@ -348,6 +360,83 @@ def _has_source_tag(package, facts, tag):
     return False
 
 
+def _combined_principal_scope(package, fact):
+    """Require separate, same-filing source provenance for the combined scope.
+
+    The evidence gate independently replays the filing parser against canonical
+    text. This arithmetic boundary verifies linkage, never infers equipment
+    scope from an accounting label alone.
+    """
+    sources = [s for s in package.sources if s.source_id in fact.source_ids]
+    definitions = [
+        s for s in sources if s.locator.endswith("; finance/equipment principal definition")
+    ]
+    tables = [s for s in sources if s not in definitions]
+    fields = ("cik", "accession", "filed_date", "form", "content_hash", "url")
+    return bool(definitions and tables) and all(
+        s.accession and all(getattr(s, key) == getattr(tables[0], key) for key in fields)
+        for s in sources
+    )
+
+
+def check_financed_equipment_bridge(package, acquisition_id, proceeds_id, precision):
+    """Reconcile explicitly scoped gross acquisition and financing cash flows."""
+    method = "equipment_financing_acquisition_plus_proceeds_v1"
+    ids = (acquisition_id, proceeds_id)
+    try:
+        acquisition, proceeds = _facts(package, ids)
+        _same((acquisition, proceeds), duration=True)
+        _money((acquisition, proceeds))
+        if (
+            acquisition.metric != "Equipment Financing Acquisition Payments"
+            or proceeds.metric != "Equipment Financing Proceeds"
+            or acquisition.origin != "reported"
+            or proceeds.origin != "reported"
+            or acquisition.value > 0
+            or proceeds.value < 0
+        ):
+            raise ValueError("explicit signed gross equipment acquisition/proceeds roles required")
+        sources = {s.source_id: s for s in package.sources}
+        shared = set(acquisition.source_ids) & set(proceeds.source_ids)
+        definition_ids = {
+            ident
+            for ident in shared
+            if ident in sources
+            and sources[ident].locator.endswith(
+                "; equipment financing acquisition/proceeds definition"
+            )
+        }
+        all_ids = set(acquisition.source_ids) | set(proceeds.source_ids)
+        if not definition_ids or any(ident not in sources for ident in all_ids):
+            raise ValueError("shared equipment acquisition/proceeds definition source required")
+        records = [sources[ident] for ident in all_ids]
+        fields = ("cik", "accession", "filed_date", "form", "content_hash", "url")
+        if any(
+            not source.accession
+            or any(getattr(source, key) != getattr(records[0], key) for key in fields)
+            for source in records
+        ):
+            raise ValueError("equipment acquisition/proceeds must share filing provenance")
+        with localcontext() as ctx:
+            ctx.prec = 50
+            result = _reconcile(
+                method,
+                ids,
+                acquisition.value + proceeds.value,
+                Decimal(0),
+                acquisition.unit,
+                precision,
+            )
+        return result.model_copy(
+            update={
+                "message": "Gross financed equipment acquisition plus proceeds; separate from cash capex and principal. "
+                + result.message
+            }
+        )
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incompatible_financed_acquisition", str(exc))
+
+
 def calculate_cash_generation(package, ocf_id, capex_ids, principal_ids, complete):
     """Conventional cash investment and separate financing-principal variant.
 
@@ -392,6 +481,7 @@ def calculate_cash_generation(package, ocf_id, capex_ids, principal_ids, complet
                     not in {
                         "Finance Lease Principal Payments",
                         "Equipment Financing Principal Payments",
+                        "Finance Lease and Financing Arrangement Principal Payments",
                         "Long-term Debt Repayments",
                     }
                     or f.value < 0
@@ -399,6 +489,17 @@ def calculate_cash_generation(package, ocf_id, capex_ids, principal_ids, complet
                 ):
                     raise ValueError(
                         "principal variant cannot deduct operating lease cash or noncash additions"
+                    )
+                combined = [
+                    f
+                    for f in principal
+                    if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+                ]
+                if combined and (
+                    len(principal) != 1 or not _combined_principal_scope(package, combined[0])
+                ):
+                    raise ValueError(
+                        "combined lease/equipment principal needs distinct linked scope; components overlap"
                     )
                 if len({f.metric for f in principal}) != len(principal):
                     raise ValueError("duplicate financing principal metric")

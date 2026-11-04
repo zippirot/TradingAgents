@@ -513,3 +513,211 @@ def test_eps_unknown_precision_preserves_calculation_without_claiming_reconcilia
         assert result.residual == result.result - result.expected
     assert result.unit == "USD/shares" and result.input_fact_ids == ("n", "s", "eps")
     assert result.tolerance is None
+
+
+def test_recorded_docn_nine_month_equity_uses_exact_new_roles():
+    # Transcribed total-equity column of DOCN 2026-09-30 10-Q, accession
+    # 000162828026069141; raw SHA256
+    # f5f9cd5e507ba82006afbbe1776e5b8e4912d442a634c990b7c58068df5604e5.
+    # Acquisition is proved separately; no generic cash-flow role substitutes.
+    movements = (
+        ("incentive", "Equity Incentive Plan Issuance Net of Withholding", -58740000),
+        ("espp", "Employee Stock Purchase Plan Issuance Value", 2494000),
+        ("offering", "Equity Common Stock Issuance Value", 887888000),
+        ("conversion", "Equity Conversion of Debt", 515696000),
+        ("sbc", "Equity Share-based Compensation", 90246000),
+        ("oci", "Other Comprehensive Income Attributable to Parent", -1037000),
+        ("income", "Net Income Attributable to Common Stockholders", 8599000),
+    )
+    facts = [
+        fact("opening", -28690000, "Stockholders Equity", period_end="2025-12-31"),
+        fact("closing", 1416456000, "Stockholders Equity", period_end="2026-09-30"),
+        *(
+            fact(key, value, metric, period_start="2026-01-01", period_end="2026-09-30")
+            for key, metric, value in movements
+        ),
+    ]
+    from datetime import date
+
+    from tradingagents.dataflows.financial_evidence import SourceRecord
+
+    source = SourceRecord(
+        source_id="s",
+        cik="0001582961",
+        url="https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+        filed_date="2026-11-03",
+        retrieved_at="2026-11-04T19:40:15.075791+00:00",
+        content_hash="f5f9cd5e507ba82006afbbe1776e5b8e4912d442a634c990b7c58068df5604e5",
+        locator="2026 stockholders equity table, total column",
+        accession="0001628280-26-069141",
+        form="10-Q",
+    )
+    facts = [f.model_copy(update={"as_of": date(2026, 11, 4)}) for f in facts]
+    evidence = EvidencePackage(
+        cik=source.cik, as_of="2026-11-04", sources=(source,), facts=tuple(facts)
+    )
+    result = check_equity_rollforward(
+        evidence,
+        "opening",
+        "closing",
+        tuple((key, 1) for key, _, _ in movements),
+        True,
+        dict.fromkeys((f.fact_id for f in facts), Decimal(1000)),
+    )
+    assert result.status == "pass" and result.residual == 0 and result.result == Decimal(1416456000)
+
+
+def test_equity_net_income_total_and_common_shareholder_subset_cannot_both_be_added():
+    p = package(
+        fact("opening", 100, "Stockholders Equity", period_end="2025-12-31"),
+        fact("closing", 120, "Stockholders Equity"),
+        fact("net", 10, "Net Income", period_start="2026-01-01"),
+        fact(
+            "common",
+            10,
+            "Net Income Attributable to Common Stockholders",
+            period_start="2026-01-01",
+        ),
+    )
+    assert (
+        check_equity_rollforward(
+            p, "opening", "closing", (("net", 1), ("common", 1)), True, {}
+        ).status
+        == "unavailable"
+    )
+
+
+def combined_principal_package(scoped=True):
+    p = package(
+        fact("ocf", 100000000, "Operating Cash Flow", period_start="2026-01-01"),
+        fact("capex", 20000000, "Capital Expenditure", period_start="2026-01-01"),
+        fact(
+            "combined",
+            39895000,
+            "Finance Lease and Financing Arrangement Principal Payments",
+            period_start="2026-01-01",
+        ),
+        fact("lease", 10000000, "Finance Lease Principal Payments", period_start="2026-01-01"),
+    )
+    source = p.sources[0].model_copy(
+        update={"accession": "0001582961-26-000001", "locator": "table/row-1/column-1"}
+    )
+    if not scoped:
+        return p.model_copy(update={"sources": (source,)})
+    definition = source.model_copy(
+        update={
+            "source_id": "definition",
+            "locator": "scope; finance/equipment principal definition",
+        }
+    )
+    combined = p.facts[2].model_copy(update={"source_ids": ("s", "definition")})
+    return p.model_copy(
+        update={"sources": (source, definition), "facts": (*p.facts[:2], combined, p.facts[3])}
+    )
+
+
+def test_combined_principal_requires_linked_scope_and_stays_combined():
+    p = combined_principal_package()
+    result = calculate_cash_generation(p, "ocf", ("capex",), ("combined",), True)[1]
+    assert result.status == "pass" and result.result == Decimal(40105000)
+    assert result.input_fact_ids == ("ocf", "capex", "combined")
+    assert (
+        calculate_cash_generation(
+            combined_principal_package(False), "ocf", ("capex",), ("combined",), True
+        )[1].status
+        == "unavailable"
+    )
+
+
+def test_combined_principal_plus_component_is_never_double_deducted():
+    p = combined_principal_package()
+    assert (
+        calculate_cash_generation(p, "ocf", ("capex",), ("combined", "lease"), True)[1].status
+        == "unavailable"
+    )
+
+
+def test_financed_equipment_bridge_preserves_gross_signed_cash_and_requires_roles():
+    from tradingagents.agents.accounting_checks import check_financed_equipment_bridge
+
+    p = package(
+        fact(
+            "acquisition",
+            -75143000,
+            "Equipment Financing Acquisition Payments",
+            period_start="2026-01-01",
+        ),
+        fact("proceeds", 75143000, "Equipment Financing Proceeds", period_start="2026-01-01"),
+    )
+    source = p.sources[0].model_copy(update={"accession": "0001582961-26-000001"})
+    definition = source.model_copy(
+        update={
+            "source_id": "definition",
+            "locator": "scope; equipment financing acquisition/proceeds definition",
+        }
+    )
+    p = p.model_copy(
+        update={
+            "sources": (source, definition),
+            "facts": tuple(
+                f.model_copy(update={"source_ids": ("s", "definition")}) for f in p.facts
+            ),
+        }
+    )
+    result = check_financed_equipment_bridge(p, "acquisition", "proceeds", {})
+    assert result.status == "pass" and result.result == 0
+    assert result.input_fact_ids == ("acquisition", "proceeds")
+    unrelated = p.model_copy(
+        update={
+            "facts": (
+                p.facts[0],
+                p.facts[1].model_copy(update={"metric": "Long-term Debt Proceeds"}),
+            )
+        }
+    )
+    assert (
+        check_financed_equipment_bridge(unrelated, "acquisition", "proceeds", {}).status
+        == "unavailable"
+    )
+    no_scope = p.model_copy(update={"sources": (source,)})
+    assert (
+        check_financed_equipment_bridge(no_scope, "acquisition", "proceeds", {}).status
+        == "unavailable"
+    )
+    for updates in (
+        {"period_start": None},
+        {"unit": "EUR"},
+        {"value": Decimal(-75143000)},
+    ):
+        incompatible = p.model_copy(
+            update={
+                "facts": (
+                    p.facts[0],
+                    p.facts[1].model_copy(update=updates),
+                )
+            }
+        )
+        assert (
+            check_financed_equipment_bridge(incompatible, "acquisition", "proceeds", {}).status
+            == "unavailable"
+        )
+    mismatch = p.model_copy(
+        update={
+            "facts": (
+                p.facts[0],
+                p.facts[1].model_copy(update={"value": Decimal(75100000)}),
+            )
+        }
+    )
+    assert (
+        check_financed_equipment_bridge(
+            mismatch,
+            "acquisition",
+            "proceeds",
+            {
+                "acquisition": 1000,
+                "proceeds": 1000,
+            },
+        ).status
+        == "fail"
+    )

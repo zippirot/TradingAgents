@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -144,7 +144,7 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
     return reasons
 
 
-def latest_balance_check(package: EvidencePackage):
+def latest_balance_check(package: EvidencePackage, source_precision=None):
     """Reconcile one common latest balance date, never stale cross-date inputs."""
     from tradingagents.agents.accounting_checks import Calculation, check_balance_sheet
 
@@ -165,7 +165,8 @@ def latest_balance_check(package: EvidencePackage):
     ids = []
     for metric in metrics:
         selected = [f for f in balances if f.metric == metric and f.period_end == end]
-        if len({(f.value, f.unit, f.basis) for f in selected}) != 1:
+        chosen = _select_compatible_fact(package, selected, source_precision)
+        if chosen is None:
             return Calculation(
                 method="assets_equals_liabilities_plus_equity_v1",
                 status="unavailable",
@@ -173,8 +174,13 @@ def latest_balance_check(package: EvidencePackage):
                 message=f"{metric} unavailable or ambiguous at common balance date {end}",
                 input_fact_ids=tuple(ids),
             )
-        ids.append(selected[0].fact_id)
-    return check_balance_sheet(package, *ids, precision={})
+        ids.append(chosen.fact_id)
+    by_id = {fact.fact_id: fact for fact in package.facts}
+    return check_balance_sheet(
+        package,
+        *ids,
+        precision=_comparison_precision(package, [by_id[i] for i in ids], source_precision),
+    )
 
 
 REQUIRED_FINANCIAL_CHECKS = (
@@ -345,19 +351,22 @@ def assess_financial_package(
                 if source.source_id in sources and sources[source.source_id] != source:
                     raise ValueError("canonical filing document source ID collision")
                 sources[source.source_id] = source
-            package = EvidencePackage.model_validate({
-                **package.model_dump(),
-                "sources": tuple(sources.values()),
-            })
+            package = EvidencePackage.model_validate(
+                {
+                    **package.model_dump(),
+                    "sources": tuple(sources.values()),
+                }
+            )
         except (ValueError, ValidationError) as exc:
             source_errors.append(str(exc))
+    source_precision = extraction.rounding_quantum_by_fact if extraction else {}
     lineage = [
         *source_errors,
         *validate_calculation_lineage(package),
-        *reported_fact_conflicts(package),
+        *reported_fact_conflicts(package, source_precision),
     ]
     claims = validate_financial_claims(state.get("fundamentals_report", ""), package)
-    balance = latest_balance_check(package)
+    balance = latest_balance_check(package, source_precision)
     checks = [
         core_statement_check(package),
         {
@@ -395,7 +404,7 @@ def assess_financial_package(
             source_check["message"] += (
                 "; management-adjusted reconciliation failed: " + adjusted.message
             )
-    obligations = obligation_checks(package)
+    obligations = obligation_checks(package, source_precision)
     calculations.extend(obligations)
     checks.append(
         {
@@ -404,7 +413,9 @@ def assess_financial_package(
             "message": obligations[-1].message,
         }
     )
-    cash_results, cash_check, cash_warnings = cash_flow_checks(package, disclosures)
+    cash_results, cash_check, cash_warnings = cash_flow_checks(
+        package, disclosures, source_precision
+    )
     calculations.extend(cash_results)
     checks.append(cash_check)
     checks.extend(
@@ -412,7 +423,7 @@ def assess_financial_package(
         for i, warning in enumerate(cash_warnings)
     )
     checks.append(disclosure_coverage_check(package, disclosures, disclosure_error))
-    earnings = earnings_checks(package, extraction.rounding_quantum_by_fact if extraction else {})
+    earnings = earnings_checks(package, source_precision)
     calculations.extend(earnings)
     for i, calculation in enumerate(earnings):
         if calculation.status == "fail":
@@ -555,7 +566,11 @@ def filing_accounting_evidence(package, disclosures):
 
     for fact in tuple(facts.values()):
         if (
-            fact.metric == "Equipment Financing Principal Payments"
+            fact.metric
+            in {
+                "Equipment Financing Principal Payments",
+                "Finance Lease and Financing Arrangement Principal Payments",
+            }
             and fact.origin == "reported"
             and fact.value is not None
             and fact.value < 0
@@ -614,16 +629,115 @@ def filing_accounting_evidence(package, disclosures):
     return merged, [equity, *adjusted], extraction
 
 
-def reported_fact_conflicts(package):
+def _known_quantum(package, fact, source_precision):
+    """Only the deterministic filing parser supplies source rounding quantum."""
+    precision = source_precision or {}
+    value = precision.get(fact.fact_id)
+    # The magnitude transformation changes sign, never source precision.
+    if (
+        value is None
+        and fact.formula_id == "reported_cash_outflow_magnitude_v1"
+        and len(fact.input_fact_ids) == 1
+    ):
+        value = precision.get(fact.input_fact_ids[0])
+    if value is None:
+        return None
+    try:
+        value = Decimal(str(value))
+        return value if value.is_finite() and value >= 0 else None
+    except (ValueError, ArithmeticError):
+        return None
+
+
+def _same_filing_vintage(package, facts):
+    sources = {source.source_id: source for source in package.sources}
+    vintages = set()
+    for fact in facts:
+        if not fact.source_ids:
+            return False
+        for identifier in fact.source_ids:
+            source = sources.get(identifier)
+            if source is None or not source.accession:
+                return False
+            vintages.add((source.cik, source.accession, source.filed_date, source.form))
+    return len(vintages) == 1
+
+
+def _rounding_bound(package, facts, source_precision):
+    if not _same_filing_vintage(package, facts):
+        return None
+    quanta = [_known_quantum(package, fact, source_precision) for fact in facts]
+    if all(quantum is None for quantum in quanta):
+        return None
+    with localcontext() as context:
+        context.prec = 60
+        # Unknown precision contributes no allowance. This does not infer its
+        # source quantum from the number's trailing zeros.
+        return sum((quantum for quantum in quanta if quantum is not None), Decimal(0)) / 2
+
+
+def _select_compatible_fact(package, candidates, source_precision=None):
+    if not candidates:
+        return None
+    keys = {(f.metric, f.unit, f.basis, f.period_start, f.period_end) for f in candidates}
+    if len(keys) != 1:
+        return None
+    for index, left in enumerate(candidates):
+        for right in candidates[index + 1 :]:
+            if left.value == right.value:
+                continue
+            bound = _rounding_bound(package, (left, right), source_precision)
+            if bound is None or abs(left.value - right.value) > bound:
+                return None
+    # Keep every fact in the package; select one reproducible calculation input.
+    # A parsed filed value retains its known source rounding for reconciliation.
+    return min(
+        candidates,
+        key=lambda fact: (
+            _known_quantum(package, fact, source_precision) is None,
+            _known_quantum(package, fact, source_precision) or Decimal(0),
+            fact.origin != "reported",
+            fact.fact_id,
+        ),
+    )
+
+
+def _comparison_precision(package, facts, source_precision):
+    """Known allowances for a calculation, without inventing unknown precision."""
+    if not _same_filing_vintage(package, facts):
+        return {}
+    values = {fact.fact_id: _known_quantum(package, fact, source_precision) for fact in facts}
+    if not any(value is not None for value in values.values()):
+        return {}
+    return {
+        identifier: value if value is not None else Decimal(0)
+        for identifier, value in values.items()
+    }
+
+
+def _sum_matches(package, total, parts, source_precision):
+    facts = [total, *parts]
+    if len({(f.unit, f.basis, f.period_start, f.period_end) for f in facts}) != 1:
+        return False
+    with localcontext() as context:
+        context.prec = 60
+        residual = sum((f.value for f in parts), Decimal(0)) - total.value
+    if residual == 0:
+        return True
+    bound = _rounding_bound(package, facts, source_precision)
+    return bound is not None and abs(residual) <= bound
+
+
+def reported_fact_conflicts(package, source_precision=None):
     groups = {}
     for fact in package.facts:
         if fact.origin == "reported" and fact.value is not None:
             key = (fact.metric, fact.unit, fact.period_start, fact.period_end, fact.basis)
-            groups.setdefault(key, set()).add(fact.value)
+            groups.setdefault(key, []).append(fact)
     return [
         f"Conflicting reported values for {key[0]} at {key[3]}"
-        for key, values in groups.items()
-        if len(values) > 1
+        for key, facts in groups.items()
+        if _select_compatible_fact(package, facts, source_precision) is None
     ]
 
 
@@ -666,7 +780,7 @@ def disclosure_coverage_check(package, disclosures, error=None):
     }
 
 
-def _instant_at(package, metric, end):
+def _instant_at(package, metric, end, source_precision=None):
     candidates = [
         f
         for f in package.facts
@@ -675,11 +789,10 @@ def _instant_at(package, metric, end):
         and f.period_start is None
         and f.value is not None
     ]
-    meanings = {(f.value, f.unit, f.basis) for f in candidates}
-    return candidates[0] if len(meanings) == 1 else None
+    return _select_compatible_fact(package, candidates, source_precision)
 
 
-def obligation_checks(package):
+def obligation_checks(package, source_precision=None):
     """Require complete named perimeters; do not infer missing categories as zero."""
     from tradingagents.agents.accounting_checks import calculate_obligations
 
@@ -689,7 +802,7 @@ def obligation_checks(package):
     )
 
     def selected(metric):
-        return _instant_at(package, metric, end)
+        return _instant_at(package, metric, end, source_precision)
 
     def identifiers(*facts):
         return tuple(f.fact_id for f in facts if f is not None)
@@ -700,11 +813,7 @@ def obligation_checks(package):
             if (
                 current
                 and noncurrent
-                and (
-                    current.unit != total.unit
-                    or noncurrent.unit != total.unit
-                    or current.value + noncurrent.value != total.value
-                )
+                and not _sum_matches(package, total, (current, noncurrent), source_precision)
             ):
                 return ()
             return identifiers(total)
@@ -723,10 +832,7 @@ def obligation_checks(package):
         if long_term and short_term:
             by_id = {f.fact_id: f for f in package.facts}
             parts = [by_id[i] for i in long_term] + [short_term]
-            if (
-                any(f.unit != total.unit for f in parts)
-                or sum(f.value for f in parts) != total.value
-            ):
+            if not _sum_matches(package, total, parts, source_precision):
                 groups["borrowings"] = ()
     elif long_term and short_term:
         groups["borrowings"] = (*long_term, short_term.fact_id)
@@ -742,10 +848,7 @@ def obligation_checks(package):
         if finance and equipment:
             by_id = {f.fact_id: f for f in package.facts}
             parts = [by_id[i] for i in finance] + [equipment]
-            if (
-                any(f.unit != combined.unit for f in parts)
-                or sum(f.value for f in parts) != combined.value
-            ):
+            if not _sum_matches(package, combined, parts, source_precision):
                 groups["finance_equipment"] = ()
     else:
         groups["finance_leases"] = finance
@@ -761,7 +864,7 @@ def obligation_checks(package):
     )
 
 
-def _duration_at(package, metric, start, end):
+def _duration_at(package, metric, start, end, source_precision=None):
     candidates = [
         f
         for f in package.facts
@@ -777,14 +880,43 @@ def _duration_at(package, metric, start, end):
         for parent in f.input_fact_ids
     }
     candidates = [f for f in candidates if f.fact_id not in signed_inputs]
-    if len({(f.value, f.unit, f.basis) for f in candidates}) != 1:
-        return None
-    return candidates[0]
+    return _select_compatible_fact(package, candidates, source_precision)
 
 
-def cash_flow_checks(package, disclosures=None):
+def _canonical_filing_cash_fact(package, fact, disclosures):
+    """Replay deterministic extraction; a source locator alone is not proof."""
+    if disclosures is None or (package.cik, package.as_of) != (disclosures.cik, disclosures.as_of):
+        return False
+    from tradingagents.dataflows.filing_facts import discover_filing_cells, verify_filing_cells
+    from tradingagents.dataflows.financial_evidence import derive_cash_outflow
+
+    extracted = verify_filing_cells(disclosures, discover_filing_cells(disclosures)).evidence
+    sources = {source.source_id: source for source in package.sources}
+    canonical_sources = {source.source_id: source for source in extracted.sources}
+    for original in extracted.facts:
+        if original.metric != fact.metric or original.value is None:
+            continue
+        candidate = original
+        if original.value < 0 and original.metric == (
+            "Finance Lease and Financing Arrangement Principal Payments"
+        ):
+            candidate = derive_cash_outflow(original)
+        if candidate != fact:
+            continue
+        return all(
+            source_id in canonical_sources
+            and sources.get(source_id) == canonical_sources[source_id]
+            for source_id in original.source_ids
+        )
+    return False
+
+
+def cash_flow_checks(package, disclosures=None, source_precision=None):
     """Publish enumerated cash investment separately from lease/equipment principal."""
-    from tradingagents.agents.accounting_checks import calculate_cash_generation
+    from tradingagents.agents.accounting_checks import (
+        calculate_cash_generation,
+        check_financed_equipment_bridge,
+    )
 
     end = max(
         (f.period_end for f in package.facts if f.metric == "Total Assets" and f.value is not None),
@@ -798,10 +930,14 @@ def cash_flow_checks(package, disclosures=None):
         and f.period_start
         and f.value is not None
     ]
-    start = min((f.period_start for f in ocfs), default=None)
+    # Use a filed statement duration for the primary cash perimeter. Derived
+    # trailing-year and quarter facts remain available as supplemental evidence;
+    # their longer/shorter spans must not displace the reported YTD statement.
+    reported_ocfs = [f for f in ocfs if f.origin == "reported"]
+    start = min((f.period_start for f in (reported_ocfs or ocfs)), default=None)
 
     def lookup(metric):
-        return _duration_at(package, metric, start, end)
+        return _duration_at(package, metric, start, end, source_precision)
 
     ocf, capex, software, lease, equipment, unclassified = map(
         lookup,
@@ -815,6 +951,10 @@ def cash_flow_checks(package, disclosures=None):
         ),
     )
     warnings, reasons = [], []
+    combined = lookup("Finance Lease and Financing Arrangement Principal Payments")
+    if combined is not None and not _canonical_filing_cash_fact(package, combined, disclosures):
+        reasons.append("Combined principal lacks verified same-period equipment scope")
+        combined = None
     if software is None:
         warnings.append(
             "Software capital spending not separately available; the cash measure includes only enumerated spending, not an assumed zero."
@@ -830,20 +970,57 @@ def cash_flow_checks(package, disclosures=None):
             re.I,
         ):
             reasons.append("Disclosed software capitalization lacks a compatible cash amount")
-    if (
-        unclassified
-        and unclassified.value != 0
-        and (
-            equipment is None
-            or equipment.unit != unclassified.unit
-            or equipment.value != abs(unclassified.value)
+    acquisition = lookup("Equipment Financing Acquisition Payments")
+    proceeds = lookup("Equipment Financing Proceeds")
+    financed_bridge = None
+    if acquisition is not None or proceeds is not None:
+        financed_bridge = check_financed_equipment_bridge(
+            package,
+            acquisition.fact_id if acquisition else "missing-financed-acquisition",
+            proceeds.fact_id if proceeds else "missing-equipment-financing-proceeds",
+            source_precision or {},
         )
-    ):
+        if not (
+            acquisition
+            and proceeds
+            and _canonical_filing_cash_fact(package, acquisition, disclosures)
+            and _canonical_filing_cash_fact(package, proceeds, disclosures)
+        ):
+            financed_bridge = financed_bridge.model_copy(
+                update={
+                    "status": "unavailable",
+                    "reason_code": "financed_acquisition_source_unavailable",
+                    "message": "Gross financed acquisition/proceeds lack canonical equipment scope",
+                }
+            )
+        if financed_bridge.status != "pass":
+            reasons.append(financed_bridge.message)
+    acquisition_classified = bool(
+        financed_bridge
+        and financed_bridge.status == "pass"
+        and unclassified
+        and _same_filing_vintage(package, (acquisition, unclassified))
+        and _sum_matches(
+            package,
+            acquisition.model_copy(update={"value": abs(acquisition.value)}),
+            (unclassified.model_copy(update={"value": abs(unclassified.value)}),),
+            source_precision,
+        )
+    )
+    if unclassified and unclassified.value != 0 and not acquisition_classified:
         reasons.append(
-            "Equipment acquisition payments are not reconciled to explicitly classified financing principal"
+            "Equipment acquisition payments lack a verified gross acquisition/proceeds bridge; "
+            "acquisition is not financing principal"
         )
-    principal = [f for f in (lease, equipment) if f is not None]
-    if lease is None or equipment is None:
+    principal = [combined] if combined else [f for f in (lease, equipment) if f is not None]
+    if (
+        combined
+        and lease is not None
+        and equipment is not None
+        and not _sum_matches(package, combined, (lease, equipment), source_precision)
+    ):
+        reasons.append("Combined principal conflicts with separately reported components")
+    if combined is None and (lease is None or equipment is None):
         reasons.append(
             "Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
         )
@@ -858,7 +1035,7 @@ def cash_flow_checks(package, disclosures=None):
     )
     if results[0].status != "pass":
         reasons.append(results[0].message)
-    if lease is not None and equipment is not None and results[1].status != "pass":
+    if (combined or (lease is not None and equipment is not None)) and results[1].status != "pass":
         reasons.append(results[1].message)
     check = {
         "code": "cash_flow_perimeter",
@@ -867,6 +1044,8 @@ def cash_flow_checks(package, disclosures=None):
         if reasons
         else "Enumerated cash capital spending and explicitly classified lease/equipment principal are separate measures",
     }
+    if financed_bridge is not None:
+        results = (*results, financed_bridge)
     return results, check, warnings
 
 
@@ -938,9 +1117,13 @@ def earnings_checks(package, source_precision=None):
             and f.value is not None
         ]
         start = max((f.period_start for f in eps_rows), default=None)
-        numerator = _duration_at(package, f"{basis} Earnings Numerator", start, end)
-        shares = _duration_at(package, f"Weighted Average {basis} Shares", start, end)
-        eps = _duration_at(package, f"{basis} EPS", start, end)
+        numerator = _duration_at(
+            package, f"{basis} Earnings Numerator", start, end, source_precision
+        )
+        shares = _duration_at(
+            package, f"Weighted Average {basis} Shares", start, end, source_precision
+        )
+        eps = _duration_at(package, f"{basis} EPS", start, end, source_precision)
         results.append(
             check_eps(
                 package,

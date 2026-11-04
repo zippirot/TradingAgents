@@ -33,7 +33,12 @@ Metric = Literal[
     "Equipment Financing Obligations",
     "Finance Lease and Equipment Obligations",
     "Total Borrowings",
+    "Equity Incentive Plan Issuance Net of Withholding",
+    "Net Income Attributable to Common Stockholders",
+    "Finance Lease and Financing Arrangement Principal Payments",
     "Equipment Financing Principal Payments",
+    "Equipment Financing Acquisition Payments",
+    "Equipment Financing Proceeds",
     "Operating Income",
     "Operating Cash Flow",
     "Adjusted Net Income",
@@ -111,12 +116,14 @@ _ALIASES = {
         "Issuance of common stock",
         "Issuance of common stock net of issuance costs",
         "Common stock issued net of issuance costs",
+        "Issuance of common stock in connection with follow-on public offering, net of underwriter discounts and issuance costs",
     ),
     "Equity Stock Repurchases/Retirements": (
         "Repurchases and retirement of common stock",
         "Repurchases of common stock",
         "Repurchase and retirement of common stock",
         "Common stock repurchases",
+        "Repurchase and retirement of common stock including related costs",
     ),
     "Equity Award Tax Withholding": (
         "Tax withholding related to net share settlement of equity awards",
@@ -128,10 +135,12 @@ _ALIASES = {
         "Conversion of convertible debt",
         "Common stock issued upon conversion of debt",
         "Conversion of convertible notes",
+        "Issuance of common stock in connection with induced conversion of 2030 Convertible Notes, net of transaction costs and tax",
     ),
     "Employee Stock Purchase Plan Issuance Value": (
         "Issuance of common stock under employee stock purchase plan",
         "Employee stock purchase plan",
+        "Issuance of common stock under employee stock purchase plan, net of taxes withheld",
     ),
     "Net Income": (
         "Net income",
@@ -150,7 +159,21 @@ _ALIASES = {
         "Other comprehensive loss",
         "Other comprehensive income attributable to parent",
     ),
-    "Total Borrowings": ("Total borrowings",),
+    "Total Borrowings": ("Total borrowings", "Carrying value of debt"),
+    "Equipment Financing Acquisition Payments": (
+        "Acquisition of equipment under financing arrangements",
+    ),
+    "Equipment Financing Proceeds": ("Proceeds from financing arrangements",),
+    "Equity Incentive Plan Issuance Net of Withholding": (
+        "Issuance of common stock under equity incentive plan, net of taxes withheld",
+    ),
+    "Net Income Attributable to Common Stockholders": (
+        "Net income attributable to common stockholders",
+        "Net loss attributable to common stockholders",
+    ),
+    "Finance Lease and Financing Arrangement Principal Payments": (
+        "Principal repayments of finance leases and financing arrangements",
+    ),
     "Equipment Financing Principal Payments": (
         "Principal payments on equipment financing obligations",
         "Repayments of equipment financing obligations",
@@ -163,6 +186,7 @@ _ALIASES = {
         "Finance lease and equipment financing obligations",
         "Finance lease and equipment obligations",
         "Finance lease liabilities and equipment financing obligations",
+        "Total present value of finance lease liabilities and equipment financing obligations",
     ),
 }
 _ADJUSTED_ALIASES = {
@@ -264,11 +288,275 @@ def _dates(text):
 
 
 def _rows(block):
-    return [
+    rows = [
         [cell.strip() for cell in row.strip().split("|")]
         for row in block.text.split(";")
         if row.strip()
     ]
+    # SEC display tables use spacer cells and isolated currency symbols.
+    # Normalize only source-resolved inline-XBRL tables with this padded shape;
+    # retain every row index and every actual value, including missing dashes.
+    if not getattr(block, "currency_locator", None) or not any(row.count("") >= 3 for row in rows):
+        return rows
+    compact = []
+    for row in rows:
+        cells = [cell for cell in row if cell and cell != "$"]
+        if cells and not row[0]:
+            cells.insert(0, "")
+        compact.append(cells or [""])
+    for index, row in enumerate(compact):
+        if (
+            len(row) == 6
+            and row[0] == ""
+            and _normal(row[1]) == "commonstock"
+            and _normal(row[-1]) == "total"
+        ):
+            following = compact[index + 1] if index + 1 < len(compact) else []
+            if [_normal(cell) for cell in following] == ["", "shares", "amount"]:
+                if (
+                    _normal(row[2]) != "additionalpaidincapital"
+                    or not _normal(row[3]).startswith("accumulatedothercomprehensive")
+                    or not _normal(row[4]).startswith("retainedearnings")
+                ):
+                    continue
+                compact[index] = [
+                    "Movement",
+                    "Common Stock Shares",
+                    "Common Stock Amount",
+                    *row[2:-1],
+                    "Total Stockholders Equity",
+                ]
+                compact[index + 1] = [""]
+    # One shared month/day and an explicitly aligned year row. Do not flatten
+    # multiple duration groups or infer fiscal calendars from filing dates.
+    duration_rows = [
+        (i, row)
+        for i, row in enumerate(compact)
+        if len(row) == 2
+        and row[0] == ""
+        and re.fullmatch(r"(Three|Six|Nine|Twelve) Months Ended ([A-Za-z]+ \d{1,2}),", row[1], re.I)
+    ]
+    if len(duration_rows) == 1:
+        index, row = duration_rows[0]
+        following = compact[index + 1] if index + 1 < len(compact) else []
+        if (
+            len(following) >= 2
+            and following[0] == ""
+            and all(re.fullmatch(r"\d{4}", cell) for cell in following[1:])
+        ):
+            match = re.fullmatch(
+                r"(Three|Six|Nine|Twelve) Months Ended ([A-Za-z]+ \d{1,2}),", row[1], re.I
+            )
+            compact[index] = [match.group(1) + " Months Ended"]
+            compact[index + 1] = [
+                "Cash Flow",
+                *(match.group(2) + ", " + year for year in following[1:]),
+            ]
+    return compact
+
+
+_PV_LABEL = _normal(
+    "Total present value of finance lease liabilities and equipment financing obligations"
+)
+
+
+def _present_value_roles(rows, row_index):
+    row = rows[row_index]
+    if _normal(row[0]) != _PV_LABEL or len(row) != 4:
+        return {}
+    headers = [
+        header
+        for header in rows[:row_index]
+        if len(header) == 4
+        and [_normal(cell) for cell in header]
+        == ["", "financeleases", "equipmentfinancingobligations", "total"]
+    ]
+    return (
+        {2: "Equipment Financing Obligations", 3: "Finance Lease and Equipment Obligations"}
+        if len(headers) == 1
+        else {}
+    )
+
+
+def _cell_metric(rows, index, column, block):
+    if _normal(rows[index][0]) == _PV_LABEL:
+        return _present_value_roles(rows, index).get(column)
+    return _metric(rows[index][0], block)
+
+
+def _equity_period(block, rows):
+    try:
+        return _duration(block, rows)
+    except ValueError:
+        # The supported sparse statement explicitly starts and ends with dated
+        # balance rows. Those dates bound every intervening movement.
+        caption = block.section + " " + " ".join(row[0] for row in rows if len(row) == 1)
+        if not getattr(block, "currency_locator", None) or re.search(
+            r"\b(?:months?|year)\s+ended\b", caption, re.I
+        ):
+            raise
+        balances = [
+            (i, _dates(row[0]))
+            for i, row in enumerate(rows)
+            if _metric(row[0], block) == "Stockholders Equity"
+        ]
+        if len(balances) != 2 or any(len(dates) != 1 for _, dates in balances):
+            raise ValueError("equity table has ambiguous opening/closing period anchors") from None
+        start = balances[0][1][0] + timedelta(days=1)
+        end = balances[1][1][0]
+        if not 60 <= (end - start).days + 1 <= 400:
+            raise ValueError("unsupported equity opening/closing interval") from None
+        return start, end
+
+
+def _primary_financing_period(block, start, end):
+    # The comparison year is not the period described by the ensuing drivers.
+    opening = block.text.split(", compared to", 1)[0].split(". The change", 1)[0]
+    dates = _dates(opening)
+    months = (end.year - start.year) * 12 + end.month - start.month + 1
+    word = {3: "three", 6: "six", 9: "nine", 12: "twelve"}.get(months)
+    return (
+        not block.truncated
+        and word is not None
+        and dates == [end]
+        and start.day == 1
+        and re.search(r"^Net cash (?:provided by|used in) financing activities", opening)
+        and re.search(r"\b" + word + r" months ended\b", opening, re.I)
+    )
+
+
+def _rounded_prose_amount(text, phrase, value, end):
+    # Supported source grammar is the single current-period driver sentence,
+    # after the opening cash-flow comparison. Complex period qualifications
+    # remain unclassified rather than borrowing the opening sentence's date.
+    marker = ". The change was primarily driven by "
+    if text.count(marker) != 1:
+        return False
+    drivers = text.split(marker, 1)[1]
+    if re.search(
+        r"\b(?:prior|previous|comparative|comparison|last)[ -]?(?:year|period)?\b", drivers, re.I
+    ):
+        return False
+    if any(d != end for d in _dates(drivers)):
+        return False
+    temporal_years = re.findall(
+        r"\b(?:in|during|for)\s+(?:the\s+(?:year|period)\s+)?(20\d{2})\b", drivers, re.I
+    )
+    if any(int(year) != end.year for year in temporal_years):
+        return False
+    # A new sentence can introduce another temporal subject. Decimal points
+    # in source amounts do not delimit sentences.
+    if re.search(r"\.\s+[A-Za-z]", drivers):
+        return False
+    text = drivers
+    matches = list(re.finditer(r"\$([0-9]+(?:\.[0-9]+)?) million " + phrase, text, re.I))
+    if len(matches) != 1:
+        return False
+    amount, quantum = _number(matches[0].group(1), Decimal(1000000))
+    return abs(abs(value) - amount) <= quantum / 2
+
+
+def _equipment_principal_definition(document, start, end, value):
+    phrase = r"of principal repayments for finance leases and financing arrangements for data center equipment"
+    matches = [
+        block
+        for block in document.blocks
+        if _primary_financing_period(block, start, end)
+        and _rounded_prose_amount(block.text, phrase, value, end)
+    ]
+    if len(matches) != 1:
+        raise ValueError("combined principal equipment scope amount/period is not established")
+    return matches[0]
+
+
+def _equipment_pair_definition(document, start, end, value):
+    scope = [
+        block
+        for block in document.blocks
+        if _primary_financing_period(block, start, end)
+        and _rounded_prose_amount(block.text, r"from equipment financing arrangements", value, end)
+    ]
+    relation = [
+        block
+        for block in document.blocks
+        if not block.truncated
+        and re.search(
+            r"cash payments for the acquisition of equipment under financing arrangements "
+            r"\(for which we received an equivalent amount of proceeds discussed below",
+            block.text,
+            re.I,
+        )
+        and _dates(block.text)[:1] == [end]
+        and re.search(r"nine months ended", block.text, re.I)
+        and start == date(end.year, 1, 1)
+        and end.month == 9
+        and end.day == 30
+    ]
+    if len(scope) != 1 or len(relation) != 1:
+        raise ValueError("equipment acquisition/proceeds relationship amount/period is unavailable")
+    return [
+        (relation[0], "equipment financing acquisition/proceeds definition"),
+        (scope[0], "equipment financing proceeds amount/period definition"),
+    ]
+
+
+def _borrowings_definition(document, block, rows, selection, end, scale, value):
+    # Narrow complete instrument inventory. No generic debt-total alias and no
+    # zero inferred from a missing/dash cell.
+    def unique(phrase):
+        found = [b for b in document.blocks if not b.truncated and phrase in b.text]
+        if len(found) != 1:
+            raise ValueError("complete borrowings perimeter source is unavailable")
+        return found[0]
+
+    intro = unique("net carrying amount of the Company’s debt consisted of the following")
+    facility = unique("once borrowed and repaid, cannot be reborrowed")
+    repaid = unique("repaid the $500,000 outstanding principal of its Term Loan Facility")
+    undrawn = unique(
+        "No drawdowns have been made under the Company’s letters of credit and the Revolving Facility"
+    )
+    if end not in _dates(undrawn.text) or end not in _dates(repaid.text):
+        raise ValueError("borrowings facility scope date is not the selected date")
+    if not re.search(r"On March 27, 2026, the Company repaid", repaid.text) or end < date(
+        2026, 3, 27
+    ):
+        raise ValueError("unsupported term-loan repayment date")
+    indexed = {_normal(row[0]): row for row in rows}
+    total_index = next((i for i, r in enumerate(rows) if _normal(r[0]) == "totalobligations"), None)
+    if total_index is None:
+        raise ValueError("missing complete debt obligations row")
+    instruments = [r for r in rows[:total_index] if r[0] and len(r) > 1]
+    if (
+        not instruments
+        or sum(row[0] == "Term Loan Facility" for row in instruments) != 1
+        or len({row[0] for row in instruments}) != len(instruments)
+        or any(selection.column_index >= len(row) for row in rows if len(row) > 1)
+        or any(
+            not re.fullmatch(r"(?:20\d{2} Convertible Notes|Term Loan Facility)", r[0])
+            for r in instruments
+        )
+    ):
+        raise ValueError("unmapped or misaligned borrowing instrument")
+    col = selection.column_index
+    amounts = []
+    for row in instruments:
+        if row[0] == "Term Loan Facility" and row[col] in ("—", "–", "-"):
+            amounts.append(Decimal(0))  # Explicit full repayment and no reborrow above.
+        else:
+            amounts.append(_number(row[col], scale)[0])
+
+    def amount(label):
+        row = indexed.get(_normal(label))
+        if row is None:
+            raise ValueError("missing debt carrying-value reconciliation row")
+        return _number(row[col], scale)[0]
+
+    total = amount("Total obligations")
+    if sum(amounts) != total or total + amount("Unamortized debt issuance costs") != value:
+        raise ValueError("debt instruments do not reconcile to carrying value")
+    if -amount("Less: Debt, current") + amount("Debt, long-term") != value:
+        raise ValueError("debt current/noncurrent carrying values do not reconcile")
+    return [(b, "borrowings perimeter definition") for b in (intro, facility, repaid, undrawn)]
 
 
 def _metric(label, block=None):
@@ -298,8 +586,12 @@ def _scale(block, rows):
         scales.add(1)
     if len(scales) != 1:
         raise ValueError("missing or ambiguous source scale")
-    if not re.search(r"\b(?:USD|US dollars|U\.S\. dollars)\b", heading, re.I):
-        raise ValueError("source heading does not establish US-dollar currency")
+    if not re.search(r"\b(?:USD|US dollars|U\.S\. dollars)\b", heading, re.I) and (
+        getattr(block, "currency", None) != "USD" or not getattr(block, "currency_locator", None)
+    ):
+        raise ValueError("source heading or inline-XBRL cells do not establish US-dollar currency")
+    if getattr(block, "currency", None) not in (None, "USD"):
+        raise ValueError("source inline-XBRL currency conflicts with USD heading")
     if re.search(
         r"\b(?:EUR|CAD|AUD|GBP|JPY|CNY|euros?|Canadian dollars?|Australian dollars?|yen|yuan|pounds?)\b",
         heading,
@@ -384,13 +676,26 @@ def _period(block, rows, selection):
         if selection.metric not in _ADJUSTED_ALIASES:
             raise ValueError("unsupported adjusted-reconciliation role")
         return _duration(block, rows, column_end=_dated_column(rows, selection))
-    if selection.metric == "Equipment Financing Principal Payments":
+    if selection.metric in {
+        "Equipment Financing Principal Payments",
+        "Equipment Financing Acquisition Payments",
+        "Equipment Financing Proceeds",
+        "Finance Lease and Financing Arrangement Principal Payments",
+    }:
         if not re.search(r"\b(?:cash flows?|financing)\b", block.section, re.I) or _equity_context(
             block
         ):
             raise ValueError("equipment principal requires a cash-flow/financing source section")
         return _duration(block, rows, column_end=_dated_column(rows, selection))
     if selection.metric in _OBLIGATIONS:
+        if (
+            _present_value_roles(rows, selection.row_index).get(selection.column_index)
+            == selection.metric
+        ):
+            matches = re.findall(r"as of ([A-Za-z]+ \d{1,2}, \d{4})", block.section, re.I)
+            if len(matches) != 1 or len(_dates(matches[0])) != 1:
+                raise ValueError("present-value obligations require an exact source as-of caption")
+            return None, _dates(matches[0])[0]
         if selection.metric == "Total Borrowings" and (
             not re.search(r"\b(?:debt|borrowings)\b", block.section, re.I)
             or re.search(
@@ -428,7 +733,7 @@ def _period(block, rows, selection):
         raise ValueError("selection is not the source total-equity column")
     if len(rows[selection.row_index]) != len(rows[header_row]):
         raise ValueError("equity row/header column alignment differs")
-    start, end = _duration(block, rows)
+    start, end = _equity_period(block, rows)
     if selection.metric == "Stockholders Equity":
         balance_date = _dates(rows[selection.row_index][0])
         if len(balance_date) != 1 or balance_date[0] not in (start - timedelta(days=1), end):
@@ -450,7 +755,13 @@ def discover_filing_cells(disclosures: DisclosurePackage) -> tuple[FilingCellSel
                 if (
                     _adjusted_context(block)
                     or metric in _OBLIGATIONS
-                    or metric == "Equipment Financing Principal Payments"
+                    or metric
+                    in {
+                        "Equipment Financing Principal Payments",
+                        "Equipment Financing Acquisition Payments",
+                        "Equipment Financing Proceeds",
+                        "Finance Lease and Financing Arrangement Principal Payments",
+                    }
                 ):
                     columns = range(1, min(len(row), 31))
                 else:
@@ -459,6 +770,19 @@ def discover_filing_cells(disclosures: DisclosurePackage) -> tuple[FilingCellSel
                     except ValueError:
                         continue
                     columns = (column,)
+                if _normal(row[0]) == _PV_LABEL:
+                    roles = _present_value_roles(rows, index)
+                    selections.extend(
+                        FilingCellSelection(
+                            source_id=document.source_id,
+                            locator=block.locator,
+                            metric=role,
+                            row_index=index,
+                            column_index=column,
+                        )
+                        for column, role in roles.items()
+                    )
+                    continue
                 selections.extend(
                     FilingCellSelection(
                         source_id=document.source_id,
@@ -514,7 +838,10 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
                 rows[selection.row_index]
             ):
                 raise ValueError("source cell index outside table")
-            if _metric(rows[selection.row_index][0], block) != selection.metric:
+            if (
+                _cell_metric(rows, selection.row_index, selection.column_index, block)
+                != selection.metric
+            ):
                 raise ValueError("source row label does not establish selected role")
             scale = _scale(block, rows)
             value, rounding = _number(rows[selection.row_index][selection.column_index], scale)
@@ -524,6 +851,28 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
             if selection.metric in _REDUCTIONS and value > 0:
                 raise ValueError("equity reduction lacks an explicit negative source sign")
             locator = f"{block.locator}/row-{selection.row_index}/column-{selection.column_index}"
+            definitions = []
+            if selection.metric == "Finance Lease and Financing Arrangement Principal Payments":
+                try:
+                    definition = _equipment_principal_definition(document, start, end, value)
+                    locator += "; equipment scope: " + definition.locator
+                    definitions = [(definition, "finance/equipment principal definition")]
+                except ValueError as exc:
+                    gaps.append(f"{document.source_id}/{block.locator}: {exc}")
+            elif selection.metric in {
+                "Equipment Financing Acquisition Payments",
+                "Equipment Financing Proceeds",
+            }:
+                definitions = _equipment_pair_definition(document, start, end, value)
+                locator += "; equipment financing scope: " + definitions[0][0].locator
+            elif (
+                selection.metric == "Total Borrowings"
+                and _normal(rows[selection.row_index][0]) == "carryingvalueofdebt"
+            ):
+                definitions = _borrowings_definition(
+                    document, block, rows, selection, end, scale, value
+                )
+                locator += "; borrowings scope: " + ", ".join(d.locator for d, _ in definitions)
             identity = hashlib.sha256(
                 f"{document.source_id}:{document.content_hash}:{locator}:{selection.metric}:{start}:{end}".encode()
             ).hexdigest()
@@ -535,10 +884,38 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
                 filed_date=document.filing.filed_date,
                 retrieved_at=document.retrieved_at,
                 content_hash=document.content_hash,
-                locator=locator + "; units and dated headers in " + block.locator,
+                locator=locator
+                + "; units and dated headers in "
+                + block.locator
+                + (
+                    "; " + block.currency_locator
+                    if getattr(block, "currency_locator", None)
+                    else ""
+                ),
                 accession=document.filing.accession,
                 form=document.filing.form,
             )
+            definition_sources = []
+            for definition, kind in definitions:
+                definition_id = (
+                    "filing-definition-"
+                    + hashlib.sha256(
+                        f"{document.source_id}:{document.content_hash}:{definition.locator}:{kind}".encode()
+                    ).hexdigest()
+                )
+                definition_sources.append(
+                    SourceRecord(
+                        source_id=definition_id,
+                        cik=disclosures.cik,
+                        url=document.url,
+                        filed_date=document.filing.filed_date,
+                        retrieved_at=document.retrieved_at,
+                        content_hash=document.content_hash,
+                        locator=definition.locator + "; " + kind,
+                        accession=document.filing.accession,
+                        form=document.filing.form,
+                    )
+                )
             fact = FinancialFact(
                 fact_id=identity,
                 metric=selection.metric,
@@ -551,10 +928,12 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
                 basis="management-adjusted"
                 if _adjusted_context(block) and selection.metric not in _GAAP_BASES
                 else "US-GAAP",
-                source_ids=(source_id,),
+                source_ids=(source_id, *(item.source_id for item in definition_sources)),
                 locator=locator,
             )
             sources[source_id], facts[identity], quantum[identity] = source, fact, rounding
+            for definition_source in definition_sources:
+                sources[definition_source.source_id] = definition_source
             accepted[
                 (document.source_id, block.locator, selection.row_index, selection.column_index)
             ] = fact
@@ -578,7 +957,7 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
             opening, closing, components = [], [], []
             opening_rows, closing_rows, movement_rows = [], [], []
             try:
-                start, end = _duration(block, rows)
+                start, end = _equity_period(block, rows)
                 scale = _scale(block, rows)
             except ValueError as exc:
                 start = end = None

@@ -72,9 +72,12 @@ def _value_has_unit(claim: DisclosureClaim) -> bool:
             )
             if second and Decimal(second.group(1).replace(",", "")) == claim.upper_value:
                 return True
-    # A simple two-column table may put scale in its heading. Accept only
-    # an unambiguous metric row and a single dated value column; broader
-    # tables need explicit column extraction rather than guessed alignment.
+    return _single_column_table(claim)
+
+
+def _single_column_table(claim: DisclosureClaim) -> bool:
+    # Scale may live in a heading only for this supported, explicitly aligned
+    # shape. A multi-period header is not a single dated value column.
     if "\n" in claim.quote and claim.upper_value is None:
         heading, table = claim.quote.split("\n", 1)
         rows = [row.strip() for row in table.split(";")]
@@ -87,13 +90,79 @@ def _value_has_unit(claim: DisclosureClaim) -> bool:
         if (
             _phrase(heading, claim.unit)
             and len(header) == 2
-            and _phrase(header[1], claim.period)
+            and header[1].strip().casefold() == claim.period.casefold()
             and len(matching) == 1
             and len(matching[0]) == 2
+            and re.fullmatch(r"\$?\s*[-+]?\d[\d,]*(?:\.\d+)?", matching[0][1].strip())
             and _numbers(matching[0][1]) == {claim.value}
         ):
             return True
     return False
+
+
+def _local_amount_subject(claim: DisclosureClaim) -> bool:
+    """Accept only an explicit, narrow metric-to-amount link.
+
+    Mere presence in one sentence cannot bind Revenue to a number whose local
+    subject is EBITDA. Unsupported prose stays unvalidated; callers can quote a
+    narrower exact span rather than asking this parser to infer sentence meaning.
+    """
+    text = re.sub(re.escape(claim.period), " ", claim.quote, flags=re.I)
+    metric = re.search(re.escape(claim.metric), text, re.I)
+    amounts = list(re.finditer(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?", text))
+    if metric is None or not amounts:
+        return False
+    # First amount is the lower value in supported prose ranges. Date numbers
+    # have already been removed, and the caller checks all remaining values.
+    amount = amounts[0]
+    if amount.start() >= metric.end():
+        link = text[metric.end():amount.start()]
+    elif amount.end() <= metric.start():
+        link = text[amount.end():metric.start()]
+    else:
+        return False
+    link = re.sub(re.escape(claim.unit), " ", link, flags=re.I)
+    link = re.sub(r"\bU\.S\.", "US", link, flags=re.I)
+    words = re.findall(r"[a-z]+", link.casefold())
+    connectors = {
+        "is", "are", "was", "were", "be", "been", "being", "at", "of",
+        "approximately", "about", "around", "between", "to", "guidance",
+        "forecast", "forecasted", "target", "ambition", "expected", "expects",
+        "expect", "we", "our", "for", "the", "in", "will", "would",
+        "estimated", "estimate", "range", "ranges", "from", "a", "an",
+        "least", "exceeding", "exceed", "over", "under", "up", "as",
+        "reported", "totaled", "totalled", "amounted", "reach", "reached",
+        "usd", "us", "dollars", "dollar",
+    }
+    return all(word in connectors for word in words)
+
+
+def _unambiguous_association(claim: DisclosureClaim) -> bool:
+    """Reject a bag of matching tokens drawn from different source claims.
+
+    The prose contract is one metric, one declared period and one amount/range
+    in a single clause. More complex comparisons must use a narrower exact
+    source quote or the supported aligned two-column table shape.
+    """
+    if "|" in claim.quote or "\n" in claim.quote:
+        return _single_column_table(claim)
+    prose = re.sub(r"\bU\.S\.", "US", claim.quote, flags=re.I)
+    if ";" in prose or re.search(r"[.!?]\s+\S", prose):
+        return False
+    remaining = claim.quote
+    for field in (claim.metric, claim.period):
+        left = r"(?<!\w)" if field[0].isalnum() else ""
+        right = r"(?!\w)" if field[-1].isalnum() else ""
+        pattern = left + re.escape(field) + right
+        if len(re.findall(pattern, remaining, re.I)) != 1:
+            return False
+        remaining = re.sub(pattern, " ", remaining, flags=re.I)
+    expected = {claim.value}
+    if claim.upper_value is not None:
+        expected.add(claim.upper_value)
+    # Dates inside the declared period have been removed. Extra numeric
+    # amounts or years make association ambiguous; never pick by membership.
+    return _numbers(remaining) == expected and _local_amount_subject(claim)
 
 
 def _phrase(text: str, phrase: str) -> bool:
@@ -131,6 +200,8 @@ def validate_disclosure_claims(
             reason = "numeric value is not present in the quoted span"
         elif not _value_has_unit(claim):
             reason = "numeric value is not explicitly associated with the asserted unit"
+        elif not _unambiguous_association(claim):
+            reason = "metric, period and value lack an unambiguous local association"
         elif claim.definition and claim.definition not in text:
             reason = "definition is not an exact retrieved source span"
         else:

@@ -262,7 +262,8 @@ def test_cash_checks_keep_unclassified_equipment_payments_unavailable():
     results, check, warnings = cash_flow_checks(
         current.model_copy(update={"facts": (*facts, classified)})
     )
-    assert check["status"] == "pass"
+    # Equal acquisition and principal amounts do not establish the same cash scope.
+    assert check["status"] == "unavailable"
     assert results[1].result == Decimal(65)
 
 
@@ -516,3 +517,336 @@ def test_verified_adjusted_table_reaches_calculations_with_its_own_basis():
     )
     _, calculations, _ = filing_accounting_evidence(base, bad)
     assert any(c.status == "fail" for c in calculations)
+
+
+def test_gate_uses_trusted_filing_quantum_for_same_vintage_duplicate():
+    from decimal import Decimal
+
+    from tests.test_evidence_validation import rounded_equity_fixture
+    from tests.test_filing_facts import EQUITY, package as filing_package
+    from tradingagents.agents.evidence_validation import assess_financial_package
+
+    evidence, _, equity = rounded_equity_fixture()
+    assets = equity.model_copy(
+        update={
+            "fact_id": "assets",
+            "metric": "Total Assets",
+            "value": equity.value + Decimal(100000400),
+        }
+    )
+    liabilities = equity.model_copy(
+        update={
+            "fact_id": "liabilities",
+            "metric": "Total Liabilities",
+            "value": Decimal(100000000),
+        }
+    )
+    evidence = evidence.model_copy(update={"facts": (*evidence.facts, assets, liabilities)})
+    result = assess_financial_package(
+        {"fundamentals_report": "Raw research"}, evidence, filing_package(EQUITY)
+    )
+    checks = {check["code"]: check for check in result["evidence_quality"]["checks"]}
+    assert checks["source_integrity"]["status"] == "pass"
+    assert checks["balance_sheet"]["status"] == "pass"
+    assert any(
+        fact["fact_id"] == "companyfacts-value" for fact in result["financial_evidence"]["facts"]
+    )
+    assert any(fact["fact_id"] == equity.fact_id for fact in result["financial_evidence"]["facts"])
+
+
+def test_obligation_component_comparison_uses_same_filing_rounding_not_exact_equality():
+    from decimal import Decimal
+
+    from tests.test_evidence_validation import rounded_equity_fixture
+    from tradingagents.agents.evidence_validation import obligation_checks
+
+    base, precision, template = rounded_equity_fixture()
+    # Synthetic categories share the parsed fixture's known thousands precision
+    # on the total; unrounded comparison inputs receive no extra allowance.
+    values = {
+        "Total Assets": Decimal(1000000),
+        "Total Borrowings": Decimal(100000),
+        "Long-term Borrowings (including current)": Decimal(90000),
+        "Short-term Borrowings": Decimal(10400),
+        "Finance Lease Liabilities": Decimal(10000),
+        "Equipment Financing Obligations": Decimal(5000),
+        "Operating Lease Liabilities": Decimal(7000),
+        "Cash and Equivalents": Decimal(20000),
+    }
+    facts = tuple(
+        template.model_copy(update={"fact_id": metric, "metric": metric, "value": value})
+        for metric, value in values.items()
+    )
+    current = base.model_copy(update={"facts": facts})
+    quantum = {"Total Borrowings": precision[template.fact_id]}
+    assert obligation_checks(current)[-1].status == "unavailable"
+    assert obligation_checks(current, quantum)[-1].status == "pass"
+    bad = next(fact for fact in facts if fact.metric == "Short-term Borrowings").model_copy(
+        update={"value": Decimal(10501)}
+    )
+    broken = current.model_copy(
+        update={"facts": tuple(bad if fact.fact_id == bad.fact_id else fact for fact in facts)}
+    )
+    assert obligation_checks(broken, quantum)[-1].status == "unavailable"
+
+
+def test_source_scoped_combined_principal_replays_actual_filing_before_coverage():
+    import json
+    from decimal import Decimal
+    from pathlib import Path
+
+    from tradingagents.agents.evidence_validation import (
+        cash_flow_checks,
+        filing_accounting_evidence,
+    )
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    recorded = json.loads(Path("tests/fixtures/docn_2026q3/filing_tables.json").read_text())
+    disclosures = DisclosurePackage.model_validate(recorded["disclosures"])
+    empty = EvidencePackage(cik=disclosures.cik, as_of=disclosures.as_of)
+    merged, _, extraction = filing_accounting_evidence(empty, disclosures)
+    combined = next(
+        f
+        for f in merged.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+        and f.origin == "derived"
+        and str(f.period_end) == "2026-09-30"
+    )
+    # Synthetic OCF/capex support isolates the recorded principal scope, not a
+    # claim that these two amounts came from the recorded table excerpt.
+    additions = tuple(
+        combined.model_copy(
+            update={
+                "fact_id": metric,
+                "metric": metric,
+                "value": Decimal(value),
+                "period_start": None if metric == "Total Assets" else combined.period_start,
+            }
+        )
+        for metric, value in {
+            "Total Assets": 1000000000,
+            "Operating Cash Flow": 100000000,
+            "Capital Expenditure": 20000000,
+        }.items()
+    )
+    replaced_metrics = {f.metric for f in additions}
+    current = merged.model_copy(
+        update={
+            "facts": (
+                *(f for f in merged.facts if f.metric not in replaced_metrics),
+                *additions,
+            )
+        }
+    )
+    results, check, _ = cash_flow_checks(current, disclosures, extraction.rounding_quantum_by_fact)
+    assert check["status"] == "pass"
+    assert results[1].result == Decimal(40105000)
+    assert combined.fact_id in results[1].input_fact_ids
+    _, absent, _ = cash_flow_checks(current)
+    assert absent["status"] == "unavailable"
+    doc = disclosures.documents[0]
+    altered = disclosures.model_copy(
+        update={
+            "documents": (
+                doc.model_copy(
+                    update={
+                        "blocks": tuple(
+                            b.model_copy(
+                                update={
+                                    "text": b.text.replace(
+                                        "for data center equipment", "for unrelated transactions"
+                                    )
+                                }
+                            )
+                            for b in doc.blocks
+                        )
+                    }
+                ),
+            )
+        }
+    )
+    _, tampered, _ = cash_flow_checks(current, altered)
+    assert tampered["status"] == "unavailable"
+    wrong_amount = disclosures.model_copy(
+        update={
+            "documents": (
+                doc.model_copy(
+                    update={
+                        "blocks": tuple(
+                            b.model_copy(
+                                update={"text": b.text.replace("$39.9 million", "$123.4 million")}
+                            )
+                            for b in doc.blocks
+                        )
+                    }
+                ),
+            )
+        }
+    )
+    assert cash_flow_checks(current, wrong_amount)[1]["status"] == "unavailable"
+
+
+def test_recorded_financed_acquisition_is_separate_from_principal_and_replays_scope():
+    import json
+    from decimal import Decimal
+    from pathlib import Path
+
+    from tradingagents.agents.evidence_validation import (
+        cash_flow_checks,
+        filing_accounting_evidence,
+    )
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    recorded = json.loads(Path("tests/fixtures/docn_2026q3/filing_tables.json").read_text())
+    disclosures = DisclosurePackage.model_validate(recorded["disclosures"])
+    empty = EvidencePackage(cik=disclosures.cik, as_of=disclosures.as_of)
+    merged, _, extraction = filing_accounting_evidence(empty, disclosures)
+    acquisition = next(
+        f
+        for f in merged.facts
+        if f.metric == "Equipment Financing Acquisition Payments"
+        and str(f.period_end) == "2026-09-30"
+    )
+    # Synthetic companion facts isolate classification of actual gross cash rows.
+    additions = tuple(
+        acquisition.model_copy(
+            update={
+                "fact_id": metric,
+                "metric": metric,
+                "value": Decimal(value),
+                "period_start": None if metric == "Total Assets" else acquisition.period_start,
+            }
+        )
+        for metric, value in {
+            "Total Assets": 1000000000,
+            "Operating Cash Flow": 100000000,
+            "Capital Expenditure": 20000000,
+            "Equipment on Lease Payments": 75143000,
+        }.items()
+    )
+    replaced_metrics = {f.metric for f in additions}
+    current = merged.model_copy(
+        update={
+            "facts": (
+                *(f for f in merged.facts if f.metric not in replaced_metrics),
+                *additions,
+            )
+        }
+    )
+    results, check, _ = cash_flow_checks(current, disclosures, extraction.rounding_quantum_by_fact)
+    assert check["status"] == "pass"
+    assert results[0].result == Decimal(80000000)
+    assert results[1].result == Decimal(40105000)
+    assert results[2].status == "pass" and results[2].residual == 0
+    assert acquisition.fact_id in results[2].input_fact_ids
+    assert acquisition.fact_id not in results[1].input_fact_ids
+    no_proceeds = current.model_copy(
+        update={
+            "facts": tuple(f for f in current.facts if f.metric != "Equipment Financing Proceeds")
+        }
+    )
+    assert cash_flow_checks(no_proceeds, disclosures)[1]["status"] == "unavailable"
+    assert cash_flow_checks(current, None)[1]["status"] == "unavailable"
+    conflicting = current.model_copy(
+        update={
+            "facts": tuple(
+                f.model_copy(update={"value": Decimal(75100000)})
+                if f.metric == "Equipment on Lease Payments"
+                else f
+                for f in current.facts
+            )
+        }
+    )
+    assert cash_flow_checks(conflicting, disclosures)[1]["status"] == "unavailable"
+    old_source = current.sources[0].model_copy(
+        update={
+            "source_id": "older-acquisition-source",
+            "accession": "0001582961-25-000001",
+        }
+    )
+    older = current.model_copy(
+        update={
+            "sources": (*current.sources, old_source),
+            "facts": tuple(
+                f.model_copy(update={"source_ids": (old_source.source_id,)})
+                if f.metric == "Equipment on Lease Payments"
+                else f
+                for f in current.facts
+            ),
+        }
+    )
+    assert cash_flow_checks(older, disclosures)[1]["status"] == "unavailable"
+
+
+def test_cash_period_prefers_reported_statement_over_derived_quarter_and_ttm():
+    from datetime import date
+    from decimal import Decimal
+
+    from tests.test_evidence_validation import package
+    from tradingagents.agents.evidence_validation import cash_flow_checks
+
+    base = package()
+    template = base.facts[0]
+    end = date(2026, 9, 30)
+    start = date(2026, 1, 1)
+    facts = tuple(
+        template.model_copy(
+            update={
+                "fact_id": metric,
+                "metric": metric,
+                "value": Decimal(value),
+                "period_start": None if metric == "Total Assets" else start,
+                "period_end": end,
+                "origin": "reported",
+                "input_fact_ids": (),
+                "formula_id": None,
+            }
+        )
+        for metric, value in {
+            "Total Assets": 1000,
+            "Operating Cash Flow": 100,
+            "Capital Expenditure": 20,
+            "Finance Lease Principal Payments": 0,
+            "Equipment Financing Principal Payments": 0,
+        }.items()
+    )
+    reported = next(f for f in facts if f.metric == "Operating Cash Flow")
+    derived = tuple(
+        reported.model_copy(
+            update={
+                "fact_id": key,
+                "origin": "derived",
+                "period_start": beginning,
+                "value": Decimal(value),
+                "input_fact_ids": (reported.fact_id,),
+                "formula_id": formula,
+            }
+        )
+        for key, beginning, value, formula in (
+            ("quarter", date(2026, 7, 1), 40, "cumulative_difference_v1"),
+            ("ttm", date(2025, 10, 1), 150, "four_quarter_sum_v1"),
+        )
+    )
+    current = base.model_copy(update={"facts": (*facts, *derived)})
+    results, check, _ = cash_flow_checks(current)
+    assert check["status"] == "pass"
+    assert results[0].result == 80
+    assert results[0].input_fact_ids[0] == reported.fact_id
+    assert len(current.facts) == len(facts) + 2  # supplemental facts remain untouched
+    annual = current.model_copy(
+        update={
+            "facts": tuple(
+                f.model_copy(update={"period_start": date(2025, 10, 1)})
+                if f.origin == "reported" and f.period_start
+                else f.model_copy(update={"value": reported.value})
+                if f.fact_id == "ttm"
+                else f
+                for f in current.facts
+            )
+        }
+    )
+    annual_results, annual_check, _ = cash_flow_checks(annual)
+    assert annual_check["status"] == "pass"
+    assert annual_results[0].result == 80

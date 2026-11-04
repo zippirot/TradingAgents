@@ -255,3 +255,18 @@ def test_signed_principal_outflow_has_explicit_magnitude_lineage():
     assert original.value == Decimal("-1234000")
     with pytest.raises(ValueError):
         derive_cash_outflow(fact("-1234000", metric="Revenue"))
+
+
+def test_explicit_combined_principal_preserves_reported_sign_and_derived_lineage():
+    from tradingagents.dataflows.financial_evidence import derive_cash_outflow
+
+    reported = fact(
+        "-39895000",
+        metric="Finance Lease and Financing Arrangement Principal Payments",
+        period_start="2026-01-01",
+        period_end="2026-09-30",
+    )
+    result = derive_cash_outflow(reported)
+    assert reported.value < 0 and result.value == 39895000
+    assert result.metric == reported.metric and result.input_fact_ids == (reported.fact_id,)
+    assert result.source_ids == reported.source_ids

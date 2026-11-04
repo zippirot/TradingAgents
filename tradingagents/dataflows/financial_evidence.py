@@ -367,8 +367,15 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
 
 def derive_cash_outflow(reported: FinancialFact) -> FinancialFact:
     """Convert an explicitly classified signed payment to its gross magnitude."""
-    if reported.metric != "Equipment Financing Principal Payments" or reported.origin != "reported":
-        raise ValueError("requires an explicitly reported equipment-financing principal payment")
+    if (
+        reported.metric
+        not in {
+            "Equipment Financing Principal Payments",
+            "Finance Lease and Financing Arrangement Principal Payments",
+        }
+        or reported.origin != "reported"
+    ):
+        raise ValueError("requires an explicitly reported financing-principal payment")
     if reported.value is None or reported.period_start is None or reported.unit != "USD":
         raise ValueError("requires complete dated USD payment evidence")
     return _derived(

@@ -613,3 +613,354 @@ def test_adjusted_unsupported_gaap_pair_cannot_complete():
     result = verify_filing_cells(data, discover_filing_cells(data))
     assert all(not c.complete for c in result.adjusted_coverage)
     assert any("Unsupported GAAP" in gap for gap in result.gaps)
+
+
+def recorded_docn_filings():
+    import json
+    from pathlib import Path
+
+    payload = json.loads(
+        (Path(__file__).parent / "fixtures/docn_2026q3/filing_tables.json").read_text()
+    )
+    assert (
+        payload["provenance"]["source_sha256"]
+        == "f5f9cd5e507ba82006afbbe1776e5b8e4912d442a634c990b7c58068df5604e5"
+    )
+    return DisclosurePackage.model_validate(payload["disclosures"])
+
+
+def test_recorded_docn_current_equity_table_reconciles_all_source_movements():
+    from tradingagents.agents.accounting_checks import check_equity_rollforward
+
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    coverage = next(
+        c
+        for c in result.equity_coverage
+        if c.period_start == date(2026, 1, 1) and c.period_end == date(2026, 9, 30)
+    )
+    assert coverage.complete, coverage.gaps
+    assert coverage.period_start == date(2026, 1, 1)
+    facts = {f.fact_id: f for f in result.evidence.facts}
+    assert facts[coverage.opening_fact_id].value == Decimal("-28690000")
+    assert facts[coverage.closing_fact_id].value == Decimal("1416456000")
+    movements = {
+        facts[identifier].metric: facts[identifier].value
+        for identifier, _ in coverage.signed_components
+    }
+    assert movements == {
+        "Equity Incentive Plan Issuance Net of Withholding": Decimal("-58740000"),
+        "Employee Stock Purchase Plan Issuance Value": Decimal("2494000"),
+        "Equity Common Stock Issuance Value": Decimal("887888000"),
+        "Equity Conversion of Debt": Decimal("515696000"),
+        "Equity Share-based Compensation": Decimal("90246000"),
+        "Other Comprehensive Income Attributable to Parent": Decimal("-1037000"),
+        "Net Income Attributable to Common Stockholders": Decimal("8599000"),
+    }
+    checked = check_equity_rollforward(
+        result.evidence,
+        coverage.opening_fact_id,
+        coverage.closing_fact_id,
+        coverage.signed_components,
+        coverage.complete,
+        result.rounding_quantum_by_fact,
+    )
+    assert checked.status == "pass" and checked.residual == 0
+
+
+def test_recorded_prior_equity_unknown_capped_call_row_stays_incomplete():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    coverage = next(c for c in result.equity_coverage if c.period_end == date(2025, 9, 30))
+    assert not coverage.complete and coverage.unmapped_rows
+
+
+def test_recorded_present_value_obligations_are_not_undiscounted_or_long_term_totals():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    equipment = next(
+        f for f in result.evidence.facts if f.metric == "Equipment Financing Obligations"
+    )
+    combined = next(
+        f for f in result.evidence.facts if f.metric == "Finance Lease and Equipment Obligations"
+    )
+    assert equipment.value == Decimal("187420000")
+    assert combined.value == Decimal("923599000")
+    assert combined.period_end == date(2026, 9, 30) and combined.period_start is None
+    assert combined.value not in (Decimal("1059176000"), Decimal("718821000"))
+    assert result.rounding_quantum_by_fact[combined.fact_id] == Decimal(1000)
+
+
+def test_recorded_combined_principal_has_exact_period_signed_value_and_scope_source():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    principal = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+        and f.period_end == date(2026, 9, 30)
+    )
+    assert principal.value == Decimal("-39895000")
+    assert principal.period_start == date(2026, 1, 1)
+    assert len(principal.source_ids) == 2
+    sources = {source.source_id: source for source in result.evidence.sources}
+    assert any(
+        sources[source_id].locator.endswith("; finance/equipment principal definition")
+        for source_id in principal.source_ids
+    )
+    assert "; equipment scope: " in principal.locator
+
+
+def test_recorded_combined_principal_without_equipment_scope_is_unavailable():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b
+        for b in document.blocks
+        if "principal repayments for finance leases and financing arrangements for data center equipment"
+        not in b.text
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    raw = [
+        f
+        for f in result.evidence.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+    ]
+    assert raw and all(len(f.source_ids) == 1 and "equipment scope" not in f.locator for f in raw)
+    assert any("equipment scope" in gap for gap in result.gaps)
+
+
+def test_recorded_tables_require_resolved_inline_currency_not_dollar_assumption():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b.model_copy(update={"currency": None, "currency_locator": None}) for b in document.blocks
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    assert not result.evidence.facts
+    assert any("currency" in gap for gap in result.gaps)
+
+
+def test_recorded_equity_conflicting_duration_caption_is_not_overridden_by_balance_dates():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b.model_copy(update={"section": b.section + " ; Three months ended and nine months ended"})
+        if "Balance at December 31, 2025" in b.text
+        else b
+        for b in document.blocks
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    current = [c for c in result.equity_coverage if c.locator == "block-70"]
+    assert current and not current[0].complete
+
+
+def test_recorded_quarter_equity_common_stockholder_loss_is_signed_movement():
+    from tradingagents.agents.accounting_checks import check_equity_rollforward
+
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    coverage = next(c for c in result.equity_coverage if c.period_start == date(2026, 7, 1))
+    assert coverage.complete, coverage.gaps
+    facts = {f.fact_id: f for f in result.evidence.facts}
+    loss = next(
+        facts[identifier]
+        for identifier, _ in coverage.signed_components
+        if facts[identifier].metric == "Net Income Attributable to Common Stockholders"
+    )
+    assert loss.value == Decimal("-42609000")
+    checked = check_equity_rollforward(
+        result.evidence,
+        coverage.opening_fact_id,
+        coverage.closing_fact_id,
+        coverage.signed_components,
+        coverage.complete,
+        result.rounding_quantum_by_fact,
+    )
+    assert checked.status == "pass" and checked.residual == 0
+
+
+def test_recorded_principal_scope_wrong_amount_cannot_certify_equipment():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b.model_copy(
+            update={
+                "text": b.text.replace(
+                    "$39.9 million of principal repayments",
+                    "$123.4 million of principal repayments",
+                )
+            }
+        )
+        for b in document.blocks
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    principal = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+        and f.period_end == date(2026, 9, 30)
+    )
+    assert principal.value == Decimal("-39895000")
+    assert len(principal.source_ids) == 1 and "equipment scope" not in principal.locator
+
+
+def test_comparative_year_principal_not_certified_by_current_year_scope_amount():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    prior = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+        and f.period_end == date(2025, 9, 30)
+    )
+    assert prior.value == Decimal("-4154000")
+    assert len(prior.source_ids) == 1 and "equipment scope" not in prior.locator
+
+
+def test_recorded_financed_acquisition_pair_uses_explicit_link_not_equal_values():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    acquisition = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Equipment Financing Acquisition Payments"
+        and f.period_end == date(2026, 9, 30)
+    )
+    proceeds = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Equipment Financing Proceeds" and f.period_end == date(2026, 9, 30)
+    )
+    assert acquisition.value == Decimal("-75143000") and proceeds.value == Decimal("75143000")
+    assert acquisition.period_start == proceeds.period_start == date(2026, 1, 1)
+    sources = {s.source_id: s for s in result.evidence.sources}
+    shared = set(acquisition.source_ids) & set(proceeds.source_ids)
+    assert any(
+        sources[i].locator.endswith("; equipment financing acquisition/proceeds definition")
+        for i in shared
+    )
+
+
+def test_equal_cashflow_values_without_explicit_source_pairing_are_unavailable():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b.model_copy(
+            update={
+                "text": b.text.replace(
+                    "for which we received an equivalent amount of proceeds",
+                    "with an unrelated source of proceeds",
+                )
+            }
+        )
+        for b in document.blocks
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    assert not any(f.metric == "Equipment Financing Proceeds" for f in result.evidence.facts)
+
+
+def test_recorded_total_borrowings_uses_complete_carrying_table_and_undrawn_facility_source():
+    data = recorded_docn_filings()
+    result = verify_filing_cells(data, discover_filing_cells(data))
+    borrowing = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Total Borrowings" and f.period_end == date(2026, 9, 30)
+    )
+    assert borrowing.value == Decimal("461630000")
+    assert "borrowings scope" in borrowing.locator
+    assert len(borrowing.source_ids) >= 4
+
+
+@pytest.mark.parametrize(
+    "missing_phrase",
+    [
+        "No drawdowns have been made",
+        "once borrowed and repaid, cannot be reborrowed",
+        "repaid the $500,000 outstanding principal",
+        "net carrying amount of the Company’s debt consisted",
+    ],
+)
+def test_total_borrowing_scope_does_not_assume_missing_facility_is_zero(missing_phrase):
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(b for b in document.blocks if missing_phrase not in b.text)
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    assert not any(f.metric == "Total Borrowings" for f in result.evidence.facts)
+
+
+def test_total_borrowings_rejects_unmapped_instrument_or_broken_table_sum():
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    for old, new in [
+        ("2030 Convertible Notes", "Unclassified financing instrument"),
+        ("461,630", "999,630"),
+    ]:
+        blocks = tuple(
+            b.model_copy(update={"text": b.text.replace(old, new)})
+            if "Carrying value of debt" in b.text
+            else b
+            for b in document.blocks
+        )
+        changed = data.model_copy(
+            update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+        )
+        result = verify_filing_cells(changed, discover_filing_cells(changed))
+        assert not any(f.metric == "Total Borrowings" for f in result.evidence.facts)
+
+
+@pytest.mark.parametrize(
+    "qualifier",
+    [
+        "the prior-year period had ",
+        "the previous period had ",
+        "during the nine months ended September 30, 2025 there were ",
+        "in 2025 there were ",
+    ],
+)
+def test_recorded_principal_scope_rejects_driver_with_other_period(qualifier):
+    data = recorded_docn_filings()
+    document = data.documents[0]
+    blocks = tuple(
+        b.model_copy(
+            update={
+                "text": b.text.replace(
+                    "and $39.9 million of principal repayments",
+                    "and " + qualifier + "$39.9 million of principal repayments",
+                )
+            }
+        )
+        for b in document.blocks
+    )
+    changed = data.model_copy(
+        update={"documents": (document.model_copy(update={"blocks": blocks}),)}
+    )
+    result = verify_filing_cells(changed, discover_filing_cells(changed))
+    principal = next(
+        f
+        for f in result.evidence.facts
+        if f.metric == "Finance Lease and Financing Arrangement Principal Payments"
+        and f.period_end == date(2026, 9, 30)
+    )
+    assert principal.value == Decimal("-39895000")
+    assert len(principal.source_ids) == 1
+    assert "equipment scope" not in principal.locator

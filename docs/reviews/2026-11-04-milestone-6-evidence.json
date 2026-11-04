@@ -1,0 +1,56 @@
+{
+  "milestone": 6,
+  "status": "in progress; acceptance incomplete",
+  "base_commit": "48d8d79e71aa24b7e493e1c2b97b4627811978c4",
+  "offline_suite": {
+    "passed": 1762,
+    "skipped": 1,
+    "deselected": 1,
+    "log": "../evidence/m6-final-candidate-suite.log",
+    "source_manifest": "../evidence/m6-final-candidate-manifest.json",
+    "limitation": "Offline checks; does not replace real CLI proof"
+  },
+  "recovery_focused": {
+    "passed": 31,
+    "log": "../evidence/m6-full-state-atomic-green.log",
+    "limitation": "Offline, not real CLI restart"
+  },
+  "independent_audit": {
+    "findings": [
+      "wrong period/metric association",
+      "rounded-source false conflict",
+      "principal amount/period linkage",
+      "stale statement scale context"
+    ],
+    "reproduced_findings_rechecked": "closed",
+    "remaining": "real CLI evidence and final acceptance review"
+  },
+  "live_free_sources": {
+    "as_of": "2026-11-04",
+    "ticker": "DOCN",
+    "facts": 979,
+    "documents": 4,
+    "summary": "../evidence/live-sec-preflight-v2/summary.json",
+    "recorded_gate": "../evidence/m6-final-recorded-source-gate.json",
+    "critical_gaps": [],
+    "critical_checks_passed": 8,
+    "merged_facts": 1019
+  },
+  "rendered_inspection": {
+    "kind": "synthetic recorded screenshots",
+    "paths": [
+      "../evidence/rendered-m6/complete.png",
+      "../evidence/rendered-m6/evidence-tables-cdp.png"
+    ],
+    "remaining": "inspect actual live saved reports"
+  },
+  "paid_model_calls": 0,
+  "paid_spend_usd": 0,
+  "remaining": [
+    "source-complete real CLI",
+    "controlled unavailable-source real CLI with no trading memory",
+    "real restart/checkpoint recovery",
+    "inspect actual saved reports",
+    "final evidence commit and clean worktree"
+  ]
+}

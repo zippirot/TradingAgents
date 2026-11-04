@@ -279,3 +279,35 @@ def test_explicit_annual_period_wording_is_parsed_without_fiscal_guess(period, s
     result = grounded_outlooks(state(period=period))
     assert len(result) == 1
     assert (str(result[0].period_start), str(result[0].period_end)) == (start, end)
+
+
+def test_wrong_period_numeric_binding_does_not_create_grounded_outlook():
+    quote = "US-GAAP calendar year 2027 revenue guidance is USD 1.2 billion; US-GAAP calendar year 2026 revenue guidance is USD 1.5 billion."
+    current = state(value="1.5", upper=None, unit="billion", period="calendar year 2027")
+    content_hash = hashlib.sha256(quote.encode()).hexdigest()
+    current["filing_evidence"]["documents"][0]["content_hash"] = content_hash
+    current["filing_evidence"]["documents"][0]["blocks"][0]["text"] = quote
+    current["financial_evidence"]["sources"][0]["content_hash"] = content_hash
+    claim = {
+        "source_id": "doc",
+        "locator": "block-1",
+        "metric": "revenue",
+        "value": "1.5",
+        "upper_value": None,
+        "unit": "billion",
+        "period": "calendar year 2027",
+        "kind": "guidance",
+        "quote": quote,
+        "definition": None,
+    }
+    current["financial_claim_validation"]["raw_report"] = (
+        FENCE + "disclosures\n" + json.dumps([claim]) + "\n" + FENCE
+    )
+    assert grounded_outlooks(current) == ()
+    claim.update(value="1.2", quote=quote.split(";")[0])
+    current["financial_claim_validation"]["raw_report"] = (
+        FENCE + "disclosures\n" + json.dumps([claim]) + "\n" + FENCE
+    )
+    result = grounded_outlooks(current)
+    assert len(result) == 1 and result[0].low == Decimal("1200000000")
+    assert result[0].period_start == date(2027, 1, 1)
