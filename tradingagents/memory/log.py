@@ -4,8 +4,13 @@ import contextlib
 import re
 from pathlib import Path
 
-from tradingagents.agents.rating import parse_rating
+from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
 from tradingagents.dataflows.files import locked
+
+
+def is_trading_entry(entry: dict) -> bool:
+    """Only an actual five-tier decision can settle, score or become a lesson."""
+    return entry.get("rating") in RATINGS_5_TIER
 
 
 class TradingMemoryLog:
@@ -41,7 +46,8 @@ class TradingMemoryLog:
         ``rating`` is the decision's own rating when the caller has it; without
         one it is read from the decision text.
         """
-        if not self._log_path:
+        rating = rating or parse_rating(final_trade_decision)
+        if not self._log_path or rating not in RATINGS_5_TIER:
             return
         with locked(self._log_path):
             # Idempotency guard: fast raw-text scan instead of full parse. Any entry
@@ -52,8 +58,11 @@ class TradingMemoryLog:
                 raw = self._log_path.read_text(encoding="utf-8")
                 for line in raw.splitlines():
                     if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
-                        return
-            rating = rating or parse_rating(final_trade_decision)
+                        fields = [field.strip() for field in line[1:-1].split("|")]
+                        if len(fields) >= 4 and is_trading_entry({"rating": fields[2]}):
+                            return
+            # Historical REVIEW entries remain readable but never block a
+            # corrected decision for the same ticker/date.
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
             entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
             with open(self._log_path, "a", encoding="utf-8") as f:
@@ -88,7 +97,7 @@ class TradingMemoryLog:
 
     def get_pending_entries(self) -> list[dict]:
         """Return entries with outcome:pending, for settlement."""
-        return [e for e in self.load_entries() if e.get("pending")]
+        return [e for e in self.load_entries() if e.get("pending") and is_trading_entry(e)]
 
     def get_past_context(
         self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None
@@ -102,7 +111,7 @@ class TradingMemoryLog:
         outcomes that had not happened yet (#1251). ``as_of=None`` disables the
         filter, so live runs and pre-migration entries are unaffected.
         """
-        entries = [e for e in self.load_entries() if not e.get("pending")]
+        entries = [e for e in self.load_entries() if not e.get("pending") and is_trading_entry(e)]
         if as_of is not None:
             entries = [e for e in entries if e.get("resolved") and e["resolved"] <= as_of]
         if not entries:
@@ -179,13 +188,20 @@ class TradingMemoryLog:
                 ):
                     fields = [f.strip() for f in tag_line[1:-1].split("|")]
                     rating = fields[2]
+                    if not is_trading_entry({"rating": rating}):
+                        new_blocks.append(block)
+                        continue
                     new_tag = self._resolved_tag(
-                        trade_date, ticker, rating, raw_pct, alpha_pct, holding_days, resolution_date
+                        trade_date,
+                        ticker,
+                        rating,
+                        raw_pct,
+                        alpha_pct,
+                        holding_days,
+                        resolution_date,
                     )
                     rest = "\n".join(lines[1:])
-                    new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
-                    )
+                    new_blocks.append(f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}")
                     updated = True
                 else:
                     new_blocks.append(block)
@@ -214,6 +230,7 @@ class TradingMemoryLog:
 
             update_map = {(u["trade_date"], u["ticker"]): u for u in updates}
 
+            updated_any = False
             new_blocks = []
             for block in blocks:
                 stripped = block.strip()
@@ -230,11 +247,18 @@ class TradingMemoryLog:
                     if tag_line.startswith(pending_prefix) and tag_line.endswith("| pending]"):
                         fields = [f.strip() for f in tag_line[1:-1].split("|")]
                         rating = fields[2]
+                        if not is_trading_entry({"rating": rating}):
+                            continue
                         raw_pct = f"{upd['raw_return']:+.1%}"
                         alpha_pct = f"{upd['alpha_return']:+.1%}"
                         new_tag = self._resolved_tag(
-                            trade_date, ticker, rating, raw_pct, alpha_pct,
-                            upd["holding_days"], upd.get("resolution_date"),
+                            trade_date,
+                            ticker,
+                            rating,
+                            raw_pct,
+                            alpha_pct,
+                            upd["holding_days"],
+                            upd.get("resolution_date"),
                         )
                         rest = "\n".join(lines[1:])
                         new_blocks.append(
@@ -242,11 +266,14 @@ class TradingMemoryLog:
                         )
                         del update_map[(trade_date, ticker)]
                         matched = True
+                        updated_any = True
                         break
 
                 if not matched:
                     new_blocks.append(block)
 
+            if not updated_any:
+                return
             new_blocks = self._apply_rotation(new_blocks)
             new_text = self._SEPARATOR.join(new_blocks)
             tmp_path = self._log_path.with_suffix(".tmp")
@@ -291,6 +318,7 @@ class TradingMemoryLog:
                 tag_line.startswith("[")
                 and tag_line.endswith("]")
                 and not tag_line.endswith("| pending]")
+                and is_trading_entry(self._parse_entry(stripped) or {})
             )
             decisions.append((block, is_resolved))
 
@@ -322,7 +350,7 @@ class TradingMemoryLog:
         resolved = None
         for f in fields[6:]:
             if f.startswith("resolved:"):
-                resolved = f[len("resolved:"):].strip()
+                resolved = f[len("resolved:") :].strip()
         entry = {
             "date": fields[0],
             "ticker": fields[1],

@@ -10,6 +10,10 @@ free-text generation and the rating is read from that text.
 
 from __future__ import annotations
 
+import json
+
+from pydantic import ValidationError
+
 from tradingagents.agents.context import (
     EVIDENCE_DISCIPLINE,
     get_instrument_context_from_state,
@@ -19,6 +23,9 @@ from tradingagents.agents.context import (
 from tradingagents.agents.rating import parse_rating
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, invoke_structured
+from tradingagents.agents.valuation import TargetResult, validate_target
+from tradingagents.agents.valuation_outlooks import grounded_outlooks
+from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_evidence_view
 
 
 def create_portfolio_manager(llm):
@@ -27,6 +34,20 @@ def create_portfolio_manager(llm):
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         portfolio_context = get_portfolio_context_from_state(state)
+
+        package = None
+        canonical_facts = "Canonical financial evidence unavailable; omit valuation_request."
+        try:
+            candidate = state.get("financial_evidence")
+            package = EvidencePackage.model_validate(
+                candidate.model_dump() if isinstance(candidate, EvidencePackage) else candidate
+            )
+            canonical_facts = bounded_evidence_view(package).model_dump_json()
+        except (ValidationError, TypeError, ValueError):
+            pass
+
+        outlooks = grounded_outlooks(state)
+        outlook_context = json.dumps([outlook.model_dump(mode="json") for outlook in outlooks])
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -62,6 +83,18 @@ def create_portfolio_manager(llm):
 **Risk Analysts Debate History:**
 {history}
 
+**Canonical financial facts for optional valuation_request (bounded view):**
+{canonical_facts}
+Use only these exact fact IDs for a supported EV/revenue or P/E request. Forecasts,
+multiples and scenario weights are assumptions, not verified outcomes. A legacy
+price_target does not establish a target. Management guidance/ambition cannot be
+self-certified: without a separately validated outlook mapping, omit that claim.
+
+**Source-grounded management outlook records (guidance and ambitions are distinct):**
+{outlook_context}
+Use a record_id as outlook_id only when period, metric, unit and basis match.
+Disclose divergence from these ranges; do not invent consensus.
+
 ---
 
 Ground every conclusion in specific evidence from the analysts. The risk debate always contains conflicting stances; deciding which is stronger is the job, so conflict alone is not a reason to Hold. Commit to the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not force a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
@@ -79,12 +112,45 @@ Write these sections, in this order, starting with the rating on its own line:
         # The typed rating is the decision; the rendered text only carries it.
         # Read back from text, a rating the thesis quotes could replace it.
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
+        original = dict(state.get("unvalidated_outputs") or {})
+        request = None
         if decision is not None:
-            final_trade_decision = render_pm_decision(decision)
+            request = decision._unvalidated_valuation_request
+            if request is None and decision.valuation_request is not None:
+                request = decision.valuation_request.model_dump(mode="json")
+            # JSON-safe preservation also retains invalid optional requests;
+            # nonfinite raw numeric tokens are diagnostic strings, not JSON NaN.
+            request = json.loads(json.dumps(request, default=str), parse_constant=str)
+            original["portfolio_manager"] = {
+                "structured": json.loads(
+                    json.dumps(
+                        {**decision.model_dump(mode="json"), "valuation_request": request},
+                        default=str,
+                    ),
+                    parse_constant=str,
+                ),
+                "valuation_request": request,
+            }
+            target = (
+                validate_target(request, package, outlooks)
+                if package is not None
+                else TargetResult(
+                    status="unsupported",
+                    reasons=("Canonical financial evidence unavailable; target omitted.",),
+                )
+            )
+            final_trade_decision = render_pm_decision(decision, target)
             final_rating = decision.rating.value
         else:
             final_trade_decision = llm.invoke(prompt).content
             final_rating = parse_rating(final_trade_decision)
+            original["portfolio_manager"] = {"fallback": final_trade_decision}
+            target = TargetResult(
+                status="unsupported",
+                reasons=(
+                    "Free-text fallback has no validated structured valuation bridge; target omitted.",
+                ),
+            )
 
         new_risk_debate_state = {
             "history": risk_debate_state["history"],
@@ -102,6 +168,8 @@ Write these sections, in this order, starting with the rating on its own line:
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": final_trade_decision,
             "final_rating": final_rating,
+            "target_validation": {**target.model_dump(mode="json"), "request": request},
+            "unvalidated_outputs": original,
         }
 
     return portfolio_manager_node

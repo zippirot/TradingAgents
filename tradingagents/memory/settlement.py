@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
+from tradingagents.memory.log import is_trading_entry
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,9 @@ def _by_day(closes):
 
 
 def fetch_returns(
-    ticker: str, trade_date: str, holding_days: int = 5,
+    ticker: str,
+    trade_date: str,
+    holding_days: int = 5,
     benchmark: str = "SPY",
 ) -> tuple[float | None, float | None, int | None, str | None]:
     """Fetch raw and alpha return for ticker over holding_days after trade_date.
@@ -107,11 +110,13 @@ def fetch_returns(
 class Settlement:
     """What a settlement pass did: the decisions it settled and those it could not."""
 
-    settled: list[tuple[str, str]] = field(default_factory=list)        # (ticker, date)
-    failed: list[tuple[str, str, str]] = field(default_factory=list)    # (ticker, date, reason)
+    settled: list[tuple[str, str]] = field(default_factory=list)  # (ticker, date)
+    failed: list[tuple[str, str, str]] = field(default_factory=list)  # (ticker, date, reason)
 
 
-def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool = True) -> Settlement:
+def settle_pending(
+    ticker: str, memory_log, reflector, config: dict, wait: bool = True
+) -> Settlement:
     """Settle ``ticker``'s pending decisions whose holding window has traded.
 
     One pass at a time per log (``memory_log.settling()``), so runs sharing a log
@@ -125,17 +130,26 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
     with memory_log.settling(wait=wait) as held:
         if not held:
             return result
-        pending = [e for e in memory_log.get_pending_entries() if e["ticker"] == ticker]
+        pending = [
+            e
+            for e in memory_log.get_pending_entries()
+            if e["ticker"] == ticker and is_trading_entry(e)
+        ]
         if not pending:
             return result
         benchmark = resolve_benchmark(ticker, config)
         for entry in pending:
             try:
                 raw, alpha, days, resolution_date = fetch_returns(
-                    ticker, entry["date"], config.get("holding_period_days", 5), benchmark=benchmark,
+                    ticker,
+                    entry["date"],
+                    config.get("holding_period_days", 5),
+                    benchmark=benchmark,
                 )
             except Exception as exc:
-                logger.warning("Prices for settling %s on %s were unavailable: %s", ticker, entry["date"], exc)
+                logger.warning(
+                    "Prices for settling %s on %s were unavailable: %s", ticker, entry["date"], exc
+                )
                 result.failed.append((ticker, entry["date"], f"prices unavailable: {exc}"))
                 continue
             if raw is None:
@@ -154,8 +168,9 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
                 logger.warning("Reflection failed for %s on %s: %s", ticker, entry["date"], exc)
                 result.failed.append((ticker, entry["date"], f"reflection failed: {exc}"))
                 continue
-            if memory_log.update_with_outcome(ticker, entry["date"], raw, alpha, days, reflection,
-                                              resolution_date=resolution_date):
+            if memory_log.update_with_outcome(
+                ticker, entry["date"], raw, alpha, days, reflection, resolution_date=resolution_date
+            ):
                 result.settled.append((ticker, entry["date"]))
     return result
 
@@ -167,7 +182,9 @@ def settle_all_pending(memory_log, reflector, config: dict, wait: bool = True) -
     keep its decisions pending, and their lessons out of later runs.
     """
     result = Settlement()
-    for ticker in dict.fromkeys(e["ticker"] for e in memory_log.get_pending_entries()):
+    for ticker in dict.fromkeys(
+        e["ticker"] for e in memory_log.get_pending_entries() if is_trading_entry(e)
+    ):
         done = settle_pending(ticker, memory_log, reflector, config, wait=wait)
         result.settled.extend(done.settled)
         result.failed.extend(done.failed)

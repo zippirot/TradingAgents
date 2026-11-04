@@ -103,12 +103,43 @@ def parse_rating(text: str, default: str = RATING_REVIEW) -> str:
     return rating if rating is not None else default
 
 
+def normalized_evidence_quality(final_state: dict) -> dict:
+    """Read new evidence metadata safely without reclassifying legacy states."""
+    quality = final_state.get("evidence_quality")
+    if quality is None:
+        return {}
+    valid = isinstance(quality, dict) and quality.get("status") in {
+        "sufficient", "limited", "insufficient",
+    }
+    if valid and quality["status"] == "insufficient":
+        checks = quality.get("checks")
+        valid = isinstance(checks, list) and bool(checks) and all(
+            isinstance(check, dict)
+            and isinstance(check.get("message"), str)
+            and check.get("status") in {"pass", "fail", "unavailable", "not_applicable"}
+            for check in checks
+        )
+    if valid:
+        return quality
+    return {
+        "status": "insufficient",
+        "checks": [{
+            "code": "evidence_metadata",
+            "status": "unavailable",
+            "message": "Evidence metadata is invalid or incomplete; rerun the research.",
+        }],
+        "warnings": [],
+    }
+
+
 def run_rating(final_state: dict) -> str:
     """A finished run's rating: the Portfolio Manager's own, else read from its decision.
 
     The fallback serves a state without ``final_rating``, such as a run an older
     version completed and a checkpoint hands back unchanged.
     """
+    if normalized_evidence_quality(final_state).get("status") == "insufficient":
+        return RATING_REVIEW
     return final_state.get("final_rating") or parse_rating(final_state.get("final_trade_decision", ""))
 
 

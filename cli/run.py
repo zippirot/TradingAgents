@@ -378,11 +378,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     # A decision nobody can read is not a position. Say so here rather than
     # leaving the run to look like a normal result.
     if is_review(run_rating(final_state)):
-        console.print(
-            "[yellow]No rating could be read from the final decision, so this run "
-            "is recorded for review rather than as a position. Re-run, or read the "
-            "decision text below and judge it yourself.[/yellow]\n"
-        )
+        console.print(_review_explanation(final_state), style="yellow", markup=False)
+
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     _offer_reports(final_state, graph, selections["ticker"],
@@ -462,3 +459,13 @@ def _offer_reports(final_state, graph, ticker, save=None, show=None, html=None):
         show = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper() in ("Y", "YES", "")
     if show:
         display_complete_report(final_state)
+
+
+def _review_explanation(final_state: dict) -> str:
+    from tradingagents.agents.rating import normalized_evidence_quality
+
+    quality = normalized_evidence_quality(final_state)
+    if quality.get("status") == "insufficient":
+        reasons = [check["message"] for check in quality.get("checks", []) if check.get("status") in {"fail", "unavailable"} and check.get("message")]
+        return "Research incomplete — REVIEW. No trading decision was added to memory.\n" + "\n".join("- " + reason for reason in dict.fromkeys(reasons))
+    return "No rating could be read from the final decision. Research is retained for review; no trading decision was added to memory.\n"

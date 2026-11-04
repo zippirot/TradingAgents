@@ -77,6 +77,8 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision from the Portfolio Manager"]
+    unvalidated_outputs: Annotated[dict, "Original model outputs retained for diagnosis, not verified publication"]
+    target_validation: Annotated[dict, "Deterministic valuation result and omission reasons"]
     final_rating: Annotated[str, "The Portfolio Manager's 5-tier rating, or REVIEW when it has none"]
     past_context: Annotated[str, "Memory log context for the Portfolio Manager (same-ticker decisions + cross-ticker lessons), written by the Memory Log step"]
     memory_note: Annotated[str, "What the Memory Log step could not settle or read this run, for the report; empty when all went well"]

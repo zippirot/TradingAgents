@@ -16,17 +16,19 @@ cell rather than a position carried forward.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tradingagents.agents.rating import RATING_REVIEW
+from tradingagents.agents.rating import RATING_REVIEW, run_rating
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.memory import TradingMemoryLog
+from tradingagents.memory.log import is_trading_entry
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,8 @@ class BacktestResult:
     skipped: int = 0
     failures: list[tuple[str, str, str]] = field(default_factory=list)
     settlement_failures: list[tuple[str, str]] = field(default_factory=list)
+    incomplete: list[tuple[str, str, str]] = field(default_factory=list)
+    prior_quality: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 # What each rating claims will happen, so an outcome can be scored against it.
@@ -104,13 +108,21 @@ class BacktestSummary:
     by_rating: dict[str, RatingScore]
     unscored: int = 0
     holding: str = ""
+    incomplete: int = 0
+    incomplete_details: list[tuple[str, str, str]] = field(default_factory=list)
 
     def render(self) -> str:
-        lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
-                 + (f" · unscored: {self.unscored}" if self.unscored else "")]
+        lines = [
+            f"Resolved cells: {self.resolved} · pending: {self.pending}"
+            + (f" · unscored: {self.unscored}" if self.unscored else "")
+            + (f" · incomplete REVIEW: {self.incomplete}" if self.incomplete else "")
+        ]
         for rating, score in self.by_rating.items():
-            called = (f"called the direction {score.hit_rate:.0%}"
-                      if score.hit_rate is not None else "no direction claimed")
+            called = (
+                f"called the direction {score.hit_rate:.0%}"
+                if score.hit_rate is not None
+                else "no direction claimed"
+            )
             lines.append(
                 f"- {rating}: n={score.count}, {called}, "
                 f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
@@ -118,6 +130,13 @@ class BacktestSummary:
         lines.append("")
         if self.pending:
             lines.append("Pending cells are not scored above; re-run to settle them.")
+        if self.incomplete:
+            lines.append(
+                "Incomplete REVIEW cells are unscored and are retried only on an explicit backtest launch/resume."
+            )
+            lines.extend(
+                f"- {ticker} {date}: {reason}" for ticker, date, reason in self.incomplete_details
+            )
         lines.append(
             f"Alpha is measured over {self.holding} from the first close after each analysis date. "
             "One model sampling per cell, and text feeds are not archived, so "
@@ -148,12 +167,23 @@ def run_backtest(
     run_id = safe_ticker_component(run_id or datetime.now().strftime("%Y%m%d_%H%M%S"))
     run_dir = Path(config["results_dir"]) / "backtest" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    run_config = {**config, "results_dir": str(run_dir),
-                  "memory_log_path": str(run_dir / "trading_memory.md")}
+    run_config = {
+        **config,
+        "results_dir": str(run_dir),
+        "memory_log_path": str(run_dir / "trading_memory.md"),
+    }
 
     graph = TradingAgentsGraph(selected_analysts, config=run_config)
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
-    done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
+    done = {
+        (e["ticker"], e["date"]) for e in graph.memory_log.load_entries() if is_trading_entry(e)
+    }
+    prior = _saved_reviews(run_dir)
+    for entry in graph.memory_log.load_entries():
+        if not is_trading_entry(entry):
+            prior.setdefault(
+                (entry["ticker"], entry["date"]), "Legacy REVIEW: no trading decision recorded"
+            )
 
     # A ticker or date given twice is one cell, run and settled once.
     tickers, dates = list(dict.fromkeys(tickers)), list(dict.fromkeys(dates))
@@ -161,11 +191,15 @@ def run_backtest(
     todo = [cell for cell in cells if cell not in done]
     result.skipped = len(cells) - len(todo)
     for index, (ticker, date) in enumerate(todo, 1):
+        if (ticker, date) in prior:
+            result.prior_quality.append((ticker, date, prior[(ticker, date)]))
         if progress:
             progress(index, len(todo), ticker, date)
         try:
-            graph.propagate(ticker, date, asset_type, portfolio=portfolio)
+            state, _ = graph.propagate(ticker, date, asset_type, portfolio=portfolio)
             result.cells_run += 1
+            if run_rating(state) == RATING_REVIEW:
+                result.incomplete.append((ticker, date, _quality_reason(state)))
         except Exception as exc:  # one unreachable vendor must not end the sweep
             logger.warning("Backtest cell %s %s failed: %s", ticker, date, exc)
             result.failures.append((ticker, date, str(exc)))
@@ -181,10 +215,56 @@ def run_backtest(
     return result
 
 
+def _quality_reason(state: dict) -> str:
+    quality = state.get("evidence_quality") or {}
+    if not isinstance(quality, dict):
+        quality = {}
+    checks = quality.get("checks") or []
+    if not isinstance(checks, list):
+        checks = []
+    reasons = quality.get("reasons") or [
+        check.get("message", "")
+        for check in checks
+        if isinstance(check, dict) and check.get("status") in {"fail", "unavailable"}
+    ]
+    if isinstance(reasons, list):
+        reasons = [reason for reason in reasons if isinstance(reason, str) and reason]
+        if reasons:
+            return "; ".join(dict.fromkeys(reasons))
+    return "Research incomplete / REVIEW: no trading decision recorded"
+
+
+def _saved_reviews(run_dir: Path) -> dict[tuple[str, str], str]:
+    """Read existing full-state artifacts; never create a completion database."""
+    reviews = {}
+    for path in run_dir.glob("*/TradingAgentsStrategy_logs/full_states_log_*.json"):
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(state, dict):
+                continue
+            ticker, date = state.get("company_of_interest"), state.get("trade_date")
+            if not isinstance(ticker, str) or not isinstance(date, str):
+                continue
+            if (
+                safe_ticker_component(ticker) != path.parent.parent.name
+                or path.name != f"full_states_log_{date}.json"
+            ):
+                continue
+            if not isinstance(state.get("evidence_quality", {}), dict):
+                # The explicit saved rating remains usable; malformed optional
+                # detail cannot crash reading an otherwise identifiable REVIEW.
+                state = {**state, "evidence_quality": {}}
+            if run_rating(state) == RATING_REVIEW:
+                reviews[(ticker, date)] = _quality_reason(state)
+        except (OSError, ValueError, TypeError):
+            logger.warning("Saved backtest quality could not be read: %s", path)
+    return reviews
+
+
 def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     """Score the settled decisions of a backtest, or of a memory log at a path, by rating."""
     if isinstance(source, BacktestResult):
-        path = source.log_path      # a run whose cells all failed wrote no log: nothing to score
+        path = source.log_path  # a run whose cells all failed wrote no log: nothing to score
     elif Path(source).is_file():
         path = Path(source)
     else:
@@ -192,8 +272,7 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     entries = TradingMemoryLog({"memory_log_path": str(path)}).load_entries()
     # A decision with no readable rating has no direction, so it can neither
     # count for nor against the system; it is reported as unscored instead.
-    resolved = [(e, _alpha(e)) for e in entries
-                if not e["pending"] and e["rating"] != RATING_REVIEW]
+    resolved = [(e, _alpha(e)) for e in entries if not e["pending"] and is_trading_entry(e)]
     resolved = [(e, a) for e, a in resolved if a is not None]
     by_rating: dict[str, RatingScore] = {}
     for rating in dict.fromkeys(e["rating"] for e, _ in resolved):
@@ -204,11 +283,29 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
             hit_rate=(sum(a * direction > 0 for a in alphas) / len(alphas)) if direction else None,
             mean_alpha=sum(alphas) / len(alphas),
         )
-    unscored = sum(1 for e in entries if e["rating"] == RATING_REVIEW)
+    completed = {(e["ticker"], e["date"]) for e in entries if is_trading_entry(e)}
+    incomplete = _saved_reviews(path.parent)
+    for entry in entries:
+        if not is_trading_entry(entry):
+            incomplete.setdefault(
+                (entry["ticker"], entry["date"]), "Legacy REVIEW: no trading decision recorded"
+            )
+    if isinstance(source, BacktestResult):
+        incomplete.update({(ticker, date): reason for ticker, date, reason in source.incomplete})
+    incomplete = {cell: reason for cell, reason in incomplete.items() if cell not in completed}
+    unscored = len(incomplete)
     # Report the window the outcomes were actually measured over, from the log.
-    windows = {f"{e['holding'][:-1]} trading days" for e, _ in resolved
-               if (e.get("holding") or "").endswith("d")}
-    return BacktestSummary(resolved=len(resolved),
-                           pending=len(entries) - len(resolved) - unscored,
-                           by_rating=by_rating, unscored=unscored,
-                           holding=", ".join(sorted(windows)) or "the configured window")
+    windows = {
+        f"{e['holding'][:-1]} trading days"
+        for e, _ in resolved
+        if (e.get("holding") or "").endswith("d")
+    }
+    return BacktestSummary(
+        resolved=len(resolved),
+        pending=sum(is_trading_entry(e) for e in entries) - len(resolved),
+        by_rating=by_rating,
+        unscored=unscored,
+        holding=", ".join(sorted(windows)) or "the configured window",
+        incomplete=len(incomplete),
+        incomplete_details=[(*cell, reason) for cell, reason in sorted(incomplete.items())],
+    )

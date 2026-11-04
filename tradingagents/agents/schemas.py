@@ -18,10 +18,22 @@ so that:
 
 from __future__ import annotations
 
+from copy import deepcopy
 from enum import StrEnum
-from typing import Literal
+from html import escape
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+
+from tradingagents.agents.valuation import EVRevenueTarget, PETarget, TargetResult
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
@@ -218,6 +230,10 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
 # ---------------------------------------------------------------------------
 
 
+ValuationRequest = Annotated[EVRevenueTarget | PETarget, Field(discriminator="method")]
+_VALUATION_REQUEST = TypeAdapter(ValuationRequest)
+
+
 class PortfolioDecision(BaseModel):
     """Structured output produced by the Portfolio Manager.
 
@@ -252,8 +268,41 @@ class PortfolioDecision(BaseModel):
     )
     price_target: float | None = Field(
         default=None,
-        description="Optional target price in the instrument's quote currency.",
+        description="Legacy input retained for compatibility only; never an authoritative target. Use valuation_request with canonical fact IDs, or omit the target.",
     )
+    valuation_request: ValuationRequest | None = Field(
+        default=None,
+        description=(
+            "Optional supported valuation bridge: EV/revenue scenarios or basis-matched P/E. "
+            "Reference exact canonical financial fact IDs; make forecasts, multiples and subjective "
+            "weights explicit. Never invent missing inputs. Management guidance/ambition needs "
+            "a separately source-validated outlook reference; model assertions do not establish one."
+        ),
+    )
+    _unvalidated_valuation_request: object = PrivateAttr(default=None)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _retain_valuation_request(cls, data, handler):
+        original = data.get("valuation_request") if isinstance(data, dict) else getattr(data, "_unvalidated_valuation_request", None)
+        result = handler(data)
+        if isinstance(original, BaseModel):
+            original = original.model_dump(mode="json")
+        result._unvalidated_valuation_request = deepcopy(original)
+        return result
+
+    @field_validator("valuation_request", mode="before")
+    @classmethod
+    def _invalid_valuation_to_none(cls, value):
+        if value is None:
+            return None
+        try:
+            return _VALUATION_REQUEST.validate_python(value)
+        except (ValidationError, TypeError):
+            # A broken optional target must not discard the valid rating and
+            # trigger another provider call. The raw request remains diagnostic.
+            return None
+
     time_horizon: str | None = Field(
         default=None,
         description="Optional recommended holding period, e.g. '3-6 months'.",
@@ -265,7 +314,7 @@ class PortfolioDecision(BaseModel):
         return _coerce_optional_float(v)
 
 
-def render_pm_decision(decision: PortfolioDecision) -> str:
+def render_pm_decision(decision: PortfolioDecision, target_result: TargetResult | dict | None = None) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
     Memory log, CLI display, and saved report files all read this markdown,
@@ -282,9 +331,56 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     ]
     # Named even when absent: a missing line reads as a field nobody asked for,
     # so a reader cannot tell "no target" from "target not reported".
-    target = decision.price_target if decision.price_target is not None else "not provided"
-    parts.extend(["", f"**Price Target**: {target}"])
+    parts.extend(["", render_target_result(target_result)])
     parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
+    return "\n".join(parts)
+
+
+def _target_text(value) -> str:
+    """Keep source/assumption text on one escaped line in deterministic output."""
+    return escape(" ".join(str(value).split())).replace("|", r"\|")
+
+
+def render_target_result(result: TargetResult | dict | None) -> str:
+    """Render a deterministic result supplied by a validating caller.
+
+    This is presentation, not validation of an arbitrary dictionary. Direct
+    publication boundaries must replay the saved request against canonical
+    evidence before passing the result here.
+    """
+    if isinstance(result, dict):
+        try:
+            result = TargetResult.model_validate({key: value for key, value in result.items() if key in TargetResult.model_fields})
+        except ValidationError:
+            result = None
+    if result is None or result.status != "supported" or result.target is None:
+        reasons = result.reasons if result is not None else ("No validated valuation bridge provided.",)
+        return "**Price Target**: not provided — " + " ".join(_target_text(reason) for reason in reasons)
+    parts = [
+        f"**Price Target**: {result.target:.2f} {_target_text(result.unit)} (conditional calculation)",
+        "",
+        f"**Valuation method**: {_target_text(result.method)}; {_target_text(result.accounting_basis)}.",
+        f"**Valuation period**: {result.valuation_period_start} to {result.valuation_period_end}.",
+        "**Source fact IDs**: " + ", ".join(_target_text(identifier) for identifier in result.input_fact_ids),
+    ]
+    if result.method == "pe":
+        parts.append(f"**Earnings bridge**: {result.earnings_value} {_target_text(result.unit)} × {result.multiple} = {result.target:.2f}; {_target_text(result.eps_basis)} EPS.")
+    if result.method == "ev_revenue":
+        parts.extend([
+            f"**Capital snapshot**: {result.capital_snapshot_date}; net obligations {result.net_obligations}; common shares outstanding {result.shares_outstanding}.",
+            "",
+            "| Scenario label (unvalidated) | Subjective weight | Revenue assumption | Multiple assumption | Enterprise value | Equity value | Price |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ])
+        for scenario in result.scenario_results:
+            parts.append(f"| {_target_text(scenario.name)} | {scenario.weight} | {scenario.revenue} | {scenario.multiple} | {scenario.enterprise_value} | {scenario.equity_value} | {scenario.price:.2f} |")
+        parts.append("Equity value = enterprise value − net obligations; price = equity value / common shares outstanding.")
+    if result.assumptions:
+        parts.extend(["", "**Conditional assumptions; free-form rationales remain unvalidated**:"])
+        parts.extend("- " + _target_text(assumption) for assumption in result.assumptions)
+    if result.warnings:
+        parts.extend(["", "**Valuation limitations**:"])
+        parts.extend("- " + _target_text(warning) for warning in result.warnings)
     return "\n".join(parts)
 
 

@@ -70,14 +70,13 @@ def test_the_scale_quoted_in_a_prompt_does_not_become_the_rating():
 # --- the readers agree ------------------------------------------------------
 
 @pytest.mark.unit
-def test_the_memory_log_records_review_rather_than_a_tradeable_hold(tmp_path):
+def test_the_memory_log_excludes_review_rather_than_fabricating_a_trade(tmp_path):
     from tradingagents.memory import TradingMemoryLog
 
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "m.md")})
     log.store_decision("NVDA", "2026-01-05", REFUSAL)
 
-    entry = log.load_entries()[0]
-    assert entry["rating"] == RATING_REVIEW
+    assert log.load_entries() == []
 
 
 @pytest.mark.unit
@@ -91,7 +90,7 @@ def test_the_signal_and_the_log_agree_on_the_same_decision(tmp_path):
 
     signals = [parse_rating(text)
                for text in (INVERTED, REFUSAL, "**Rating**: Buy\n\nAccumulate.")]
-    assert [e["rating"] for e in log.load_entries()] == signals
+    assert [e["rating"] for e in log.load_entries()] == [signal for signal in signals if signal != RATING_REVIEW]
 
 
 @pytest.mark.unit

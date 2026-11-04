@@ -192,14 +192,11 @@ class TestTradingMemoryLogCore:
         log.store_decision("AAPL", "2026-01-11", DECISION_OVERWEIGHT)
         assert log.load_entries()[0]["rating"] == "Overweight"
 
-    def test_an_unreadable_decision_is_tagged_for_review(self, tmp_path):
-        """Not a Hold: a fabricated rating is quoted back to the next run as a
-        call that was never made, and counted in the backtest figures."""
-        from tradingagents.agents.rating import RATING_REVIEW
-
+    def test_an_unreadable_decision_is_excluded_from_trading_memory(self, tmp_path):
+        """REVIEW remains research, never a fabricated Hold or pending trade."""
         log = make_log(tmp_path)
         log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
-        assert log.load_entries()[0]["rating"] == RATING_REVIEW
+        assert log.load_entries() == []
 
     def test_rating_priority_over_prose(self, tmp_path):
         """'Rating: X' label wins even when an opposing rating word appears earlier in prose."""
@@ -245,7 +242,10 @@ class TestTradingMemoryLogCore:
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         log.store_decision("AAPL", "2026-01-11", DECISION_OVERWEIGHT)
-        log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
+        # Existing REVIEW history remains readable, even though new REVIEW
+        # outcomes no longer enter trading memory.
+        with (tmp_path / "trading_memory.md").open("a") as stream:
+            stream.write("[2026-01-12 | MSFT | REVIEW | pending]\n\nDECISION:\n" + DECISION_NO_RATING + _SEP)
         entries = log.load_entries()
         assert len(entries) == 3
         assert [e["ticker"] for e in entries] == ["NVDA", "AAPL", "MSFT"]
@@ -804,7 +804,8 @@ class TestPortfolioManagerInjection:
         assert "**Rating**: Overweight" in md
         assert "**Executive Summary**: Build position gradually" in md
         assert "**Investment Thesis**: AI capex cycle" in md
-        assert "**Price Target**: 215.0" in md
+        assert "**Price Target**: not provided" in md
+        assert result["unvalidated_outputs"]["portfolio_manager"]["structured"]["price_target"] == 215.0
         assert "**Time Horizon**: 3-6 months" in md
 
     def test_pm_falls_back_to_freetext_when_structured_unavailable(self):

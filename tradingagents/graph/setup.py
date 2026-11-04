@@ -22,6 +22,7 @@ from tradingagents.agents import (
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
 from tradingagents.agents.evidence_validation import create_evidence_gate
+from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.state import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
@@ -141,7 +142,12 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+        raw_portfolio_manager = create_portfolio_manager(self.deep_thinking_llm)
+
+        def portfolio_manager_node(state):
+            decision = raw_portfolio_manager(state)
+            return {**decision, **enforce_publication({**state, **decision})}
+
 
         workflow = StateGraph(AgentState)
 

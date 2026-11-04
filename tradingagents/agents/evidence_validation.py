@@ -318,6 +318,37 @@ def assess_financial_package(
     if disclosures is not None:
         try:
             package, calculations, extraction = filing_accounting_evidence(package, disclosures)
+            # Outlooks cite full filing excerpts, not only the accounting cells
+            # selected elsewhere. Register their canonical document provenance
+            # without replacing an existing ID with different source metadata.
+            from tradingagents.dataflows.financial_evidence import SourceRecord
+
+            sources = {source.source_id: source for source in package.sources}
+            document_ids = set()
+            for document in disclosures.documents:
+                if document.source_id in document_ids:
+                    raise ValueError("duplicate canonical filing document source ID")
+                document_ids.add(document.source_id)
+                if document.filing.cik != package.cik or document.filing.filed_date > package.as_of:
+                    raise ValueError("filing document source issuer or cutoff mismatch")
+                source = SourceRecord(
+                    source_id=document.source_id,
+                    cik=document.filing.cik,
+                    url=document.url,
+                    filed_date=document.filing.filed_date,
+                    retrieved_at=document.retrieved_at,
+                    content_hash=document.content_hash,
+                    locator="document",
+                    accession=document.filing.accession,
+                    form=document.filing.form,
+                )
+                if source.source_id in sources and sources[source.source_id] != source:
+                    raise ValueError("canonical filing document source ID collision")
+                sources[source.source_id] = source
+            package = EvidencePackage.model_validate({
+                **package.model_dump(),
+                "sources": tuple(sources.values()),
+            })
         except (ValueError, ValidationError) as exc:
             source_errors.append(str(exc))
     lineage = [

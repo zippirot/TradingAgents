@@ -9,7 +9,8 @@ from typing import Any
 
 import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
-from tradingagents.agents.rating import run_rating
+from tradingagents.agents.output_validation import enforce_publication
+from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
@@ -358,7 +359,11 @@ class TradingAgentsGraph:
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log
         for reflection on the next same-ticker run. propagate() and the CLI both end here."""
+        final_state.update(enforce_publication(final_state))
         self._log_state(trade_date, final_state)
+        if is_review(run_rating(final_state)):
+            logger.info("Research REVIEW for %s on %s saved without trading-memory insertion", company_name, trade_date)
+            return
         decision = final_state.get("final_trade_decision")
         if not decision:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
@@ -414,6 +419,8 @@ class TradingAgentsGraph:
         analysts' reports only when the slowest has finished, so their messages
         and reports come from their own finished steps ("tasks") as they happen.
         """
+        from tradingagents.agents.stream_publication import provisional_messages, provisional_state
+
         args = {**args, "stream_mode": ["values", "tasks"]}
         # The graph's own config serves every tool call, as in propagate(), even
         # when the process-wide config has changed since. Each step runs in the
@@ -428,9 +435,9 @@ class TradingAgentsGraph:
                     if isinstance(result, dict):
                         report = {k: v for k, v in result.items() if k != "messages" and v}
                         if result.get("messages") or report:
-                            yield result.get("messages", []), report or None
+                            yield provisional_messages(result.get("messages", [])), provisional_state(report or None)
                 elif mode == "values":
-                    yield chunk.get("messages", []), chunk
+                    yield provisional_messages(chunk.get("messages", [])), provisional_state(chunk)
         finally:
             context.run(stream.close)
 
@@ -463,6 +470,10 @@ class TradingAgentsGraph:
             "final_rating": run_rating(final_state),
             "run_settings": self.run_settings(),
         }
+
+        for field in ("evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs"):
+            if field in final_state:
+                entry[field] = final_state[field]
 
         # A ticker that would escape the results directory is rejected.
         safe_ticker = safe_ticker_component(final_state["company_of_interest"])
