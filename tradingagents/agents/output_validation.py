@@ -98,7 +98,7 @@ def enforce_publication(state: dict) -> dict:
     updates["target_validation"] = {**target.model_dump(mode="json"), "request": request}
     target_text = render_target_result(target)
     if target.status != "supported":
-        target_text = "Fundamental price target: unavailable.\\n\\n" + target_text
+        target_text = "Fundamental price target: unavailable.\n\n" + target_text
     updates["final_trade_decision"] = (
         f"**Rating**: {run_rating(state)}\n\n"
         "**Executive Summary**: Model recommendation; financial evidence and "

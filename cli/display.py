@@ -378,6 +378,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 
 def display_complete_report(final_state):
     """Display the complete analysis report sequentially (avoids truncation)."""
+    from tradingagents.reporting import prepare_report_state
+
+    final_state = prepare_report_state(final_state)
     console.print()
     console.print(Rule("Complete Analysis Report", style="bold green"))
 

@@ -63,12 +63,16 @@ def test_saved_and_direct_html_outputs_use_public_projection(tmp_path):
     write_report_tree(state, "DOCN", tmp_path)
     for name in ("complete_report.md", "complete_report.html"):
         text = (tmp_path / name).read_text()
-        assert "$96" not in text
-        assert "ninety-six" not in text
-        assert "5%" not in text
+        assert "$96" in text
+        assert "ninety-six" in text
+        assert "5%" in text
+        assert "Unvalidated model research" in text
+        assert "unverified claims" in text
         assert "Fundamental price target: unavailable" in text
     direct = render_report("DOCN", state, None, _report_parts(state))
-    assert "$96" not in direct
+    assert "$96" in direct
+    assert "Unvalidated model research" in direct
+    assert "Fundamental price target: unavailable" in direct
     evidence = json.loads((tmp_path / "evidence.json").read_text())
     assert "$96" in evidence["raw_diagnostics"]["unvalidated_outputs"]["final_trade_decision"]
 

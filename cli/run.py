@@ -366,9 +366,12 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         )
         message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
 
+        from tradingagents.reporting import prepare_report_state
+
+        report_state = prepare_report_state(final_state)
         for section in message_buffer.report_sections:
-            if section in final_state:
-                message_buffer.update_report_section(section, final_state[section])
+            if section in report_state:
+                message_buffer.update_report_section(section, report_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 

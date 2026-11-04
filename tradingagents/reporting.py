@@ -119,7 +119,12 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 
 def prepare_report_state(final_state: dict) -> dict:
-    """Apply REVIEW authority and keep unvalidated analyst prose diagnostic only."""
+    """Return readable research without changing canonical state or memory inputs.
+
+    Python callers may pass the state returned by propagate() here for the
+    same labeled research shown by CLI/Markdown/HTML. Use the original state for
+    decision consumers; this copy is for presentation only.
+    """
     prepared = {**final_state, **enforce_publication(final_state)}
     if (prepared.get("evidence_quality") or {}).get("status") == "insufficient":
         diagnostics = dict(prepared.get("unvalidated_outputs") or {})
@@ -133,6 +138,43 @@ def prepare_report_state(final_state: dict) -> dict:
                 )
         if diagnostics:
             prepared["unvalidated_outputs"] = diagnostics
+        return prepared
+    if not prepared.get("evidence_quality"):
+        return prepared
+    originals = prepared.get("unvalidated_outputs") or {}
+
+    def research(text):
+        return (
+            "### Unvalidated model research\n\n"
+            "The following is model-authored research, not validated instructions. "
+            "Its numbers, targets, allocations and execution proposals are unverified claims. "
+            "The canonical rating, evidence scope, target result and sizing limits remain authoritative.\n\n"
+            + text
+        )
+
+    for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
+                  "investment_plan", "trader_investment_plan", "final_trade_decision"):
+        raw = originals.get(field)
+        if field == "fundamentals_report":
+            validation = prepared.get("financial_claim_validation") or {}
+            if isinstance(validation, dict) and isinstance(validation.get("raw_report"), str):
+                raw = validation["raw_report"] or raw
+        if not isinstance(raw, str) or not raw:
+            continue
+        canonical = prepared.get(field) or ""
+        if field in ("market_report", "sentiment_report", "news_report") or field == "fundamentals_report" and not prepared.get("canonical_financial_context"):
+            canonical = ""
+        prepared[field] = (
+            ("### Canonical evidence and decision limits\n\n" + canonical + "\n\n")
+            if canonical else ""
+        ) + research(raw)
+    for field in ("investment_debate_state", "risk_debate_state"):
+        original = originals.get(field)
+        if isinstance(original, dict):
+            prepared[field] = {
+                key: research(value) if isinstance(value, str) and value else value
+                for key, value in original.items()
+            }
     return prepared
 
 
