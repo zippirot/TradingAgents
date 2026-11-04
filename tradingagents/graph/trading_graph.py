@@ -162,6 +162,10 @@ class TradingAgentsGraph:
             # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
             "memory=parallel",
+            # Old checkpoints must not resume beyond the new evidence gate or
+            # publication projection. Different IDs leave historical files intact.
+            "evidence=1",
+            "publication=1",
             f"settings={digest}",
         ])
 
@@ -481,6 +485,11 @@ class TradingAgentsGraph:
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"
-        with open(log_path, "w", encoding="utf-8") as f:
-            # Reports can be in any language and this file is read by a person.
-            json.dump(entry, f, indent=4, ensure_ascii=False)
+        from tradingagents.dataflows.files import replace_file
+
+        def write_snapshot(temp):
+            with open(temp, "w", encoding="utf-8") as f:
+                # Reports can be in any language and this file is read by a person.
+                json.dump(entry, f, indent=4, ensure_ascii=False)
+
+        replace_file(log_path, write_snapshot, strict=True)

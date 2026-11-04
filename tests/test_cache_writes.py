@@ -85,6 +85,15 @@ def test_a_file_held_open_elsewhere_keeps_its_old_content(monkeypatch, tmp_path)
     assert list(tmp_path.iterdir()) == [target]
 
 
+@pytest.fixture
+def windows_errno(monkeypatch):
+    """Expose the Windows errno spelling while simulating msvcrt on macOS."""
+    import errno
+
+    if not hasattr(errno, "EDEADLOCK"):
+        monkeypatch.setattr(errno, "EDEADLOCK", errno.EDEADLK, raising=False)
+
+
 def _fake_msvcrt(results):
     """msvcrt whose locking() raises the next error in ``results``, or succeeds on None."""
     import types
@@ -102,7 +111,7 @@ def _fake_msvcrt(results):
 
 
 @pytest.mark.unit
-def test_on_windows_the_lock_is_waited_for_while_another_writer_holds_it(tmp_path, monkeypatch):
+def test_on_windows_the_lock_is_waited_for_while_another_writer_holds_it(tmp_path, monkeypatch, windows_errno):
     import errno
     import sys
 
@@ -116,7 +125,7 @@ def test_on_windows_the_lock_is_waited_for_while_another_writer_holds_it(tmp_pat
 
 
 @pytest.mark.unit
-def test_on_windows_a_lock_that_cannot_be_taken_is_reported_not_retried_forever(tmp_path, monkeypatch):
+def test_on_windows_a_lock_that_cannot_be_taken_is_reported_not_retried_forever(tmp_path, monkeypatch, windows_errno):
     import errno
     import sys
 
@@ -152,7 +161,7 @@ def test_a_lock_held_elsewhere_is_reported_when_not_waiting(tmp_path):
 
 
 @pytest.mark.unit
-def test_on_windows_a_held_lock_is_reported_when_not_waiting(tmp_path, monkeypatch):
+def test_on_windows_a_held_lock_is_reported_when_not_waiting(tmp_path, monkeypatch, windows_errno):
     import errno
     import sys
 
