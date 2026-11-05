@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from enum import StrEnum
 from html import escape
@@ -174,14 +175,9 @@ class TraderProposal(BaseModel):
             "the research plan. Two to four sentences."
         ),
     )
-    entry_price: float | None = Field(
-        default=None,
-        description=(
-            "Optional entry price target as an absolute number in the instrument's "
-            "quote currency (e.g. 189.5), never a percentage or a range. Omit it "
-            "if you cannot state a specific level."
-        ),
-    )
+    purchase_entry_price: float | None = Field(default=None, description="Optional Buy purchase entry price in quote currency; omit for Hold or Sell.")
+    reference_sale_level: float | None = Field(default=None, description="Optional Sell advisory reference level in quote currency; not an order, quote or quantity.")
+    _entry_price: float | None = PrivateAttr(default=None)
     stop_loss: float | None = Field(
         default=None,
         description=(
@@ -195,10 +191,30 @@ class TraderProposal(BaseModel):
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
 
-    @field_validator("entry_price", "stop_loss", mode="before")
+    @field_validator("purchase_entry_price", "reference_sale_level", "stop_loss", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _legacy_entry_adapter(cls, value, handler):
+        proposal = handler(value)
+        if isinstance(value, dict) and "entry_price" in value:
+            proposal._entry_price = _coerce_optional_float(value["entry_price"])
+        return proposal
+
+    @property
+    def entry_price(self) -> float | None:
+        return self._entry_price
+
+    @model_validator(mode="after")
+    def _action_levels(self):
+        if self.action is not TraderAction.BUY:
+            self.purchase_entry_price = None
+        if self.action is not TraderAction.SELL:
+            self.reference_sale_level = None
+        return self
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
@@ -215,15 +231,45 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
     ]
     # Named even when absent, so a reader can tell a level the trader chose not
     # to give from one the schema never asked for.
-    for label, value in (("Entry Price", proposal.entry_price),
-                         ("Stop Loss", proposal.stop_loss),
-                         ("Position Sizing", proposal.position_sizing)):
+    for label, value in (
+        ("Purchase Entry Price", proposal.purchase_entry_price),
+        ("Reference Sale Level", proposal.reference_sale_level),
+        ("Stop Loss", proposal.stop_loss),
+        ("Position Sizing", proposal.position_sizing),
+    ):
         parts.extend(["", f"**{label}**: {value if value is not None and value != '' else 'not provided'}"])
+    if proposal.entry_price is not None:
+        parts.extend(["", f"**Legacy Price Level (meaning unverified)**: {proposal.entry_price}"])
+    if proposal.action is TraderAction.SELL:
+        parts.extend(["", "Reference sale level is advisory; it is not an order, executable quote, share quantity, or instruction about unknown holdings."])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
     ])
     return "\n".join(parts)
+
+
+def label_legacy_trader_price(text: str) -> str:
+    """Keep ambiguous legacy or action-inconsistent free-text levels out of canonical purchase fields."""
+    text = re.sub(
+        r"(?im)^([ \t]*(?:[-*][ \t]+)?)(?:\*\*)?Entry Price(?:\*\*)?:",
+        r"\1**Legacy Price Level (meaning unverified)**:", text,
+    )
+    actions = re.findall(r"(?im)^\s*(?:\*\*)?Action(?:\*\*)?:\s*(Buy|Hold|Sell)\b", text)
+    actions += re.findall(r"(?im)^FINAL TRANSACTION PROPOSAL:\s*\*\*(BUY|HOLD|SELL)\*\*", text)
+    if actions and all(action.casefold() == "buy" for action in actions):
+        return text
+
+    def ambiguous_purchase(match):
+        value = match.group(2)
+        if value.strip().casefold() == "not provided":
+            return match.group(0)
+        return match.group(1) + "**Legacy Price Level (meaning unverified)**: " + value
+
+    return re.sub(
+        r"(?im)^([ \t]*(?:[-*][ \t]+)?)(?:\*\*)?Purchase Entry Price(?:\*\*)?:[ \t]*(.*)$",
+        ambiguous_purchase, text,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 """yfinance-based news data fetching functions."""
 
 import contextlib
+import logging
 from datetime import UTC, datetime
 
 import yfinance as yf
@@ -11,6 +12,8 @@ from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.errors import VendorUnavailableError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -61,15 +64,20 @@ def _search_news(canonical: str, limit: int) -> tuple[list, bool]:
     relevance-picked sample, and some are tagged loosely; only those tagged with
     the symbol are about it.
     """
-    search = yf_retry(lambda: yf.Search(canonical, news_count=limit))
-    if search is None:  # Yahoo answered "not found": its search is down
+    def request():
+        search = yf.Search(canonical, news_count=limit)
+        return search.news, search.quotes
+
+    response = yf_retry(request)
+    if response is None:  # Yahoo answered "not found": its search is down
         return [], False
+    articles, quotes = response
     tagged = [
-        a for a in (search.news or [])
+        a for a in (articles or [])
         if canonical in (t.upper() for t in a.get("relatedTickers") or [])
     ]
-    knows = any((q.get("symbol") or "").upper() == canonical for q in search.quotes or [])
-    return tagged, knows or bool(search.news)
+    knows = any((q.get("symbol") or "").upper() == canonical for q in quotes or [])
+    return tagged, knows or bool(articles)
 
 
 def _format_articles(articles: list[dict]) -> str:
@@ -92,8 +100,8 @@ def get_news_yfinance(
     """News about ``ticker`` published in the window, from Yahoo Finance.
 
     The symbol's quote feed comes first. When it is empty, Yahoo search serves
-    the articles tagged with the symbol; when it has none, or neither answers,
-    Yahoo news is unavailable, which is not an absence of news, and a configured
+    the articles tagged with the symbol. A failed quote request also tries
+    search. When search has none, or neither answers, Yahoo news is unavailable, which is not an absence of news, and a configured
     next vendor is tried. Search results are a sample, so finding none in the
     window never reads as "no news".
     """
@@ -104,16 +112,22 @@ def get_news_yfinance(
     canonical = normalize_symbol(ticker)
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     subject = f"news for {ticker}{resolved}"
-    feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    quote_error = None
+    try:
+        feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    except VendorUnavailableError as exc:
+        quote_error = exc
+        logger.warning("Yahoo quote news failed for %s; trying search: %s", canonical, exc)
+        feed = []
     articles = [_extract_article_data(a) for a in feed]
     if not feed:
         found, answered = _search_news(canonical, article_limit)
         if not answered:
-            raise VendorUnavailableError(f"Yahoo Finance returned no news response for {canonical}")
+            raise VendorUnavailableError(f"Yahoo Finance returned no news response for {canonical}") from quote_error
         if not found:
             # With the quote feed empty, no tagged article says nothing about the
             # company's news (Yahoo tags no article with most non-US listings).
-            raise VendorUnavailableError(f"Yahoo Finance has no news articles tagged {canonical}")
+            raise VendorUnavailableError(f"Yahoo Finance has no news articles tagged {canonical}") from quote_error
         articles = [_extract_article_data(a) for a in found]
 
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")

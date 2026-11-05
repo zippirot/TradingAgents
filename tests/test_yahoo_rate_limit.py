@@ -78,6 +78,9 @@ def test_the_indicator_path_retries_a_rate_limit(yahoo):
         return answer
 
     yahoo.setattr(yf.Ticker, "history", history)
+    yahoo.setattr(yf.Ticker, "get_history_metadata", lambda self: {
+        "symbol": "AAPL", "currency": "USD", "exchangeTimezoneName": "America/New_York"
+    })
 
     assert ohlcv.load_ohlcv("AAPL", DAY)["Close"].tolist() == [1.0]
 

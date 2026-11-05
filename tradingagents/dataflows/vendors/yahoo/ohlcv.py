@@ -1,5 +1,8 @@
+import hashlib
+import json
 import logging
 import os
+from collections.abc import Mapping
 
 import pandas as pd
 import yfinance as yf
@@ -9,6 +12,13 @@ from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.files import replace_file
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
 from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
+from tradingagents.dataflows.vendors.yahoo.price_observation import (
+    ADJUSTMENT,
+    _timestamp,
+    session_is_complete,
+)
+
+_SOURCE_COLUMN = "__market_source"
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +32,52 @@ MAX_OHLCV_STALE_DAYS = 10
 # up today's close soon after it publishes, long enough that a day with no bar
 # at all (weekend, holiday) cannot trigger a download on every call.
 OHLCV_CACHE_TTL_SECONDS = 900
+
+
+def _retrieval_time():
+    from tradingagents.dataflows.vendors.yahoo.price_observation import _now
+    return _now()
+
+
+def _source_metadata(source, downloaded, canonical, retrieved):
+    method = getattr(source, "get_history_metadata", None)
+    metadata = method() if method is not None else {}
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    zone = metadata.get("exchangeTimezoneName") or str(getattr(downloaded.index, "tz", "") or "")
+    end = metadata.get("currentTradingPeriod", {}).get("regular", {}).get("end")
+    return {
+        "ticker": canonical,
+        "retrieved_at": retrieved.isoformat(),
+        "exchange_timezone": zone or None,
+        "currency": metadata.get("currency"),
+        "regular_end": _timestamp(end).isoformat() if end is not None else None,
+        "adjustment_basis": ADJUSTMENT,
+        "source_id": "yahoo-ohlcv-" + hashlib.sha256(
+            (canonical + retrieved.isoformat() + downloaded.to_csv()).encode()
+        ).hexdigest(),
+    }
+
+
+def market_provenance_lines(data):
+    source = data.attrs.get("market_provenance") or {}
+    if not source:
+        return ["- Session provenance unavailable."]
+    historical = source.get("analysis_date", "9999") < source["retrieved_at"][:10]
+    timing = (["- Retrospective retrieval; timestamps retained with the source, not as-of research facts."]
+              if historical else [
+                  f"- Retrieved at: {source['retrieved_at']}",
+                  f"- Observation cutoff: {source.get('observation_cutoff') or source['retrieved_at']}",
+              ])
+    return [
+        "- Session status: completed; unfinished daily rows excluded before calculation.",
+        f"- Completed session: {source.get('session_date', 'unavailable')}",
+        f"- Exchange timezone: {source.get('exchange_timezone') or 'unknown'}",
+        f"- Currency: {source.get('currency') or 'unknown'}",
+        *timing,
+        f"- Adjustment basis: {source['adjustment_basis']}",
+        f"- Source: {source['source_id']}",
+        "- A completed close is a dated observation, not an executable quote.",
+    ]
 
 
 def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
@@ -182,10 +238,10 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     now = pd.Timestamp.today()
     start_date = now - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
-    # yfinance ``end`` is EXCLUSIVE; request tomorrow so today's row is included
-    # when as_of_date is the current day (#986). Look-ahead is still prevented by
-    # the as_of_date filter below.
-    end_str = (now + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    # End is exclusive. An exchange can already be on the next UTC date;
+    # include that date independent of the host timezone or requested past date.
+    # The retained cutoff and exchange metadata below still exclude partial rows.
+    end_str = (_retrieval_time() + pd.Timedelta(days=2)).strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
@@ -197,37 +253,60 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     # transient rate limit). Treat an empty/columnless cache as a miss and
     # re-fetch rather than serving the poisoned file forever.
     data = None
+    source_metadata = None
     if os.path.exists(data_file):
         cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
         if (
             not cached.empty
             and "Close" in cached.columns
+            and _SOURCE_COLUMN in cached.columns
             and _cache_is_fresh(data_file, as_of_dt, now)
         ):
-            data = cached
+            try:
+                retained = json.loads(cached[_SOURCE_COLUMN].iloc[0])
+                if retained["adjustment_basis"] == ADJUSTMENT and retained["ticker"] == canonical:
+                    _timestamp(retained["retrieved_at"])
+                    source_metadata = retained
+                    data = cached.drop(columns=[_SOURCE_COLUMN])
+            except (KeyError, TypeError, ValueError):
+                pass  # Legacy/malformed provenance uses the existing fetch path.
 
     if data is None:
         # yf.download catches every error, a rate limit included, and returns
         # an empty frame. Ticker.history raises the rate limit, so it is retried.
-        downloaded = yf_retry(lambda: yf.Ticker(canonical).history(
-            start=start_str,
-            end=end_str,
-            auto_adjust=True,
-            actions=False,
-        ))
+        def fetch():
+            source = yf.Ticker(canonical)
+            downloaded = source.history(
+                start=start_str, end=end_str, auto_adjust=False, actions=False,
+            )
+            if downloaded is None or downloaded.empty:
+                return None
+            return downloaded, _source_metadata(source, downloaded, canonical, _retrieval_time())
+
+        response = yf_retry(fetch)
+        downloaded, source_metadata = response if response is not None else (None, None)
         if downloaded is None:
             raise_for_empty(symbol, canonical, "price rows")
         downloaded = _ensure_date_column(downloaded.reset_index())
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise_for_empty(symbol, canonical, "price rows")
-        replace_file(data_file, lambda temp: downloaded.to_csv(temp, index=False, encoding="utf-8"))
+        cached = downloaded.assign(**{_SOURCE_COLUMN: json.dumps(source_metadata, sort_keys=True)})
+        replace_file(data_file, lambda temp: cached.to_csv(temp, index=False, encoding="utf-8"))
         data = downloaded
 
     data = _clean_dataframe(data)
 
     # Filter to as_of_date to prevent look-ahead bias in backtesting.
     data = data[data["Date"] <= as_of_dt]
+    requested_cutoff = config.get("_market_observation_cutoff")
+    cutoff = min(_retrieval_time(), _timestamp(requested_cutoff)).isoformat() if requested_cutoff else _retrieval_time().isoformat()
+    data = data[data["Date"].map(lambda value: session_is_complete(
+        value.date(), source_metadata["retrieved_at"], source_metadata["exchange_timezone"],
+        source_metadata["regular_end"], cutoff,
+    ))].copy()
+    if data.empty:
+        raise NoMarketDataError(symbol, canonical, "no completed price rows at the observation cutoff")
 
     # A closeless newest bar is an unsettled session, not a symbol without data.
     # _fill_price_gaps below drops it, here and mid-series alike, so the frame
@@ -253,7 +332,11 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     # Reject a stale frame (latest row far older than as_of_date) rather than
     # feeding year-old prices into indicators (#1021).
     _assert_ohlcv_not_stale(data, as_of_date, symbol, canonical)
-
+    data.attrs["market_provenance"] = {
+        **source_metadata, "observation_cutoff": cutoff, "analysis_date": str(as_of_dt.date()),
+        "session_date": str(data["Date"].max().date()) if not data.empty else None,
+        "session_status": "completed",
+    }
     return data
 
 

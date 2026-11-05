@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
@@ -50,6 +51,45 @@ def _timestamp(value):
     if parsed.tzinfo is None:
         raise ValueError("Timestamp must carry a timezone")
     return parsed
+
+
+@contextmanager
+def completed_price_scope(state=None):
+    """Bind the retained run cutoff across market tools and canonical retrieval."""
+    from tradingagents.dataflows.config import get_config, run_config
+
+    state = state or {}
+    cutoff = state.get("market_observation_cutoff")
+    if cutoff is None:
+        cutoff = (state.get("analysis_clock") or {}).get("cutoff_utc")
+    if cutoff is None:
+        yield
+        return
+    with run_config({**get_config(), "_market_observation_cutoff": cutoff}):
+        yield
+
+
+def session_is_complete(session, retrieved_at, exchange_timezone, regular_end=None, cutoff=None):
+    """Finality at acquisition, capped by the run's resolved observation instant.
+
+    A stored pre-close bar never becomes final through elapsed wall-clock time.
+    No exchange closing hour is guessed; same-day promotion needs provider end
+    metadata. Prior dates retain the existing completed-session interpretation.
+    """
+    retrieved = _timestamp(retrieved_at)
+    effective = min(retrieved, _timestamp(cutoff)) if cutoff else retrieved
+    if not exchange_timezone:
+        # With no instrument zone, require the date to have ended in even the
+        # latest possible local timezone. Never call an unknown today's bar final.
+        return session < (effective - timedelta(hours=12)).date()
+    zone = ZoneInfo(exchange_timezone)
+    today = effective.astimezone(zone).date()
+    if session < today:
+        return True
+    if session != today or regular_end is None:
+        return False
+    end = _timestamp(regular_end)
+    return end.astimezone(zone).date() == session and end <= effective
 
 
 def _hash(raw):
@@ -198,10 +238,9 @@ def _project(raw):
         split = _number(bar["stock_splits"])
         if session > today:
             raise ValueError("Future price session")
-        is_complete = session < today
-        if session == today and metadata["regular_end"] is not None:
-            end = _timestamp(metadata["regular_end"])
-            is_complete = end.astimezone(zone).date() == session and end <= retrieved
+        is_complete = session_is_complete(
+            session, retrieved, str(zone), metadata["regular_end"], raw.get("observation_cutoff")
+        )
         if is_complete:
             completed.append((session, close))
         if Decimal(split) != 0:
@@ -311,6 +350,10 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
                 for index, row in history.iterrows()
             ],
         }
+        from tradingagents.dataflows.config import get_config
+        observation_cutoff = get_config().get("_market_observation_cutoff")
+        if observation_cutoff:
+            raw["observation_cutoff"] = _timestamp(observation_cutoff).isoformat()
         raw["adjustment_verification"] = _verify_adjustment_basis(raw)
         return _project(raw)
     except Exception as exc:

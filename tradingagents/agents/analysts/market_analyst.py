@@ -49,6 +49,8 @@ Volume-Based Indicators:
 
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
 
+All OHLCV and indicators use completed sessions at this run's fixed observation cutoff. Name the completed session date; never describe an unfinished daily bar as a verified close. A separately timestamped intraday quote is provisional, not a completed close or finalized execution reference. Never substitute a partial high/low for a completed-session reference. Vendor fundamentals multiples have their own timing and share/earnings definitions and are not canonical completed-close calculations.
+
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
 
 Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""

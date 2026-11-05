@@ -10,7 +10,7 @@ from stockstats import wrap
 from tradingagents.dataflows.errors import NoMarketDataError, VendorError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
-from tradingagents.dataflows.vendors.yahoo.ohlcv import _assert_ohlcv_not_stale, load_ohlcv
+from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv, market_provenance_lines
 
 logger = logging.getLogger(__name__)
 
@@ -22,31 +22,18 @@ def get_YFin_data_online(
 ):
 
     datetime.strptime(start_date, "%Y-%m-%d")
-    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    datetime.strptime(end_date, "%Y-%m-%d")
 
     # Resolve broker/forex symbols to Yahoo's convention (XAUUSD+ -> GC=F).
     canonical = normalize_symbol(symbol)
 
-    # yfinance treats ``end`` as EXCLUSIVE, so it would drop the requested
-    # end_date row (and the current day when end_date is today). Request one day
-    # past end_date so the requested range is actually inclusive (#986/#987).
-    end_inclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
-    data = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_inclusive))
-
-    # Empty result means the symbol is unknown/delisted. Raise a typed error
-    # instead of returning prose: the routing layer turns it into a single
-    # unambiguous "no data" signal so the agent never fabricates a price.
-    if data is None or data.empty:
-        raise_for_empty(symbol, canonical, f"rows between {start_date} and {end_date}")
-
-    # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
-        data.index = data.index.tz_localize(None)
-
-    # Reject a stale frame (e.g. a year-old partial response) before it is
-    # formatted into the report. Raises NoMarketDataError, which the router
-    # turns into one clear unavailable signal (#1021).
-    _assert_ohlcv_not_stale(data, end_date, symbol, canonical)
+    # Stock, snapshot and indicator paths share the same retained daily series,
+    # adjustment basis and completed-session filter.
+    data = load_ohlcv(canonical, end_date, fill_gaps=False)
+    data = data[data["Date"] >= pd.Timestamp(start_date)].copy()
+    if data.empty:
+        raise_for_empty(symbol, canonical, f"completed rows between {start_date} and {end_date}")
+    data = data.set_index("Date")
 
     # Round numerical values to 2 decimal places for cleaner display
     numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
@@ -60,7 +47,8 @@ def get_YFin_data_online(
     # instrument was priced.
     label = canonical if canonical == symbol.upper() else f"{canonical} (from {symbol})"
     header = f"# Stock data for {label} from {start_date} to {end_date}\n"
-    header += f"# Total records: {len(data)}\n\n"
+    header += f"# Total records: {len(data)}\n"
+    header += "\n".join(market_provenance_lines(data)) + "\n\n"
 
     return header + csv_string
 
@@ -171,7 +159,7 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                indicator_value = "N/A: No completed bar at the cutoff (open session, weekend, holiday or unavailable)"
 
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
@@ -293,4 +281,4 @@ def get_stock_stats(
         indicator_value = matching_rows[indicator].values[0]
         return indicator_value
     else:
-        return "N/A: Not a trading day (weekend or holiday)"
+        return "N/A: No completed bar at the cutoff (open session, weekend, holiday or unavailable)"

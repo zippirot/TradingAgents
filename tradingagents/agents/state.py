@@ -57,6 +57,7 @@ class AgentState(MessagesState):
     event_comparison: Annotated[dict, "Verified event guidance and aligned provider price windows"]
     decision_context: Annotated[dict, "Canonical research decision card with labeled model opinions"]
     valuation_price_comparison: Annotated[dict, "Replayed dated valuation and reverse sensitivity"]
+    market_observation_cutoff: Annotated[str, "Retained UTC market observation instant, fixed across tools and resume"]
     price_observation: Annotated[dict, "Provider-sourced dated completed-session close; never model prose"]
     outcome_summary: Annotated[str, "Known-at horizon measurements; never inferred research evidence"]
     publication_record: Annotated[dict, "Immutable publication identity and first publication time"]
