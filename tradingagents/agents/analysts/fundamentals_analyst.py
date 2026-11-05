@@ -139,8 +139,10 @@ FINANCIAL_CLAIM_EXTRACTION = (
 SHARED_VALUATION_INPUTS = (
     " Optionally propose up to three justified valuation scenarios in exactly one named fence:"
     "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having exactly name and request."
-    ' Structure example only (replace placeholders with supported inputs): [{"name":"Case A","request":{"method":"pe","eps_fact_id":"<exact annual EPS fact ID>","eps_basis":"diluted","accounting_basis":"US-GAAP","multiple":"<justified positive decimal>","multiple_rationale":"<explanation>"}}].'
+    ' Structure example only (replace placeholders with supported inputs, or omit forecast to use historical EPS):\n[\n  {\n    "name": "Case A",\n    "request": {\n      "method": "pe",\n      "eps_fact_id": "<exact annual EPS fact ID>",\n      "eps_basis": "diluted",\n      "accounting_basis": "US-GAAP",\n      "multiple": "<justified positive decimal>",\n      "multiple_rationale": "<explanation>",\n      "forecast": {\n        "value": "<justified positive decimal>",\n        "unit": "USD/shares",\n        "period_start": "<YYYY-MM-DD>",\n        "period_end": "<YYYY-MM-DD>",\n        "basis": "US-GAAP",\n        "kind": "analyst_forecast",\n        "rationale": "<explicit assumptions>"\n      }\n    }\n  }\n]\n'
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
+    " Emit indented, valid JSON rather than compressed rows: close forecast, request, and the outer row separately."
+    " Check the complete JSON list is syntactically valid before finishing your normal response."
     " All entries MUST use the same method; do not mix EV/revenue and P/E even as a secondary check."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
     " These calculations do not require a current stock price or return-to-price comparison."

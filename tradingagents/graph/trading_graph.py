@@ -166,7 +166,7 @@ class TradingAgentsGraph:
             # publication projection. Different IDs leave historical files intact.
             "evidence=1",
             "publication=1",
-            "shared_valuation=4",
+            "shared_valuation=5",
             f"settings={digest}",
         ])
 
