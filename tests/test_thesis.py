@@ -302,3 +302,105 @@ def test_duplicate_dispositions_preserve_prior_and_condition_limit():
     assert item['prior_conditions'][0]['disposition_reason'] == 'reason not supplied'
     assert any('Ambiguous' in warning for warning in item['warnings'])
     assert any('limit' in warning for warning in item['warnings'])
+
+
+def test_condition_identity_ignores_rationale_and_exact_decimal_spelling():
+    variants = [condition(), {**condition(), 'rationale': 'Reworded', 'threshold': '100.00'},
+                {**condition(), 'threshold': '1E+2'}]
+    identifiers = [thesis.prepare_thesis({'conditions':[c]},None,'Hold','2026-11-04',str(uuid4()))['conditions'][0]['condition_id'] for c in variants]
+    assert len(set(identifiers)) == 1
+    merged = thesis.prepare_thesis({'conditions': variants},None,'Hold','2026-11-04',str(uuid4()))
+    assert len(merged['conditions']) == 1
+    base = {**condition(), 'threshold':'123456789012345678901234567891'}
+    other = {**base, 'threshold':'123456789012345678901234567892'}
+    assert thesis._id(thesis.ThesisCondition.model_validate(base)) != thesis._id(thesis.ThesisCondition.model_validate(other))
+
+
+def test_existing_legacy_ids_survive_observation_and_reworded_proposal():
+    legacy = {**condition(), 'condition_id':'condition-' + 'a'*24}
+    prior = {'conditions':[legacy], 'canonical_rating':'Hold'}
+    prior['observations'] = thesis.observe_conditions(prior,state())
+    assert prior['observations'][0]['condition_id'] == legacy['condition_id']
+    proposal = {**condition(), 'rationale':'New wording', 'threshold':'100.0', 'condition_id':'forged'}
+    result = thesis.prepare_thesis({'conditions':[proposal], 'dispositions':[
+        {'condition_id':legacy['condition_id'], 'disposition':'kept', 'reason':'Still material'}]},prior,'Hold','2026-11-04',str(uuid4()))
+    assert len(result['conditions']) == 1
+    assert result['conditions'][0]['condition_id'] == legacy['condition_id']
+    assert result['prior_conditions'][0]['disposition_reason'] == 'Still material'
+
+
+@pytest.mark.parametrize('change', [{'threshold':'101'}, {'expiry':'2027-01-31'}])
+def test_changed_measurement_contract_is_new_condition(change):
+    prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Hold','2026-11-04',str(uuid4()))
+    result = thesis.prepare_thesis({'conditions':[{**condition(), **change}]},prior,'Hold','2026-11-04',str(uuid4()))
+    assert result['conditions'][0]['condition_id'] != prior['conditions'][0]['condition_id']
+
+
+def test_duplicated_legacy_ids_coalesce_and_conflicting_alias_dispositions_preserve():
+    first = {**condition(), 'condition_id':'condition-'+'a'*24}
+    second = {**condition(), 'rationale':'Reworded', 'condition_id':'condition-'+'b'*24}
+    prior = {'conditions':[first,second]}
+    prior['observations'] = thesis.observe_conditions(prior,state())
+    assert len(prior['observations']) == 1
+    result = thesis.prepare_thesis({'conditions':[], 'dispositions':[
+        {'condition_id':first['condition_id'],'disposition':'kept','reason':'Keep reasoning'},
+        {'condition_id':second['condition_id'],'disposition':'retired','reason':'Retire reasoning'}]},prior,'Buy','2026-11-04',str(uuid4()))
+    assert len(result['conditions']) == 1
+    assert result['conditions'][0]['condition_id'] == first['condition_id']
+    assert second['condition_id'] in result['conditions'][0]['condition_aliases']
+    assert any('Ambiguous' in w for w in result['warnings'])
+    supplied = result['prior_conditions'][0]['alias_dispositions']
+    assert {d['reason'] for d in supplied} == {'Keep reasoning','Retire reasoning'}
+    assert result['canonical_rating'] == 'Buy' and result['authority'] == 'candidate_advisory'
+
+
+def test_alias_retirement_applies_to_one_measurement_contract():
+    first = {**condition(), 'condition_id':'condition-'+'a'*24}
+    second = {**condition(), 'rationale':'Reworded', 'condition_id':'condition-'+'b'*24}
+    prior = {'conditions':[first,second]}
+    prior['observations'] = thesis.observe_conditions(prior,state())
+    result = thesis.prepare_thesis({'dispositions':[
+        {'condition_id':second['condition_id'],'disposition':'retired','reason':'Retired contract'}]},prior,'Hold','2026-11-04',str(uuid4()))
+    assert not result['conditions']
+    assert result['prior_conditions'][0]['disposition'] == 'retired'
+
+
+def test_malformed_alias_disposition_is_visible_without_changing_rating():
+    prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Hold','2026-11-04',str(uuid4()))
+    identifier = prior['conditions'][0]['condition_id']
+    item = thesis.prepare_thesis({'conditions':[], 'dispositions':[
+        {'condition_id': {'invalid':'id'}, 'disposition':'retired'},
+        {'condition_id':identifier,'disposition': {'invalid':'action'}}]},prior,'Sell','2026-11-04',str(uuid4()))
+    assert len(item['conditions']) == 1 and item['canonical_rating'] == 'Sell'
+    assert any('Ambiguous' in warning for warning in item['warnings'])
+
+
+def test_published_same_run_projection_preserves_legacy_thesis_exactly():
+    import hashlib
+    import json
+    from copy import deepcopy
+
+    from tradingagents.agents.output_validation import _thesis_update
+
+    run_id = str(uuid4())
+    first = condition()
+    second = {**condition(), 'rationale':'Reworded legacy duplicate'}
+    rows = []
+    for item in (first, second):
+        payload = thesis.ThesisCondition.model_validate(item).model_dump(mode='json')
+        identifier = 'condition-' + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:24]
+        rows.append({**payload, 'condition_id':identifier})
+    saved = thesis.prepare_thesis({'conditions':[first]},None,'Hold','2026-11-04',run_id)
+    saved['conditions'] = rows
+    inputs = {'run_id':run_id,'trade_date':'2026-11-04','final_rating':'Hold',
+              'thesis_candidate':{'conditions':[first,second]}, 'thesis':saved,
+              'thesis_version_id':saved['version_id'],
+              'publication_record':{'decision_id':run_id, 'published_at':'2026-11-04T20:00:00+00:00',
+                                    'record_sha256':'a'*64}}
+    original = deepcopy(inputs)
+    assert _thesis_update(inputs)['thesis'] == saved
+    assert inputs == original
+    # A genuinely new version fixes duplicates, but retains the earliest prior ID.
+    next_thesis = thesis.prepare_thesis({'conditions':[second]},saved,'Hold','2026-11-04',str(uuid4()))
+    assert len(next_thesis['conditions']) == 1
+    assert next_thesis['conditions'][0]['condition_id'] == rows[0]['condition_id']

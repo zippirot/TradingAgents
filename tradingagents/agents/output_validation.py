@@ -1,5 +1,7 @@
 """Deterministic publication boundaries for research outcomes."""
 
+from copy import deepcopy
+
 from pydantic import ValidationError
 
 from tradingagents.agents.decision_context import prepare_decision_context, render_decision_context
@@ -42,6 +44,19 @@ def _thesis_update(state):
     from tradingagents.agents.rating import run_rating
     from tradingagents.memory.thesis import observe_conditions, prepare_thesis
 
+    saved = state.get("thesis")
+    published = state.get("publication_record")
+    if (isinstance(saved, dict) and isinstance(published, dict)
+            and published.get("decision_id") == state["run_id"]
+            and published.get("published_at") and published.get("record_sha256")
+            and saved.get("run_id") == state["run_id"]
+            and saved.get("version_id") == state.get("thesis_version_id")
+            and saved.get("as_of") == str(state["trade_date"])
+            and saved.get("canonical_rating") == run_rating(state)):
+        # Re-export is a view of this already published research version. Identity
+        # migrations belong to a new invocation, never to the same frozen version.
+        # Publication persistence separately checks the immutable payload hash.
+        return {"thesis": deepcopy(saved), "thesis_version_id": saved["version_id"]}
     prior = state.get("prior_thesis")
     if prior:
         usable = state if normalized_evidence_quality(state).get("status") in {"sufficient", "limited"} else {}

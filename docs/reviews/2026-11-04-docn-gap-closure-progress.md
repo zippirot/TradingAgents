@@ -559,3 +559,44 @@ B remains pending its next-CLI condition/disposition proof. For `live-05`, the e
 immutable publication/evidence and memory were copied into a fresh isolated runtime,
 with no changed timestamps and no reused checkpoint. `seed-continuity.json` hashes
 all copied files. This is a real persisted prior decision, not a synthesized fixture.
+
+### Build B second CLI: continuity finding and correction candidate
+
+`live-05` completed on documentation-only commit
+`9cd33dd368d73c0700d53de720cb43d78fa4397d`, with application/test source hashes
+identical to live-04. It read thesis `282f78f4-c085-5a2a-9e99-25d830044b77` and
+published child `7c94e1e7-02fc-566c-ad04-a10d3307d57b` in decision
+`a11c8098-dfa2-44dd-8a4f-58c998780bd7`. Both prior Q4 conditions were explicitly
+unknown and kept, with reasons. The daily publication is a revision, not another
+primary sample; memory correctly retains the first daily publication link.
+
+The model intentionally emitted a valid empty scenario list, explaining uncertain
+future funding/full lease perimeter and a weak normalized EPS baseline. This is
+not a parser failure. The generic readback script initially failed its extra
+valuation assertion; the separate continuity verifier retains live-04's supported
+valuation evidence only after proving identical application hashes and unchanged
+prior artifacts. No paid valuation retry was launched. The empty-list diagnostic
+now explicitly says no scenarios were proposed, separately from malformed inputs.
+
+Independent artifact review found a material flaw despite successful version
+readback: rewording a condition's rationale changed its ID, leaving four active
+entries for two measurement contracts. The correction defines identity by the
+measurement/period/comparator/threshold/unit/basis/expiry, with exact Decimal
+normalization and no rationale hashing. New versions reuse prior IDs; equivalent
+legacy duplicates coalesce with bounded aliases. Conflicting alias dispositions
+preserve the condition with visible warnings/reasons. Published same-run thesis
+projections remain frozen; the original live-04/live-05 records are not rewritten.
+
+The correction candidate passed the required full suite: **2,179 passed, 100
+subtests passed**, one optional dependency skip, one integration deselection,
+20 existing warnings, 18.21 seconds. Ruff and diff checks passed. Log:
+`results/docn-abc/b-offline/pytest-continuity-fix.log`. Independent targeted review
+and real saved-input persistence replay are the remaining acceptance checks for
+this correction. `recover_build_b_thesis.py` will run the actual live-05 proposal
+through the graph's real publication/report path in an isolated historical
+engineering replay, with all HTTP/model calls blocked. It is not another live
+model decision and must not be counted as prospective investment evidence.
+
+Live-05 used 17 model requests and $2.7035875 at the conservative token-rate caps.
+Five paid proofs have used **$12.953** cumulatively; two of seven attempts remain.
+The audit allocation remains unspent. No saved model/depth preferences changed.

@@ -67,7 +67,7 @@ def prepare_shared_valuation(state, requests=None):
         if len(json.dumps(requests)) > MAX_PAYLOAD:
             raise ValueError("Scenario input payload oversized")
         if not requests:
-            raise ValueError("No supported scenario inputs were supplied")
+            return _record("unavailable", requests, reasons=("No valuation scenarios were proposed; no numerical sensitivity published.",))
         names = [r.get("name") for r in requests if isinstance(r, dict)]
         valid_names = [n.strip() for n in names if isinstance(n, str)]
         if len(valid_names) != len(set(valid_names)):

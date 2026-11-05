@@ -41,12 +41,33 @@ class ThesisCondition(BaseModel):
 
 
 def _id(condition):
-    payload = condition.model_dump(mode='json')
+    # Measurement identity excludes explanatory prose. Tuple normalization is
+    # exact even beyond Decimal's default context precision (no normalize()).
+    payload = condition.model_dump(mode='json', exclude={'rationale'})
+    sign, digits, exponent = condition.threshold.as_tuple()
+    digits = list(digits)
+    if not any(digits):
+        sign, digits, exponent = 0, [0], 0
+    else:
+        while digits[-1] == 0:
+            digits.pop()
+            exponent += 1
+    payload['threshold'] = [sign, digits, exponent]
     return 'condition-' + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:24]
 
 
-def _conditions(values):
-    accepted, warnings = [], []
+def _condition(row):
+    return ThesisCondition.model_validate({k:v for k,v in row.items()
+                                          if k not in {'condition_id', 'condition_aliases'}})
+
+
+def _valid_id(value):
+    return (isinstance(value, str) and len(value) == 34 and value.startswith('condition-')
+            and all(c in '0123456789abcdef' for c in value[10:]))
+
+
+def _conditions(values, *, preserve_ids=False):
+    accepted, warnings, by_measurement = [], [], {}
     if not isinstance(values, (list, tuple)):
         return [], ['Invalid advisory conditions: expected a list']
     if len(values) > 8:
@@ -54,14 +75,39 @@ def _conditions(values):
     for index, item in enumerate(values[:8]):
         try:
             payload = dict(item)
-            payload.pop('condition_id', None)
-            condition = ThesisCondition.model_validate(payload)
-            row = {**condition.model_dump(mode='json'), 'condition_id': _id(condition)}
-            if row not in accepted:
+            condition = _condition(payload)
+            key = _id(condition)
+            identifier = payload.get('condition_id') if preserve_ids else None
+            identifier = identifier if _valid_id(identifier) else key
+            aliases = payload.get('condition_aliases', []) if preserve_ids else []
+            aliases = [v for v in aliases[:8] if _valid_id(v)] if isinstance(aliases, list) else []
+            if key in by_measurement:
+                row = by_measurement[key]
+                aliases = list(dict.fromkeys([*row.get('condition_aliases', []), identifier, *aliases]))
+                warnings.append(f'Equivalent advisory measurement coalesced into {row["condition_id"]}.')
+            else:
+                row = {**condition.model_dump(mode='json'), 'condition_id':identifier}
+                by_measurement[key] = row
                 accepted.append(row)
+            aliases = [v for v in aliases if v != row['condition_id']]
+            if aliases:
+                row['condition_aliases'] = aliases[:8]
+                warnings.append(f'Condition {row["condition_id"]} aliases: ' + ', '.join(aliases[:8]))
         except (ValidationError, ValueError, TypeError):
             warnings.append(f'Invalid advisory condition at index {index}; retained only in raw diagnostics')
     return accepted, warnings
+
+
+def _matches(row, dispositions):
+    identities = {row['condition_id'], *row.get('condition_aliases', [])}
+    return [d for d in dispositions if isinstance(d, dict) and isinstance(d.get('condition_id'), str)
+            and d['condition_id'] in identities]
+
+
+def _ambiguous(matches):
+    return (any(d.get('disposition') not in ('kept', 'overridden', 'retired') for d in matches)
+            or len({d.get('condition_id') for d in matches}) != len(matches)
+            or len({d.get('disposition') for d in matches}) > 1)
 
 
 
@@ -108,7 +154,7 @@ def observe_conditions(prior: dict | None, state: dict) -> list[dict]:
     metric_definition must equal the canonical metric label; specialized
     subsets cannot borrow consolidated facts. No parsing of model narrative creates facts.
     """
-    rows, _ = _conditions((prior or {}).get('conditions', []))
+    rows, _ = _conditions((prior or {}).get('conditions', []), preserve_ids=True)
     try:
         package = EvidencePackage.model_validate(state.get('financial_evidence'))
     except (ValidationError, ValueError, TypeError):
@@ -118,7 +164,7 @@ def observe_conditions(prior: dict | None, state: dict) -> list[dict]:
     precision = precision if isinstance(precision, dict) else {}
     observations = []
     for row in rows:
-        condition = ThesisCondition.model_validate({k:v for k,v in row.items() if k != 'condition_id'})
+        condition = _condition(row)
         observation = {**row, 'status':'unknown', 'reason':'Compatible canonical evidence unavailable',
                        'observed_value':None, 'observed_date':None, 'fact_ids':[], 'source_ids':[]}
         observations.append(observation)
@@ -192,22 +238,31 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
     date.fromisoformat(asof)
     candidate = candidate if isinstance(candidate, dict) else {}
     prior = prior if isinstance(prior, dict) else {}
+    prior_conditions, warnings = _conditions(prior.get('conditions', []), preserve_ids=True)
     proposed = candidate.get('conditions')
     if proposed is None:
-        proposed = prior.get('conditions', [])
-    conditions, warnings = _conditions(proposed)
-    if warnings and not conditions and proposed != []:
-        conditions, _ = _conditions(prior.get('conditions', []))
-        warnings.append('Malformed optional conditions; prior advisory conditions retained')
+        conditions = prior_conditions
+    else:
+        conditions, proposal_warnings = _conditions(proposed)
+        warnings.extend(proposal_warnings)
+        if proposal_warnings and not conditions and proposed != []:
+            conditions = prior_conditions
+            warnings.append('Malformed optional conditions; prior advisory conditions retained')
+    previous_by_key = {_id(_condition(row)): row for row in prior_conditions}
+    for row in conditions:
+        previous = previous_by_key.get(_id(_condition(row)))
+        if previous is not None:
+            row['condition_id'] = previous['condition_id']
+            if previous.get('condition_aliases'):
+                row['condition_aliases'] = list(previous['condition_aliases'])
     dispositions = candidate.get('dispositions', [])
     dispositions = dispositions[:8] if isinstance(dispositions, list) else []
-    prior_conditions, _ = _conditions(prior.get('conditions', []))
     preserved = []
     retired = set()
     for previous in prior_conditions:
         identifier = previous['condition_id']
-        matches = [d for d in dispositions if isinstance(d, dict) and d.get('condition_id') == identifier]
-        if len(matches) > 1:
+        matches = _matches(previous, dispositions)
+        if _ambiguous(matches):
             preserved.append(previous)
             warnings.append(f'Ambiguous duplicate dispositions for {identifier}; prior condition retained')
         elif matches and matches[0].get('disposition') == 'retired':
@@ -227,14 +282,19 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
     prior_rows = []
     active = {row['condition_id'] for row in conditions}
     for row in prior.get('observations', [])[:8]:
-        matches = [d for d in dispositions if isinstance(d, dict) and d.get('condition_id') == row.get('condition_id')]
-        supplied = matches[0] if len(matches) == 1 else {}
+        previous = next((c for c in prior_conditions if row.get('condition_id') in {c['condition_id'], *c.get('condition_aliases', [])}), row)
+        matches = _matches(previous, dispositions)
+        supplied = matches[0] if matches and not _ambiguous(matches) else {}
         disposition = supplied.get('disposition')
         if disposition not in ('kept', 'overridden', 'retired'):
-            disposition = 'kept' if row.get('condition_id') in active else 'superseded'
+            disposition = 'kept' if previous.get('condition_id') in active else 'superseded'
         reason = supplied.get('reason') or candidate.get('disposition_reason')
         reason = reason[:1000] if isinstance(reason, str) and reason.strip() else 'reason not supplied'
-        prior_rows.append({**row, 'disposition':disposition, 'disposition_reason':reason})
+        prior_rows.append({**row, 'disposition':disposition, 'disposition_reason':reason,
+                           **({'alias_dispositions': [
+                               {'condition_id':d.get('condition_id'), 'disposition':d.get('disposition'),
+                                'reason':d.get('reason', '')[:1000] if isinstance(d.get('reason', ''), str) else 'reason not supplied'}
+                               for d in matches]} if len(matches) > 1 or previous.get('condition_aliases') else {})})
     rationale = candidate.get('rationale')
     return {
         'schema_version':1, 'version_id':str(uuid5(NAMESPACE_URL, 'research-thesis:' + run_id)),

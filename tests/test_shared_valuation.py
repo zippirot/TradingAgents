@@ -274,3 +274,11 @@ def test_undated_shared_arithmetic_keeps_comparison_explicitly_unavailable():
     assert record['rows'][0]['comparison']['status'] == 'unavailable'
     text = render_shared_valuation(record)
     assert 'undated' in text.lower() and 'What the price implies' in text
+
+
+def test_explicit_empty_proposal_is_distinct_from_malformed_payload():
+    result = prepare_shared_valuation(state([]))
+    assert result['reasons'] == ['No valuation scenarios were proposed; no numerical sensitivity published.']
+    malformed = state([])
+    malformed['financial_claim_validation']['raw_report'] = '```valuation_scenarios\n[broken\n```'
+    assert 'malformed' in prepare_shared_valuation(malformed)['reasons'][0]
