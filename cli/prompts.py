@@ -233,6 +233,14 @@ _OPENROUTER_MAINSTREAM = {
 }
 
 
+# User-requested favorites remain available independently of the live shortlist.
+_OPENROUTER_PINNED = [
+    ("Claude Opus 5.5", "anthropic/claude-opus-5.5"),
+    ("DeepSeek V4 Pro", "deepseek/deepseek-v4-pro"),
+    ("GPT-6.1 Sol", "openai/gpt-6.1-sol"),
+]
+
+
 def _fetch_openrouter_models() -> list[tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
     import requests
@@ -297,7 +305,7 @@ def _require_text(message: str, hint: str) -> str:
 
 
 def select_openrouter_model(mode: str, default=None) -> str:
-    """Select an OpenRouter model from the newest available, or enter a custom ID.
+    """Select a pinned favorite, a recent OpenRouter model, or a custom ID.
 
     ``mode`` ("quick"/"deep") labels the prompt so the two consecutive
     OpenRouter selections are distinguishable, like the other providers (#1000).
@@ -310,9 +318,11 @@ def select_openrouter_model(mode: str, default=None) -> str:
         if not mid.startswith("~")  # skip variant/alias duplicate routes
         and mid.split("/", 1)[0] in _OPENROUTER_MAINSTREAM
     ]
-    top = (mainstream or models)[:5]
+    pinned_ids = {mid for _, mid in _OPENROUTER_PINNED}
+    recent = [(name, mid) for name, mid in (mainstream or models) if mid not in pinned_ids][:5]
+    options = _OPENROUTER_PINNED + recent
     return _select_listed_model(
-        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (latest available):", top, default,
+        f"Select Your [{mode.title()}-Thinking] OpenRouter Model (favorites + latest):", options, default,
         lambda: _require_text("Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
                               "Please enter a model ID."))
 
