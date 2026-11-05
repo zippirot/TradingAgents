@@ -120,3 +120,28 @@ class TestLanguageDefaultsToEnglish:
         with mock.patch.object(prompts.questionary, "select", return_value=_asks("custom")), \
              mock.patch.object(prompts.questionary, "text", return_value=_asks(None)):
             assert prompts.ask_output_language() == "English"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("mode", ["quick", "deep"])
+@pytest.mark.parametrize("live", [[], [("New", "openai/newer-model"),
+                                      ("Opus duplicate", "anthropic/claude-opus-5.5")]])
+def test_requested_models_stay_visible_once_without_changing_default(mode, live):
+    captured = {}
+    saved = "openai/newer-model"
+
+    def fake_select(message, **kwargs):
+        captured.update(kwargs)
+        return _asks("openai/gpt-6.1-sol")
+
+    with mock.patch.object(prompts, "_fetch_openrouter_models", return_value=live), \
+         mock.patch.object(prompts.questionary, "select", side_effect=fake_select):
+        assert prompts.select_openrouter_model(mode, default=saved) == "openai/gpt-6.1-sol"
+
+    values = [c.value for c in captured["choices"]]
+    pinned = ["anthropic/claude-opus-5.5", "deepseek/deepseek-v4-pro", "openai/gpt-6.1-sol"]
+    assert values[:3] == pinned
+    assert all(values.count(mid) == 1 for mid in pinned)
+    assert "custom" in values
+    if live:
+        assert captured["default"] == saved
