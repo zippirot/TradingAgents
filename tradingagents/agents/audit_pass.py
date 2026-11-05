@@ -206,7 +206,7 @@ def render_advisory_audit(record):
     truncated = [str(key).replace("_", " ") for key, value in truncation.items() if value is True] if isinstance(truncation, Mapping) else []
     lines.append("Review covers bounded supplied material." + (" Truncated inputs: " + _escape(", ".join(truncated)) + "." if truncated else ""))
     independence = record.get("independence_by_role")
-    if isinstance(independence, Mapping):
+    if isinstance(independence, Mapping) and independence:
         same = [_escape(role.replace("_", " "), 80) for role, value in list(independence.items())[:20] if value == "same model"]
         different = [_escape(role.replace("_", " "), 80) for role, value in list(independence.items())[:20] if value == "different model"]
         lines.append("Reviewer model: same as " + (", ".join(same) or "none") + "; different from " + (", ".join(different) or "none") + ".")
@@ -236,4 +236,6 @@ def render_advisory_audit(record):
         lines.append(f"- **{role} / {issue}** — “{quote}” (reference: {label}). {explanation}")
     if status == "unavailable":
         lines.append("Audit unavailable or invalid; no clean review is implied.")
+        if isinstance(record.get("error"), str):
+            lines.append("Reason: " + _escape(record["error"]) + ".")
     return "\n".join(lines)[:9500] + "\n"

@@ -52,6 +52,24 @@ def parse_peer_proposal(report, subject):
         return {"status": "unavailable", "reason": str(exc), "peers": []}
 
 
+def _pinned_rows(value, subject):
+    if not isinstance(value, list) or len(value) > MAX_PEERS:
+        raise ValueError("Pinned peer set must be a list of at most five tickers")
+    rows, rejected, seen = [], [], set()
+    for index, item in enumerate(value, 1):
+        try:
+            row = _peer_rows([item], subject, pins=True)[0]
+            if row["ticker"] in seen:
+                raise ValueError("Duplicate pinned peer ticker")
+            seen.add(row["ticker"])
+            rows.append(row)
+        except (ValueError, TypeError) as exc:
+            ticker = item.get("ticker") if isinstance(item, dict) else item
+            rejected.append({"ticker": str(ticker)[:24] if isinstance(ticker, str) else f"pin entry {index}",
+                             "reason": str(exc), "selection_reason": "User-pinned comparison"})
+    return rows, rejected
+
+
 def peer_selection_fingerprint(config):
     """Content, including an environment-selected pin file, changes checkpoint identity."""
     import hashlib
@@ -90,8 +108,9 @@ def default_peer_selection(state, config):
                 normalized[symbol] = value
             pins = normalized
             if subject in pins:
+                peers, rejected = _pinned_rows(pins[subject], subject)
                 return {"kind": "user-pinned", "status": "available", "reason": None,
-                        "peers": _peer_rows(pins[subject], subject, pins=True)}
+                        "peers": peers, "rejected": rejected}
         except (OSError, ValueError, TypeError) as exc:
             return {"kind": "user-pinned", "status": "unavailable", "reason": str(exc), "peers": []}
     empty = {"kind": "previous", "status": "available", "peers": [],
@@ -167,9 +186,9 @@ def _quarters(package):
     revenue_ends = {f.period_end for f in package.facts if f.metric == "Revenue"
                     and f.period_start is not None and f.value is not None
                     and 60 <= (f.period_end - f.period_start).days + 1 <= 115}
-    ends = {f.period_end for f in package.facts if f.metric == "Common Shares Outstanding"
-            and f.period_start is None and f.value is not None and f.value > 0
-            and f.period_end in revenue_ends and f.period_end >= package.as_of - timedelta(days=1830)}
+    # Request the revenue quarter even when shares are missing. Its unavailable
+    # reason must survive into the reference section instead of silently vanishing.
+    ends = {day for day in revenue_ends if day >= package.as_of - timedelta(days=1830)}
     return [str(day) for day in sorted(ends)[-24:]]
 
 
@@ -213,6 +232,8 @@ def _fetch_peer(ticker, state):
         cik = sec_edgar.cik_for(ticker)
         if not cik:
             raise ValueError("Peer is not identified in the SEC issuer map")
+        if cik == (state.get("issuer_identity") or {}).get("cik"):
+            raise ValueError("Peer resolves to the subject issuer under another ticker")
         package = add_period_calculations(sec_edgar.get_financial_evidence(ticker, scope["as_of"]))
         if package.cik != cik or str(package.as_of) != scope["as_of"]:
             raise ValueError("Peer financial issuer or cutoff mismatch")
@@ -234,13 +255,15 @@ def _peer_set(selection, state, sources):
     from tradingagents.agents.valuation_reference import calculate_peer_statistics, peer_range
     from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
 
-    accepted, rejected = [], []
+    accepted, rejected = [], list(selection.get("rejected") or [])
     for row in _peer_rows(selection.get("peers", []), state["company_of_interest"]):
         ticker, raw = row["ticker"], sources.get(row["ticker"]) or {}
         try:
             if raw.get("status") != "available":
                 raise ValueError(raw.get("reason") or "Retained peer sources unavailable")
             subject = _canonical_quote(state)
+            if raw["issuer_identity"].get("cik") == (state.get("issuer_identity") or {}).get("cik"):
+                raise ValueError("Peer resolves to the subject issuer under another ticker")
             quote = validate_price_observation(raw["price_observation"], ticker, state["trade_date"])
             if quote["currency"] != subject["currency"]:
                 raise ValueError("Peer currency differs from the subject completed price currency")
@@ -268,9 +291,14 @@ def _history(state, raw, subject):
     prices, splits = replay_reference_history(raw, state["company_of_interest"], state["trade_date"], _quarters(package))
     if raw.get("observation_cutoff") != _scope(state)["observation_cutoff"]:
         raise ValueError("Historical price cutoff differs from this run")
-    return calculate_own_history(package, state["issuer_identity"], prices, splits,
-                                 ticker=state["company_of_interest"],
-                                 current_multiple=subject.get("multiple") if subject["status"] == "available" else None)
+    result = calculate_own_history(package, state["issuer_identity"], prices, splits,
+                                   ticker=state["company_of_interest"],
+                                   current_multiple=subject.get("multiple") if subject["status"] == "available" else None)
+    priced = {row["quarter_end"] for row in prices}
+    result["excluded"] = [*result.get("excluded", []), *[
+        day + ": completed quarter-end close unavailable within seven days"
+        for day in _quarters(package) if day not in priced]]
+    return result
 
 
 def _assemble(state, record):
@@ -326,7 +354,7 @@ def acquire_reference_inputs(state, config):
             history = get_reference_history(scope["ticker"], scope["as_of"], ends,
                                             observation_cutoff=scope["observation_cutoff"])
         elif configured:
-            history = _unavailable("Fewer than four exact quarter-end share/revenue pairs")
+            history = _unavailable("Fewer than four reported revenue quarters available")
     except (ValueError, TypeError, KeyError) as exc:
         history = _unavailable(exc)
     selection = default_peer_selection(state, config)
@@ -415,6 +443,8 @@ def render_valuation_reference(record):
         lines.append("History source_id " + _cell(history["split_source_id"]) + "; complete fact and source lineage retained.")
     else:
         lines.append("Own history unavailable: " + _cell(history["reason"]))
+    for reason in history.get("excluded", [])[:24]:
+        lines.append("Excluded " + _cell(reason) + ".")
     peers = record["peers"]
     lines += ["", "Peers — " + peers["kind"] + ". " + peers["qualification"] + "."]
     if record["phase"] == "preanalyst":
@@ -535,12 +565,31 @@ def validate_vendor_expectations(state):
 
 
 def render_guidance_consensus(state):
+    from tradingagents.agents.valuation_comparison import price_implied_valuation
     from tradingagents.agents.valuation_outlooks import grounded_outlooks
     from tradingagents.dataflows.vendors.yahoo.expectations import compare_guidance_consensus
 
     record = validate_vendor_expectations(state)
-    lines = [render_vendor_expectations(record)]
-    for outlook in grounded_outlooks(state):
+    vendor_lines = render_vendor_expectations(record).splitlines()
+    lines = vendor_lines[:2]
+    outlooks = grounded_outlooks(state)
+    if not any(outlook.kind == "guidance" and outlook.metric == "Revenue" for outlook in outlooks):
+        # Reuse the source-only statement already validated for the price-implied
+        # section. Keep its stated period; do not invent explicit fiscal dates or
+        # an accounting basis merely to make a vendor comparison possible.
+        source = price_implied_valuation(state)
+        interval = source.get("management_revenue_guidance_range_usd")
+        if interval:
+            period = source.get("management_revenue_guidance_period") or f"full year {source['analysis_year']}"
+            reference = source["disclosure_references"]["revenue"]
+            lines += [f"Management revenue guidance ({_cell(period)}): "
+                      f"{_number(interval[0])}–{_number(interval[1])} USD; source-bound management statement, not an observed result. "
+                      f"source_id {_cell(reference['source_id'])}; {_cell(reference['locator'])}.",
+                      "Guidance/consensus difference unavailable: matching explicit fiscal dates, currency, units and accounting basis are not established for both records. No period or basis is inferred.", ""]
+        else:
+            lines += ["Management revenue guidance unavailable from source-only discovery; no compatible row is inferred.", ""]
+    lines.extend(vendor_lines[2:])
+    for outlook in outlooks:
         if outlook.kind != "guidance":
             continue
         metric = "revenue" if outlook.metric == "Revenue" else "eps"

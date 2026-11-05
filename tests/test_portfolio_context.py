@@ -81,6 +81,9 @@ def _bare_graph(tmp_path):
     from tradingagents.memory import TradingMemoryLog
 
     graph = object.__new__(TradingAgentsGraph)
+    # This fixture bypasses __init__; retain its no-callback metrics state.
+    graph._metrics_observer_id = "portfolio-context-fixture"
+    graph._metrics_callback = None
     graph.config = {"memory_log_path": str(tmp_path / "m.md"), "max_debate_rounds": 1,
                     "max_risk_discuss_rounds": 1}
     graph.memory_log = TradingMemoryLog(graph.config)

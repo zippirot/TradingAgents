@@ -446,7 +446,7 @@ def render_price_implied_valuation(record: dict) -> str:
                  if record['shares'] else 'reported outstanding shares unavailable on the compatible capital date.'),
               f"Dated equity value (price × shares): {_number(record['equity_value_usd'])} USD. "
               'This is not an executable current market capitalization.', '',
-              f'Obligation perimeter | Components and cash (USD) | Price-implied numerator USD | Trailing revenue | {_cell(guidance_period)} management guidance | {_cell(growth_period)} growth floor, conditional upper',
+              f'Obligation perimeter (enterprise value / revenue) | Components and cash (USD) | Enterprise value numerator USD | Trailing revenue | {_cell(guidance_period)} management guidance | {_cell(growth_period)} growth floor, conditional upper',
               '--- | --- | ---: | ---: | ---: | ---:']
     for row in record['rows']:
         ratios = row.get('ratios') or {}
@@ -484,7 +484,7 @@ def render_price_implied_valuation(record: dict) -> str:
         ref = record['disclosure_references']['guided_shares']
         lines += ['', f"Guided diluted weighted-average shares ({_cell(share_period)}): {_number(low)}–{_number(high)}; conditional sensitivity, not current shares outstanding. Source: {_cell(ref['source_id'])}, {_cell(ref['locator'])}.",
                   'Its numerator and multiple ranges use the low share count with the high revenue and the high share count with the low revenue.', '',
-                  f'Perimeter | Guided-share numerator USD | Trailing revenue | {_cell(guidance_period)} guidance | Conditional {_cell(growth_period)} upper',
+                  f'Perimeter (enterprise value / revenue) | Guided-share enterprise value numerator USD | Trailing revenue | {_cell(guidance_period)} guidance | Conditional {_cell(growth_period)} upper',
                   '--- | ---: | ---: | ---: | ---:']
         for row in record['rows']:
             sensitivity = row.get('guided_diluted_weighted_average_share_sensitivity')

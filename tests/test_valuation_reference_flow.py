@@ -103,8 +103,10 @@ def flow_fixture(monkeypatch):
         }
         return reference_history._project(raw)
     monkeypatch.setattr(reference_history, "get_reference_history", history)
-    monkeypatch.setattr(sec_edgar, "cik_for", lambda t: calls.append(("identity", t)) or package.cik)
-    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda t, d: calls.append(("facts", t)) or package)
+    peer_packages = {ticker: fixture(cik=cik, ticker=ticker)[0]
+                     for ticker, cik in (("AKAM", "0001000001"), ("MSFT", "0001000002"))}
+    monkeypatch.setattr(sec_edgar, "cik_for", lambda t: calls.append(("identity", t)) or peer_packages[t].cik)
+    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda t, d: calls.append(("facts", t)) or peer_packages[t])
     monkeypatch.setattr(price_observation, "get_price_observation", lambda t, *a: calls.append(("price", t)) or quotes[t])
     monkeypatch.setattr(expectations, "get_vendor_expectations", lambda t, d, **kw:
                         expectations.VendorExpectations(status="unavailable", reason="Fixture has no consensus",
@@ -290,3 +292,74 @@ def test_peer_pins_are_case_normalized_and_checkpoint_fingerprint_tracks_content
     path.write_text(json.dumps({"DOCN": []}))
     assert flow.peer_selection_fingerprint(config) != before
     assert flow.default_peer_selection({"company_of_interest": "DOCN"}, config)["peers"] == []
+
+
+def test_invalid_pin_rows_are_listed_without_discarding_valid_pins(monkeypatch, tmp_path):
+    from tradingagents.agents import valuation_reference_flow as flow
+    state, config, calls, _ = flow_fixture(monkeypatch)
+    path = tmp_path / "peers.json"
+    path.write_text(json.dumps({"DOCN": ["DOCN", "AKAM", "AKAM", "MSFT"]}))
+    config["valuation_peers_file"] = str(path)
+    prepared = flow.acquire_reference_inputs(state, config)
+    peers = prepared["valuation_reference"]["peers"]
+    assert [row["ticker"] for row in peers["accepted"]] == ["AKAM", "MSFT"]
+    assert len(peers["rejected"]) == 2
+    assert {row["ticker"] for row in peers["rejected"]} == {"DOCN", "AKAM"}
+    final = flow.finalize_peer_reference({**state, **prepared, "fundamentals_report": block("[]")}, config)
+    assert [row["ticker"] for row in final["valuation_reference"]["peers"]["accepted"]] == ["AKAM", "MSFT"]
+
+
+def test_same_issuer_under_a_different_ticker_cannot_be_a_peer(monkeypatch):
+    from tests.test_valuation_reference import fixture
+    from tradingagents.agents import valuation_reference_flow as flow
+    from tradingagents.dataflows.vendors import sec_edgar
+    state, config, _, _ = flow_fixture(monkeypatch)
+    package, _ = fixture()
+    monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: package.cik)
+    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda *args: package)
+    state.update(flow.acquire_reference_inputs(state, config))
+    final = flow.finalize_peer_reference({**state, "fundamentals_report": block(
+        '[{"ticker":"AKAM","reason":"Fixture alias of same issuer"}]')}, config)
+    peers = final["valuation_reference"]["peers"]
+    assert not peers["accepted"]
+    assert "subject issuer" in peers["rejected"][0]["reason"]
+
+
+def test_missing_quarter_end_share_is_visible_as_an_unavailable_quarter(monkeypatch):
+    from tradingagents.agents import valuation_reference_flow as flow
+    state, config, _, _ = flow_fixture(monkeypatch)
+    facts = state["financial_evidence"]["facts"]
+    shares = next(row for row in facts if row["metric"] == "Common Shares Outstanding" and row["period_end"] == "2025-12-31")
+    shares["period_end"] = "2026-01-15"  # Cover-page shares must not substitute for quarter-end.
+    prepared = flow.acquire_reference_inputs(state, config)
+    history = prepared["valuation_reference"]["own_history"]
+    assert history["status"] == "available"
+    assert any("2025-12-31" in row and "shares" in row for row in history["excluded"])
+    assert "Excluded 2025-12-31" in prepared["valuation_reference_brief"]
+    assert "2025-12-31" in prepared["valuation_reference"]["raw_sources"]["history"]["quarter_ends"]
+
+
+def test_price_implied_tables_explicitly_name_enterprise_value_basis(monkeypatch):
+    from tests.test_price_implied_valuation import synthetic_state
+    from tradingagents.agents.valuation_comparison import (
+        price_implied_valuation,
+        render_price_implied_valuation,
+    )
+    result = price_implied_valuation(synthetic_state(monkeypatch))
+    rendered = render_price_implied_valuation(result)
+    assert "Obligation perimeter (enterprise value / revenue)" in rendered
+    assert "Enterprise value numerator USD" in rendered
+
+
+def test_source_management_guidance_is_adjacent_to_unknown_consensus(monkeypatch):
+    from tradingagents.agents import valuation_comparison, valuation_reference_flow as flow
+    state, _, _, _ = flow_fixture(monkeypatch)
+    monkeypatch.setattr(valuation_comparison, "price_implied_valuation", lambda state: {
+        "status": "available", "management_revenue_guidance_range_usd": ["1208000000", "1211000000"],
+        "management_revenue_guidance_period": "full year 2026", "analysis_year": 2026,
+        "disclosure_references": {"revenue": {"source_id": "sec-guidance", "locator": "block-46"}}})
+    text = flow.render_guidance_consensus(state)
+    assert "Management revenue guidance (full year 2026)" in text
+    assert "sec-guidance" in text and "block-46" in text
+    assert "Guidance/consensus difference unavailable" in text
+    assert "explicit fiscal dates" in text

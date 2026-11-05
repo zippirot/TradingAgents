@@ -183,7 +183,17 @@ class GraphSetup:
             return result
 
         def metrics_node(state):
-            return {"run_metrics": self.metrics_observer(state)} if self.metrics_observer else {}
+            result = {"run_metrics": self.metrics_observer(state)} if self.metrics_observer else {}
+            if (state.get("evidence_quality") or {}).get("status") == "insufficient" and "advisory_audit" not in state:
+                # The existing REVIEW gate bypasses all decision calls. Disclose
+                # the missing audit without invoking a model or changing the gate.
+                result["advisory_audit"] = {
+                    "status": "unavailable", "findings": [], "counts_by_type": {},
+                    "submitted_count": 0, "accepted_count": 0, "rejected_count": 0,
+                    "rejection_reasons": [], "independence_by_role": {},
+                    "error": "not run: insufficient evidence; risk debate and Portfolio Manager were bypassed",
+                }
+            return result
 
         workflow.add_node("Advisory Audit", audit_node)
         workflow.add_node("Run Metrics", metrics_node)
