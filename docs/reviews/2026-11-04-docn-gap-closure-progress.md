@@ -735,3 +735,52 @@ three immutable files stayed unchanged. Final full suite passed 2207 tests and
 in 16.05 seconds. Changed-file Ruff/diff checks passed. The remaining mandatory
 step is the connected completed-build audit against the exact approved base
 and committed candidate, then closure/reverification of material findings.
+
+## Completed build and final audit disposition
+
+A, B and C are accepted. The connected read-only completed-build audit
+59a6b545-0fff-44d1-b289-45c38145f65f reviewed exact base
+f1e846d67bd9d02446956df882650f4eedac3a1b through candidate
+2b71e88c180bcc3904a56c6ba8fd237b8977f174. Requested/served model was
+~anthropic/claude-fable-latest. It completed with zero critical/high/medium
+findings and four low findings, costing $4.46147625. Full report and explicit
+dispositions are committed alongside this record. The connected audit used
+the frozen diff/requirements; it did not rerun tests or inspect untracked
+raw runtime files. Independent local build reviews did verify those artifacts.
+
+One low finding was fixed: nested outcome entry-policy labels now reject
+unsupported relabeling, preserving missing legacy labels. The red-to-green
+regression,49 focused checks,32 independent checks, and actual immutable
+legacy companion readback passed. Post-audit full suite:2208 passed plus100
+subtests,one optional langchain_aws skip,one integration deselection,20warnings,
+15.82seconds. Ruff/diff checks passed. Code and audit dispositions are committed
+at b2007b37f3a29d832f69d23893f17bdf05ad7903; the following handoff commit changes
+only this completion record. No confirmed material finding remains open.
+
+The other low items are disclosed: malformed programmatic configs outside the
+configured launcher path; maintenance of intentionally bounded issuer wording
+patterns; and frozen-auditor access to untracked runtime receipts. No speculative
+framework or configuration expansion was added. Original accepted evidence
+remains intact; affected checks were rerun after corrections.
+
+Spending: six of seven Shallow live attempts,$15.5909375 conservative token-rate
+usage; audit,$4.46147625 reported actual cost; combined,$20.05241375 against the
+$100 ceiling. Codex usage is separate. The setup-only rejected proof invocation
+and audit-directory validation rejection made no paid request. No seventh
+research attempt or paid audit recheck was needed.
+
+Unresolved limits are explicit: prospective longer-horizon investment evidence
+is pending; no investment edge is claimed; typed consensus is unavailable;
+forward-funding behavior has deterministic/independent proof but no live model
+request; HTML text/structure was verified without a browser screenshot; optional
+FRED and AWS dependencies remain unavailable. No recurring automation was added.
+
+Release boundary: branch codex/docn-abc-gap-closure stays local in the isolated
+worktree with its own environment and evidence. Machine2 launcher remains at
+b075166df6f1738ef691cee23d1473e5085e05a1. No merge,push,PR,deployment,production
+creation,installation or worktree removal occurred. Staging integration and
+Machine1/production release still require their separately authorized action.
+
+Completion notifier cleanup: only this Goal notification key was disabled using
+the existing helper lock/atomic writer; other opt-ins and incident history were
+preserved. The notifier has no disable CLI subcommand; no skill source changed.
