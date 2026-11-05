@@ -1,0 +1,39 @@
+{
+  "audit_run_id": "59a6b545-0fff-44d1-b289-45c38145f65f",
+  "audited_base": "f1e846d67bd9d02446956df882650f4eedac3a1b",
+  "audited_head": "2b71e88c180bcc3904a56c6ba8fd237b8977f174",
+  "audit_cost_usd": 4.46147625,
+  "material_findings_open": 0,
+  "dispositions": [
+    {
+      "finding": "missing/None results_dir in attempt logger",
+      "severity": "low",
+      "disposition": "deferred",
+      "reason": "Supported graph construction merges DEFAULT_CONFIG and CLI builds a complete validated results directory. Missing/None config is outside the approved configured execution path; no runtime proof uses it. A future config-validation improvement can address malformed programmatic construction without hiding errors."
+    },
+    {
+      "finding": "issuer-specific disclosure patterns and wording drift",
+      "severity": "low",
+      "disposition": "accepted limitation",
+      "reason": "The plan deliberately requires bounded deterministic extraction and second-issuer coverage, not a generalized issuer framework. Both recorded DOCN/NVDA cases pass strict source validation. Unrecognized future wording remains a coverage/maintenance limitation; no generic pattern expansion authorized or needed."
+    },
+    {
+      "finding": "nested outcome entry_policy not revalidated",
+      "severity": "low",
+      "disposition": "fixed and independently verified",
+      "reason": "Reject any supplied label other than the producer contract; preserve legacy absent labels. Regression reproduced before fix.49 focused tests and32 independent checks pass; actual legacy companion/evidence/publication hashes unchanged."
+    },
+    {
+      "finding": "untracked runtime receipts unavailable to frozen audit",
+      "severity": "low",
+      "disposition": "accepted audit limitation",
+      "reason": "Connected auditor reviewed the committed frozen diff/requirements, not local execution. Runtime artifacts remain in isolated results with committed hashes, and independent local build reviewers rehashed/read the actual records and reran checks. No claim that the connected auditor reran the suite or inspected those untracked raw artifacts."
+    }
+  ],
+  "post_audit_full_suite": "2208 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,15.82s",
+  "post_audit_log_sha256": "ad3a862602b44c84160fded16e39aaadbed68ccaf34bc6a1604b28e16f5d993c",
+  "post_audit_source_sha256": {
+    "tradingagents/memory/publication_outcomes.py": "3e3aabb45b0c05cbc1fe668c46e25735852cac98a7ae2bf4976ae0ef6058ada8",
+    "tests/test_publication_outcomes.py": "c8d839522115c46ad600d8c1ddf76b9aacd7c3a7f16750d1e8cb66fbcd3b64db"
+  }
+}

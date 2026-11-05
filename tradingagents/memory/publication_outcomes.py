@@ -64,6 +64,11 @@ def _initial(record: dict) -> dict:
 
 def _validate_price_outcome(outcome: dict, record: dict, endpoint: dict) -> None:
     kind, count = endpoint_group_key(endpoint)
+    # The producer's explanatory label is optional in older companions, but
+    # a supplied label must not claim a different execution/entry policy.
+    if ('entry_policy' in outcome
+            and outcome['entry_policy'] != 'first valid close strictly after cutoff_date'):
+        raise ValueError('Outcome entry policy does not match supported price observation')
     if (outcome['ticker'] != record['ticker'] or outcome['benchmark'] != endpoint['benchmark']
             or type(outcome['holding_days']) is not int or outcome['holding_days'] < 1
             or (kind == 'trading_sessions' and outcome['holding_days'] != count)):

@@ -38,9 +38,10 @@
     "results/docn-abc/live-06/evaluation.json": "1f67ef4dc80170107045cc87f0f2a3e13225a42a941601e2ff6ad01110085575",
     "results/docn-abc/c-final-offline-pytest.log": "c713410dfed135270b014068bd570fb29a158763b67ec2e5b556293718032a71",
     "results/docn-abc/final-c-settlement/evaluation-protocol-clarified.json": "90979e1c86a7e2996d8641d3fe6dd6ddffedc4055c4e3ec94b39625bc36220a0",
-    "results/docn-abc/final-c-settlement/evaluation-protocol-clarified.md": "c245862fc3ab87b1220b6f5ed85a33f6e236b22b4367e435fb5cad6105a762fe"
+    "results/docn-abc/final-c-settlement/evaluation-protocol-clarified.md": "c245862fc3ab87b1220b6f5ed85a33f6e236b22b4367e435fb5cad6105a762fe",
+    "results/docn-abc/post-audit-pytest.log": "ad3a862602b44c84160fded16e39aaadbed68ccaf34bc6a1604b28e16f5d993c"
   },
-  "status": "Build C accepted; connected final audit pending",
+  "status": "Build C accepted; connected final audit completed with no material findings; low policy-label fix independently verified",
   "live_attempt": 6,
   "live_requests": 16,
   "live_usage_cost_usd": 2.6379375,
@@ -54,7 +55,8 @@
     "independent_attempts": 14,
     "final_full_offline": "2207 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,16.05s",
     "targeted_protocol_review": "36 independent tests and actual clarified legacy report recomputation passed",
-    "runtime_independent_review": "Live artifacts/source hashes/publication/thesis/endpoints/legacy arithmetic/repeat/costs independently verified; no material findings"
+    "runtime_independent_review": "Live artifacts/source hashes/publication/thesis/endpoints/legacy arithmetic/repeat/costs independently verified; no material findings",
+    "post_audit_full_offline": "2208 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,15.82s"
   },
   "legacy_settlement": {
     "decision_id": "6baf6a6c-df44-528c-8a66-6106ab60833d",

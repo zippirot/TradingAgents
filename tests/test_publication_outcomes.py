@@ -193,3 +193,15 @@ def test_existing_graph_settlement_scans_publications_after_memory_is_empty(setu
     saved = outcomes.load_outcomes(config, record)
     assert saved['endpoints']['21_sessions']['status'] == 'pending'
     assert saved['endpoints']['63_sessions']['status'] == 'pending'
+
+
+def test_nested_entry_policy_cannot_be_relabelled_even_with_valid_checksum(setup, monkeypatch):
+    config, record = setup
+    monkeypatch.setattr(outcomes, 'fetch_outcome', lambda *a, **k: measured(a[2]))
+    outcomes.settle_publications(config)
+    path = publication.record_root(config) / 'outcomes' / (record['decision_id'] + '.json')
+    saved = json.loads(path.read_text())
+    saved['endpoints']['5_sessions']['outcome']['entry_policy'] = 'same-day executable opening trade'
+    outcomes._write(path, saved)
+    with pytest.raises(ValueError, match='integrity'):
+        outcomes.load_outcomes(config, record)
