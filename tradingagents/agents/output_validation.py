@@ -2,6 +2,7 @@
 
 from pydantic import ValidationError
 
+from tradingagents.agents.evidence_presentation import readable_evidence
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
@@ -62,6 +63,7 @@ def enforce_publication(state: dict) -> dict:
         "Detailed financial evidence is unavailable for this analysis scope. "
         "No fundamental fair-value calculation is published."
     )
+    context = readable_evidence(context)
     for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report"):
         if state.get(field):
             originals.setdefault(field, state[field])

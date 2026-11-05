@@ -4,6 +4,7 @@ import contextlib
 import re
 from pathlib import Path
 
+from tradingagents.agents.evidence_presentation import compact_prior_decision
 from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
 from tradingagents.dataflows.files import locked
 
@@ -373,7 +374,7 @@ class TradingMemoryLog:
         alpha = e["alpha"] or "n/a"
         holding = e["holding"] or "n/a"
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {raw} | {alpha} | {holding}]"
-        parts = [tag, f"DECISION:\n{e['decision']}"]
+        parts = [tag, f"DECISION:\n{compact_prior_decision(e['decision'])}"]
         if e["reflection"]:
             parts.append(f"REFLECTION:\n{e['reflection']}")
         return "\n\n".join(parts)
@@ -382,6 +383,7 @@ class TradingMemoryLog:
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {e['raw'] or 'n/a'}]"
         if e["reflection"]:
             return f"{tag}\n{e['reflection']}"
-        text = e["decision"][:300]
-        suffix = "..." if len(e["decision"]) > 300 else ""
+        decision = compact_prior_decision(e["decision"])
+        text = decision[:300]
+        suffix = "..." if len(decision) > 300 else ""
         return f"{tag}\n{text}{suffix}"

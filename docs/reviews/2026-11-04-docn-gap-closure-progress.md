@@ -64,6 +64,39 @@ Additional adversarial integrated assertions, compact evidence/prior-decision
 presentation and real proof remain required. The earlier parser results remain
 valid: its source and dependency environment have not changed.
 
+### Compact evidence and memory presentation
+
+The shared brief now names current reported metrics, accounting checks, periods,
+bases and coverage gaps with readable fact/source labels. Exact IDs live in a
+separate reference appendix; the canonical package, source locators and calculation
+lineage remain unchanged. Reused compatible-fact selection rejects conflicting
+core observations instead of choosing an arbitrary value. Reported quarter/YTD
+observations are not silently expanded into new TTM derivations.
+
+Canonical published decisions and new memory entries retain the readable values
+without embedding the reference index. Reports expose the exact index once as a
+separate appendix. Existing memory records are not rewritten: prompt projections
+shorten long hashes and point back to the original record. Original research and
+structured extraction remain in diagnostics; structured extraction fences are
+removed from ordinary research prose. Five debate/risk roles no longer repeat the
+same fundamentals context after receiving the shared brief.
+
+On the original DOCN report's frozen evidence package (1,019 facts), the previous
+accounting renderer produced 21,386 characters. The new context including exact
+references is 18,536 characters; its readable brief alone is 6,164 characters.
+This measures accounting presentation, not total model-token cost or investment
+quality. Source: `/Users/zipp/.tradingagents/logs/reports/DOCN_20261104_171931/evidence.json`.
+
+Verification on the final source candidate: full offline suite **1,869 passed,
+1 optional dependency skipped, 1 configured external-service deselected, 100
+subtests passed** in 13.92s. Full Ruff, dependency consistency and whitespace
+checks passed. Logs: `results/docn-abc/a1-offline/pytest-final-candidate.log`,
+`ruff.log`, `pip-check.log`. Earlier focused selections establish regression
+behavior; the final full suite includes them. Live proof and visual inspection
+of the actual saved live report remain pending, so the first slice is not yet
+accepted. A second full suite was justified by the added memory/report projections
+and final fact-selection change after the earlier 1,867-test run.
+
 ## Paid verification decision
 
 User approved: USD100 combined ceiling, allocated USD70 to at most seven

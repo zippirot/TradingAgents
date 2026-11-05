@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.agents.evidence_presentation import analyst_prose, evidence_references
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.files import replace_file
@@ -99,6 +100,11 @@ _SECTIONS = (
         "5_portfolio",
         (("Portfolio Manager", "decision.md", ("final_trade_decision",)),),
     ),
+    (
+        "VI. Evidence Reference Appendix",
+        "6_evidence",
+        (("Evidence References", "references.md", ("evidence_reference_appendix",)),),
+    ),
 )
 
 
@@ -126,6 +132,9 @@ def prepare_report_state(final_state: dict) -> dict:
     decision consumers; this copy is for presentation only.
     """
     prepared = {**final_state, **enforce_publication(final_state)}
+    references = evidence_references(prepared.get("canonical_financial_context") or "")
+    if references:
+        prepared["evidence_reference_appendix"] = references
     if (prepared.get("evidence_quality") or {}).get("status") == "insufficient":
         diagnostics = dict(prepared.get("unvalidated_outputs") or {})
         for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report"):
@@ -159,6 +168,8 @@ def prepare_report_state(final_state: dict) -> dict:
             validation = prepared.get("financial_claim_validation") or {}
             if isinstance(validation, dict) and isinstance(validation.get("raw_report"), str):
                 raw = validation["raw_report"] or raw
+            if isinstance(raw, str):
+                raw = analyst_prose(raw)
         if not isinstance(raw, str) or not raw:
             continue
         canonical = prepared.get(field) or ""

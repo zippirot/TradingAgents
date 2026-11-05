@@ -438,6 +438,7 @@ def assess_financial_package(
             }
         )
     disclosure_summary = ""
+    disclosure_references = []
     if disclosures is not None:
         from tradingagents.dataflows.disclosure_evidence import parse_disclosure_report
 
@@ -450,16 +451,26 @@ def assess_financial_package(
         disclosure_lines = [
             "Source-grounded disclosure excerpts (definitions and stated periods retained)"
         ]
+        source_labels = {
+            source_id: f"D{i}"
+            for i, source_id in enumerate(sorted({c.source_id for c in grounded.claims}), 1)
+        }
+        for document in disclosures.documents:
+            if document.source_id in source_labels:
+                disclosure_references.append(
+                    f"- {source_labels[document.source_id]}: source_id {document.source_id}; {document.url}"
+                )
         for claim in grounded.claims:
+            source_label = source_labels[claim.source_id]
             disclosure_lines.append(
                 f"- {claim.kind}: {claim.quote} Period: {claim.period}"
-                f" (source {claim.source_id}, {claim.period_locator or claim.locator})."
+                f" ({source_label}, {claim.period_locator or claim.locator})."
                 f" Definition: {claim.definition or 'not extracted'}"
-                f" (source {claim.source_id}, {claim.definition_locator or claim.locator})."
-                f" Value source {claim.source_id}, {claim.locator}."
+                f" ({source_label}, {claim.definition_locator or claim.locator})."
+                f" Value source {source_label}, {claim.locator}."
                 + (
                     f" Reported comparison: {claim.comparison.quote}; year-over-year basis source"
-                    f" {claim.source_id}, {claim.comparison.basis_locator}. No comparator amount inferred."
+                    f" {source_label}, {claim.comparison.basis_locator}. No comparator amount inferred."
                     if claim.comparison else ""
                 )
             )
@@ -505,6 +516,11 @@ def assess_financial_package(
         )
     if disclosure_summary:
         update["canonical_financial_context"] += "\n\n" + disclosure_summary
+        from tradingagents.agents.evidence_presentation import REFERENCE_END
+
+        update["canonical_financial_context"] = update["canonical_financial_context"].replace(
+            REFERENCE_END, "\n" + "\n".join(disclosure_references) + REFERENCE_END, 1,
+        )
     if disclosures is not None:
         update["filing_evidence"] = disclosures.model_dump(mode="json")
     if extraction is not None:
@@ -512,9 +528,7 @@ def assess_financial_package(
     if quality["status"] == "insufficient":
         update.update(review_terminal_state(quality))
     else:
-        update["fundamentals_report"] = (
-            claims["canonical_summary"] + "\n\n" + update["canonical_financial_context"]
-        )
+        update["fundamentals_report"] = update["canonical_financial_context"]
     return update
 
 
@@ -1065,47 +1079,89 @@ def cash_flow_checks(package, disclosures=None, source_precision=None):
 
 
 def canonical_accounting_context(package, calculations):
-    """Render actual checked inputs and arithmetic independently of analyst prose."""
+    """Render readable values once, with a separate exact-ID reference index."""
+    from tradingagents.agents.evidence_presentation import REFERENCE_END, REFERENCE_START
+
     by_id = {fact.fact_id: fact for fact in package.facts}
     selected = {
-        ident
-        for calculation in calculations
-        for ident in calculation.input_fact_ids
+        ident for calculation in calculations for ident in calculation.input_fact_ids
         if ident in by_id
     }
+    core = {
+        "Revenue", "Gross Profit", "Operating Income", "Net Income",
+        "Operating Cash Flow", "Cash and Cash Equivalents", "Total Assets",
+        "Total Liabilities", "Stockholders Equity", "Basic EPS", "Diluted EPS",
+        "Common Shares Outstanding", "Capital Expenditure",
+    }
+    coverage = []
+    for metric in sorted(core):
+        rows = [f for f in package.facts if f.metric == metric and f.origin == "reported"]
+        latest = max((f.period_end for f in rows), default=None)
+        rows = [f for f in rows if f.period_end == latest]
+        # Retain the latest reported quarter and YTD bases where available.
+        # Calculated TTM values and their lineage enter through calculations,
+        # never through an implicit expansion of this reported-value brief.
+        starts = [f.period_start for f in rows if f.period_start is not None]
+        keep = {min(starts), max(starts)} if starts else {None}
+        for start in sorted(keep, key=str):
+            candidates = [f for f in rows if f.period_start == start and f.value is not None]
+            chosen = _select_compatible_fact(package, candidates)
+            if chosen is not None:
+                selected.add(chosen.fact_id)
+            elif candidates:
+                coverage.append(f"- {metric} ({start or 'instant'} to {latest}): conflicting values or incompatible source bases; see full evidence records.")
+            elif rows:
+                coverage.append(f"- {metric}: unavailable; " + "; ".join(sorted({f.missing_reason or "missing value" for f in rows})))
     pending = list(selected)
     while pending:
-        fact = by_id[pending.pop()]
-        for parent in fact.input_fact_ids:
+        for parent in by_id[pending.pop()].input_fact_ids:
             if parent not in selected and parent in by_id:
                 selected.add(parent)
                 pending.append(parent)
+    ordered = sorted(selected, key=lambda key: (by_id[key].metric, str(by_id[key].period_start), key))
+    labels = {ident: f"F{i}" for i, ident in enumerate(ordered, 1)}
+    source_ids = {sid for ident in selected for sid in by_id[ident].source_ids}
+    sources = [source for source in package.sources if source.source_id in source_ids]
+    source_labels = {source.source_id: f"S{i}" for i, source in enumerate(sources, 1)}
+    documents = {}
+    for source in sources:
+        key = (source.url, source.filed_date, source.form)
+        documents.setdefault(key, f"U{len(documents) + 1}")
     lines = [
-        "Canonical accounting context — source values and deterministic checks",
-        "This context controls financial arithmetic. It does not verify all narrative interpretations.",
+        "Accepted evidence brief — source values and deterministic checks",
+        "Evidence checks determine usability; reported values are not forecasts. "
+        "Unvalidated interpretation cannot replace these inputs. Missing values are not zero.",
     ]
-    for calculation in calculations:
-        value = str(calculation.result) if calculation.result is not None else "unavailable"
-        lines.append(
-            f"- {calculation.method}: {calculation.status}; result {value} {calculation.unit or ''}; {calculation.message}; inputs {', '.join(calculation.input_fact_ids)}"
-        )
-    for ident in sorted(selected):
+    lines.extend(coverage)
+    for ident in ordered:
         fact = by_id[ident]
-        period = (
-            f"{fact.period_start} to {fact.period_end}"
-            if fact.period_start
-            else str(fact.period_end)
-        )
+        period = f"{fact.period_start} to {fact.period_end}" if fact.period_start else str(fact.period_end)
+        value = str(fact.value) if fact.value is not None else f"unavailable ({fact.missing_reason})"
         lines.append(
-            f"- Fact {ident}: {fact.metric} = {fact.value} {fact.unit}; {period}; {fact.origin}; sources {', '.join(fact.source_ids)}"
+            f"- [{labels[ident]}] {fact.metric}: {value} {fact.unit}; {period}; "
+            f"{fact.basis}; {fact.origin}; sources "
+            + ", ".join(source_labels[sid] for sid in fact.source_ids)
         )
-    source_ids = {source_id for ident in selected for source_id in by_id[ident].source_ids}
-    for source in package.sources:
-        if source.source_id in source_ids:
-            lines.append(
-                f"- Source {source.source_id}: filed {source.filed_date}, {source.form}; {source.locator}; {source.url}"
-            )
-    return "\n".join(lines)
+    references = ["### Evidence reference appendix", "Use exact IDs below for structured requests; display labels are not IDs."]
+    if calculations:
+        lines.append("Accounting checks:")
+    for i, calculation in enumerate(calculations, 1):
+        value = str(calculation.result) if calculation.result is not None else "unavailable"
+        title = calculation.method.removesuffix("_v1").replace("_", " ")
+        inputs = ", ".join(labels.get(ident, "unavailable input") for ident in calculation.input_fact_ids)
+        lines.append(f"- [C{i}] {title}: {calculation.status}; {value} {calculation.unit or ''}; {calculation.message}; inputs {inputs}")
+        references.append(f"- C{i}: method {calculation.method}")
+    for ident in ordered:
+        fact = by_id[ident]
+        references.append(f"- {labels[ident]}: fact_id {ident}")
+    for source in sources:
+        references.append(
+            f"- {source_labels[source.source_id]}: source_id {source.source_id}; "
+            f"{documents[(source.url, source.filed_date, source.form)]}; {source.locator}"
+        )
+    for (url, filed_date, form), label in documents.items():
+        references.append(f"- {label}: filed {filed_date}, {form}; {url}")
+    return "\n".join(lines) + REFERENCE_START + "\n".join(references) + REFERENCE_END
 
 
 def earnings_checks(package, source_precision=None):

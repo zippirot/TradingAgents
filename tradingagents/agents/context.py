@@ -2,10 +2,10 @@
 
 import functools
 import logging
-import re
 from collections.abc import Mapping
 from typing import Any
 
+from tradingagents.agents.evidence_presentation import analyst_prose
 from tradingagents.dataflows.date_window import is_historical
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
 
@@ -226,10 +226,7 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
         if isinstance(raw, str):
             # Extraction rows remain in diagnostics and their validated state
             # fields. They are never resubmitted as facts through this prose view.
-            prose = re.sub(
-                r"```(?:financial_claims|disclosures|valuation_scenarios)\b[^\n]*\n.*?(?:```|\Z)",
-                "", raw, flags=re.S,
-            ).strip()
+            prose = analyst_prose(raw)
             if prose:
                 truncated = len(prose) > 6000
                 context += (
@@ -262,6 +259,14 @@ def report_or_absent(text: str, source: str) -> str:
     if text:
         return text
     return f"(No {source} report in this run: it is not available, not an empty finding.)"
+
+
+def fundamentals_report_from_state(state: Mapping[str, Any]) -> str:
+    """Avoid repeating evidence already supplied by the shared role context."""
+    canonical = state.get("canonical_financial_context")
+    if isinstance(canonical, str) and canonical.strip():
+        return "See the accepted evidence brief and labeled research context above."
+    return report_or_absent(state.get("fundamentals_report", ""), "fundamentals")
 
 
 def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:

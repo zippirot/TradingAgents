@@ -1,6 +1,6 @@
 # Shared valuation scenarios before the investment debate
 
-Date: 2026-11-04. Status: implementation plan requested; no implementation, paid run, integration or release performed by this planning task.
+Date: 2026-11-04. Historical implementation plan. **Current status:** this subset is implemented and verified on the approved A/B/C base `f1e846d67bd9d02446956df882650f4eedac3a1b`; preserve the original technical scope below as a reference, and reuse its evidence rather than rebuilding it. See `docs/reviews/2026-11-04-shared-valuation-evidence.json` and `2026-11-04-shared-valuation-staging-integration.md`.
 
 ## Outcome and size
 
@@ -10,21 +10,15 @@ Success for the reader: the report makes clear what assumptions support each sce
 
 - **Build size:** small.
 - **Recommended model:** GPT-6 Sol (`gpt-6-sol`), **medium reasoning**, following the user's model-selection policy. Existing valuation contracts and focused integration tests make this bounded engineering work; no new financial model is required. This is engineering judgment, not a measured speed comparison. [Official model documentation](https://developers.openai.com/api/docs/models/gpt-6-sol) confirms the model and effort support; it identifies GPT-6.1 Sol as newer, but this recommendation preserves the user's stated GPT-6 Sol baseline.
-- **Active implementation and verification estimate:** **4–7 hours**, assuming the existing development environment and fixtures are usable. Includes focused checks, one final offline suite and report inspection; excludes approval or unavailable-provider waits.
+- **Historical active implementation and verification estimate:** **4–7 hours**, assuming the existing development environment and fixtures are usable. Includes focused checks, one final offline suite and report inspection; excludes approval or unavailable-provider waits.
 - **Codex credits:** no credible range without measured usage for this workload. API prices do not establish Codex credit consumption.
-- **Runtime cost:** no additional model invocations or data requests by design. Added prompt/report tokens can increase existing-call cost. A live smoke test needs a budget explicitly authorized for this task; a prior feature's spending authority is not reused.
+- **Runtime cost:** no additional model invocations or data requests by design. Added prompt/report tokens can increase existing-call cost. The prior live proof and its evidence are complete. New A/B/C paid work follows the approved USD 100 combined ceiling in the governing plan (USD 70 for at most seven Shallow live proofs including retries; USD 30 for independent audit/rechecks; Codex credits separate).
 
-## Verified baseline and execution boundary
+## Current execution boundary and historical baseline
 
-Source inspected on Machine 1: `/Users/zipp/Developer/tradingagents-integrity/repository`, clean `staging` at `b075166df6f1738ef691cee23d1473e5085e05a1`, matching GitHub `origin/staging` on November 4. The local planning checkout at `/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents` began at the older `75b4db6` and advanced independently during planning; final readback confirms it now also has `staging` at `b075166`. This planning task did not perform that integration. The prior remote `feature` worktree has been retired.
+The original small task was verified and integrated before this A/B/C worktree was created. Its historical estimate and task list below document that completed scope. The active governing plan is [DOCN review gap closure](2026-11-04-docn-review-gap-closure.md): use the existing isolated `/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure` worktree and `codex/docn-abc-gap-closure` branch at base `f1e846d67bd9d02446956df882650f4eedac3a1b`. Do not create another valuation worktree, reimplement these tasks, or integrate intermediate slices into staging. No launcher changes, merge, push, PR, deployment, installation or worktree cleanup are authorized by the A/B/C plan.
 
-For later authorized implementation, compare current staging with this baseline and create a new isolated `codex/shared-valuation-scenarios` branch/worktree from current verified staging on Machine 1. Reconcile relevant drift; do not restart the earlier integrity project. Remote access already used for source inspection:
-
-```sh
-ssh -i /Users/zipp/.ssh/tradingagents_machine1 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes zipp@100.89.132.10
-```
-
-Preserve existing local edits and historical reports. Completion requires committed task changes and verification records on the isolated branch. Push, PR, merge, production promotion, installed-app replacement and worktree removal remain separately authorized actions.
+The earlier Machine 1 and `b075166df6f1738ef691cee23d1473e5085e05a1` observations belong to the historical planning baseline, not the current implementation baseline. The launcher remains unchanged. Verify the completed valuation contracts on current source before extending them in Build B. Reuse recorded evidence when source, dependencies and assumptions still match; rerun affected checks after relevant changes.
 
 ## Scope and approach
 
@@ -101,12 +95,12 @@ git diff --check
 
 Confirm test names/environment before execution; extend the focused selection only for affected callers. The final offline suite is warranted by shared agent context, checkpoint signatures and publication paths. Keep existing external-service test exclusions; record skips and do not claim remote CI passed before an authorized publication triggers it.
 
-One representative live smoke with the existing configured provider is required to establish that the changed prompt produces usable scenarios and the debate engages with them. Use isolated development results/memory and a budget authorized for this task; no paid call is authorized by writing this plan. Inspect the actual scenario inputs, calculated table, first bull/bear arguments and final target/omission. If all scenarios are omitted, investigate the specific cause; it proves fallback handling, not successful use. Do not add repeated paid attempts or weaker validation to obtain a passing example. If no budget/provider is available, keep live acceptance explicitly pending rather than claiming it is proved by mocked tests.
+The representative live smoke for this subset is recorded in the shared-valuation evidence. For new B extensions, use the governing A/B/C plan's bounded live-proof path and combined budget; this historical task does not separately authorize another paid call. Inspect the actual scenario inputs, calculated table, first bull/bear arguments and final target/omission. If all scenarios are omitted, investigate the specific cause; it proves fallback handling, not successful use. Do not add repeated paid attempts or weaker validation to obtain a passing example. If no budget/provider is available, keep live acceptance explicitly pending rather than claiming it is proved by mocked tests.
 
 Inspect the complete diff and report artifacts before completion. Record the exact commit, check results, live-proof status, meaningful adjustments and remaining limits in the existing review-document location; commit implementation and evidence on the isolated branch. No profitability/backtest project or layered review workflow is part of this small change.
 
 ## Acceptance and deferred work
 
-Complete when supported scenarios reach both debaters before their first arguments; assumptions and disagreement are understandable in the report; optional scenario failures do not change existing evidence policy; final targets are still independently validated; required checks and the bounded live proof pass; and all task changes are committed. No claim that arbitrary reasoning is verified or investment returns are improved.
+This subset was accepted when supported scenarios reached both debaters before their first arguments; assumptions and disagreement are understandable in the report; optional scenario failures do not change existing evidence policy; final targets are still independently validated; required checks and the bounded live proof pass; and all task changes are committed. No claim that arbitrary reasoning is verified or investment returns are improved.
 
-No unresolved product choice is needed for this scope. Deferred: additional valuation methods, verified calculations during debate, calibration of scenario probabilities, and evidence that this change improves investment outcomes. Revisit only after observing whether the shared table improves actual reports.
+The historical subset has no unresolved product choice. The A/B/C extensions follow the governing plan. Deferred: additional valuation methods, verified calculations during debate, calibration of scenario probabilities, and evidence that this change improves investment outcomes. Revisit only after observing whether the shared table improves actual reports.
