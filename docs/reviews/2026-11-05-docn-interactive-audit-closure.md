@@ -69,5 +69,47 @@ Fresh-process source/hash/report/evidence/thesis/endpoint/memory readback passed
 All five new endpoints are pending; saved preferences are unchanged. This used
 16 requests,$2.8199875 conservative usage cost; all seven proofs total$18.410925.
 No further paid CLI proof is authorized under the existing seven-attempt cap.
-Connected targeted audit of this correction remains pending.
+Connected targeted audit a16b6a0c-0a55-40f9-973b-5a6d5448b35e completed on
+2b338e3571116faab2a346fbf7ace46878401a71 through
+ee2072cee18b71ae8ceb253a3a0169e00c57dad5. It confirms the three medium corrections,
+with no new medium-or-higher finding, at a cost of $0.876852. This executor reads
+the frozen diff and requirements; it does not independently run local proofs.
+Local independent reviews inspected full source, actual artifacts and tests.
 No merge,push,PR,installation,deployment,production creation or cleanup is authorized.
+
+
+## Targeted audit dispositions and final verification
+
+- Role-reset inheritance: fixed. Explicitly re-proposing unspecified clears a
+  prior classification, including when the measurement is kept. Omitting the
+  conditions proposal still preserves prior conditions. Prior observations keep
+  their original role. Two regressions failed before the fix and now pass.
+- Legacy alignment display: clarified that absent alignment metadata uses the
+  legacy default and was not explicitly recorded. The actual old settlement
+  record rendered correctly without mutating its publication or outcome.
+- Intermediate proof commit: locally verified 2945b2a to ee2072 changes only the
+  two review documentation files. The frozen auditor cannot independently
+  inspect that intermediate Git delta; this limitation is not called a new live
+  proof. After the final role-reset/display corrections, independent replay of
+  the actual live07 inputs reproduces the entire stored thesis exactly.
+- Truncated value_quote: already rejected by the existing scoped-context path,
+  confirmed through full-source independent review and a committed negative
+  regression. The frozen diff omitted that unchanged path; no validator was
+  weakened or duplicated to satisfy its visibility limitation.
+- Duplicate quote occurrences with different qualifiers: deliberately reject
+  ambiguous block-level provenance conservatively. This may reduce coverage;
+  it does not permit the exact-value claim to replace an ambiguous lower bound.
+
+Independent post-audit verification passed 83 tests and confirmed all 11 checked
+immutable artifacts remained unchanged. Final full suite passed 2232 tests and
+100 subtests, one optional AWS skip, one integration deselection, 20 warnings in
+19.85 seconds. Ruff/diff checks passed. No material finding remains open in the
+three corrected areas; the original deferred lows and unverified acceptance
+limits above remain explicit.
+
+Spending across the original build and this follow-up: live proofs $18.410925
+conservative token-rate usage (seven of seven attempts); two connected audits
+$5.33832825 reported cost; combined $23.74925325 of the approved $100, excluding
+Codex usage. Follow-up paid usage was $3.6968395. No saved settings changed.
+No merge, push, PR, installation, deployment, production creation or worktree
+removal occurred. The launcher remains b075166df6f1738ef691cee23d1473e5085e05a1.

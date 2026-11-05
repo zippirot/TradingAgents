@@ -258,8 +258,6 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
         previous = previous_by_key.get(_id(_condition(row)))
         if previous is not None:
             row['condition_id'] = previous['condition_id']
-            if row.get('thesis_role') == 'unspecified':
-                row['thesis_role'] = previous.get('thesis_role', 'unspecified')
             if previous.get('condition_aliases'):
                 row['condition_aliases'] = list(previous['condition_aliases'])
     dispositions = candidate.get('dispositions', [])
@@ -282,11 +280,11 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
     combined = {row['condition_id']: row for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
-            if row['condition_id'] in combined and row.get('thesis_role', 'unspecified') != 'unspecified':
+            if row['condition_id'] in combined:
                 prior_role = combined[row['condition_id']].get('thesis_role', 'unspecified')
                 combined[row['condition_id']] = {**combined[row['condition_id']], 'thesis_role': row['thesis_role']}
                 if prior_role != row['thesis_role']:
-                    warnings.append(f"Condition {row['condition_id']} role explicitly proposed for this version; prior observations retain their original interpretation.")
+                    warnings.append(f"Condition {row['condition_id']} role set by this version’s proposal; prior observations retain their original interpretation.")
             else:
                 combined.setdefault(row['condition_id'], row)
     if len(combined) > 8:

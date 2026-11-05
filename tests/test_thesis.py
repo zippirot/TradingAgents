@@ -458,3 +458,19 @@ def test_conflicting_roles_for_same_measurement_stay_unclassified():
     assert len(proposed['conditions']) == 1
     assert proposed['conditions'][0]['thesis_role'] == 'unspecified'
     assert any('Conflicting roles' in item for item in proposed['warnings'])
+
+
+@pytest.mark.parametrize('disposition', [None, 'kept'])
+def test_reproposal_can_reset_classified_role_to_unspecified(disposition):
+    prior = thesis.prepare_thesis({'conditions':[condition(thesis_role='supports_thesis')]},
+                                  None,'Buy','2026-11-04',str(uuid4()))
+    prior['observations'] = thesis.observe_conditions(prior,state('99'))
+    identifier = prior['conditions'][0]['condition_id']
+    candidate = {'conditions':[condition(thesis_role='unspecified')]}
+    if disposition:
+        candidate['dispositions'] = [{'condition_id':identifier,'disposition':disposition,
+                                     'reason':'Retain measurement, reset uncertain intent'}]
+    result = thesis.prepare_thesis(candidate,prior,'Buy','2026-11-04',str(uuid4()))
+    assert result['conditions'][0]['condition_id'] == identifier
+    assert result['conditions'][0]['thesis_role'] == 'unspecified'
+    assert result['prior_conditions'][0]['thesis_role'] == 'supports_thesis'

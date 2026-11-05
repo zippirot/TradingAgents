@@ -784,3 +784,17 @@ Machine1/production release still require their separately authorized action.
 Completion notifier cleanup: only this Goal notification key was disabled using
 the existing helper lock/atomic writer; other opt-ins and incident history were
 preserved. The notifier has no disable CLI subcommand; no skill source changed.
+
+## Subsequent interactive audit — November 5
+
+The user's interactive audit identified three medium defects that the original
+frozen audit missed. The earlier completion statement was too broad. Corrections
+and independent verification are recorded in
+2026-11-05-docn-interactive-audit-closure.md and its evidence JSON; the targeted
+connected audit is 2026-11-05-docn-correction-audit.json. All three medium defects
+are corrected; final full suite is 2232 passed plus100subtests. The seventh live
+proof passed, with unsupported final target/unknown Q4 observations explicitly
+retained. Original deferred lows and acceptance limits are not claimed fixed.
+Total proof/audit spending is $23.74925325; launcher and release boundaries remain
+unchanged. This follow-up did not create/reopen a native Goal or re-enable the
+completed Goal's notifier.

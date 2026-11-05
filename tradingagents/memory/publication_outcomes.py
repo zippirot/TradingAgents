@@ -294,6 +294,8 @@ def render_outcome_summary(
                      for endpoint in record['endpoints'].values()}
         policy_note = (' Benchmark alignment: asof (last valid benchmark close on or before each instrument endpoint).'
                        if 'asof' in alignment else '')
+        if any('benchmark_alignment' not in endpoint for endpoint in record['endpoints'].values()):
+            policy_note += ' Legacy default policy; alignment was not explicitly recorded.'
         lines.append(
             f"- D{index}: {_summary_cell(record['ticker'])}, as-of {_summary_cell(record['requested_as_of'])}, "
             f"{_summary_cell(record['canonical_rating'])}, {_summary_cell(record['evaluation_mode'])}; "

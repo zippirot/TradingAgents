@@ -1,0 +1,96 @@
+{
+  "run_id": "a16b6a0c-0a55-40f9-973b-5a6d5448b35e",
+  "status": "completed",
+  "started_at": "2026-11-05T13:00:08.516Z",
+  "deadline_at": "2026-11-05T13:20:08.516Z",
+  "completed_at": "2026-11-05T13:04:11.971Z",
+  "report": {
+    "base_commit": "2b338e3571116faab2a346fbf7ace46878401a71",
+    "head_commit": "ee2072cee18b71ae8ceb253a3a0169e00c57dad5",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 19,
+    "reviewed_files": [
+      "docs/reviews/2026-11-05-docn-interactive-audit-closure.md",
+      "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json",
+      "tests/test_crypto_publication_alignment.py",
+      "tests/test_decision_context.py",
+      "tests/test_disclosure_discovery.py",
+      "tests/test_thesis.py",
+      "tests/test_thesis_graph_roles.py",
+      "tests/test_thesis_integration.py",
+      "tradingagents/agents/decision_context.py",
+      "tradingagents/agents/managers/portfolio_manager.py",
+      "tradingagents/agents/schemas.py",
+      "tradingagents/dataflows/disclosure_context.py",
+      "tradingagents/dataflows/disclosure_evidence.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/memory/publication.py",
+      "tradingagents/memory/publication_outcomes.py",
+      "tradingagents/memory/thesis.py"
+    ],
+    "summary": "Frozen-manifest audit of 2b338e3\u2192ee2072c (17 changed paths) confirms the three interactive-audit medium corrections are implemented as documented. (1) New crypto publications now declare the nearest-prior 'asof' benchmark alignment while stocks stay 'exact_sessions'; existing stored records are byte-for-byte untouched and legacy crypto imports are covered by committed tests. (2) Advisory conditions carry an explicit thesis_role (supports_thesis/reconsideration_trigger/unspecified); measurement IDs exclude the role, conflicting roles coalesce to unspecified with a warning, display labels separate predicate truth from thesis meaning, the PM schema/prompt request intent, the advisory_thesis contract is versioned 1\u21922, and a compiled-graph test exercises memory\u2192observation\u2192PM prompt\u2192publication\u2192restart for all three roles. (3) Disclosure validation now rejects quotes truncated immediately before a percent-plus qualifier (including without context packages) and rejects 'historical' claims whose explicit dates/years exceed min(as_of, filed_date), failing closed on parse errors and not inventing fiscal calendars. The closure record and evidence JSON are internally consistent (live attempt 7/7, $2.8199875 run / $18.410925 cumulative within the $70 subceiling, five endpoints pending, final target unsupported) and candidly scope out unverified items (no exact-commit CI, no live classified-condition met/breached observation, deferred low findings). No critical or high defects found; residual issues are low-severity presentation/semantic edges and a provenance gap between the live-proof commit (2945b2a) and the audited head (ee2072c).",
+    "limitations": [
+      "Audit was restricted to the frozen request.json (requirements text + unified diff); no tests were executed and no working-tree, git, or network verification was performed, so recorded results (2230-test full suite, live-run artifacts, hashes, costs) are taken from the frozen record rather than reproduced.",
+      "The final live proof's source_head is intermediate commit 2945b2a, not the audited head ee2072c; the frozen manifest cannot confirm the intervening delta is docs-only, so live/runtime coverage of the exact head is not independently established (the closure doc itself marks the connected targeted audit as pending).",
+      "Whether schemas.py's PM-facing ThesisCondition is the same class as memory/thesis.py's (and therefore structurally accepts thesis_role from model output) cannot be confirmed from the diff hunks alone; only the description string change in schemas.py is visible.",
+      "The rejection path for a truncated value_quote (committed test test_full_lower_bound_quote_cannot_use_truncated_exact_numeric_projection) is asserted by test but the specific rejecting check lies outside the diff context, so I could not trace it; the cuts_percent_plus guard itself inspects claim.quote only.",
+      "Settlement-side 'asof' measurement behavior (benchmark nearest-prior close logic) is pre-existing code not shown in the diff; its correctness is inferred from the committed weekend-window test and recorded suite pass, not inspected directly.",
+      "Claims about PM instruction length (70178 chars condensed under a 70000 bound), artifact SHA-256 values, and live-run report contents could not be checked against actual files under the no-non-frozen-evidence constraint."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Outcome summary renderer defaults missing benchmark_alignment to 'asof', so any pre-field stored record would be displayed with the asof policy note and benchmark-date suffix it never declared",
+        "path": "tradingagents/memory/publication_outcomes.py"
+      },
+      {
+        "severity": "low",
+        "title": "prepare_thesis role inheritance prevents explicit demotion: a re-proposed condition with thesis_role 'unspecified' silently inherits the prior classified role, so intent cannot be reset to unknown without retiring the condition",
+        "path": "tradingagents/memory/thesis.py"
+      },
+      {
+        "severity": "low",
+        "title": "Final live proof executed on intermediate commit 2945b2a rather than audited head ee2072c; docs-only equivalence of the delta is not verifiable from the frozen manifest, leaving exact-head runtime coverage formally unproven (partially disclosed as pending)",
+        "path": "docs/reviews/2026-11-05-docn-interactive-audit-closure.md"
+      },
+      {
+        "severity": "low",
+        "title": "cuts_percent_plus truncation guard checks claim.quote only, not the effective numeric value_quote; rejection of truncated value_quote relies on other validation paths outside the diff, traceable only via the committed test",
+        "path": "tradingagents/dataflows/disclosure_evidence.py"
+      },
+      {
+        "severity": "low",
+        "title": "Percent-plus guard rejects on any occurrence of the quote followed by '+' anywhere in the block text (fail-closed but may reject a legitimately exact duplicate occurrence of the same phrase)",
+        "path": "tradingagents/dataflows/disclosure_evidence.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "unknown",
+      "escalation_reasons": []
+    },
+    "progress": {
+      "observed_events": 445,
+      "last_activity_at": "2026-11-05T13:04:11.683Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 3,
+      "hard_budget_usd": 5,
+      "soft_turn_limit": null,
+      "turn_limit": 40,
+      "wall_clock_limit_minutes": 20,
+      "actual_cost_usd": 0.8768520000000001,
+      "actual_elapsed_ms": 243254,
+      "soft_limit_reached": false
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

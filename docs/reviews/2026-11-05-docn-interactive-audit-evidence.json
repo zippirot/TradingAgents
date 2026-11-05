@@ -43,5 +43,24 @@
   "supported_scenario_rows": 3,
   "final_target_status": "unsupported",
   "full_suite": "2230 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,21.57s",
-  "full_suite_log_sha256": "1a27ceaf5821a3f3671a3041bdd2fc0236ca97192a3bd08bfcaa7cb98cd79ef8"
+  "full_suite_log_sha256": "1a27ceaf5821a3f3671a3041bdd2fc0236ca97192a3bd08bfcaa7cb98cd79ef8",
+  "targeted_connected_audit": {
+    "run_id": "a16b6a0c-0a55-40f9-973b-5a6d5448b35e",
+    "base": "2b338e3571116faab2a346fbf7ace46878401a71",
+    "head": "ee2072cee18b71ae8ceb253a3a0169e00c57dad5",
+    "status": "completed",
+    "medium_or_higher_findings": 0,
+    "cost_usd": 0.876852
+  },
+  "post_audit_full_suite": "2232 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,19.85s",
+  "post_audit_log_sha256": "186d563e6bc77579a87c0c86d7bc0a7b533efdb4e1cf38482c5bfc890e8cce19",
+  "post_audit_independent_verification": "83 tests pass; saved live07 thesis recomputes exactly; 11 immutable artifacts unchanged; legacy default alignment visibly labeled",
+  "post_audit_source_sha256": {
+    "tradingagents/memory/thesis.py": "350c00789adb7e709bdabb793dc90bc6935641b53dd58575215aa2c607a8f08f",
+    "tradingagents/memory/publication_outcomes.py": "2019ef2530c5aa136658722e03c5af0471c49c426767e5f5a4d13903a4978455",
+    "tests/test_thesis.py": "5702fd3485e0e68c260a902aa08e8d4fedbc21aee8ca0c6b95b6f855368ef8d2"
+  },
+  "cumulative_audit_cost_usd": 5.33832825,
+  "cumulative_proof_and_audit_cost_usd": 23.74925325,
+  "live_to_audited_head_delta": "2945b2a to ee2072: only two review documentation files; independently verified with git"
 }
