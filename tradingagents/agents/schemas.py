@@ -247,7 +247,7 @@ class ThesisProposal(BaseModel):
     assumptions: list[str] = Field(default_factory=list, max_length=8)
     evidence_refs: list[str] = Field(default_factory=list, max_length=16)
     conditions: list[ThesisCondition] | None = Field(default=None, max_length=8,
-        description="Advisory conditions only. Use exact canonical metric labels for metric and metric_definition, exact period/unit/basis, threshold and expiry. None retains prior conditions; [] explicitly retires them. No hard rules.")
+        description="Advisory conditions only. Use exact canonical metric labels for metric and metric_definition, exact period/unit/basis, threshold, expiry and thesis_role (supports_thesis, reconsideration_trigger, or unspecified). The role is unvalidated intent, not enforcement. None retains prior conditions; [] explicitly retires them. No hard rules.")
     dispositions: list[AdvisoryDisposition] = Field(default_factory=list, max_length=8,
         description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
 

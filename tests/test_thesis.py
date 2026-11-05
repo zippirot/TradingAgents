@@ -151,7 +151,7 @@ def test_prior_render_preserves_condition_id_and_advisory_observation():
     item['observations'] = thesis.observe_conditions(item,state('99'))
     rendered = thesis.render_prior_thesis(item)
     assert item['conditions'][0]['condition_id'] in rendered
-    assert 'breached' in rendered and '99' in rendered and '2026-09-30' in rendered
+    assert 'Comparison not satisfied; thesis role unspecified' in rendered and '99' in rendered and '2026-09-30' in rendered
     assert 'advisory' in rendered.lower() and 'not binding' in rendered.lower()
     assert 'Buy' in rendered and '2026-07-01' in rendered
 
@@ -162,7 +162,7 @@ def test_current_render_discloses_missing_reason_and_truncates_unvalidated_text(
     item = thesis.prepare_thesis({'rationale':'<script>target | ' + 'x'*1000, 'assumptions':['y'*1000]},
                                 prior,'Buy','2026-11-04',str(uuid4()))
     rendered = thesis.render_thesis(item)
-    assert 'breached' in rendered and 'kept' in rendered and 'reason not supplied' in rendered
+    assert 'Comparison not satisfied; thesis role unspecified' in rendered and 'kept' in rendered and 'reason not supplied' in rendered
     assert 'unvalidated research' in rendered.lower() and '[truncated]' in rendered
     assert '<script>' not in rendered and '&lt;script&gt;' in rendered and 'target |' not in rendered
     assert 'x'*301 not in rendered
@@ -404,3 +404,57 @@ def test_published_same_run_projection_preserves_legacy_thesis_exactly():
     next_thesis = thesis.prepare_thesis({'conditions':[second]},saved,'Hold','2026-11-04',str(uuid4()))
     assert len(next_thesis['conditions']) == 1
     assert next_thesis['conditions'][0]['condition_id'] == rows[0]['condition_id']
+
+
+@pytest.mark.parametrize('role,value,expected', [
+    ('supports_thesis', '99', 'Support condition breached'),
+    ('supports_thesis', '101', 'Support condition met'),
+    ('reconsideration_trigger', '99', 'Reconsideration trigger not met'),
+    ('reconsideration_trigger', '101', 'Reconsideration trigger met'),
+    ('unspecified', '99', 'Comparison not satisfied; thesis role unspecified'),
+])
+def test_condition_role_separates_comparison_from_thesis_meaning(role, value, expected):
+    proposed = condition(thesis_role=role)
+    prior = thesis.prepare_thesis({'conditions':[proposed]}, None, 'Underweight', '2026-11-04', str(uuid4()))
+    prior['observations'] = thesis.observe_conditions(prior, state(value))
+    assert len(prior['observations']) == 1
+    assert expected in thesis.render_prior_thesis(prior)
+    if role == 'reconsideration_trigger' and value == '99':
+        assert 'breached' not in thesis.render_prior_thesis(prior)
+    updated = thesis.prepare_thesis({}, prior, 'Underweight', '2026-11-04', str(uuid4()))
+    assert expected in thesis.render_thesis(updated)
+    assert updated['canonical_rating'] == 'Underweight'
+
+
+def test_role_annotation_does_not_rekey_measurement_or_rewrite_prior_meaning():
+    old = thesis.prepare_thesis({'conditions':[condition()]}, None, 'Underweight', '2026-11-04', str(uuid4()))
+    old['observations'] = thesis.observe_conditions(old, state('99'))
+    identity = old['conditions'][0]['condition_id']
+    new = thesis.prepare_thesis({'conditions':[condition(thesis_role='reconsideration_trigger')],
+        'dispositions':[{'condition_id':identity,'disposition':'kept','reason':'Keep measurement; explicitly classify its prospective role'}]},
+        old,'Underweight','2026-11-04',str(uuid4()))
+    assert new['conditions'][0]['condition_id'] == identity
+    assert new['conditions'][0]['thesis_role'] == 'reconsideration_trigger'
+    assert new['prior_conditions'][0].get('thesis_role', 'unspecified') == 'unspecified'
+
+
+def test_inverse_margin_wording_has_explicit_support_or_reconsideration_meaning():
+    source = margin_state()
+    support = {**margin_condition(), 'comparator':'<', 'thesis_role':'supports_thesis'}
+    trigger = {**margin_condition(), 'comparator':'>=', 'thesis_role':'reconsideration_trigger'}
+    prior = thesis.prepare_thesis({'conditions':[support, trigger]},None,'Underweight','2026-11-04',str(uuid4()))
+    prior['observations'] = thesis.observe_conditions(prior,source)
+    text = thesis.render_prior_thesis(prior)
+    assert 'Support condition met' in text
+    assert 'Reconsideration trigger not met' in text
+    assert 'Support condition breached' not in text
+    assert prior['canonical_rating'] == 'Underweight'
+
+
+def test_conflicting_roles_for_same_measurement_stay_unclassified():
+    row = condition(thesis_role='supports_thesis')
+    proposed = thesis.prepare_thesis({'conditions':[row,{**row,'thesis_role':'reconsideration_trigger'}]},
+                                     None,'Hold','2026-11-04',str(uuid4()))
+    assert len(proposed['conditions']) == 1
+    assert proposed['conditions'][0]['thesis_role'] == 'unspecified'
+    assert any('Conflicting roles' in item for item in proposed['warnings'])

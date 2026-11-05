@@ -83,7 +83,7 @@ def test_advisory_breach_is_recomputed_and_disposition_remains_unvalidated():
     condition = {'metric': 'Revenue', 'metric_definition': 'Revenue',
                  'period_start': '2025-01-01', 'period_end': '2025-12-31',
                  'comparator': '>=', 'threshold': '1500', 'unit': 'USD', 'basis': 'US-GAAP',
-                 'expiry': '2027-12-31', 'rationale': 'Growth required.'}
+                 'expiry': '2027-12-31', 'rationale': 'Growth required.', 'thesis_role': 'supports_thesis'}
     prior = {'conditions': [condition]}
     identifier = observe_conditions(prior, value)[0]['condition_id']
     value['prior_thesis'] = prior
@@ -97,7 +97,7 @@ def test_advisory_breach_is_recomputed_and_disposition_remains_unvalidated():
     assert record['basis'] == 'risk assessment' and record['rating'] == 'Underweight'
     text = render_decision_context(record)
     assert 'breached' in text and 'Reason (unvalidated)' in text
-    assert 'What could change' in text
+    assert 'Advisory conditions' in text and 'Supports current thesis' in text
 
 
 def test_unsupported_final_request_is_not_rescued_by_early_scenarios():

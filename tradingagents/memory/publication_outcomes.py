@@ -290,10 +290,14 @@ def render_outcome_summary(
     lines.append('')
     for index, record in enumerate(tabled, 1):
         published = record.get('published_at') or 'unknown (legacy publication time not recorded)'
+        alignment = {endpoint.get('benchmark_alignment', 'asof')
+                     for endpoint in record['endpoints'].values()}
+        policy_note = (' Benchmark alignment: asof (last valid benchmark close on or before each instrument endpoint).'
+                       if 'asof' in alignment else '')
         lines.append(
             f"- D{index}: {_summary_cell(record['ticker'])}, as-of {_summary_cell(record['requested_as_of'])}, "
             f"{_summary_cell(record['canonical_rating'])}, {_summary_cell(record['evaluation_mode'])}; "
-            f"decision {_summary_cell(record['decision_id'])}; published {_summary_cell(published)}."
+            f"decision {_summary_cell(record['decision_id'])}; published {_summary_cell(published)}." + policy_note
         )
     lines.extend(['', 'Decision | Horizon | Status | Gross security return | Gross benchmark return | Excess return | Price window',
                   '--- | --- | --- | --- | --- | --- | ---'])
@@ -310,6 +314,8 @@ def render_outcome_summary(
                           f"{_summary_cell(endpoint['benchmark'])} {outcome['benchmark_return']:+.2%}",
                           f"{outcome['alpha_return']:+.2%}",
                           f"{outcome['entry']['date']} → {outcome['exit']['date']}"
+                          + (f"; benchmark dates {outcome['benchmark_entry']['date']} → {outcome['benchmark_exit']['date']}"
+                             if endpoint.get('benchmark_alignment', 'asof') == 'asof' else '')
                           + (f"; nominal {outcome['nominal_exit_date']}" if outcome.get('calendar_months') else '')
                           + (f"; same window as {', '.join(endpoint['coincident_with'])}" if endpoint.get('coincident_with') else '')]
             else:

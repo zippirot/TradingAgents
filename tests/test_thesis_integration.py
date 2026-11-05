@@ -22,7 +22,7 @@ def test_advisory_breach_survives_publication_and_pending_restart(tmp_path, monk
     monkeypatch.setattr(publication, '_utcnow', lambda: now)
     monkeypatch.setattr(publication, 'get_current_date', lambda: '2026-11-04')
     config = {'results_dir': str(tmp_path)}
-    prior = thesis.prepare_thesis({'rationale': 'Earlier research', 'conditions': [condition()]},
+    prior = thesis.prepare_thesis({'rationale': 'Earlier research', 'conditions': [condition(thesis_role='supports_thesis')]},
                                  None, 'Buy', '2026-11-04', str(uuid4()))
     prior['observations'] = thesis.observe_conditions(prior, financial_state('99'))
     identifier = prior['conditions'][0]['condition_id']

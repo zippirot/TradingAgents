@@ -155,3 +155,60 @@ def test_malformed_discovered_tolerance_stays_visible_without_raising():
     result = discover_disclosures((changed,))
     assert result.rejected and any('block-14' in reason for reason in result.rejected)
     assert not any(c.locator == 'block-14' for c in result.claims)
+
+
+def test_recorded_docn_quote_cannot_drop_percent_plus_or_future_historical_scope():
+    package = recorded_package()
+    doc = package.documents[0]
+    block = next(block for block in doc.blocks if block.locator == 'block-4')
+    assert 'expected 2027 revenue growth to 60%+' in block.text
+    bad = DisclosureClaim(source_id=doc.source_id, locator=block.locator,
+        metric='revenue growth', value=60, unit='%', period='2027', kind='historical',
+        quote='2027 revenue growth to 60%')
+    result = validate_disclosure_claims([bad], blocks_for(package), packages=(package,))
+    assert not result.claims and any('percent-plus' in reason for reason in result.rejected)
+    # Without the source '+' this is still not a reported historical outcome.
+    changed = mutate_block(package, 'block-4', text=block.text.replace('60%+', '60%'))
+    result = validate_disclosure_claims([bad], blocks_for(changed), packages=(changed,))
+    assert not result.claims and any('historical period' in reason for reason in result.rejected)
+    correct = bad.model_copy(update={'kind':'guidance', 'comparator':'at_least',
+        'quote':'increasing expected 2027 revenue growth to 60%+'})
+    assert validate_disclosure_claims([correct], blocks_for(package), packages=(package,)).claims == (correct,)
+
+
+def test_percent_plus_source_cut_is_rejected_without_optional_context_package():
+    claim = DisclosureClaim(source_id='doc',locator='paragraph',metric='revenue growth',value=60,
+        unit='%',period='2027',kind='historical',quote='2027 revenue growth to 60%')
+    result = validate_disclosure_claims([claim], {('doc','paragraph'):'Increasing expected 2027 revenue growth to 60%+.'})
+    assert not result.claims and any('percent-plus' in reason for reason in result.rejected)
+
+
+@pytest.mark.parametrize('period,rejected',[
+    ('2026-11-04 to 2026-12-31',True),
+    ('2026-01-01 to 2026-09-30',False),
+    ('fiscal 2027',False),
+    ('FY2027 ending 2027-01-31',True),
+])
+def test_historical_dates_use_source_date_without_inventing_fiscal_calendar(period,rejected):
+    from datetime import date
+    package=recorded_package()
+    quote=f'Revenue was 100 million for {period}.'
+    package=mutate_block(package,'block-4',text=quote)
+    # A later analysis does not turn a forward-looking statement at publication
+    # into an already-reported result. Fiscal year numbers alone are not dates.
+    package=package.model_copy(update={'as_of':date(2028,1,1)})
+    claim=DisclosureClaim(source_id=package.documents[0].source_id,locator='block-4',
+        metric='Revenue',value=100,unit='million',period=period,kind='historical',quote=quote)
+    result=validate_disclosure_claims([claim],blocks_for(package),packages=(package,))
+    assert bool(result.rejected) is rejected
+    assert bool(result.claims) is not rejected
+
+
+def test_full_lower_bound_quote_cannot_use_truncated_exact_numeric_projection():
+    package = recorded_package()
+    claim = DisclosureClaim(source_id=package.documents[0].source_id, locator='block-4',
+        metric='revenue growth', value=60, unit='%', period='2027', kind='guidance',
+        quote='increasing expected 2027 revenue growth to 60%+',
+        value_quote='2027 revenue growth to 60%', period_locator='block-4')
+    result = validate_disclosure_claims([claim], blocks_for(package), packages=(package,))
+    assert not result.claims and result.rejected

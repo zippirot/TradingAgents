@@ -15,7 +15,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.files import locked, replace_file
-from tradingagents.dataflows.symbols import normalize_symbol
+from tradingagents.dataflows.symbols import crypto_base, normalize_symbol
 from tradingagents.reporting import evidence_snapshot
 
 _SCHEMA = 1
@@ -199,6 +199,11 @@ def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
         primary = directional and not any(r['eligibility']['primary'] for r in previous)
         local_date = get_current_date()
         prospective = not legacy and payload.get('evaluation_mode_requested') == 'prospective' and directional
+        # Continuous crypto sessions need the established last-available benchmark
+        # close policy. Select only for new records; existing publications above
+        # retain their immutable declared alignment.
+        is_crypto = payload.get('asset_type') == 'crypto' or crypto_base(ticker) is not None
+        benchmark_alignment = 'asof' if is_crypto else 'exact_sessions'
         record = {
             **payload, 'schema_version': _SCHEMA, 'decision_id': decision_id,
             'payload_sha256': payload_hash, 'published_at': None if legacy else now.isoformat(),
@@ -222,7 +227,7 @@ def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
                     'holding_days': count if kind == 'trading_sessions' else None,
                     'calendar_months': count if kind == 'calendar_months' else None,
                     'status': 'pending' if directional else 'ineligible', 'benchmark': benchmark,
-                    'benchmark_alignment': 'exact_sessions',
+                    'benchmark_alignment': benchmark_alignment,
                     'exit_policy': ('nth_session_after_entry' if kind == 'trading_sessions' else
                                     'first_completed_session_on_or_after_nominal_date'),
                     'entry_policy': ('first valid close after recorded as-of date; legacy publication time unknown' if legacy else

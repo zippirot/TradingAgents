@@ -219,7 +219,13 @@ def validate_disclosure_claims(
         numeric = claim.model_copy(update={"quote": claim.value_quote}) if claim.value_quote else claim
         plus_bound = any(Decimal(m.replace(",", "")) == claim.value
                          for m in re.findall(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*%\+", numeric.quote))
-        if (claim.comparator == "at_least") != plus_bound:
+        # Quotation containment alone must not allow a numeric qualifier to be
+        # cut off at the boundary (e.g. source 60%+ quoted as exact 60%).
+        cuts_percent_plus = bool(text is not None and claim.quote.rstrip().endswith('%')
+                                 and re.search(re.escape(claim.quote) + r"\s*\+", text))
+        if cuts_percent_plus:
+            reason = "quotation omits the immediately following percent-plus qualifier"
+        elif (claim.comparator == "at_least") != plus_bound:
             reason = "lower-bound comparator must match explicit percent-plus source language"
         elif context_error:
             reason = context_error

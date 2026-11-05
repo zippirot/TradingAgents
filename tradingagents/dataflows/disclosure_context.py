@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from datetime import date, datetime
 from decimal import Decimal
 from urllib.parse import urlsplit
 
@@ -95,8 +96,41 @@ def _number(block):
     return int(match[1]) if match else None
 
 
+def _historical_period_error(claim, packages):
+    """Explicit future dates/years cannot be historical at the source date.
+
+    Fiscal year numbers alone do not establish calendar dates. No fiscal
+    calendar or completion date is invented for a partial period label.
+    """
+    if claim.kind != 'historical':
+        return None
+    period=claim.period
+    explicit_dates=[]
+    try:
+        for value in re.findall(r'\b(?:19|20)\d{2}-\d{2}-\d{2}\b',period):
+            explicit_dates.append(date.fromisoformat(value))
+        for value in re.findall(r'\b[A-Z][a-z]+ \d{1,2}, (?:19|20)\d{2}\b',period):
+            explicit_dates.append(datetime.strptime(value,'%B %d, %Y').date())
+        years=[] if re.search(r'\bfiscal\b|\bFY\s*\d',period,re.I) else [
+            int(value) for value in re.findall(r'\b(?:19|20)\d{2}\b',period)]
+        for raw in packages:
+            package=DisclosurePackage.model_validate(raw)
+            for document in package.documents:
+                if document.source_id != claim.source_id:
+                    continue
+                known=min(package.as_of,document.filing.filed_date)
+                if any(day>known for day in explicit_dates) or any(year>known.year for year in years):
+                    return 'historical period extends beyond the source-known date'
+    except (ValueError,TypeError):
+        return 'historical period/source date could not be validated'
+    return None
+
+
 def validate_context(claim, blocks, packages):
     """Return (period_is_external, definition_is_external, rejection_reason)."""
+    historical_error = _historical_period_error(claim, packages)
+    if historical_error:
+        return False, False, historical_error
     scoped = bool(claim.period_locator or claim.definition_locator or claim.comparison or claim.value_quote)
     if not scoped and (claim.comparator != "at_least" or not packages):
         return False, False, None

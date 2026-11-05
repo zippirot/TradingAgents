@@ -30,6 +30,8 @@ class ThesisCondition(BaseModel):
     basis: str = Field(min_length=1, max_length=80)
     expiry: date
     rationale: str = Field(min_length=1, max_length=1000)
+    thesis_role: Literal['supports_thesis', 'reconsideration_trigger', 'unspecified'] = Field(
+        default='unspecified', description='Unvalidated research intent: a condition supporting the current thesis, a trigger to reconsider it, or unspecified. Never infer intent from comparator or rating.')
 
     @model_validator(mode='after')
     def dates(self):
@@ -43,7 +45,7 @@ class ThesisCondition(BaseModel):
 def _id(condition):
     # Measurement identity excludes explanatory prose. Tuple normalization is
     # exact even beyond Decimal's default context precision (no normalize()).
-    payload = condition.model_dump(mode='json', exclude={'rationale'})
+    payload = condition.model_dump(mode='json', exclude={'rationale', 'thesis_role'})
     sign, digits, exponent = condition.threshold.as_tuple()
     digits = list(digits)
     if not any(digits):
@@ -83,6 +85,9 @@ def _conditions(values, *, preserve_ids=False):
             aliases = [v for v in aliases[:8] if _valid_id(v)] if isinstance(aliases, list) else []
             if key in by_measurement:
                 row = by_measurement[key]
+                if row.get('thesis_role') != condition.thesis_role:
+                    row['thesis_role'] = 'unspecified'
+                    warnings.append('Conflicting roles for an equivalent measurement; thesis role unspecified.')
                 aliases = list(dict.fromkeys([*row.get('condition_aliases', []), identifier, *aliases]))
                 warnings.append(f'Equivalent advisory measurement coalesced into {row["condition_id"]}.')
             else:
@@ -222,7 +227,7 @@ def observe_conditions(prior: dict | None, state: dict) -> list[dict]:
         met, breached = comparisons[condition.comparator]
         observation['status'] = 'met' if met else 'breached' if breached else 'unknown'
         observation['reason'] = ('Compatible canonical value satisfies advisory condition' if met else
-                                 'Compatible canonical value breaches advisory condition' if breached else
+                                 'Compatible canonical value does not satisfy the recorded comparison' if breached else
                                  'Source rounding interval overlaps threshold; no definite conclusion')
         observation['value_interval'] = [_number_text(low), _number_text(high)]
     return observations
@@ -253,6 +258,8 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
         previous = previous_by_key.get(_id(_condition(row)))
         if previous is not None:
             row['condition_id'] = previous['condition_id']
+            if row.get('thesis_role') == 'unspecified':
+                row['thesis_role'] = previous.get('thesis_role', 'unspecified')
             if previous.get('condition_aliases'):
                 row['condition_aliases'] = list(previous['condition_aliases'])
     dispositions = candidate.get('dispositions', [])
@@ -275,7 +282,13 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
     combined = {row['condition_id']: row for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
-            combined.setdefault(row['condition_id'], row)
+            if row['condition_id'] in combined and row.get('thesis_role', 'unspecified') != 'unspecified':
+                prior_role = combined[row['condition_id']].get('thesis_role', 'unspecified')
+                combined[row['condition_id']] = {**combined[row['condition_id']], 'thesis_role': row['thesis_role']}
+                if prior_role != row['thesis_role']:
+                    warnings.append(f"Condition {row['condition_id']} role explicitly proposed for this version; prior observations retain their original interpretation.")
+            else:
+                combined.setdefault(row['condition_id'], row)
     if len(combined) > 8:
         warnings.append('Condition limit reached after preserving prior conditions; additional proposals omitted')
     conditions = list(combined.values())[:8]
@@ -356,13 +369,31 @@ def _display(value, limit=300):
     return text + (' [truncated]' if truncated else '')
 
 
+def condition_role_label(row):
+    return {'supports_thesis': 'Supports current thesis',
+            'reconsideration_trigger': 'Reconsideration trigger'}.get(row.get('thesis_role'), 'Unspecified thesis role')
+
+
+def condition_status_label(row):
+    """Separate observed predicate truth from the model's advisory thesis intent."""
+    status = row.get('status', 'unknown')
+    role = row.get('thesis_role', 'unspecified')
+    if role == 'supports_thesis':
+        return {'met': 'Support condition met', 'breached': 'Support condition breached'}.get(status, 'Support condition unknown')
+    if role == 'reconsideration_trigger':
+        return {'met': 'Reconsideration trigger met', 'breached': 'Reconsideration trigger not met'}.get(status, 'Reconsideration trigger unknown')
+    return {'met': 'Comparison satisfied; thesis role unspecified',
+            'breached': 'Comparison not satisfied; thesis role unspecified'}.get(status, 'Comparison unknown; thesis role unspecified')
+
+
 def _condition_line(row):
     start = row.get('period_start')
     period = f"{start} to {row.get('period_end', 'unknown')}" if start else row.get('period_end', 'unknown')
     return (f"{_display(row.get('condition_id'), 100)}: {_display(row.get('metric'), 120)}; "
             f"period {_display(period, 50)}; {_display(row.get('comparator'), 10)} "
             f"{_display(row.get('threshold'), 100)} {_display(row.get('unit'), 40)}; "
-            f"basis {_display(row.get('basis'), 80)}; expires {_display(row.get('expiry'), 20)}")
+            f"basis {_display(row.get('basis'), 80)}; expires {_display(row.get('expiry'), 20)}; "
+            f"role {_display(condition_role_label(row), 40)} (unvalidated research intent)")
 
 
 def _bounded_rows(value):
@@ -378,7 +409,7 @@ def render_prior_thesis(prior) -> str:
              f"Version: {_display(prior.get('version_id'), 100)}; prior rating: {_display(prior.get('canonical_rating'), 40)}."]
     rows, omitted = _bounded_rows(prior.get('observations', prior.get('conditions', [])))
     for row in rows:
-        lines.append(f"- {_condition_line(row)}; status {_display(row.get('status', 'unknown'), 20)}; "
+        lines.append(f"- {_condition_line(row)}; {_display(condition_status_label(row), 100)}; "
                      f"observed {_display(row.get('observed_value'), 100)} on {_display(row.get('observed_date'), 20)}. "
                      f"Observation: {_display(row.get('reason', 'observation unavailable'))}.")
     if not rows:
@@ -417,7 +448,7 @@ def render_thesis(thesis) -> str:
     if rows:
         lines.append('Prior condition observations and dispositions:')
     for row in rows:
-        lines.append(f"- {_condition_line(row)}; status {_display(row.get('status', 'unknown'), 20)}; "
+        lines.append(f"- {_condition_line(row)}; {_display(condition_status_label(row), 100)}; "
                      f"observed {_display(row.get('observed_value'), 100)} on {_display(row.get('observed_date'), 20)}; "
                      f"disposition {_display(row.get('disposition', 'unknown'), 30)}. "
                      f"Reason (unvalidated research): {_display(row.get('disposition_reason') or 'reason not supplied')}.")

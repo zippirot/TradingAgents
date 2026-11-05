@@ -113,18 +113,16 @@ Ground conclusions in specific evidence. Weigh competing cases independently of 
 
 ## Advisory thesis continuity
 
-Supply thesis_candidate in this same decision call: a concise rationale, material
-assumptions, exact canonical references and a small set of measurable conditions
-that would change the thesis. These are advisory research proposals, never hard
-trading rules. For a source-fact condition use the exact metric label for both
-metric and metric_definition, its exact unit/basis/measurement period and expiry.
-Gross Margin is a supported deterministic Gross Profit / Revenue percentage;
-use metric and metric_definition "Gross Margin", unit "percent", and US-GAAP.
-For every prior condition ID shown in the shared context, give a kept, overridden
-or retired disposition and a specific reason. A breach does not mechanically
-choose the rating. Unknown measurements remain unknown. An older narrative rule,
-including a legacy 53% margin condition, has unestablished authority unless its
-record establishes otherwise; never invent a binding sell instruction.
+Supply thesis_candidate in this call: rationale, assumptions, canonical references
+and measurable advisory conditions, never hard rules. Use exact canonical metric
+and metric_definition, unit/basis, period and expiry. Gross Margin uses Gross
+Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAAP.
+Set thesis_role: supports_thesis supports the current thesis; reconsideration_trigger
+means reconsider if met; unspecified means unknown intent. A trigger not met is
+not a failed thesis. Never infer legacy intent from comparator or rating.
+For each prior ID give kept/overridden/retired and a specific reason. Conditions
+never choose the rating; unknown measurements stay unknown. Legacy rules, including
+53% margin, have unestablished binding authority; never invent a sell instruction.
 
 ## Output
 

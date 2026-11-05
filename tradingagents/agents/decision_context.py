@@ -10,7 +10,11 @@ from tradingagents.agents.shared_valuation import prepare_shared_valuation
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
-from tradingagents.memory.thesis import observe_conditions
+from tradingagents.memory.thesis import (
+    condition_role_label,
+    condition_status_label,
+    observe_conditions,
+)
 
 
 def _mapping(value):
@@ -116,11 +120,13 @@ def prepare_decision_context(state: dict) -> dict:
             disposition = 'not supplied'
         condition_rows.append({'metric': _text(observed.get('metric'), 100),
                                'condition_id': observed['condition_id'], 'status': observed['status'],
+                               'thesis_role': observed.get('thesis_role', 'unspecified'),
+                               'status_label': condition_status_label(observed),
                                'disposition': disposition,
                                'reason': _text(supplied.get('disposition_reason')) or 'reason not supplied'})
     conditions = thesis.get('conditions', [])
     conditions = conditions if isinstance(conditions, list) else []
-    changes = [_text(f"{c.get('metric', 'condition')} {c.get('comparator', '')} {c.get('threshold', '')} {c.get('unit', '')}; period {c.get('period_end', 'unspecified')}")
+    changes = [_text(f"{condition_role_label(c)}: {c.get('metric', 'condition')} {c.get('comparator', '')} {c.get('threshold', '')} {c.get('unit', '')}; period {c.get('period_end', 'unspecified')}")
                for c in conditions[:3] if isinstance(c, dict)]
     excerpts = []
     assumptions = thesis.get('assumptions', [])
@@ -165,9 +171,9 @@ def render_decision_context(record: dict) -> str:
     if not record['conditions']:
         lines.append('No prior structured condition observations available; no binding rule inferred.')
     for row in record['conditions']:
-        lines.append(f"- {_display(row['metric'])}: {_display(row['status'])}; {_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+        lines.append(f"- {_display(row['metric'])}: {_display(row.get('status_label') or condition_status_label(row))}; {_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
     if record['proposed_changes']:
-        lines += ['', '**What could change the decision — unvalidated advisory proposals**:']
+        lines += ['', '**Advisory conditions — unvalidated research proposals**:']
         lines += ['- ' + _display(text) for text in record['proposed_changes']]
     if record['excerpts']:
         # Even labeled quotations can reintroduce forbidden target/sizing prose

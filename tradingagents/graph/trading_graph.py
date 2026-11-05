@@ -186,7 +186,7 @@ class TradingAgentsGraph:
             "evidence=3",
             "publication=1",
             "shared_valuation=6",
-            "advisory_thesis=1",
+            "advisory_thesis=2",
             "price_observation=1",
             "event_comparison=1",
             "decision_context=1",
