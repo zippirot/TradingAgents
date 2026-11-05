@@ -1,5 +1,5 @@
 {
-  "status": "offline_verified_live_acceptance_failed_pending_retry_authority",
+  "status": "complete_verified",
   "baseline": "b075166df6f1738ef691cee23d1473e5085e05a1",
   "branch": "codex/shared-valuation-scenarios",
   "worktree": "/Users/zipp/Developer/tradingagents-integrity/shared-valuation",
@@ -24,36 +24,15 @@
     "annual_view_focused": "88 passed in 4.35s (financial evidence, SEC fact integrity, shared scenarios, checkpoints, full graph)",
     "annual_view_replay": "Saved live canonical package projects three annual baselines with exact IDs in 63878 characters; no network calls",
     "prompt_contract_focused": "82 passed in 4.35s",
-    "json_shape_focused": "41 passed in 4.25s"
+    "json_shape_focused": "41 passed in 4.25s",
+    "live_report": "Saved Markdown inspected; actual HTML screenshots show readable scenario table, source IDs, assumptions and separately validated final target. One shared section; repeat projection identical.",
+    "final_checks": "pip check passed; git diff --check passed; source hashes matched tested candidate; complete change inspected across implementation and corrections."
   },
   "test_limits": [
-    "Graph integration uses synthetic canonical evidence; live run proved fallback only. Required usable-scenario/debate engagement proof is still missing.",
-    "No remote CI claim."
+    "Optional langchain_aws test skipped; configured external-service test deselected. No remote CI, release or investment-performance claim.",
+    "Model-authored labels/rationales remain unvalidated: live labels said normalized earnings, but formulas explicitly used historical reported EPS and both debaters challenged the label.",
+    "Live evidence quality was limited with document/KPI coverage warnings; existing insufficient-evidence REVIEW remains separately tested. Market source visibly fell back to prior close."
   ],
-  "live": {
-    "status": "fallback_only_not_accepted",
-    "provider": "OpenRouter",
-    "model": "deepseek/deepseek-v4.1-flash-1017",
-    "provider_basis": "Existing Machine 1 verification configuration and credentials; no runtime CLI prefs found",
-    "runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli.py",
-    "request": "One isolated DOCN market/fundamentals smoke, 1 debate/risk round, 3 tool rounds, retries zero, max output 32768, empty isolated memory",
-    "conservative_reserve_usd": "8.4934656",
-    "requested_budget_usd": "10",
-    "acceptance": "Usable scenario rows in initial bull/bear prompts and actual argument engagement; all omitted is fallback only",
-    "commit": "858c1c525d18b2305367dbc58c328d8da71802f8",
-    "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-01",
-    "exit_code": 0,
-    "actual_run_usd": "0.124317181",
-    "model_calls_observed": 17,
-    "scenario_rows": 0,
-    "final_target": null,
-    "final_rating": "Sell",
-    "failure": "Fundamentals report finish_reason=length at 32768 completion tokens, including 18064 reasoning tokens; response ended mid-disclosure before valuation_scenarios fence.",
-    "diagnosis": "Runner output allowance caused truncation; sourced annual revenue and EPS baselines are present. No validator bypass or invented inputs. Existing Research Manager structured-output fallback occurred once.",
-    "consistency": "Python full-state and evidence.json scenario records identical; repeat report projection idempotent; bull and bear received same unavailable notice.",
-    "retry": "Not authorized or launched. Prepared runner with 65536 tokens, matching prior Machine 1 proof setting; worst-price conservative reserve USD 9.437184 fits within remaining original USD 10 envelope.",
-    "retry_runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli-64k.py"
-  },
   "deviations": [
     "Move scenario section before unvalidated narrative to prevent an unclosed model Markdown fence from hiding deterministic outputs. No change to calculations, provider or validation.",
     "Existing bounded financial-evidence projection needed a narrow selection adjustment so annual source baselines reach the fundamentals analyst. Same 64000-character cap, warning lineage and source validation retained; quarterly baseline for these three metrics may be omitted when capped, explicitly labeled partial."
@@ -117,10 +96,37 @@
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-indented-shape.log": "e46a76592f96855375c8ba30abef4d17d1eaebaa31f5e20267740903f715ad7f",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-05/manifest.json": "d018c2c73adc6f41be9a64566ca57d46d9be97f0fdab115e74543350d7434ea2",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-05/cli.log": "2d4ed739ee2884040f354c5cd04812f51a3cec288bf51164dfa11eef92dd4558",
-    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-05/llm-diagnostics/d46df388-f38b-4324-91ff-c988c329af0e.json": "1f142aa7bae5a1775b9c710c3a7f73f674e30580a58c9564e24dc2e7d0da99f3"
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-05/llm-diagnostics/d46df388-f38b-4324-91ff-c988c329af0e.json": "1f142aa7bae5a1775b9c710c3a7f73f674e30580a58c9564e24dc2e7d0da99f3",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/manifest.json": "c1ad6ee77ee2b03acbbd16eb9b9505ba32b500ea980164498faf6d6184975f70",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/cli.log": "6fbae662c3f65a52af5dbfb044122c686b72667dabbdb72b8f474049b7bba5ed",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/acceptance-checks.json": "6207b8e78f11b3448471e5e71ab3b42afa994c919c91ae6b58cfb2540525642e",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/3fc2cdd6-2ffa-4bb6-841c-1fe54264b92e.json": "a9fe7a2ee7f605ec78b7994bcf36d4979d22415b888c7ceb4b7874ec875c5388",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/e43e40d0-1d87-4978-8857-06b1e6ddf0f7.json": "6d97581c6d0e38d5fba7c1e03c279f99ef50f35bdfbe27d6cac7a12eeb263aee",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/29ec2fac-29e6-4d8b-851e-bec636b7e6e4.json": "d14fd2e6e434199d0e8fc1fa9706baa8e6c2a98524d2152ab173e4d3a7138e66",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/d0ebc943-880b-41fe-b82d-a07b2b92d528.json": "375f08c463b6293be6ed400cb4a9fc43dc8059128eff8e180a35119b7340459a",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/b25099fd-1702-4ffc-a432-d93c59d65151.json": "e0cc347a149b8d75e2bc6ccd50455da741539ce3e969cdd6eb49085188cde662",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/031eac0f-2e9b-40c2-96c5-713d00937fbc.json": "df9af40a99481f81cd93e15e4fa32646fc8a95b478bce392cce1b7a5e4aa17f5",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/27031d57-5ada-46b7-8328-97fba44e2619.json": "e983402e8ac93bea8b96b21b08ad4b9ba32a92ce78b7c17c0f9055f3624d16f9",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/0e586ade-2259-46f6-920b-b27b921c6ff6.json": "d1867101201d483146a628b9c95869258012836744d8c88f8eec685810684063",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/547404d1-e6c7-41e5-bdd0-308eb35bd793.json": "9f45b230a71c3dc0b0bf2b4bfb07759ff8900add9861b734f9fa8e5f1cf8f62f",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/aef158fb-8bc7-4e15-9b11-cbea9745c7fa.json": "eb21c67a6ec313a9a8c9b373ef46662da1d0ea89989041e73c4fa4c7cd2be94e",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/55f860de-f757-4f91-a66f-e0beb1233162.json": "9057a3658f265b309a90428088da7f656727e57ebf94a9bf31ef57e6073c8294",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/fa13acc4-b50f-4233-b1b7-c7ac05bc37b4.json": "e61407cdf755d98f1ee308a0de0f478b384d8de7923d5481f055d3a6d22ddea6",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/a4b99450-fdf8-4224-b8e7-97bc4c050915.json": "65684d081f6a5ab85f64ffbea951d60867173c6e639c83a0bf82cbbbcd582eff",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/26c68cea-35b3-42fc-9bd4-036a9c5e3690.json": "74a29b4a32fdf062c9824723da1057465f66389d404c4fbf6eead2652c8751a9",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/fdc758ab-6d80-4d64-9365-ec3045dc766e.json": "f97c8558358483a6c2234cd341d1ebe592d721ee1110c3c5e46336a465d93d7f",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/978db4e0-6105-47ef-be71-b11e04a99241.json": "748ef5e81dde38b053aebd9d2aa0d47dd80bf4760b80e99033081b39fb622310",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/llm-diagnostics/0f698b74-2124-4d41-a1c7-36f418598cb5.json": "bc065b73add072f09b058b1e91226c26392a3df08c92c547c287bf3b0e5d63d3",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "b0f52a12befa3ed082f4bf96ba3015386f31f1b27baefc73b5eb8c4bff498ceb",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/memory.md": "0eb07161af7a210ff617794632fc38add7eb2fab871b460b61590b74144d3915",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000/complete_report.md": "29c562606b184daeb668479e588e1ae10ec409e433ac4a92c6e4b367d51a0669",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000/complete_report.html": "ca85629541cf6a194347b8782fbb478acfbf1ed88d4671343203894737e25d0c",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000/evidence.json": "053a41f619de19a747bef5c7627ab72ecc119841439e48fdb5a9e279450885b2",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000/report-scenarios.png": "205afa837a2b4b9fb78e881f9805e5e2fc1e57569dbd76131fb1f5f9d26eb304",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000/report-target.png": "33ceefa7b2223a13a7197604288189ac6d8c1e260021ac61a6133110bb0d62b7"
   },
   "release": "No push, PR, merge, deployment, installed-app replacement or cleanup authorized",
-  "notifier": "Enabled; keep enabled until completion or abandonment",
+  "notifier": "Kept enabled throughout execution; disable during completion closeout after final commit.",
   "live_attempt_02": {
     "status": "stopped_after_diagnosed_empty_scenario_failure",
     "commit": "6911e392ca8d04321ba70b35f0d0eb0f7cc18d66",
@@ -135,7 +141,6 @@
     "billing_limit": "One interrupted bear request may settle later; reserve USD 0.20 additionally (request-byte/output bound USD 0.1033062).",
     "preservation": "Diagnostics, manifest and checkpoint retained; no live proof claimed."
   },
-  "retry_authority": "User explicitly allowed further diagnosed attempts within original USD 10 total for next 24 hours. Next run budget USD 9.50; prior observed task costs USD 0.179639570 plus USD 0.20 late-billing reserve leave aggregate below USD 10.",
   "live_attempt_03": {
     "commit": "924ed43647a1c8ac35dd7021b0201e2e7561a185",
     "status": "stopped_after_diagnosed_request_contract_failure",
@@ -145,14 +150,6 @@
     "cause": "Annual facts now visible; model proposed two EV/revenue rows but used prose forecast.basis instead of enum. Offline diagnostic changing basis only also showed incomplete borrowing perimeter (long-term only; short-term not supplied).",
     "fix": "Explicit forecast accounting enum, name/rationale limits and complete borrowings input requirements in existing analyst prompt; no validator changes. Checkpoint marker 3.",
     "diagnostic_limits": "Manually corrected schema probe is diagnosis only, not live acceptance. All rows remain omitted in actual run."
-  },
-  "next_live_bound": {
-    "budget_usd": "8.00",
-    "reserve_usd": "7.471104",
-    "calls": 19,
-    "enforcement": "Existing diagnostic wrapper now prevents call 20 before provider. Offline mock test allowed 19 and rejected twentieth with zero network calls. Product call counts unchanged.",
-    "prior_late_billing_reserve_usd": "0.80",
-    "authority": "User 24-hour diagnosed retry approval within original USD 10 total; no release authority."
   },
   "live_attempt_04": {
     "status": "stopped_after_diagnosed_flattened_request_failure",
@@ -173,5 +170,105 @@
     "cause": "Three nested PE requests each omitted the outer row closing brace. Financial assumptions and fact IDs were otherwise valid.",
     "fix": "Full indented example including optional forecast and explicit closing-brace guidance in normal response. No parser recovery, validator changes or added model calls. Checkpoint marker 5.",
     "offline_diagnosis": "Restoring only the three missing braces produces supported rows 18.00, 52.25, 102.00. Diagnosis only; actual live result remains rejected."
+  },
+  "live_attempt_01": {
+    "status": "fallback_only_not_accepted",
+    "provider": "OpenRouter",
+    "model": "deepseek/deepseek-v4.1-flash-1017",
+    "provider_basis": "Existing Machine 1 verification configuration and credentials; no runtime CLI prefs found",
+    "runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli.py",
+    "request": "One isolated DOCN market/fundamentals smoke, 1 debate/risk round, 3 tool rounds, retries zero, max output 32768, empty isolated memory",
+    "conservative_reserve_usd": "8.4934656",
+    "requested_budget_usd": "10",
+    "acceptance": "Usable scenario rows in initial bull/bear prompts and actual argument engagement; all omitted is fallback only",
+    "commit": "858c1c525d18b2305367dbc58c328d8da71802f8",
+    "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-01",
+    "exit_code": 0,
+    "actual_run_usd": "0.124317181",
+    "model_calls_observed": 17,
+    "scenario_rows": 0,
+    "final_target": null,
+    "final_rating": "Sell",
+    "failure": "Fundamentals report finish_reason=length at 32768 completion tokens, including 18064 reasoning tokens; response ended mid-disclosure before valuation_scenarios fence.",
+    "diagnosis": "Runner output allowance caused truncation; sourced annual revenue and EPS baselines are present. No validator bypass or invented inputs. Existing Research Manager structured-output fallback occurred once.",
+    "consistency": "Python full-state and evidence.json scenario records identical; repeat report projection idempotent; bull and bear received same unavailable notice.",
+    "retry": "Not authorized or launched. Prepared runner with 65536 tokens, matching prior Machine 1 proof setting; worst-price conservative reserve USD 9.437184 fits within remaining original USD 10 envelope.",
+    "retry_runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli-64k.py"
+  },
+  "live": {
+    "status": "passed",
+    "candidate": "190afff245d29e65f774dce8e585b1ac267c4a6e",
+    "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06",
+    "exit_code": 0,
+    "observed_run_cost_usd": "0.110647517",
+    "acceptance": {
+      "candidate": "190afff245d29e65f774dce8e585b1ac267c4a6e",
+      "model_calls": 17,
+      "roles_receiving_identical_table": {
+        "trader": [
+          "3fc2cdd6-2ffa-4bb6-841c-1fe54264b92e.json",
+          "29ec2fac-29e6-4d8b-851e-bec636b7e6e4.json"
+        ],
+        "bear": [
+          "d0ebc943-880b-41fe-b82d-a07b2b92d528.json"
+        ],
+        "aggressive": [
+          "031eac0f-2e9b-40c2-96c5-713d00937fbc.json"
+        ],
+        "research_manager": [
+          "0e586ade-2259-46f6-920b-b27b921c6ff6.json"
+        ],
+        "bull": [
+          "547404d1-e6c7-41e5-bdd0-308eb35bd793.json"
+        ],
+        "neutral": [
+          "aef158fb-8bc7-4e15-9b11-cbea9745c7fa.json"
+        ],
+        "conservative": [
+          "55f860de-f757-4f91-a66f-e0beb1233162.json"
+        ],
+        "portfolio_manager": [
+          "978db4e0-6105-47ef-be71-b11e04a99241.json"
+        ]
+      },
+      "table_sha256": "c06b7cf93463e84f8f6950f9a7a3d248ee365010f97212b2d26364236200ad76",
+      "scenario_prices": [
+        "45.36",
+        "65.52",
+        "85.68"
+      ],
+      "evidence_quality": "limited",
+      "final_rating": "Underweight",
+      "final_target": "65.52",
+      "explicit_final_request_confirmed": true,
+      "state_evidence_consistent": true,
+      "repeat_export_idempotent": true,
+      "single_report_section": true,
+      "memory_excludes_shared_table": true,
+      "report": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-06/results/reports/DOCN_20261104_182000"
+    },
+    "debate_engagement": {
+      "bull": "Accepts 34x ceiling but disputes 2.52 historical EPS as normalized; treats 26x as sensitivity, labels EV/ARR alternative unvalidated.",
+      "bear": "Disputes 26x/34x and inflated EPS baseline; labels 76.5 share-count alternative unvalidated.",
+      "research_manager": "Uses shared band, distinguishes evidence/assumptions, explicitly declines promoting 76.5 alternative to target."
+    },
+    "final_authority": "PM provided its own complete request at 26x historical GAAP EPS. Canonical final target replay returned 65.52. Independent tests also prove different final request =>60 and missing/invalid final request => no target despite early40."
+  },
+  "spending": {
+    "original_total_cap_usd": "10",
+    "observed_account_usage_increase_usd": "0.512560611",
+    "unreported_interrupted_call_reserve_usd": "0.80",
+    "conservative_total_usd": "1.312560611",
+    "qualification": "Account-wide increase can include unrelated activity; reserved late charges for interrupted requests may already be included. Conservative total remains below authorized cap. No further paid runs needed."
+  },
+  "acceptance_audit": {
+    "source_baseline_and_isolation": "Started verified staging b075166df6f1738ef691cee23d1473e5085e05a1; new Machine 1 worktree, plan copied; no staging/release mutations.",
+    "optional_bounded_inputs": "Existing fundamentals response, max3; existing types/calculator; exact IDs; full tests cover malformed, partial, mixed method and singleton EV weights.",
+    "ordering_context_calls": "Evidence Check wrapper before first bull; graph test matches optional/missing call counts; live identical table in all eight downstream roles, 17 calls including existing Trader fallback.",
+    "policy_and_final_independence": "Missing scenarios never affect quality; outscope/REVIEW tests pass; PM contract unchanged; invalid/missing final requests omit target; publication replays source requests.",
+    "persistence_and_presentation": "Python/full log/evidence.json equal; Markdown and HTML single section; repeat exports stable, original states unchanged; canonical memory excludes shared table; legacy tests pass.",
+    "recovery": "Version marker5 separates earlier input/prompt contract; same-version interruption test preserves scenario rows and runs Evidence Check once.",
+    "verification": "Final full offline suite1845 + plan-focused183 and affected selections; Ruff and dependency/diff checks pass. Live06 accepted; historical failed attempts retained without weakened checks.",
+    "release_boundary": "Local commits only. No push, PR, merge, deployment, promotion, installation or worktree deletion."
   }
 }
