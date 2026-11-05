@@ -17,7 +17,12 @@ def analyst_prose(text: str) -> str:
 
 def readable_evidence(text: str) -> str:
     """Keep values and limitations; exact references remain in canonical state."""
-    return _REFERENCE_BLOCK.sub("", text).strip()
+    rendered = _REFERENCE_BLOCK.sub("", text).strip()
+    for label, ident in re.findall(
+        r"^- ([SD]\d+): source_id ([^;\n]+);", evidence_references(text), re.M,
+    ):
+        rendered = rendered.replace(ident, label)
+    return rendered
 
 
 def evidence_references(text: str) -> str:

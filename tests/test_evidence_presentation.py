@@ -119,3 +119,23 @@ def test_legacy_memory_hashes_are_compact_only_in_prompt_view(tmp_path):
     assert "original memory record" in context
     assert log.load_entries()[0]["decision"] == decision
     assert path.read_bytes() == before
+
+
+def test_source_rejection_warning_keeps_reason_and_locator_without_repeated_hash():
+    from tradingagents.agents.evidence_presentation import (
+        REFERENCE_END,
+        REFERENCE_START,
+        readable_evidence,
+    )
+
+    source_id = "sec-document-" + hashlib.sha256(b"release").hexdigest()
+    context = (
+        "Accepted evidence brief\nRevenue: 321 million USD"
+        + REFERENCE_START + f"### Evidence reference appendix\n- D1: source_id {source_id}; https://www.sec.gov/release.htm"
+        + REFERENCE_END
+        + f"\nrecord 2: missing source-linked context ({source_id}, block-17)"
+    )
+    rendered = readable_evidence(context)
+    assert "record 2: missing source-linked context (D1, block-17)" in rendered
+    assert source_id not in rendered
+    assert source_id in context
