@@ -190,7 +190,7 @@ class TradingAgentsGraph:
             "decision_context=1",
             "evidence_presentation=1",
             "publication_record=3",
-            "analysis_cutoff=1",
+            "analysis_cutoff=2",
             f"settings={digest}",
         ])
 

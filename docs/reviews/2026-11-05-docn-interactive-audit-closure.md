@@ -305,3 +305,59 @@ accepted explicitly labeled offline proof views underlive-10/engineering-proof-v
 for handoff, with raw bodies/hashes preserved. This is a proof-artifact correction,
 not a claim that the raw CLI emitted a notice or that the seed was a historical
 model opinion. The raw-label limitation remains disclosed.
+
+
+## User acceptance amendment and final evidence reconciliation
+
+The user explicitly answered “Accept the two disclosed proof limits (Recommended)”
+to closing this Goal after remaining audit/CI with live model-origin supported
+final-target and forward-funding proofs deferred. These two original acceptance
+rows are DEFERRED BY USER, NOT PASSED. All other software/verification/release
+boundaries remain. The governing plan records the amendment. No diagnostic
+reserve was consumed to seek a desired investment result.
+
+Targeted audit300ed744 completed on5c03059..23343b2 for$1.06890975. It accepted
+the code fixes but flagged a medium evidence ambiguity: old local UTC/NY logs
+were byte-identical and lacked timezone metadata. They were separate recorded
+commands; duplicate execution is not established. The confirmed ambiguity is
+closed by two repeated full suites on current source, each2292+100subtests and
+exit0, with explicit TZ/tzname, distinct process IDs/timestamps/hashes and matching
+application byte hashes. An independent reviewer checked the actual new logs.
+Their durations again both round to16.77s; explicit metadata, rather than rounded
+duration, establishes the distinct environments. Raw earlier logs are preserved.
+RemoteCI42058830583 independently passed all seven jobs on23343b2, including
+NewYork exact-head job127354523704.
+
+The targeted audit's low message concern is not a factual defect: “at most two”
+includes zero, and actual retrieval spans are retained. Invalid timezone for a
+direct caller remains a documented caller-input/ergonomics limitation; graph
+callers supply the validated resolved zone. The new test-file delta is now
+explicitly enumerated separately from modified pre-existing manifest entries.
+
+Checkpoint context epoch is advanced toanalysis_cutoff=2 so pre-fix cached memory
+cannot bypass corrected availability checks. Independent verification found
+distinct thread IDs, all12 existing proof DB hashes unchanged,39 focused tests
+passed. This is the only application delta after23343b2; full metadata-tagged
+UTC/NY suites cover its actual source bytes. Current saved application models,
+depth and preferences remain unchanged; the user-selected Codex model isSol.
+
+### Final gates and retained limits
+
+A final connected delta review covers the checkpoint-epoch and reconciliation
+changes; exact-final-commit CI is then required. Their authoritative post-commit
+results are retained in results/docn-abc/remaining-gaps/final-gates.json and the
+referenced audit executor artifacts/GitHub run. The final handoff supplies exact
+commit and run IDs without a further status-only commit.
+
+Use live-10/engineering-proof-view for condition-proof review. Its notice is an
+offline annotation, not rawCLI output; original bodies and immutable records are
+unchanged. The real model's support-breached and reconsideration-not-met retirements
+are verified live plumbing, not a naturally matured or historical model thesis.
+
+Paid live usage remains$31.2534275 across10lifetime attempts (oneDeep); audits
+through300ed744 total$8.85143925 including the incomplete attempt. Combined
+$40.10486675 excludesCodex; final delta review cost is recorded in final-gates.json.
+No merge, deployment, launcher installation, production creation or worktree
+removal is authorized or performed. Launcher remainsb075166. Future performance
+observations remain pending. Two live request proofs are explicitly deferred;
+HTML browser visual inspection remains unavailable as previously disclosed.

@@ -387,14 +387,13 @@
     "new_paid_calls": 71,
     "live_attempts_used": 10,
     "live_usd": 31.2534275,
-    "audit_usd": 7.782529500000001,
+    "audit_usd": 8.85143925,
     "limits": [
-      "Supported model-origin final target and forward-funding request remain unproved after three planned additional calls; reserve retry not justified by desired-output seeking",
-      "Connected completed-build audit pending",
-      "Exact-final-commit CI pending; initial candidate CI passed",
-      "Browser visual inspection unavailable",
+      "User explicitly deferred supported model-origin final-target and forward-funding live proofs; they did not pass",
+      "Raw live10 CLI report lacked seed-origin label; use independently verified annotated engineering-proof-view for handoff",
+      "Browser visual inspection unavailable; Markdown/HTML source and exported data checked",
       "Future performance endpoints pending by design",
-      "Launcher unchanged at b075166df6f1738ef691cee23d1473e5085e05a1"
+      "No merge or launcher installation; launcher remains b075166df6f1738ef691cee23d1473e5085e05a1"
     ],
     "prelive_verification": {
       "source_sha256": {
@@ -963,6 +962,13 @@
           "3.12 America/New_York"
         ],
         "smoke_and_lint": "success; integration and exact-PR-head steps all passed"
+      },
+      "audit_fix_head": {
+        "head": "23343b24dbff0e15a0b19c9554baae76c6f16257",
+        "run_id": 42058830583,
+        "conclusion": "success",
+        "all_five_matrix_and_smoke_lint": "passed including exact-PR-head steps",
+        "new_york_job_id": 127354523704
       }
     },
     "connected_audits": [
@@ -1162,6 +1168,86 @@
           "last_activity_at": null,
           "last_activity_kind": null
         }
+      },
+      {
+        "run_id": "300ed744-b679-4eb0-aae1-a4313bcd28a1",
+        "status": "completed",
+        "started_at": "2026-11-05T15:49:02.634Z",
+        "deadline_at": "2026-11-05T16:04:02.634Z",
+        "completed_at": "2026-11-05T15:55:01.874Z",
+        "report": {
+          "base_commit": "5c030594d7670c474d72677567455048211792b0",
+          "head_commit": "23343b24dbff0e15a0b19c9554baae76c6f16257",
+          "requested_model": "~anthropic/claude-fable-latest",
+          "served_model": "~anthropic/claude-fable-latest",
+          "status": "completed",
+          "actual_turns": 18,
+          "reviewed_files": [
+            "docs/reviews/2026-11-05-docn-interactive-audit-closure.md",
+            "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json",
+            "tests/test_analysis_cutoff.py",
+            "tests/test_settlement_coverage_reason.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/settlement.py"
+          ],
+          "summary": "Audited frozen diff 5c03059..23343b2 (6 files) against the November 5 remaining-gap closure plan and cumulative closure/evidence records, using only the specified frozen evidence JSON. The change set is a narrow, faithful closure of the two confirmed connected-audit low findings plus documentation: (1) settlement.py now reports the specific SettlementCoverageError/warning when the first request is already clipped at the cutoff instead of silently returning pending, while genuinely immature windows still return pending, with three new regression tests covering terminal-clip, immature, and legacy-warning paths; (2) log.py/trading_graph.py now require the actual post-load read time to fall on the analysis date in the named analysis timezone as well as before the cutoff, closing the midnight-crossing unstamped-legacy staleness, with a faithful midnight-during-load regression test; short-circuit guards keep missing metadata conservatively excluded and no immutable records gain fields. Documentation honestly records the incomplete audit bf49e073 as INCOMPLETE, the completed audit 6574f71f (0 critical/high/medium, 5 lows) with per-finding dispositions, correct cost arithmetic (audit_usd 5.33832825+0.3798405+2.06436075=7.7825295 \u2713), a consistent test-count delta (2288+4 new tests=2292 \u2713), open acceptance rows (model-origin target/funding, final-head CI) kept open, live proofs still pinned to 7e4014b, and the live10 engineering-proof-view labeled as offline annotation rather than CLI output. No critical or high defect found. One medium evidence-integrity finding: the post-fix py312-UTC and py312-New-York suite logs record identical sha256 hashes and identical 17.40s timings, strongly suggesting the New York leg entry duplicates the UTC log \u2014 material because the Low2 fix is timezone/midnight-sensitive and remote NY CI covers only the base commit 5c03059, not this head. Three additional lows: a misleading \"after at most two extensions\" message when the coverage error is raised on the zero-extension first attempt; an unhandled ZoneInfo exception path for direct callers passing an invalid truthy timezone (graph callers degrade conservatively); and the runtime-readback manifest delta omitting the newly added test file. Exact-head CI for 23343b2 remains correctly reported as pending, not claimed.",
+          "limitations": [
+            "Static frozen-diff review only: no tests, builds, imports, or runtime checks were executed; behavioral conclusions rest on reading the diff hunks and their new tests.",
+            "Unchanged surrounding code (full fetch_outcome body, sufficiency checks preceding the coverage-error block, thesis-path legacy handling, _memory_step internals, CI workflow contents) was not visible in the frozen diff and is assumed consistent with the prior connected audit's description of 5c03059.",
+            "Claims of local verification in the evidence record (author 151/148 and independent 139/124 focused test runs, 2292-test suite passes, artifact/hash rechecks, retained-runtime readbacks, GitHub CI runs 42054405210/42055960589) could only be checked for internal arithmetic and narrative consistency, not independently reproduced; the duplicated NY/UTC log hash finding is based solely on the recorded hashes.",
+            "The governing requirements document is very large (~1900 lines including an ~890-entry source hash manifest); the manifest entries were not re-verified against any files, and some earlier historical sections were skimmed rather than exhaustively read.",
+            "Exact-head GitHub CI for head 23343b2 and the targeted connected verification of these fixes are, per the evidence itself, still pending; this audit does not substitute for them."
+          ],
+          "findings": [
+            {
+              "severity": "medium",
+              "title": "Post-fix py312-UTC and py312-New-York suite logs record identical sha256 hashes and identical 17.40s runtimes, indicating the New York leg entry likely duplicates the UTC log; the timezone-sensitive Low2 midnight fix therefore lacks evidenced post-fix NY coverage on this head (remote NY CI covers only base 5c03059)",
+              "path": "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json"
+            },
+            {
+              "severity": "low",
+              "title": "SettlementCoverageError message states 'after at most two extensions' even when raised on the first terminal cutoff-clipped request with zero extensions performed, slightly misdescribing the retrieval history in the retained pending reason",
+              "path": "tradingagents/memory/settlement.py"
+            },
+            {
+              "severity": "low",
+              "title": "ZoneInfo(analysis_timezone) inside the legacy-eligibility expression raises for an invalid but truthy timezone name; graph callers degrade conservatively via broad exception handling, but direct get_past_context callers get an exception instead of conservative exclusion",
+              "path": "tradingagents/memory/log.py"
+            },
+            {
+              "severity": "low",
+              "title": "retained_runtime_readback.changed_manifest_files omits the newly added tests/test_settlement_coverage_reason.py, understating the source delta versus the pinned live head 7e4014b (new files absent from the original manifest keyset are not counted as changes)",
+              "path": "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json"
+            }
+          ],
+          "classification": {
+            "declared_build_size": "small",
+            "effective_build_size": "small",
+            "escalation_reasons": []
+          },
+          "progress": {
+            "observed_events": 962,
+            "last_activity_at": "2026-11-05T15:55:01.558Z",
+            "last_activity_kind": "stdout"
+          },
+          "ledger": {
+            "soft_budget_usd": 3,
+            "hard_budget_usd": 5,
+            "soft_turn_limit": 48,
+            "turn_limit": 64,
+            "wall_clock_limit_minutes": 15,
+            "actual_cost_usd": 1.0689097500000002,
+            "actual_elapsed_ms": 359104,
+            "soft_limit_reached": false
+          },
+          "stop_reason": "reviewer_completed"
+        },
+        "progress": {
+          "observed_events": 0,
+          "last_activity_at": null,
+          "last_activity_kind": null
+        }
       }
     ],
     "audit_low_dispositions": [
@@ -1202,7 +1288,7 @@
         }
       },
       "source_sha256": {
-        "tradingagents/graph/trading_graph.py": "85977b432ee7b8c79b54befbc143b780d535bc0e8867c6261a4f166f0c272064",
+        "tradingagents/graph/trading_graph.py": "2d82bc218d42b31a4dcacf2809da2266f628c16c26346db1e503c3964e8e1f65",
         "tradingagents/memory/log.py": "f6de16f80bcc2b42141c7d6fb3d3123cb7bdbea5fc5260470305b76d5b938d06",
         "tradingagents/memory/settlement.py": "d18c5a3adb6eebc2c7f8852aef73962acc665cff6e66c4a49123bc2142c0a078",
         "tests/test_analysis_cutoff.py": "e5476e1a518b94c52acaca3037f0483662c4e762cf8154e57eed0e325baac551",
@@ -1220,7 +1306,12 @@
           ],
           "current_code_readback": "passed",
           "original_artifacts_unchanged": true,
-          "paid_requests": 0
+          "paid_requests": 0,
+          "added_source_files": [
+            "tests/test_settlement_coverage_reason.py"
+          ],
+          "added_runtime_python_files": [],
+          "changed_manifest_files_definition": "Modified files present in the original pinned manifest; added files enumerated separately"
         },
         {
           "run": "live-09",
@@ -1233,7 +1324,12 @@
           ],
           "current_code_readback": "passed",
           "original_artifacts_unchanged": true,
-          "paid_requests": 0
+          "paid_requests": 0,
+          "added_source_files": [
+            "tests/test_settlement_coverage_reason.py"
+          ],
+          "added_runtime_python_files": [],
+          "changed_manifest_files_definition": "Modified files present in the original pinned manifest; added files enumerated separately"
         },
         {
           "run": "live-10",
@@ -1246,10 +1342,90 @@
           ],
           "current_code_readback": "passed",
           "original_artifacts_unchanged": true,
-          "paid_requests": 0
+          "paid_requests": 0,
+          "added_source_files": [
+            "tests/test_settlement_coverage_reason.py"
+          ],
+          "added_runtime_python_files": [],
+          "changed_manifest_files_definition": "Modified files present in the original pinned manifest; added files enumerated separately"
         }
       ],
       "impact_analysis": "Only missing-coverage failure reporting and local-day-crossing unstamped-legacy eligibility changed. Original live08/09/10 had completed normal data and stayed within the same Denver day; source facts, calculations, role logic, model transport and report serialization unchanged. All three current-code graph readbacks pass with paid requests blocked; original live artifacts remain unchanged. Original paid proofs remain pinned to7e4014b, not relabeled as latest-source runs."
-    }
+    },
+    "acceptance_amendment": {
+      "source": "Explicit user answer in Goal chat on November5",
+      "answer": "Accept the two disclosed proof limits (Recommended)",
+      "deferred_not_passed": [
+        "supported model-origin final-target live request",
+        "model-origin forward-funding live request"
+      ],
+      "conditions": "Remaining audit and CI checks must pass; no other acceptance or release boundary relaxed"
+    },
+    "checkpoint_context": {
+      "version": "analysis_cutoff=2",
+      "reason": "Prevent reuse of memory cached before audited availability corrections",
+      "independent_verification": "Old/new signatures produce distinct thread IDs;12 proof checkpoint DBs hash-unchanged;39 focused tests passed"
+    },
+    "targeted_audit_dispositions": {
+      "medium_log_ambiguity": "Partially confirmed: old files lack distinct timezone metadata and have identical hashes. Duplicate execution is not established. Repeated full UTC/NY suites have explicit TZ, resolved tzname, distinct PIDs/times/hashes, same actual current source hashes and zero exits; independent reviewer verified closure. Remote exact-head NY233 job also passed.",
+      "low_extension_message": "Not a factual defect: at most two includes zero; retrieval spans retain exact requests. No additional source change.",
+      "low_direct_invalid_zone": "Deferred direct-caller ergonomics: valid resolved timezone is required; graph resolves/falls back before this call and fails visibly/conservatively.",
+      "low_added_test_delta": "Corrected evidence completeness: changed_manifest_files enumerates modified pre-existing entries; new source files are separately enumerated below."
+    },
+    "final_local_timezone_runs": {
+      "final-py312-utc.log": {
+        "sha256": "4fcc6a3bf8eb4cc6510bfcea3edfc9f88272f8a976d99403ba47cb188727f608",
+        "metadata": {
+          "started_at": "2026-11-05T15:56:37.375984+00:00",
+          "pid": 9506,
+          "TZ": "UTC",
+          "tzname": [
+            "UTC",
+            "UTC"
+          ],
+          "python": "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/.venv-py312/bin/python",
+          "version": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.0.0 (clang-2100.0.123.102)]",
+          "head": "23343b24dbff0e15a0b19c9554baae76c6f16257",
+          "application_sha256": {
+            "tradingagents/graph/trading_graph.py": "2d82bc218d42b31a4dcacf2809da2266f628c16c26346db1e503c3964e8e1f65",
+            "tradingagents/memory/log.py": "f6de16f80bcc2b42141c7d6fb3d3123cb7bdbea5fc5260470305b76d5b938d06",
+            "tradingagents/memory/settlement.py": "d18c5a3adb6eebc2c7f8852aef73962acc665cff6e66c4a49123bc2142c0a078"
+          }
+        },
+        "result": "2292 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 16.77s",
+        "exit": {
+          "finished_at": "2026-11-05T15:56:56.389215+00:00",
+          "TZ": "UTC",
+          "returncode": 0
+        }
+      },
+      "final-py312-new-york.log": {
+        "sha256": "e419511f7226d47abc2f480375e2e7c2cc0bcc2af782e2e1c9a81f9b1da818c3",
+        "metadata": {
+          "started_at": "2026-11-05T15:56:37.375986+00:00",
+          "pid": 9507,
+          "TZ": "America/New_York",
+          "tzname": [
+            "EST",
+            "EDT"
+          ],
+          "python": "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/.venv-py312/bin/python",
+          "version": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.0.0 (clang-2100.0.123.102)]",
+          "head": "23343b24dbff0e15a0b19c9554baae76c6f16257",
+          "application_sha256": {
+            "tradingagents/graph/trading_graph.py": "2d82bc218d42b31a4dcacf2809da2266f628c16c26346db1e503c3964e8e1f65",
+            "tradingagents/memory/log.py": "f6de16f80bcc2b42141c7d6fb3d3123cb7bdbea5fc5260470305b76d5b938d06",
+            "tradingagents/memory/settlement.py": "d18c5a3adb6eebc2c7f8852aef73962acc665cff6e66c4a49123bc2142c0a078"
+          }
+        },
+        "result": "2292 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 16.77s",
+        "exit": {
+          "finished_at": "2026-11-05T15:56:56.383953+00:00",
+          "TZ": "America/New_York",
+          "returncode": 0
+        }
+      }
+    },
+    "final_gate_record": "results/docn-abc/remaining-gaps/final-gates.json"
   }
 }

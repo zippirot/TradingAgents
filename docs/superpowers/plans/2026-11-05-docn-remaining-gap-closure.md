@@ -313,3 +313,20 @@ quietly turn clean-install packaging smoke into a claim that the launcher change
 All three reserved decisions above were explicitly approved in the Goal chat.
 Do not ask again. The descriptions above remain the scope of those approvals;
 all other release boundaries and proof requirements remain unchanged.
+
+## User-approved acceptance amendment — November 5
+
+After all three planned additional live runs omitted model-origin supported final
+target and forward-funding requests, independent review confirmed explicit model
+abstention rather than a demonstrated parser/transport defect. The user answered
+“Accept the two disclosed proof limits (Recommended)” to the explicit question
+whether this Goal may close after audit/CI with those two live proofs deferred.
+
+Those two original runtime acceptance rows are therefore **deferred with explicit
+user authorization, not passed**. All other implementation, required verification,
+independent audit/material-finding closure, exact-final-head CI and clean committed
+branch requirements remain. Do not force a target, change validators, consume the
+diagnostic reserve merely to seek a desired output, or claim these requests were
+demonstrated. Future work on their generation/proof needs separately scoped work.
+The user selected Sol for continued Codex execution; saved application models and
+depth preferences remain unchanged. No merge or launcher installation is approved.
