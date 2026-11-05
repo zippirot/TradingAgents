@@ -1,14 +1,14 @@
 {
-  "milestone": "Build B first CLI and fresh-process readback passed; next CLI disposition proof pending",
+  "milestone": "Build B accepted with explicit evidence reuse and material-fix recovery",
   "full_suite": {
-    "passed": 2170,
+    "passed": 2179,
     "subtests": 100,
     "skipped": 1,
     "deselected": 1,
     "warnings": 20
   },
-  "paid_attempts": 4,
-  "conservative_proof_usage_usd": 10.2494125,
+  "paid_attempts": 5,
+  "conservative_proof_usage_usd": 12.953,
   "independent_material_findings_open": [],
   "artifact_sha256": {
     "results/docn-abc/b-offline/pytest-candidate.log": "390b1805cf4806e89ab834189bec65dcf108e91d64983c020b667765022544a1",
@@ -17,10 +17,12 @@
     "results/docn-abc/b-offline/pip-reviewed.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
     "results/docn-abc/b-price-probe/price_observation.json": "377dd279ac6e3e1915ea9e49721fc8e13f2e5e305d8f22af1c2aa1e6ee6043dd",
     "results/docn-abc/b-price-probe/event_comparison-bound.json": "9d6a43a8f7a5e683d90105969f401fd7f122cf8fe50c9657ef3a76a4b6a272b2",
-    "results/docn-abc/live-04/build-b-readback.json": "6df2bf874b401de0fecc8c151d2fafc36236ef1a380537c54bfa15922e0dba30"
+    "results/docn-abc/live-04/build-b-readback.json": "6df2bf874b401de0fecc8c151d2fafc36236ef1a380537c54bfa15922e0dba30",
+    "results/docn-abc/live-05/build-b-continuity.json": "ec5624f064ac0a90846d4f3365bbc432628440bb40d6ef5213657a04b6a403b6",
+    "results/docn-abc/b-thesis-recovery/acceptance.json": "75fd3099c5f3a67a650c85995f03ed4e44f22d28410cee36f7b2473d2f49ac1b"
   },
   "limits": [
-    "Second real CLI condition/disposition proof pending",
+    "No live forward-funding model request; calculator/report paths verified deterministically and independently reviewed",
     "Final C and connected final audit pending",
     "No typed timestamped consensus source",
     "Prior guidance comparison unavailable for real DOCN source probe",
@@ -98,5 +100,206 @@
       "Second CLI decision/disposition proof remains separately required",
       "Future investment performance remains pending"
     ]
-  }
+  },
+  "live05_continuity": {
+    "reused_valuation_proof": "54e3a2d3-4f5a-49e1-a999-461ad8970838",
+    "same_application_hashes": true,
+    "daily_revision_not_new_sample": true,
+    "source_head": "9cd33dd368d73c0700d53de720cb43d78fa4397d",
+    "decision_id": "a11c8098-dfa2-44dd-8a4f-58c998780bd7",
+    "published_at": "2026-11-05T05:04:19.985449+00:00",
+    "rating": "Underweight",
+    "quality": "limited",
+    "thesis_version_id": "7c94e1e7-02fc-566c-ad04-a10d3307d57b",
+    "conditions_count": 4,
+    "fresh_process_prior_readback": true,
+    "prior_thesis_version_id": "282f78f4-c085-5a2a-9e99-25d830044b77",
+    "prior_dispositions": [
+      {
+        "metric": "Gross Margin",
+        "metric_definition": "Gross Margin",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "55.5",
+        "unit": "percent",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "A return toward first-half gross margin would support a reassessment of capacity economics; it is not by itself an automatic buy signal.",
+        "condition_id": "condition-2d298068d37cb969f26abfea",
+        "status": "unknown",
+        "reason": "Gross Margin inputs missing or competing; observation unresolved",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": [],
+        "disposition": "kept",
+        "disposition_reason": "Q4 gross-margin inputs are unavailable and the observation is unresolved; retain as an advisory test of improving unit economics, not a mandatory action."
+      },
+      {
+        "metric": "Revenue",
+        "metric_definition": "Revenue",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "348000000",
+        "unit": "USD",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "Compare Q4 delivery with the lower end of management's $348\u2013351 million revenue outlook; falling short warrants a review of capacity and demand, not an automatic trade.",
+        "condition_id": "condition-779e4273761b3e906a0e584c",
+        "status": "unknown",
+        "reason": "Compatible canonical evidence unavailable",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": [],
+        "disposition": "kept",
+        "disposition_reason": "Q4 actual revenue is unavailable; retain the $348 million guidance-floor comparison as an advisory delivery test, not a verified observation."
+      }
+    ],
+    "observations": [
+      {
+        "metric": "Gross Margin",
+        "metric_definition": "Gross Margin",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "55.5",
+        "unit": "percent",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "A return toward first-half gross margin would support a reassessment of capacity economics; it is not by itself an automatic buy signal.",
+        "condition_id": "condition-2d298068d37cb969f26abfea",
+        "status": "unknown",
+        "reason": "Gross Margin inputs missing or competing; observation unresolved",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      },
+      {
+        "metric": "Revenue",
+        "metric_definition": "Revenue",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "348000000",
+        "unit": "USD",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "Compare Q4 delivery with the lower end of management's $348\u2013351 million revenue outlook; falling short warrants a review of capacity and demand, not an automatic trade.",
+        "condition_id": "condition-779e4273761b3e906a0e584c",
+        "status": "unknown",
+        "reason": "Compatible canonical evidence unavailable",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      },
+      {
+        "metric": "Gross Margin",
+        "metric_definition": "Gross Margin",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "55.5",
+        "unit": "percent",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "An improvement toward 55.5% would support the case that growth can translate into stronger unit economics; a miss is not an automatic sell.",
+        "condition_id": "condition-1c290615da02c151548467b0",
+        "status": "unknown",
+        "reason": "Gross Margin inputs missing or competing; observation unresolved",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      },
+      {
+        "metric": "Revenue",
+        "metric_definition": "Revenue",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "348000000",
+        "unit": "USD",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "Compare Q4 reported revenue with the lower end of management\u2019s $348\u2013$351 million outlook; this is a delivery checkpoint, not a binding trading rule.",
+        "condition_id": "condition-e7ba4b77d81aa69233c05ccb",
+        "status": "unknown",
+        "reason": "Compatible canonical evidence unavailable",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      }
+    ],
+    "source_manifest_matches": true,
+    "supported_price_comparisons": 0,
+    "target_status": "unsupported",
+    "model_calls": 0,
+    "pending_endpoints": [
+      "21_sessions",
+      "5_sessions",
+      "63_sessions"
+    ],
+    "memory_unchanged": true,
+    "artifact_sha256": {
+      "results/docn-abc/live-05/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "db89b4f9dfe01f36efbae27246e02c8539b9a2cc9d1ec11ea851393c767db61d",
+      "results/docn-abc/live-05/results/reports/DOCN_20261104_220420/complete_report.md": "24b9ab35e2150f70551d242035fb9eb90f58ab08647a77c6a6479af507824ee2",
+      "results/docn-abc/live-05/results/reports/DOCN_20261104_220420/complete_report.html": "d4c4d394a85fd23f5c0e3f13d2fa2eea147ffdc85ad5fbf3d1cb20bdc6ecc0ca",
+      "results/docn-abc/live-05/results/reports/DOCN_20261104_220420/evidence.json": "1631d1ae31692bf3839bebd2b6563f5b95c0bd0fe15c9c62f56c80081454f4ac",
+      "results/docn-abc/live-05/results/reports/DOCN_20261104_220420/quality.json": "2284a84e3f416421a5410cd504df2a3dabae018ed7f5c6567be2a6c76f84ba9d",
+      "results/docn-abc/live-05/memory/trading_memory.md": "095ad0ecace96c60dbadf922c4459f2647465ab11bba4a54361c7f0aaa52f4b5"
+    },
+    "limits": [
+      "HTML structure/text inspected; no browser screenshot",
+      "Second CLI disposition is proven only when prior_thesis_version_id and prior_dispositions are present",
+      "Future investment performance remains pending"
+    ]
+  },
+  "identity_recovery": {
+    "kind": "deterministic historical engineering replay; not another live model proof",
+    "source_versions": {
+      "code": "sha256:546dddebd0bc1793370b929e91525cf697fb827715265b103c21d6d861b1dd2c",
+      "prompt": "sha256:63380196bd182d61347c2a2b6f9c454e2ac76afac992596be50cb4e740cdaad0",
+      "schema": 1
+    },
+    "source_decision_id": "a11c8098-dfa2-44dd-8a4f-58c998780bd7",
+    "decision_id": "62d642a2-13a1-48c5-b15d-fcd128f443a8",
+    "published_at": "2026-11-05T05:19:33.129358+00:00",
+    "original_thesis_version": "7c94e1e7-02fc-566c-ad04-a10d3307d57b",
+    "new_thesis_version": "2ab2938e-f0ec-52ef-ae2a-1d09b88560ac",
+    "old_conditions": 4,
+    "new_conditions": 2,
+    "preserved_condition_ids": [
+      "condition-2d298068d37cb969f26abfea",
+      "condition-779e4273761b3e906a0e584c"
+    ],
+    "same_run_old_thesis_preserved": true,
+    "repeated_publication_passed": true,
+    "second_graph_readback_passed": true,
+    "original_artifacts_unchanged": {
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-04/results/publications/records/54e3a2d3-4f5a-49e1-a999-461ad8970838.json": "8077e67b813010e480eced4058c81361c4f27fa029fdda36998d4fe31896a5bb",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-04/results/publications/evidence/b0be767a448755aecb7bfa5b3c1f8ae32050f8a1cbc29f91e6d9d5fa10928a0a.json": "3a11fc0c0b444bc5b17b3ec059102dcbe39d101ca14098299e98dbeccd9d7581",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/results/publications/records/54e3a2d3-4f5a-49e1-a999-461ad8970838.json": "8077e67b813010e480eced4058c81361c4f27fa029fdda36998d4fe31896a5bb",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/results/publications/records/a11c8098-dfa2-44dd-8a4f-58c998780bd7.json": "870725246cad58dbf14f52db9126bdcd1390c92dafbdce2ed1f9c10641576c67",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/results/publications/evidence/f669624314cbe3c75912ec80d7cf7d4bdd79e31df6e607bb38de92d8d3533cd6.json": "d06a72f688dfae229fdb2c4014193be20c04f228f0114f6a957e93c151533cc4",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/results/publications/evidence/b0be767a448755aecb7bfa5b3c1f8ae32050f8a1cbc29f91e6d9d5fa10928a0a.json": "3a11fc0c0b444bc5b17b3ec059102dcbe39d101ca14098299e98dbeccd9d7581",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "db89b4f9dfe01f36efbae27246e02c8539b9a2cc9d1ec11ea851393c767db61d",
+      "/Users/zipp/Documents/ChatGPT/Tauric/worktrees/docn-abc-gap-closure/results/docn-abc/live-05/memory/trading_memory.md": "095ad0ecace96c60dbadf922c4459f2647465ab11bba4a54361c7f0aaa52f4b5"
+    },
+    "model_calls": 0,
+    "network_calls": 0,
+    "future_outcomes": "pending",
+    "report_files": [
+      "results/docn-abc/b-thesis-recovery/report/evidence.json",
+      "results/docn-abc/b-thesis-recovery/report/complete_report.md",
+      "results/docn-abc/b-thesis-recovery/report/quality.json",
+      "results/docn-abc/b-thesis-recovery/report/complete_report.html"
+    ]
+  },
+  "material_fix": "Live05 has four entries for two semantic conditions; new versions coalesce under original IDs, original publication preserved. Independently verified."
 }

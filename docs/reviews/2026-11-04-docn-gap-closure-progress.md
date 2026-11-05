@@ -600,3 +600,29 @@ model decision and must not be counted as prospective investment evidence.
 Live-05 used 17 model requests and $2.7035875 at the conservative token-rate caps.
 Five paid proofs have used **$12.953** cumulatively; two of seven attempts remain.
 The audit allocation remains unspent. No saved model/depth preferences changed.
+
+### Build B acceptance
+
+The correction is committed as `a10b7d2` (full SHA retained by the recovery
+receipt). `recover_build_b_thesis.py` passed through actual graph publication,
+report/evidence writing, repeat publication and second-graph readback. The new
+historical engineering record `62d642a2-13a1-48c5-b15d-fcd128f443a8` contains two
+conditions under the original IDs and preserves legacy duplicate IDs as aliases.
+All original live-04/live-05 publication/evidence/state/memory hashes are unchanged.
+The original buggy version remains an immutable historical observation; it was
+not relabeled as a clean run. This proof made zero model or network calls.
+
+Independent verification reran 89 focused tests, directly checked original B4/B5
+same-run projections and new-version coalescing, loaded the recovery publication
+and evidence through integrity checks, and independently rehashed all eight
+protected original files. The semantic-identity finding is closed. Receipt:
+`results/docn-abc/b-thesis-recovery/acceptance.json`.
+
+**B accepted:** real CLI valuation proof (live-04), real next-CLI disposition proof
+(live-05), targeted actual-input persistence recovery, the final 2,179-test suite,
+and independent material-fix verification together establish the build boundary.
+The accepted evidence is intentionally across stated revisions, not one invented
+all-passing live run. No completed forward-funding model scenario was produced;
+that arithmetic and its full report path have focused deterministic tests and
+independent review. Final target/scenario omissions remain permitted and explicit.
+Final C and the connected final exact-base/head audit remain outstanding.
