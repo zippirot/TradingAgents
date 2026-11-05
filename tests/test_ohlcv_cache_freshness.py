@@ -7,6 +7,7 @@ day (#1330).
 """
 from __future__ import annotations
 
+import json
 import os
 from types import SimpleNamespace
 
@@ -28,7 +29,11 @@ def _stamp(path, ts):
 
 def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026-07-17"):
     f = tmp_path / name
-    pd.DataFrame({"Date": [last_date], "Close": [100.0]}).to_csv(f, index=False)
+    source = {"ticker": "AAPL", "retrieved_at": NOW.tz_localize("UTC").isoformat(),
+              "exchange_timezone": "UTC", "regular_end": None, "currency": "USD",
+              "adjustment_basis": ohlcv.ADJUSTMENT, "source_id": "fixture-cache"}
+    pd.DataFrame({"Date": [str((pd.Timestamp(last_date) - pd.Timedelta(days=1)).date()), last_date],
+                  "Close": [99.0, 100.0], "__market_source": json.dumps(source)}).to_csv(f, index=False)
     _stamp(f, NOW - pd.Timedelta(seconds=age_seconds))
     return f
 

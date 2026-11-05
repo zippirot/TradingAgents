@@ -50,13 +50,13 @@ class TestRenderTraderProposal:
         p = TraderProposal(
             action=TraderAction.BUY,
             reasoning="Strong technicals + fundamentals.",
-            entry_price=189.5,
+            purchase_entry_price=189.5,
             stop_loss=178.0,
             position_sizing="6% of portfolio",
         )
         md = render_trader_proposal(p)
         assert "**Action**: Buy" in md
-        assert "**Entry Price**: 189.5" in md
+        assert "**Purchase Entry Price**: 189.5" in md
         assert "**Stop Loss**: 178.0" in md
         assert "**Position Sizing**: 6% of portfolio" in md
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
@@ -66,7 +66,7 @@ class TestRenderTraderProposal:
         tell it from a level the trader declined to set."""
         p = TraderProposal(action=TraderAction.SELL, reasoning="Guidance cut.")
         md = render_trader_proposal(p)
-        for field in ("Entry Price", "Stop Loss", "Position Sizing"):
+        for field in ("Purchase Entry Price", "Reference Sale Level", "Stop Loss", "Position Sizing"):
             assert f"**{field}**: not provided" in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
 
@@ -218,7 +218,7 @@ class TestTraderAgent:
         proposal = TraderProposal(
             action=TraderAction.BUY,
             reasoning="AI capex cycle intact; institutional flows constructive.",
-            entry_price=189.5,
+            purchase_entry_price=189.5,
             stop_loss=178.0,
             position_sizing="6% of portfolio",
         )
@@ -227,7 +227,7 @@ class TestTraderAgent:
         result = trader(_make_trader_state())
         plan = result["trader_investment_plan"]
         assert "**Action**: Buy" in plan
-        assert "**Entry Price**: 189.5" in plan
+        assert "**Purchase Entry Price**: 189.5" in plan
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in plan
         # The same rendered markdown is also added to messages for downstream agents.
         assert plan in result["messages"][0].content
@@ -542,6 +542,6 @@ def test_the_trader_names_the_levels_it_did_not_give():
     from tradingagents.agents.schemas import TraderAction, TraderProposal, render_trader_proposal
 
     rendered = render_trader_proposal(TraderProposal(action=TraderAction.HOLD, reasoning="r"))
-    for field in ("Entry Price", "Stop Loss", "Position Sizing"):
+    for field in ("Purchase Entry Price", "Reference Sale Level", "Stop Loss", "Position Sizing"):
         assert field in rendered
-    assert rendered.lower().count("not provided") == 3
+    assert rendered.lower().count("not provided") == 4

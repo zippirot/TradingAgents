@@ -9,7 +9,11 @@ from tradingagents.agents.context import (
     get_language_instruction,
     get_portfolio_context_from_state,
 )
-from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
+from tradingagents.agents.schemas import (
+    TraderProposal,
+    label_legacy_trader_price,
+    render_trader_proposal,
+)
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
@@ -34,7 +38,7 @@ def create_trader(llm):
 
         if market_report:
             grounding = (
-                "Ground concrete price levels (entry, stop-loss, position sizing) in the technical "
+                "Ground concrete price levels (purchase entry, reference sale level, stop-loss) in the technical "
                 "market report's price structure -- current price, support/resistance, ATR, and "
                 "volatility -- and use the research plan for direction and strategy. "
             )
@@ -53,10 +57,10 @@ def create_trader(llm):
                     # Entry/stop are numeric price fields. Asking for concrete
                     # levels invites a percentage ("15%"), which is not a price
                     # and fails the structured parse (#1288).
-                    + "State entry price and stop-loss as absolute price levels in the "
-                    "instrument's quote currency (for example 189.5), never a percentage "
-                    "or a range; convert a percentage distance to the price level it "
-                    "implies, or omit the field if you cannot state a number. "
+                    + "For Buy, optionally state a purchase entry price; for Sell, optionally state an advisory reference sale level. "
+                    "Never put a purchase entry on Sell or Hold. A sale reference is not an order, executable quote, "
+                    "share quantity or instruction concerning unknown holdings. State price levels in quote currency "
+                    "as absolute numbers, never percentages or ranges; omit unsupported levels. "
                     + NO_EXTERNAL_TOOLS
                     + get_language_instruction()
                 ),
@@ -77,7 +81,7 @@ def create_trader(llm):
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
                     "sized by how strong the case is; conflict alone is not a Hold.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them"
+                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** and **Position Sizing** when supported; holdings may be unknown"
                 ),
             },
         ]
@@ -90,6 +94,7 @@ def create_trader(llm):
             "Trader",
         )
 
+        trader_plan = label_legacy_trader_price(trader_plan)
         return {
             "messages": [AIMessage(content=trader_plan)],
             "trader_investment_plan": trader_plan,

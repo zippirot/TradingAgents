@@ -185,7 +185,8 @@ class TradingAgentsGraph:
             "publication=1",
             "shared_valuation=6",
             "advisory_thesis=2",
-            "price_observation=1",
+            "price_observation=2",
+            "completed_market_inputs=1",
             "event_comparison=1",
             "decision_context=1",
             "evidence_presentation=1",
@@ -349,6 +350,9 @@ class TradingAgentsGraph:
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
         state["analysis_clock"] = self._analysis_cutoff(trade_date)
+        state["market_observation_cutoff"] = min(
+            datetime.now(UTC), datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
+        ).isoformat()
         return state
 
     def _memory_step(self, state):
@@ -602,7 +606,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("analysis_clock", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("analysis_clock", "market_observation_cutoff", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

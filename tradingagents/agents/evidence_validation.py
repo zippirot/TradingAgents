@@ -322,6 +322,7 @@ def create_evidence_gate(selected_analysts):
         if update["evidence_quality"]["status"] in {"sufficient", "limited"}:
             from tradingagents.dataflows.config import get_config
             from tradingagents.dataflows.vendors.yahoo.price_observation import (
+                completed_price_scope,
                 get_price_observation,
             )
 
@@ -332,8 +333,9 @@ def create_evidence_gate(selected_analysts):
                               if fact.metric == "Cash and Equivalents" and fact.value is not None
                               and fact.period_start is None]
                 capital_date = max(cash_dates, default=None)
-                update["price_observation"] = get_price_observation(
-                    state["company_of_interest"], state["trade_date"], capital_date)
+                with completed_price_scope(state):
+                    update["price_observation"] = get_price_observation(
+                        state["company_of_interest"], state["trade_date"], capital_date)
             else:
                 update["price_observation"] = {"status": "unavailable",
                     "reason": "No supported dated-close provider is configured; no additional vendor was used"}

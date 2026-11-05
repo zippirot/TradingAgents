@@ -17,7 +17,7 @@ from stockstats import wrap
 
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
+from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv, market_provenance_lines
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
 DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
@@ -96,6 +96,7 @@ def build_verified_market_snapshot(
         f"- Requested analysis date: {as_of_date}",
         f"- Latest trading row used: {latest_date}",
         "- Rows after the requested analysis date are excluded before verification.",
+        *market_provenance_lines(df),
         "",
         "### Latest verified OHLCV row",
         "",

@@ -18,6 +18,7 @@ from tradingagents.agents.evidence_presentation import (
 )
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
+from tradingagents.agents.schemas import label_legacy_trader_price
 from tradingagents.agents.valuation_comparison import display_number
 from tradingagents.dataflows.files import replace_file
 
@@ -156,8 +157,12 @@ def prepare_report_state(final_state: dict) -> dict:
                 )
         if diagnostics:
             prepared["unvalidated_outputs"] = diagnostics
+        if isinstance(prepared.get("trader_investment_plan"), str):
+            prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
         return prepared
     if not prepared.get("evidence_quality"):
+        if isinstance(prepared.get("trader_investment_plan"), str):
+            prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
         return prepared
     originals = prepared.get("unvalidated_outputs") or {}
 
@@ -202,6 +207,8 @@ def prepare_report_state(final_state: dict) -> dict:
         table = render_shared_valuation(scenarios)
         if table:
             prepared["fundamentals_report"] = table + "\n\n" + (prepared.get("fundamentals_report") or "")
+    if isinstance(prepared.get("trader_investment_plan"), str):
+        prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
     return prepared
 
 

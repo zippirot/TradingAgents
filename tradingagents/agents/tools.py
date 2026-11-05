@@ -19,6 +19,7 @@ from tradingagents.dataflows.vendors.sec_documents import (
 from tradingagents.dataflows.vendors.sec_edgar import (
     get_financial_evidence as build_financial_evidence,
 )
+from tradingagents.dataflows.vendors.yahoo.price_observation import completed_price_scope
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
@@ -28,6 +29,7 @@ def get_stock_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_state: Annotated[dict, InjectedState] = None,
 ) -> str:
     """
     Retrieve stock price data (OHLCV) for the instrument under analysis.
@@ -42,7 +44,8 @@ def get_stock_data(
         start_date, end_date = as_of_window(start_date, end_date, trade_date)
     except ValueError as e:
         return str(e)
-    return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    with completed_price_scope(run_state):
+        return route_to_vendor("get_stock_data", symbol, start_date, end_date)
 
 
 @tool
@@ -52,6 +55,7 @@ def get_indicators(
     curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"] = 30,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_state: Annotated[dict, InjectedState] = None,
 ) -> str:
     """
     Retrieve a single technical indicator for the instrument under analysis.
@@ -70,7 +74,8 @@ def get_indicators(
     results = []
     for ind in indicators:
         try:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            with completed_price_scope(run_state):
+                results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
         except ValueError as e:
             results.append(str(e))
     return "\n\n".join(results)
@@ -84,6 +89,7 @@ def get_verified_market_snapshot(
         int, "number of recent trading rows to include for sanity-checking"
     ] = 30,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_state: Annotated[dict, InjectedState] = None,
 ) -> str:
     """Deterministic verification snapshot for exact market-data claims.
 
@@ -94,7 +100,8 @@ def get_verified_market_snapshot(
     """
     # An exception out of a tool would end the run.
     try:
-        return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
+        with completed_price_scope(run_state):
+            return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
     except VendorUnavailableError as exc:
         return vendor_unavailable("get_verified_market_snapshot", exc)
     except NoMarketDataError as exc:

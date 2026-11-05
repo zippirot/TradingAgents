@@ -13,6 +13,7 @@ anywhere counts as no data and the staleness check judges the rest.
 """
 from __future__ import annotations
 
+import json
 import os
 from types import SimpleNamespace
 
@@ -98,10 +99,14 @@ def test_fill_price_gaps_drops_nan_close_rows():
 def _run_load(monkeypatch, tmp_path, frame, curr_date):
     """Drive load_ohlcv against a pre-seeded cache frame (no network)."""
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    today = pd.Timestamp(curr_date)
+    today = pd.Timestamp(curr_date) + pd.Timedelta(hours=23)
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: today.tz_localize("UTC").to_pydatetime())
     monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: today))
     cache_file = tmp_path / "AAPL-YFin-data.csv"
-    cache_file.write_text(frame.to_csv(index=False))
+    source = {"ticker": "AAPL", "retrieved_at": today.tz_localize("UTC").isoformat(),
+              "exchange_timezone": "UTC", "regular_end": curr_date + "T22:00:00+00:00",
+              "currency": "USD", "adjustment_basis": ohlcv.ADJUSTMENT, "source_id": "fixture-cache"}
+    cache_file.write_text(frame.assign(__market_source=json.dumps(source)).to_csv(index=False))
     _stamp(cache_file, today)
 
     def _fail_download(*a, **k):
@@ -193,11 +198,17 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
         "Close": [100.5, 105.0, 106.0],
         "Volume": [1000000, 1000000, ""],
     })
-    today = pd.Timestamp("2026-05-08 12:00")
+    # A completed row can still have a missing high/open/volume. This test
+    # verifies no gap fill, independently of the intraday finality tests.
+    today = pd.Timestamp("2026-05-08 23:00")
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: today.tz_localize("UTC").to_pydatetime())
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: today))
     cache = tmp_path / "AAPL-YFin-data.csv"
-    cache.write_text(frame.to_csv(index=False))
+    source = {"ticker": "AAPL", "retrieved_at": today.tz_localize("UTC").isoformat(),
+              "exchange_timezone": "UTC", "regular_end": "2026-05-08T22:00:00+00:00",
+              "currency": "USD", "adjustment_basis": ohlcv.ADJUSTMENT, "source_id": "fixture-cache"}
+    cache.write_text(frame.assign(__market_source=json.dumps(source)).to_csv(index=False))
     _stamp(cache, today)
     monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
         history=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should read the seeded cache"))))

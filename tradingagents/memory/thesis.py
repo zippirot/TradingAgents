@@ -511,6 +511,14 @@ def legacy_thesis_context(entries, ticker, asof, *, historical=False) -> str:
         decision = entry.get('decision')
         if not isinstance(decision, str) or not decision.strip():
             continue
+        # This exact canonical projection stores fact context while keeping the
+        # model narrative in diagnostics. It supplies no legacy thesis to quote.
+        if (decision.startswith("**Rating**: ")
+                and "**Executive Summary**: Model recommendation; financial evidence and valuation coverage are shown below." in decision
+                and "**Investment Thesis — canonical evidence**:" in decision
+                and decision.rstrip().endswith("Original model narrative is retained separately in evidence.json diagnostics.")
+                and "Thesis continuity — advisory, not binding." not in decision):
+            continue
         try:
             labelled_date = date.fromisoformat(entry.get('date', ''))
         except (TypeError, ValueError):

@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from tradingagents.agents import tools
+from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.vendors import polymarket
 from tradingagents.dataflows.vendors.yahoo import (
@@ -187,7 +188,7 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
 
 
 @pytest.mark.unit
-def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch):
+def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch, tmp_path):
     """Prices are the most-used path, so an outage there must not read as a
     delisted symbol either."""
     import pandas as pd
@@ -195,6 +196,7 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
     from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
     from tradingagents.dataflows.vendors.yahoo import common
 
+    set_config({"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(yahoo_market.yf, "Ticker", lambda s: mock.Mock(history=lambda **k: pd.DataFrame()))
 
     monkeypatch.setattr(common, "vendor_reachable", lambda url: False)
@@ -216,10 +218,11 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch)
         (yahoo_fundamentals.get_insider_transactions, ("AAPL", "2025-06-06")),
     )
 ])
-def test_a_historical_run_is_not_told_todays_date(func, args):
+def test_a_historical_run_is_not_told_todays_date(func, args, tmp_path):
     """A header stamped with the wall clock tells a backtest when it is really running."""
     from datetime import date
 
+    set_config({"data_cache_dir": str(tmp_path)})
     statement = pd.DataFrame({pd.Timestamp("2025-03-31"): [1.0]}, index=["Total Assets"])
     prices = pd.DataFrame({"Open": [1.0], "High": [1.0], "Low": [1.0], "Close": [1.0], "Volume": [1]},
                           index=pd.DatetimeIndex(["2025-06-02"], name="Date"))

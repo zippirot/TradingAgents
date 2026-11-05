@@ -1,4 +1,6 @@
+from datetime import UTC, datetime
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yfinance as yf
 
@@ -20,6 +22,49 @@ from tradingagents.dataflows.vendors.yahoo.common import (
 _MAIN_UNIT = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
 
 
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _quote_provenance(info: dict, retrieved: datetime) -> tuple[str, str | None]:
+    """Describe only an actually timestamped Yahoo regular-market quote."""
+    zone_name = info.get("exchangeTimezoneName")
+    try:
+        zone = ZoneInfo(zone_name) if isinstance(zone_name, str) else None
+    except ZoneInfoNotFoundError:
+        zone = None
+    raw_time = info.get("regularMarketTime")
+    if not zone:
+        return "unknown (exchange timezone unavailable)", None
+    if isinstance(raw_time, bool) or not isinstance(raw_time, (int, float)):
+        return "unknown (quote timestamp unavailable)", None
+    try:
+        quote_time = datetime.fromtimestamp(raw_time, UTC)
+    except (OverflowError, OSError, ValueError):
+        return "unknown (quote timestamp unavailable)", None
+    if quote_time > retrieved:
+        return "unknown (quote timestamp after retrieval)", None
+    quote_date = quote_time.astimezone(zone).date()
+    retrieval_date = retrieved.astimezone(zone).date()
+    if quote_date < retrieval_date:
+        return "stale or earlier session", None
+    if quote_date > retrieval_date:
+        return "unknown (quote timestamp after retrieval)", None
+    state = info.get("marketState")
+    if state == "REGULAR":
+        status = "provisional intraday"
+    elif state in {"POST", "POSTPOST", "CLOSED"}:
+        status = "vendor reports closed session; finality unverified"
+    else:
+        return "unknown (vendor session state unavailable)", None
+    price = info.get("regularMarketPrice")
+    if isinstance(price, bool) or not isinstance(price, (int, float)) or price <= 0:
+        return status, None
+    currency = info.get("currency")
+    formatted = f"{price} {currency}" if currency else str(price)
+    return status, f"Observed regular-market quote: {formatted} at {quote_time.isoformat()} ({status})"
+
+
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     as_of_date: Annotated[str, "analysis date in YYYY-MM-DD format"] = None
@@ -39,6 +84,7 @@ def get_fundamentals(
         return withheld
 
     info = yf_retry(lambda: yf.Ticker(canonical).info)
+    retrieved = _now()
     if not info:
         raise_for_empty(ticker, canonical, "fundamentals")
 
@@ -101,7 +147,23 @@ def get_fundamentals(
     if not lines:
         raise_for_empty(ticker, canonical, "fundamental fields")
 
-    return f"# Company Fundamentals for {canonical}\n\n" + "\n".join(lines)
+    status, observed_quote = _quote_provenance(info, retrieved)
+    provenance = [
+        "Source: Yahoo Finance Ticker.info (present-day vendor snapshot)",
+        f"Retrieved at: {retrieved.isoformat()} UTC; retrieval time does not date every constituent",
+        f"Exchange timezone: {info.get('exchangeTimezoneName') or 'unknown'}",
+        f"Quote status: {status}",
+        f"Quote currency: {quote or 'unknown'}",
+        f"Reported income currency: {reported or 'unknown'}",
+        "Market Cap, PE Ratio (TTM), Forward PE: Yahoo vendor snapshot; noncanonical; not a completed-close calculation.",
+        "Share-count basis: vendor-defined; date, class, dilution and compatibility unverified.",
+        "Trailing earnings basis: vendor-defined; period, currency and share basis unverified.",
+        "Forward earnings basis: vendor estimate; forecast period, currency and share basis unverified.",
+        "Yahoo ratios cannot be reconciled to the completed close without compatible, dated inputs; no price-ratio rescaling is applied.",
+    ]
+    if observed_quote:
+        provenance.append(observed_quote)
+    return f"# Company Fundamentals for {canonical}\n\n" + "\n".join(provenance + [""] + lines)
 
 
 def _statement(ticker, freq, as_of_date, title, quarterly_attr, annual_attr) -> str:
