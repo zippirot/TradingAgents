@@ -168,6 +168,7 @@ class TradingAgentsGraph:
             "publication=1",
             "shared_valuation=5",
             "evidence_presentation=1",
+            "publication_record=1",
             f"settings={digest}",
         ])
 

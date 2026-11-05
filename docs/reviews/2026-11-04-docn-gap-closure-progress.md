@@ -159,3 +159,31 @@ The USD30 audit allocation is untouched.
 
 Final independent audit, full build acceptance, remaining A/B/C implementation
 and their required runtime proofs remain outstanding.
+
+## Early C groundwork: outcome provenance and invocation identity
+
+Added `fetch_outcome` alongside the compatible `fetch_returns` interface. A
+resolved outcome retains instrument and benchmark entry/exit dates and prices,
+return arithmetic, source, explicit split/dividend adjustment policy and the
+session-based entry policy. Benchmark observations keep their actual dates when
+calendars differ. Daily bars are explicitly not execution timestamps. Yahoo
+requests now specify `auto_adjust=True` instead of relying on its default.
+
+Initial graph state now assigns a UUID per invocation; the state schema retains
+it across a real SQLite checkpoint close/reopen/resume. The checkpoint signature
+is versioned so older checkpoints cannot skip the new publication contract.
+
+Red checks observed: six missing-outcome behavior failures, then a missing-run-ID
+failure. After implementation, the focused selection passed **171 tests**:
+`test_publication_run_identity`, `test_checkpoint_lifecycle`,
+`test_checkpoint_resume`, `test_graph_end_to_end`,
+`test_settlement_provenance`, `test_memory_log`, `test_memory_pointintime`, and
+`test_backtest`. Ruff on changed files and `git diff --check` passed. One existing
+price-history fixture was updated to require the explicit adjustment argument;
+its original longer-window assertion remains intact. An additional 45 Yahoo
+rate-limit, date-boundary and stale-price tests passed.
+
+This is groundwork, not early C acceptance: immutable record integration,
+independent endpoint persistence, publication/restart/real settlement proof and
+later final C requirements remain outstanding. No paid calls were made for this
+step; proof budget usage is unchanged.

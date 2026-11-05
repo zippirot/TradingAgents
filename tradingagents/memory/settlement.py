@@ -69,6 +69,24 @@ def fetch_returns(
     yet (#1169). A failure to get or read the prices is raised, for the caller
     to report.
     """
+    outcome = fetch_outcome(ticker, trade_date, holding_days, benchmark)
+    if outcome is None:
+        return None, None, None, None
+    return (outcome["raw_return"], outcome["alpha_return"], holding_days,
+            outcome["resolution_date"])
+
+
+def fetch_outcome(
+    ticker: str, trade_date: str, holding_days: int = 5, benchmark: str = "SPY",
+) -> dict | None:
+    """Return a reconstructable daily-close outcome, or None while pending.
+
+    The caller supplies the publication/as-of session cutoff. Daily bars do
+    not establish executable timestamps. Benchmark prices retain their actual
+    sessions when calendars differ, rather than inheriting stock dates.
+    """
+    if type(holding_days) is not int or holding_days < 1:
+        raise ValueError("holding_days must be a positive integer")
     start = datetime.strptime(trade_date, "%Y-%m-%d")
     # holding_days counts trading days after the entry session, so ask for the
     # calendar span they occupy (about 7 for every 5) plus a week for holidays.
@@ -87,14 +105,14 @@ def fetch_returns(
     # leaves the entry pending to retry next run, rather than settling on a
     # premature partial return (#1169).
     if len(stock) <= holding_days:
-        return None, None, None, None
+        return None
     entry, exit_ = stock.index[0], stock.index[holding_days]
     # The window is the stock's own sessions; the benchmark is valued at its
     # last close by each end, so both returns span the same dates even when
     # the calendars differ (a coin trades at weekends, an index does not).
     # It must have traded through the exit, or its close there may yet move.
     if bench.empty or bench.index[0] > entry or bench.index[-1] < exit_:
-        return None, None, None, None
+        return None
 
     raw = float((stock.iloc[holding_days] - stock.iloc[0]) / stock.iloc[0])
     bench_entry, bench_exit = bench.asof(entry), bench.asof(exit_)
@@ -103,7 +121,27 @@ def fetch_returns(
     # Every close used is known by the exit: the point-in-time cutoff for
     # injecting the lesson (#1251).
     resolution_date = exit_.strftime("%Y-%m-%d")
-    return raw, alpha, holding_days, resolution_date
+    return {
+        "raw_return": raw, "alpha_return": alpha, "benchmark_return": bench_ret,
+        "holding_days": holding_days, "resolution_date": resolution_date,
+        "ticker": normalize_symbol(ticker), "benchmark": normalize_symbol(benchmark),
+        "cutoff_date": trade_date,
+        "entry": {"date": entry.strftime("%Y-%m-%d"), "price": float(stock.iloc[0])},
+        "exit": {"date": resolution_date, "price": float(stock.iloc[holding_days])},
+        "benchmark_entry": {
+            "date": bench.loc[:entry].index[-1].strftime("%Y-%m-%d"),
+            "price": float(bench_entry),
+        },
+        "benchmark_exit": {
+            "date": bench.loc[:exit_].index[-1].strftime("%Y-%m-%d"),
+            "price": float(bench_exit),
+        },
+        "price_source": "Yahoo Finance via yfinance",
+        "price_adjustment": "auto_adjust=True (splits and dividends)",
+        "bar_time_basis": "daily session date; not an execution timestamp",
+        "entry_policy": "first valid close strictly after cutoff_date",
+        "benchmark_policy": "last valid close on or before each instrument endpoint",
+    }
 
 
 @dataclass

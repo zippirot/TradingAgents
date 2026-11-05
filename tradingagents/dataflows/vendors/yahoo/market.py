@@ -268,7 +268,7 @@ def get_stockstats_indicator(
 def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Daily closes from ``start_date`` up to, not including, ``end_date``."""
     canonical = normalize_symbol(symbol)
-    history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date))
+    history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date, auto_adjust=True))
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 

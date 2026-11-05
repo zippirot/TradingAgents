@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import uuid4
 
 from tradingagents.agents.state import InvestDebateState, RiskDebateState
 
@@ -29,6 +30,7 @@ class Propagator:
         """
         return {
             "messages": [("human", company_name)],
+            "run_id": str(uuid4()),
             "company_of_interest": company_name,
             "asset_type": asset_type,
             "instrument_context": instrument_context,
