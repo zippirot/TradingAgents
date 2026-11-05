@@ -3,14 +3,18 @@
 Uses real graph construction and Yahoo prices; all paid HTTP requests blocked.
 The original user memory is read only; its known reflection is copied verbatim.
 """
+import argparse
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import live_cli
 
-live_cli.WORK = live_cli.PROOF_ROOT / 'early-c-settlement'
+parser = argparse.ArgumentParser()
+parser.add_argument('mode', choices=('prepare', 'settle'))
+parser.add_argument('--run-name', default='early-c-settlement')
+args = parser.parse_args()
+live_cli.WORK = live_cli.work_for_run(args.run_name)
 live_cli.configure()
 live_cli.verify_config()
 
@@ -35,7 +39,7 @@ from tradingagents.memory.publication_outcomes import load_outcomes  # noqa: E40
 
 config = dict(DEFAULT_CONFIG)
 work = live_cli.WORK
-mode = sys.argv[1]
+mode = args.mode
 if mode == 'prepare':
     source = Path.home() / '.tradingagents/memory/trading_memory.md'
     content = source.read_text()
@@ -64,6 +68,11 @@ else:
     assert outcomes['endpoints']['5_sessions']['status'] == 'resolved'
     assert outcomes['endpoints']['21_sessions']['status'] == 'pending'
     assert outcomes['endpoints']['63_sessions']['status'] == 'pending'
+    if record.get('evaluation_protocol'):
+        assert set(outcomes['endpoints']) == {'5_sessions', '21_sessions', '63_sessions', '3_calendar_months', '6_calendar_months'}
+        assert outcomes['endpoints']['3_calendar_months']['status'] == 'pending'
+        assert outcomes['endpoints']['6_calendar_months']['status'] == 'pending'
+    assert record['published_at'] is None and record['evaluation_mode'] == 'legacy'
     assert Path(config['memory_log_path']).read_bytes() == before
     receipt = {'endpoint_settled': result.endpoint_settled, 'failed': result.failed,
                'publication': record, 'outcomes': outcomes, 'memory_unchanged': True}

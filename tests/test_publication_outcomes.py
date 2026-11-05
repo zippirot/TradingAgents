@@ -22,6 +22,8 @@ def setup(tmp_path, monkeypatch):
 
 
 def measured(days=5):
+    if days is None:
+        return None  # calendar windows have not matured in this October fixture
     return {'raw_return': .05, 'alpha_return': .03, 'benchmark_return': .02,
             'holding_days': days, 'resolution_date': '2026-10-27',
             'ticker': 'DOCN', 'benchmark': 'SPY',
@@ -44,10 +46,10 @@ def test_short_endpoint_persists_without_consuming_longer_windows(setup, monkeyp
     saved = outcomes.load_outcomes(config, record)
     assert saved['endpoints']['5_sessions']['status'] == 'resolved'
     assert saved['endpoints']['21_sessions']['status'] == 'pending'
-    assert calls[0][1] == {'published_at': record['published_at'], 'prices_before': '2026-11-04'}
+    assert calls[0][1] == {'published_at': record['published_at'], 'prices_before': '2026-11-04', 'benchmark_alignment': 'exact_sessions'}
     calls.clear()
     assert outcomes.settle_publications(config)['settled'] == []
-    assert [c[0] for c in calls] == [21, 63]
+    assert [c[0] for c in calls] == [21, 63, None, None]
     assert publication.load_record(config, record['decision_id']) == record
     assert outcomes.load_outcomes(config, record)['endpoints']['5_sessions'] == saved['endpoints']['5_sessions']
 
@@ -61,9 +63,10 @@ def test_concurrent_settlement_records_each_endpoint_once(setup, monkeypatch):
     monkeypatch.setattr(outcomes, 'fetch_outcome', fetch)
     with ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(lambda _: outcomes.settle_publications(config), range(4)))
-    assert sorted(calls) == [5, 21, 63]
+    assert sorted(day for day in calls if day is not None) == [5, 21, 63]
     assert sum(len(r['settled']) for r in results) == 3
-    assert all(e['status'] == 'resolved' for e in outcomes.load_outcomes(config, record)['endpoints'].values())
+    assert all(e['status'] == ('resolved' if e['holding_days'] else 'pending')
+               for e in outcomes.load_outcomes(config, record)['endpoints'].values())
 
 
 def test_price_failure_does_not_hide_other_endpoints(setup, monkeypatch):
@@ -114,7 +117,8 @@ def test_write_interruption_retries_without_losing_previous_endpoint(setup, monk
     monkeypatch.setattr(outcomes, 'replace_file', actual)
     second = outcomes.settle_publications(config)
     assert (record['decision_id'], '5_sessions') not in second['settled']
-    assert all(e['status'] == 'resolved' for e in outcomes.load_outcomes(config, record)['endpoints'].values())
+    assert all(e['status'] == ('resolved' if e['holding_days'] else 'pending')
+               for e in outcomes.load_outcomes(config, record)['endpoints'].values())
 
 
 def test_review_is_audited_but_not_scored(setup, monkeypatch):

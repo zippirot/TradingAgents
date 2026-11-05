@@ -191,3 +191,21 @@ def test_recording_a_run_writes_its_state_log(tmp_path):
     graph.record_decision("NVDA", "2026-09-23", state)
 
     assert list(tmp_path.glob("NVDA/TradingAgentsStrategy_logs/full_states_log_2026-09-23.json"))
+
+
+def test_cli_attempt_failure_is_visible_without_provider_error(tmp_path, monkeypatch):
+    import json
+
+    fake = _FakeGraph()
+    def broken_stream(*args, **kwargs):
+        raise RuntimeError("private-provider-token")
+    fake.stream_run = broken_stream
+    with pytest.raises(RuntimeError, match="private-provider-token"):
+        _run_cli(monkeypatch, tmp_path, fake)
+    log = (tmp_path / "results/NVDA/2026-01-10/message_tool.log").read_text()
+    rows = [json.loads(line.removeprefix("[Evaluation Attempt] "))
+            for line in log.splitlines() if line.startswith("[Evaluation Attempt] ")]
+    assert [row["event"] for row in rows] == ["started", "failed"]
+    assert rows[0]["attempt_id"] == rows[1]["attempt_id"]
+    assert rows[1]["error_type"] == "RuntimeError"
+    assert "private-provider-token" not in log

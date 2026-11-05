@@ -626,3 +626,48 @@ all-passing live run. No completed forward-funding model scenario was produced;
 that arithmetic and its full report path have focused deterministic tests and
 independent review. Final target/scenario omissions remain permitted and explicit.
 Final C and the connected final exact-base/head audit remain outstanding.
+
+## Final C candidate — calendar outcomes and evaluation
+
+New publications predeclare five distinct endpoints: 5/21/63 trading sessions
+and three/six calendar months. Calendar horizons anchor to the actual eligible
+entry and clamp month-end dates, then select the first completed observed stock
+session on/after the nominal date. New records require benchmark prices on the
+exact entry/exit dates; unavailable bars stay pending. Legacy records retain
+their original endpoint policy on re-export. Coincident windows share an
+observation identity and are not independent investment samples.
+
+The existing backtest summary now includes read-only immutable-publication
+evaluation by mode, declared horizon and benchmark policy. It retains revisions,
+REVIEW/pending coverage and integrity errors; separates gross security,
+benchmark and excess distributions; and excludes Hold from directional accuracy.
+Comparable later canonical facts support forecast errors and scenario-envelope
+coverage. No probability calibration or portfolio P&L is inferred. New records
+predeclare descriptive minimums (30 resolved primary observations, three issuers,
+ten analysis dates), explicitly not statistical-power guarantees.
+
+Execution attempts append minimal UTC/UUID lifecycle markers to the existing
+message_tool.log on both CLI and graph paths. Failures retain only exception
+class, never provider exception text. Legacy failure history stays unavailable.
+No scheduler, extra reflection/model call, new storage service or approval gate
+was added. Checkpoint publication contract advanced to version 3.
+
+Independent endpoint review passed 61 focused checks; attempt-log review passed
+14. Parent checks passed 9 CLI/attempt tests and 42 combined endpoint/evaluation/
+checkpoint tests. Full offline suite: 2203 passed, 100 subtests passed, one optional
+langchain_aws skip, one integration deselection, 20 warnings, 15.65 seconds
+(results/docn-abc/c-offline-pytest.log). Proof-runner checks passed nine in their
+fresh process; combining those environment-initialization tests with already
+imported application configuration fails the provider precondition, so their
+valid evidence is explicitly the isolated run. Changed-file Ruff and diff checks
+passed. Evaluation independent review and frozen comparison remain in progress.
+
+Real final C legacy settlement used a fresh isolated directory
+results/docn-abc/final-c-settlement and the actual October 19 memory entry.
+Decision 6baf6a6c-df44-528c-8a66-6106ab60833d resolved only five sessions using real
+Yahoo prices; four longer endpoints remained pending. A second fresh process
+settled nothing and preserved identical outcome bytes/content and memory.
+The record remains labeled legacy with published_at=null. No paid calls occurred.
+The sixth Shallow run is prepared with byte-identical live-05 publications and
+memory, fresh cache/checkpoints, and seed hashes; it has not started yet.
+Final C live acceptance and the connected exact-base/head audit remain outstanding.

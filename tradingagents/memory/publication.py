@@ -19,6 +19,24 @@ from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.reporting import evidence_snapshot
 
 _SCHEMA = 1
+
+EVALUATION_PROTOCOL = {'version': 1,
+ 'primary_selection': 'first eligible ticker/as-of publication',
+ 'direction_mapping': {'Buy': 1, 'Overweight': 1, 'Hold': 0, 'Underweight': -1, 'Sell': -1},
+ 'prospective_descriptive_minimum': {'resolved_primary': 30, 'issuers': 3, 'analysis_dates': 10},
+ 'engineering_frozen_minimum': {'pairs': 4, 'issuers': 2, 'holdout_dates': 2},
+ 'metrics': ['coverage',
+             'directional_excess_hit_rate',
+             'mean_excess_return',
+             'median_excess_return',
+             'forecast_error',
+             'scenario_envelope_coverage'],
+ 'performance_limit': 'Counts are disclosure thresholds, not statistical power guarantees; overlapping '
+                      'horizons and issuer dependence remain. Historical LLM hindsight contamination '
+                      'prevents clean skill inference.',
+ 'calibration': 'unavailable without defined mutually exclusive outcome events',
+ 'cost_policy': 'gross security/benchmark returns only; no portfolio P&L or assumed execution costs'}
+
 _SETTINGS = (
     'version', 'llm_provider', 'deep_think_provider', 'deep_think_llm',
     'quick_think_provider', 'quick_think_llm', 'analysts', 'max_debate_rounds',
@@ -197,12 +215,20 @@ def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
                            'canonical research publication' if directional else
                            'REVIEW, incomplete decision or unvalidated legacy evidence'),
             },
-            'endpoints': {f'{days}_sessions': {
-                'holding_days': days, 'status': 'pending' if directional else 'ineligible',
-                'benchmark': benchmark,
-                'entry_policy': ('first valid close after recorded as-of date; legacy publication time unknown' if legacy else
-                                 'first valid close strictly after publication/as-of session'),
-            } for days in (5, 21, 63)},
+            'evaluation_protocol': json.loads(_json(EVALUATION_PROTOCOL)),
+            'endpoints': {
+                (f'{count}_sessions' if kind == 'trading_sessions' else f'{count}_calendar_months'): {
+                    'horizon_type': kind,
+                    'holding_days': count if kind == 'trading_sessions' else None,
+                    'calendar_months': count if kind == 'calendar_months' else None,
+                    'status': 'pending' if directional else 'ineligible', 'benchmark': benchmark,
+                    'benchmark_alignment': 'exact_sessions',
+                    'exit_policy': ('nth_session_after_entry' if kind == 'trading_sessions' else
+                                    'first_completed_session_on_or_after_nominal_date'),
+                    'entry_policy': ('first valid close after recorded as-of date; legacy publication time unknown' if legacy else
+                                     'first valid close strictly after publication/as-of session'),
+                } for kind, count in [('trading_sessions', 5), ('trading_sessions', 21),
+                                      ('trading_sessions', 63), ('calendar_months', 3), ('calendar_months', 6)]},
         }
         record['record_sha256'] = _digest(record)
         snapshot_path = root / record['evidence_snapshot']['path']

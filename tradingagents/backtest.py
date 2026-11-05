@@ -110,6 +110,7 @@ class BacktestSummary:
     holding: str = ""
     incomplete: int = 0
     incomplete_details: list[tuple[str, str, str]] = field(default_factory=list)
+    publication_evaluation: dict | None = None
 
     def render(self) -> str:
         lines = [
@@ -142,6 +143,9 @@ class BacktestSummary:
             "One model sampling per cell, and text feeds are not archived, so "
             "these figures are indicative rather than repeatable."
         )
+        if self.publication_evaluation is not None:
+            lines.insert(0, "Legacy memory-log summary (its recorded window only):")
+            lines.extend(["", render_publication_evaluation(self.publication_evaluation)])
         return "\n".join(lines)
 
 
@@ -309,4 +313,803 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
         holding=", ".join(sorted(windows)) or "the configured window",
         incomplete=len(incomplete),
         incomplete_details=[(*cell, reason) for cell, reason in sorted(incomplete.items())],
+        publication_evaluation=evaluate_publications({"results_dir": str(path.parent)})
+        if (path.parent / "publications").is_dir()
+        else None,
     )
+
+
+# Versioned publications are a separate read-only evaluation surface. Legacy
+# memory-log scoring above is retained for compatibility, never silently mixed.
+def _evaluation_digest(value):
+    import hashlib
+
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    ).hexdigest()
+
+
+def _distribution(values):
+    """Linear-interpolated descriptive quantiles; no independence/significance claim."""
+    import math
+
+    ordered = sorted(values)
+    if not ordered:
+        return dict.fromkeys(("mean", "min", "p25", "median", "p75", "max"))
+
+    def quantile(p):
+        position = (len(ordered) - 1) * p
+        left = math.floor(position)
+        right = math.ceil(position)
+        return ordered[left] + (ordered[right] - ordered[left]) * (position - left)
+
+    return {
+        "mean": sum(ordered) / len(ordered),
+        "min": ordered[0],
+        "p25": quantile(0.25),
+        "median": quantile(0.5),
+        "p75": quantile(0.75),
+        "max": ordered[-1],
+    }
+
+
+def _frozen_inputs(snapshot):
+    """Hash retained upstream source identities, not changed derived conclusions."""
+    sources = set()
+    for source in (snapshot.get("financial_evidence") or {}).get("sources", []):
+        if source.get("url") and source.get("content_hash"):
+            sources.add((source["url"], source["content_hash"]))
+    for document in (snapshot.get("filing_evidence") or {}).get("documents", []):
+        if document.get("url") and document.get("content_hash"):
+            sources.add((document["url"], document["content_hash"]))
+    price = snapshot.get("price_observation") or {}
+    if price.get("status") == "available":
+        sources.add((price["url"], price["content_hash"]))
+    return _evaluation_digest(sorted(sources)) if sources else None
+
+
+def _evaluation_attempts(config, cutoff):
+    from datetime import UTC
+    from uuid import UUID
+
+    attempts = {}
+    errors = []
+    times = []
+    prefix = "[Evaluation Attempt] "
+    logs_without_markers = 0
+    for path in sorted(Path(config["results_dir"]).glob("*/*/message_tool.log")):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if not any(line.startswith(prefix) for line in lines):
+                logs_without_markers += 1
+            for line in lines:
+                if not line.startswith(prefix):
+                    continue
+                try:
+                    row = json.loads(line[len(prefix) :])
+                    UUID(row["attempt_id"])
+                    if row["schema_version"] != 1 or row["event"] not in {
+                        "started",
+                        "completed",
+                        "failed",
+                    }:
+                        raise ValueError("marker")
+                    _canonical(row["requested_as_of"])
+                    if not isinstance(row["ticker"], str) or not row["ticker"]:
+                        raise ValueError("ticker")
+                    stamp = datetime.fromisoformat(row["recorded_at"])
+                    if stamp.utcoffset() is None:
+                        raise ValueError("Attempt timestamp requires timezone")
+                    stamp = stamp.astimezone(UTC)
+                    if stamp > cutoff:
+                        continue
+                    row["recorded_at"] = stamp.isoformat()
+                    group = attempts.setdefault(row["attempt_id"], [])
+                    if group and any(
+                        row[key] != group[0][key] for key in ("ticker", "requested_as_of")
+                    ):
+                        raise ValueError("identity")
+                    group.append(row)
+                    times.append(row["recorded_at"])
+                except (KeyError, ValueError, TypeError, AttributeError):
+                    errors.append(
+                        {
+                            "file": str(path.relative_to(config["results_dir"])),
+                            "reason": "Malformed attempt marker",
+                        }
+                    )
+        except (OSError, UnicodeError):
+            errors.append(
+                {
+                    "file": str(path.relative_to(config["results_dir"])),
+                    "reason": "Attempt log unreadable",
+                }
+            )
+    counts = {"started": 0, "completed": 0, "failed": 0, "in_progress": 0}
+    for rows in attempts.values():
+        starts = [r for r in rows if r["event"] == "started"]
+        ends = [r for r in rows if r["event"] != "started"]
+        if (
+            len(starts) != 1
+            or len(ends) > 1
+            or (ends and ends[0]["recorded_at"] < starts[0]["recorded_at"])
+        ):
+            errors.append(
+                {
+                    "attempt_id": rows[0]["attempt_id"],
+                    "reason": "Incomplete or conflicting attempt lifecycle",
+                }
+            )
+            continue
+        counts["started"] += 1
+        counts[ends[0]["event"] if ends else "in_progress"] += 1
+    return {
+        "status": "available" if attempts else "unavailable",
+        **counts,
+        "errors": errors,
+        "failure_rate": counts["failed"] / counts["started"] if counts["started"] else None,
+        "failure_rate_denominator": "valid started attempts visible at cutoff",
+        "logs_without_markers": logs_without_markers,
+        "coverage_completeness": "partial_or_legacy_unknown"
+        if errors or logs_without_markers or counts["in_progress"] or not attempts
+        else "recorded_markers_only",
+        "coverage_start": min(times, default=None),
+        "coverage_end": max(times, default=None),
+        "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history.",
+    }
+
+
+def evaluate_publications(config, known_at=None):
+    """Read immutable publications/outcomes only; never settle, fetch or call models."""
+    from datetime import UTC
+
+    from tradingagents.memory import publication
+    from tradingagents.memory.publication_outcomes import (
+        _known_by,
+        _summary_cutoff,
+        endpoint_group_key,
+        endpoint_label,
+        load_outcomes,
+    )
+
+    cutoff = _summary_cutoff(
+        str(known_at) if known_at is not None else datetime.now(UTC).isoformat()
+    )
+    report = {
+        "schema_version": 1,
+        "known_at": cutoff.isoformat(),
+        "coverage": {
+            "publications": 0,
+            "primary": 0,
+            "revisions": 0,
+            "review_or_ineligible": 0,
+            "without_predeclared_protocol": 0,
+        },
+        "groups": [],
+        "observations": [],
+        "publications": [],
+        "integrity_errors": [],
+        "calibration": {
+            "status": "unavailable",
+            "reason": "No defined mutually exclusive outcome events; scenario weights are not calibration data",
+        },
+        "limitations": [
+            "Gross security/benchmark/excess returns only; not a portfolio P&L, drawdown or net-cost model.",
+            "Overlapping horizons and issuer dependence prevent treating pooled horizons as independent samples.",
+            "Historical LLM outcome knowledge may contaminate replay/holdout results; historical results do not establish investment skill.",
+            "Sample minimums are descriptive disclosure thresholds, not statistical power guarantees.",
+        ],
+    }
+    groups = {}
+    retained = []
+    paths = sorted((publication.record_root(config) / "records").glob("*.json"))
+    for path in paths:
+        try:
+            record = publication.load_record(config, path.stem)
+            if not _known_by(record.get("published_at") or record.get("imported_at"), cutoff):
+                continue
+            coverage = report["coverage"]
+            coverage["publications"] += 1
+            primary = record["eligibility"]["primary"]
+            directional = record["eligibility"]["directional"]
+            coverage[
+                "primary" if primary else "revisions" if directional else "review_or_ineligible"
+            ] += 1
+            protocol = record.get("evaluation_protocol")
+            if not protocol:
+                coverage["without_predeclared_protocol"] += 1
+            snapshot = publication.load_evidence(config, record)
+            companion = load_outcomes(config, record)
+            publication_row = {
+                "decision_id": record["decision_id"],
+                "ticker": record["ticker"],
+                "as_of": record["requested_as_of"],
+                "evaluation_mode": record["evaluation_mode"],
+                "primary": primary,
+                "directional": directional,
+                "versions": record["versions"],
+                "frozen_input_sha256": _frozen_inputs(snapshot),
+                "protocol_version": protocol.get("version") if isinstance(protocol, dict) else None,
+                "canonical_rating": record["canonical_rating"],
+                "sequence": record["sequence"],
+            }
+            report["publications"].append(publication_row)
+            retained.append((record, snapshot))
+            for name, endpoint in companion["endpoints"].items():
+                horizon = endpoint_group_key(endpoint)
+                policy = (
+                    record["evaluation_mode"],
+                    *horizon,
+                    endpoint["benchmark"],
+                    endpoint.get("benchmark_alignment", "asof"),
+                    endpoint.get("exit_policy", "nth_session_after_entry"),
+                    publication_row["protocol_version"],
+                )
+                group = groups.setdefault(
+                    policy,
+                    {
+                        "evaluation_mode": record["evaluation_mode"],
+                        "horizon": list(horizon),
+                        "horizon_label": endpoint_label(endpoint),
+                        "benchmark": endpoint["benchmark"],
+                        "benchmark_alignment": policy[4],
+                        "exit_policy": policy[5],
+                        "protocol_version": policy[6],
+                        "primary": 0,
+                        "resolved": 0,
+                        "pending": 0,
+                        "revisions": 0,
+                        "review_or_ineligible": 0,
+                        "_rows": [],
+                    },
+                )
+                if not primary:
+                    group["revisions" if directional else "review_or_ineligible"] += 1
+                    continue
+                group["primary"] += 1
+                outcome = endpoint.get("outcome")
+                resolved = (
+                    endpoint["status"] == "resolved"
+                    and _known_by(endpoint["resolved_at"], cutoff)
+                    and outcome["resolution_date"] <= cutoff.date().isoformat()
+                )
+                if not resolved:
+                    group["pending"] += 1
+                    continue
+                row = {
+                    **publication_row,
+                    "endpoint": name,
+                    "horizon": list(horizon),
+                    "horizon_label": endpoint_label(endpoint),
+                    "benchmark": endpoint["benchmark"],
+                    "benchmark_alignment": group["benchmark_alignment"],
+                    "exit_policy": group["exit_policy"],
+                    "raw_return": outcome["raw_return"],
+                    "benchmark_return": outcome["benchmark_return"],
+                    "excess_return": outcome["alpha_return"],
+                    "entry_date": outcome["entry"]["date"],
+                    "exit_date": outcome["exit"]["date"],
+                    "resolved_at": endpoint["resolved_at"],
+                    "observation_window_id": outcome.get("observation_window_id"),
+                    "direction": _DIRECTION.get(record["canonical_rating"], 0),
+                }
+                group["_rows"].append(row)
+                group["resolved"] += 1
+                report["observations"].append(row)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            report["integrity_errors"].append(
+                {"decision_id": path.stem, "error_type": type(exc).__name__}
+            )
+    for _, group in sorted(groups.items(), key=lambda item: str(item[0])):
+        rows = group.pop("_rows")
+        directional = [row for row in rows if row["direction"]]
+        group.update(
+            direction_mapping=dict(_DIRECTION),
+            directional_n=len(directional),
+            directional_excess_hit_rate=sum(
+                row["direction"] * row["excess_return"] > 0 for row in directional
+            )
+            / len(directional)
+            if directional
+            else None,
+            distributions={
+                label: _distribution([row[key] for row in rows])
+                for label, key in [
+                    ("raw", "raw_return"),
+                    ("benchmark", "benchmark_return"),
+                    ("excess", "excess_return"),
+                ]
+            },
+        )
+        issuers = len({r["ticker"] for r in rows})
+        dates = len({r["as_of"] for r in rows})
+        group["sample_adequacy"] = {
+            "resolved_primary": len(rows),
+            "issuers": issuers,
+            "analysis_dates": dates,
+            "minimum": {"resolved_primary": 30, "issuers": 3, "analysis_dates": 10},
+            "met": len(rows) >= 30 and issuers >= 3 and dates >= 10,
+            "meaning": "descriptive threshold only; no statistical power or investment-edge guarantee",
+        }
+        report["groups"].append(group)
+    report["forecast_evaluation"] = _evaluate_forecasts(retained)
+    report["attempts"] = _evaluation_attempts(config, cutoff)
+    return report
+
+
+def _forecast_groups(snapshot):
+    """Supported requests only; scenario envelopes are not confidence intervals."""
+    from tradingagents.agents.valuation import EVRevenueTarget, PETarget
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+
+    requests = []
+    target = snapshot.get("target_validation") or {}
+    if target.get("status") == "supported" and target.get("request"):
+        requests.append(("canonical target", target["request"]))
+    for row in (snapshot.get("shared_valuation_scenarios") or {}).get("rows", []):
+        if (
+            not row.get("diagnostic_only")
+            and (row.get("result") or {}).get("status") == "supported"
+        ):
+            requests.append((row.get("name", "scenario"), row.get("request")))
+    if not requests:
+        return {}
+    try:
+        package = EvidencePackage.model_validate(snapshot.get("financial_evidence"))
+    except (ValueError, TypeError):
+        return {}
+    groups = {}
+    for label, raw in requests:
+        try:
+            if raw["method"] == "ev_revenue":
+                request = EVRevenueTarget.model_validate(raw)
+                forecasts = [
+                    (f"{label}: {row.name}", "Revenue", row.forecast) for row in request.scenarios
+                ]
+            else:
+                request = PETarget.model_validate(raw)
+                forecasts = [
+                    (
+                        label,
+                        "Basic EPS" if request.eps_basis == "basic" else "Diluted EPS",
+                        request.forecast,
+                    )
+                ]
+            for name, metric, forecast in forecasts:
+                if forecast is None or forecast.period_end <= package.as_of:
+                    continue
+                key = (
+                    package.cik,
+                    forecast.period_start,
+                    forecast.period_end,
+                    forecast.unit,
+                    forecast.basis,
+                )
+                key = (key[0], metric, *key[1:])
+                row = {"label": name, "value": str(forecast.value), "kind": forecast.kind}
+                current = groups.setdefault(key, [])
+                if not any(
+                    existing["value"] == row["value"] and existing["kind"] == row["kind"]
+                    for existing in current
+                ):
+                    current.append(row)
+        except (ValueError, TypeError, KeyError):
+            continue
+    return groups
+
+
+def _evaluate_forecasts(retained):
+    from decimal import Decimal, localcontext
+
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+
+    actual_packages = []
+    for record, snapshot in retained:
+        try:
+            actual_packages.append(
+                (record, EvidencePackage.model_validate(snapshot.get("financial_evidence")))
+            )
+        except (ValueError, TypeError):
+            continue
+    rows = []
+    for record, snapshot in retained:
+        if not record["eligibility"]["primary"]:
+            continue
+        for key, forecasts in _forecast_groups(snapshot).items():
+            cik, metric, start, end, unit, basis = key
+            row = {
+                "decision_id": record["decision_id"],
+                "ticker": record["ticker"],
+                "evaluation_mode": record["evaluation_mode"],
+                "metric": metric,
+                "period_start": str(start),
+                "period_end": str(end),
+                "unit": unit,
+                "basis": basis,
+                "forecasts": forecasts,
+                "status": "pending",
+                "reason": "Later compatible canonical reported actual unavailable",
+            }
+            candidates = []
+            stamp = record.get("published_at") or record.get("imported_at")
+            for later, package in actual_packages:
+                later_stamp = later.get("published_at") or later.get("imported_at")
+                if (
+                    later["ticker"] != record["ticker"]
+                    or package.cik != cik
+                    or later_stamp <= stamp
+                ):
+                    continue
+                sources = {source.source_id: source for source in package.sources}
+                facts = [
+                    fact
+                    for fact in package.facts
+                    if fact.origin == "reported"
+                    and fact.value is not None
+                    and (fact.metric, fact.period_start, fact.period_end, fact.unit, fact.basis)
+                    == (metric, start, end, unit, basis)
+                    and fact.source_ids
+                    and all(
+                        end <= sources[sid].filed_date <= package.as_of for sid in fact.source_ids
+                    )
+                ]
+                if facts:
+                    candidates.append((later_stamp, later, facts))
+            if candidates:
+                _, later, facts = min(candidates, key=lambda item: (item[0], item[1]["sequence"]))
+                if len({fact.value for fact in facts}) != 1:
+                    row.update(
+                        status="unavailable",
+                        reason="Conflicting first reported actuals; no hindsight selection",
+                    )
+                else:
+                    actual = facts[0].value
+                    values = [Decimal(f["value"]) for f in forecasts]
+                    with localcontext() as context:
+                        context.prec = 60
+                        errors = [
+                            {
+                                "label": forecast["label"],
+                                "error": str(value - actual),
+                                "percentage_error": str((value - actual) / abs(actual) * 100)
+                                if actual
+                                else None,
+                            }
+                            for forecast, value in zip(forecasts, values, strict=True)
+                        ]
+                    row.update(
+                        status="resolved",
+                        reason="Earliest later compatible reported actual; error is forecast minus actual",
+                        actual=str(actual),
+                        actual_publication_id=later["decision_id"],
+                        actual_fact_ids=[f.fact_id for f in facts],
+                        actual_source_ids=sorted({sid for f in facts for sid in f.source_ids}),
+                        errors=errors,
+                        scenario_envelope={
+                            "low": str(min(values)),
+                            "high": str(max(values)),
+                            "covered": min(values) <= actual <= max(values),
+                            "interpretation": "scenario range, not a calibrated probability interval",
+                        },
+                    )
+            rows.append(row)
+    return {
+        "rows": rows,
+        "resolved": sum(row["status"] == "resolved" for row in rows),
+        "pending": sum(row["status"] == "pending" for row in rows),
+        "unavailable": sum(row["status"] == "unavailable" for row in rows),
+    }
+
+
+def render_publication_evaluation(report):
+    coverage = report["coverage"]
+    lines = [
+        "Versioned publication evaluation (gross outcomes; not a portfolio simulator).",
+        f"Known at {report['known_at']}; publications {coverage['publications']}, primary {coverage['primary']}, revisions {coverage['revisions']}, REVIEW/ineligible {coverage['review_or_ineligible']}.",
+        f"Integrity failures: {len(report['integrity_errors'])}; publications without a predeclared protocol: {coverage['without_predeclared_protocol']}.",
+    ]
+    for group in report["groups"]:
+        mean = group["distributions"]["excess"]["mean"]
+        hit = group["directional_excess_hit_rate"]
+        lines.append(
+            f"- {group['evaluation_mode']}; {group['horizon_label']}; {group['benchmark']} ({group['benchmark_alignment']}): resolved {group['resolved']}, pending {group['pending']}; "
+            + (f"mean excess {mean:+.2%}" if mean is not None else "mean excess unavailable")
+            + (
+                f"; directional hit rate {hit:.1%}"
+                if hit is not None
+                else "; no scored directional calls"
+            )
+            + (
+                "; descriptive minimum met."
+                if group["sample_adequacy"]["met"]
+                else "; below descriptive sample minimum."
+            )
+        )
+    forecasts = report["forecast_evaluation"]
+    lines.append(
+        f"Forecast groups: resolved {forecasts['resolved']}, pending {forecasts['pending']}, unavailable {forecasts['unavailable']}; scenario envelopes are not probability intervals."
+    )
+    attempts = report["attempts"]
+    lines.append(
+        "Execution failure history unavailable where legacy logs lack attempt markers."
+        if attempts["status"] == "unavailable"
+        else f"Execution attempts: started {attempts['started']}, completed {attempts['completed']}, failed {attempts['failed']}, in progress {attempts['in_progress']}; not investment samples."
+    )
+    lines.append("Probability calibration unavailable: " + report["calibration"]["reason"] + ".")
+    lines.extend(report["limitations"])
+    return "\n".join(lines)
+
+
+def compare_frozen_publication_evaluations(baseline, current, protocol):
+    """Compare prespecified first daily records on identical retained inputs.
+
+    This does not run either pipeline. The caller freezes version/input manifests
+    before scoring and supplies both read-only evaluation reports. No re-selection
+    of dates, revisions or best-performing samples occurs here.
+    """
+    result = {
+        "status": "unavailable",
+        "matched_pairs": 0,
+        "comparisons": [],
+        "reasons": [],
+        "performance_claim": "unproven",
+        "protocol": protocol,
+        "limitations": [
+            "Frozen historical holdout is engineering evidence, not clean investment-skill evidence; LLM hindsight may remain.",
+            "Raw market returns for identical windows are shared observations, not pipeline-specific portfolio returns.",
+        ],
+    }
+    try:
+        if protocol["schema_version"] != 1 or protocol["evaluation_mode"] not in {
+            "historical",
+            "prospective",
+        }:
+            raise ValueError("Unsupported frozen comparison protocol")
+        development = set(protocol["development_dates"])
+        holdout = set(protocol["holdout_dates"])
+        if not development or not holdout or development & holdout:
+            raise ValueError("Development and holdout dates must be nonempty and disjoint")
+        for day in development | holdout:
+            _canonical(day)
+        pairs = protocol["pairs"]
+        keys = [(p["ticker"], p["as_of"]) for p in pairs]
+        if len(set(keys)) != len(keys):
+            raise ValueError("Duplicate requested comparison pairs; no best-of reruns")
+        if "engineering_cells" in baseline or "engineering_cells" in current:
+            return _compare_engineering_cells(
+                baseline, current, protocol, development, holdout, result
+            )
+        matched = []
+        for pair in pairs:
+            if pair["as_of"] not in development | holdout:
+                raise ValueError("Pair date is outside predeclared development/holdout sets")
+            digest = pair["frozen_input_sha256"]
+            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError("Frozen input manifest hash required")
+            selected = []
+            for name, report in [("baseline", baseline), ("current", current)]:
+                versions = protocol[name + "_versions"]
+                if set(versions) != {"code", "prompt", "schema"} or any(
+                    v is None or v == "" for v in versions.values()
+                ):
+                    raise ValueError("Exact code/prompt/schema fingerprints required")
+                candidates = [
+                    p
+                    for p in report["publications"]
+                    if (p["ticker"], p["as_of"], p["evaluation_mode"])
+                    == (pair["ticker"], pair["as_of"], protocol["evaluation_mode"])
+                ]
+                primary = [p for p in candidates if p["primary"]]
+                if len(primary) > 1:
+                    raise ValueError("Competing primary observations")
+                if not primary:
+                    reviews = [p for p in candidates if not p["directional"]]
+                    if not reviews:
+                        raise ValueError(
+                            "Requested frozen pair missing; no substitute date or revision"
+                        )
+                    primary = [min(reviews, key=lambda p: p["sequence"])]
+                chosen = primary[0]
+                if chosen["versions"] != versions or chosen["frozen_input_sha256"] != digest:
+                    raise ValueError("Frozen input or version fingerprint mismatch")
+                selected.append(chosen)
+            matched.append((pair, *selected))
+        result["matched_pairs"] = len(matched)
+        issuers = len({p["ticker"] for p, _, _ in matched})
+        holdout_dates = len({p["as_of"] for p, _, _ in matched if p["as_of"] in holdout})
+        result["engineering_minimum"] = {
+            "pairs": len(matched),
+            "issuers": issuers,
+            "holdout_dates": holdout_dates,
+            "minimum": {"pairs": 4, "issuers": 2, "holdout_dates": 2},
+            "met": len(matched) >= 4 and issuers >= 2 and holdout_dates >= 2,
+        }
+        result["coverage"] = {
+            name: {
+                "directional": sum(p[index]["directional"] for p in matched),
+                "review_or_ineligible": sum(not p[index]["directional"] for p in matched),
+            }
+            for name, index in [("baseline", 1), ("current", 2)]
+        }
+        groups = {}
+        missing = []
+        for pair, left, right in matched:
+            left_rows = [
+                row for row in baseline["observations"] if row["decision_id"] == left["decision_id"]
+            ]
+            right_rows = [
+                row for row in current["observations"] if row["decision_id"] == right["decision_id"]
+            ]
+
+            def key(row):
+                return (
+                    *row["horizon"],
+                    row["benchmark"],
+                    row["benchmark_alignment"],
+                    row["exit_policy"],
+                )
+
+            left_map = {key(row): row for row in left_rows}
+            right_map = {key(row): row for row in right_rows}
+            if len(left_map) != len(left_rows) or len(right_map) != len(right_rows):
+                raise ValueError("Duplicate horizon observations in one frozen publication")
+            for horizon in left_map.keys() | right_map.keys():
+                a, b = left_map.get(horizon), right_map.get(horizon)
+                if (
+                    not a
+                    or not b
+                    or (a["entry_date"], a["exit_date"]) != (b["entry_date"], b["exit_date"])
+                ):
+                    missing.append(
+                        {
+                            "ticker": pair["ticker"],
+                            "as_of": pair["as_of"],
+                            "horizon": list(horizon),
+                            "reason": "Pending/ineligible or different policy/session windows; not paired",
+                        }
+                    )
+                    continue
+                if any(
+                    abs(a[field] - b[field]) > 1e-9
+                    for field in ("raw_return", "benchmark_return", "excess_return")
+                ):
+                    raise ValueError("Same frozen price window has conflicting outcomes")
+                partition = "holdout" if pair["as_of"] in holdout else "development"
+                groups.setdefault((partition, *horizon), []).append((a, b))
+        for key, rows in sorted(groups.items(), key=lambda item: str(item[0])):
+            directions = [(a, b) for a, b in rows if a["direction"] and b["direction"]]
+            metrics = {}
+            for name, index in [("baseline", 0), ("current", 1)]:
+                scored = [pair[index] for pair in directions]
+                metrics[name] = {
+                    "n": len(rows),
+                    "directional_paired_n": len(scored),
+                    "directional_hit_rate": sum(
+                        r["direction"] * r["excess_return"] > 0 for r in scored
+                    )
+                    / len(scored)
+                    if scored
+                    else None,
+                    "excess_distribution": _distribution(
+                        [pair[index]["excess_return"] for pair in rows]
+                    ),
+                }
+            delta = (
+                (
+                    metrics["current"]["directional_hit_rate"]
+                    - metrics["baseline"]["directional_hit_rate"]
+                )
+                if directions
+                else None
+            )
+            result["comparisons"].append(
+                {
+                    "partition": key[0],
+                    "horizon": list(key[1:3]),
+                    "benchmark": key[3],
+                    "benchmark_alignment": key[4],
+                    "exit_policy": key[5],
+                    **metrics,
+                    "directional_hit_rate_delta": delta,
+                }
+            )
+        result.update(
+            status="available",
+            unpaired_horizons=missing,
+            integrity_coverage={
+                "baseline": len(baseline.get("integrity_errors", [])),
+                "current": len(current.get("integrity_errors", [])),
+            },
+        )
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        result["reasons"].append(str(exc))
+        result["comparisons"] = []
+    return result
+
+
+def _compare_engineering_cells(baseline, current, protocol, development, holdout, result):
+    """Deterministic extraction replay, explicitly without research publications."""
+    import re
+
+    cells = []
+    for pair in protocol["pairs"]:
+        if pair["as_of"] not in development | holdout or not re.fullmatch(
+            "[0-9a-f]{64}", pair["frozen_input_sha256"]
+        ):
+            raise ValueError("Engineering pair outside frozen manifest")
+        selected = []
+        for name, report in [("baseline", baseline), ("current", current)]:
+            versions = protocol[name + "_versions"]
+            if set(versions) != {"code", "prompt", "schema"} or any(
+                v is None or v == "" for v in versions.values()
+            ):
+                raise ValueError("Exact engineering code/prompt/schema fingerprints required")
+            candidates = [
+                row
+                for row in report["engineering_cells"]
+                if (row["ticker"], row["as_of"]) == (pair["ticker"], pair["as_of"])
+            ]
+            if len(candidates) != 1:
+                raise ValueError("Missing or duplicate engineering pair; no best-of reruns")
+            cell = candidates[0]
+            if (
+                cell["versions"] != versions
+                or cell["frozen_input_sha256"] != pair["frozen_input_sha256"]
+            ):
+                raise ValueError("Engineering input/version fingerprint mismatch")
+            if (
+                cell["status"] not in {"available", "unavailable"}
+                or type(cell["accepted_fact_count"]) is not int
+                or cell["accepted_fact_count"] < 0
+                or not isinstance(cell["invariant_violations"], list)
+                or any(not isinstance(v, str) for v in cell["invariant_violations"])
+                or not all(
+                    re.fullmatch("[0-9a-f]{64}", cell[field])
+                    for field in ("output_sha256", "repeat_output_sha256")
+                )
+            ):
+                raise ValueError("Malformed engineering measurement")
+            selected.append(cell)
+        left, right = selected
+        cells.append(
+            {
+                "ticker": pair["ticker"],
+                "as_of": pair["as_of"],
+                "partition": "holdout" if pair["as_of"] in holdout else "development",
+                "baseline_status": left["status"],
+                "current_status": right["status"],
+                "accepted_fact_count_delta": right["accepted_fact_count"]
+                - left["accepted_fact_count"],
+                "baseline_output_sha256": left["output_sha256"],
+                "current_output_sha256": right["output_sha256"],
+                "reproducible": all(
+                    row["output_sha256"] == row["repeat_output_sha256"] for row in selected
+                ),
+                "current_invariant_violations": right["invariant_violations"],
+            }
+        )
+    issuers = len({row["ticker"] for row in cells})
+    holdout_dates = len({row["as_of"] for row in cells if row["partition"] == "holdout"})
+    result.update(
+        status="available",
+        matched_pairs=len(cells),
+        engineering_cells=cells,
+        reproducible=all(row["reproducible"] for row in cells),
+        current_invariants_pass=all(not row["current_invariant_violations"] for row in cells),
+        engineering_minimum={
+            "pairs": len(cells),
+            "issuers": issuers,
+            "holdout_dates": holdout_dates,
+            "minimum": {"pairs": 4, "issuers": 2, "holdout_dates": 2},
+            "met": len(cells) >= 4 and issuers >= 2 and holdout_dates >= 2,
+        },
+        coverage={
+            name: {
+                "available": sum(row[name + "_status"] == "available" for row in cells),
+                "unavailable": sum(row[name + "_status"] == "unavailable" for row in cells),
+            }
+            for name in ("baseline", "current")
+        },
+        metric_interpretation="Fact-count changes describe evidence visibility, not investment improvement; no opinion or outcome was synthesized.",
+    )
+    return result

@@ -29,6 +29,7 @@ MODEL = "openai/gpt-6.1-terra-pro"
 MAX_OUTPUT = 65_536
 CAP_USD = 70.0
 MAX_ATTEMPTS = 7
+ANALYSIS_DATE = "2026-11-04"
 # Use the highest supplied published rate for either short/long input and output.
 INPUT_USD_PER_TOKEN = 0.0000025
 OUTPUT_USD_PER_TOKEN = 0.0000075
@@ -275,7 +276,7 @@ def source_record() -> None:
         "runtime": {"python_executable": sys.executable, "python_version": sys.version,
                     "tradingagents_package": str(Path(tradingagents.__file__).resolve())},
         "configuration": {
-            "ticker": "DOCN", "analysis_date": "2026-11-04",
+            "ticker": "DOCN", "analysis_date": ANALYSIS_DATE,
             "analysts": ["market", "social", "news", "fundamentals"],
             "llm_provider": config["llm_provider"],
             "quick_think_provider": config.get("quick_think_provider") or config["llm_provider"],
@@ -298,11 +299,14 @@ def prefs_sha256() -> str | None:
 
 
 def main() -> None:
-    global WORK
+    global WORK, ANALYSIS_DATE
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true", help="Start one paid CLI attempt")
     parser.add_argument("--run-name", default="live-01", help="Isolated result folder basename")
+    parser.add_argument("--analysis-date", default=ANALYSIS_DATE, help="Actual requested as-of date, YYYY-MM-DD")
     args = parser.parse_args()
+    from tradingagents.graph.trading_graph import _validate_trade_date
+    ANALYSIS_DATE = _validate_trade_date(args.analysis_date)
     WORK = work_for_run(args.run_name)
     if not args.execute:
         print("Dry setup only. Paid calls require --execute.")
@@ -331,9 +335,9 @@ def main() -> None:
     install_guard(guard)
     append({"type": "attempt", "number": attempts + 1, "run_name": args.run_name,
             "original_prefs_sha256_before": original_prefs_before,
-            "argv": ["--ticker", "DOCN", "--date", "2026-11-04",
+            "argv": ["--ticker", "DOCN", "--date", ANALYSIS_DATE,
             "--analysts", "market,social,news,fundamentals", "--save", "--html", "--show", "--checkpoint"]})
-    sys.argv = ["cli.main", "--ticker", "DOCN", "--date", "2026-11-04", "--analysts",
+    sys.argv = ["cli.main", "--ticker", "DOCN", "--date", ANALYSIS_DATE, "--analysts",
                 "market,social,news,fundamentals", "--save", "--html", "--show", "--checkpoint"]
     try:
         runpy.run_module("cli.main", run_name="__main__")

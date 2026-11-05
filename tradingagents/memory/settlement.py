@@ -1,6 +1,7 @@
 """Settling past decisions: once a decision's holding window has traded, score
 it against its benchmark and record a reflection on it in the memory log."""
 
+import calendar
 import logging
 import math
 from dataclasses import dataclass, field
@@ -77,9 +78,17 @@ def fetch_returns(
             outcome["resolution_date"])
 
 
+def calendar_exit_date(entry, months):
+    """Add calendar months, clamping the day to the destination month end."""
+    year, month = divmod(entry.year * 12 + entry.month - 1 + months, 12)
+    return entry.replace(year=year, month=month + 1,
+                         day=min(entry.day, calendar.monthrange(year, month + 1)[1]))
+
+
 def fetch_outcome(
-    ticker: str, trade_date: str, holding_days: int = 5, benchmark: str = "SPY",
+    ticker: str, trade_date: str, holding_days: int | None = 5, benchmark: str = "SPY",
     *, published_at: str | None = None, prices_before: str | None = None,
+    calendar_months: int | None = None, benchmark_alignment: str = "asof",
 ) -> dict | None:
     """Return a reconstructable daily-close outcome, or None while pending.
 
@@ -87,8 +96,13 @@ def fetch_outcome(
     not establish executable timestamps. Benchmark prices retain their actual
     sessions when calendars differ, rather than inheriting stock dates.
     """
-    if type(holding_days) is not int or holding_days < 1:
+    if calendar_months is not None:
+        if type(calendar_months) is not int or calendar_months not in (3, 6) or holding_days is not None:
+            raise ValueError("calendar endpoints require 3 or 6 months and holding_days=None")
+    elif type(holding_days) is not int or holding_days < 1:
         raise ValueError("holding_days must be a positive integer")
+    if benchmark_alignment not in {"asof", "exact_sessions"}:
+        raise ValueError("unsupported benchmark alignment")
     start = datetime.strptime(trade_date, "%Y-%m-%d")
     publication = datetime.fromisoformat(published_at) if published_at else None
     if publication is not None and publication.utcoffset() is None:
@@ -100,7 +114,8 @@ def fetch_outcome(
         request_start = max(start, datetime.combine(publication.date(), datetime.min.time()) - timedelta(days=1))
     # holding_days counts trading days after the entry session, so ask for the
     # calendar span they occupy (about 7 for every 5) plus a week for holidays.
-    end = request_start + timedelta(days=round((holding_days + 1) * 7 / 5) + 9)
+    end = (calendar_exit_date(request_start, calendar_months) + timedelta(days=21)
+           if calendar_months else request_start + timedelta(days=round((holding_days + 1) * 7 / 5) + 9))
     end_str = end.strftime("%Y-%m-%d")
 
     # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
@@ -124,6 +139,22 @@ def fetch_outcome(
             exchange_today = datetime.now(stock_timezone).date()
             before = min(before, datetime.combine(exchange_today, datetime.min.time()))
         stock = stock[stock.index < before]
+    if calendar_months and not stock.empty:
+        # A delayed first tradable close shifts the calendar horizon. Extend
+        # the bounded request from that actual entry, never the analysis date.
+        actual_entry = stock.index[0]
+        needed_end = calendar_exit_date(actual_entry, calendar_months) + timedelta(days=21)
+        if needed_end > end:
+            end_str = needed_end.strftime("%Y-%m-%d")
+            extended_prices = get_closes(ticker, request_start.strftime("%Y-%m-%d"), end_str)
+            if getattr(extended_prices.index, "tz", None) != getattr(stock_prices.index, "tz", None):
+                raise ValueError("Instrument timezone changed during calendar retrieval")
+            stock = _by_day(extended_prices)
+            stock = stock[stock.index > start]
+            if prices_before is not None:
+                stock = stock[stock.index < before]
+            if stock.empty or stock.index[0] != actual_entry:
+                raise ValueError("Entry session changed during calendar retrieval")
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
     benchmark_prices = get_closes(benchmark, bench_start, end_str)
@@ -136,20 +167,27 @@ def fetch_outcome(
             benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
         bench = bench[bench.index < benchmark_before]
 
-    # Require the full holding window to have traded. A rerun before it has
-    # leaves the entry pending to retry next run, rather than settling on a
-    # premature partial return (#1169).
-    if len(stock) <= holding_days:
+    if stock.empty:
         return None
-    entry, exit_ = stock.index[0], stock.index[holding_days]
-    # The window is the stock's own sessions; the benchmark is valued at its
-    # last close by each end, so both returns span the same dates even when
-    # the calendars differ (a coin trades at weekends, an index does not).
-    # It must have traded through the exit, or its close there may yet move.
-    if bench.empty or bench.index[0] > entry or bench.index[-1] < exit_:
+    entry = stock.index[0]
+    nominal = None
+    if calendar_months:
+        nominal = calendar_exit_date(entry, calendar_months)
+        eligible = stock[stock.index >= nominal]
+        if eligible.empty:
+            return None
+        exit_ = eligible.index[0]
+        actual_days = int(stock.index.get_loc(exit_))
+    else:
+        if len(stock) <= holding_days:
+            return None
+        actual_days = holding_days
+        exit_ = stock.index[actual_days]
+    if actual_days < 1 or bench.empty or bench.index[0] > entry or bench.index[-1] < exit_:
         return None
-
-    raw = float((stock.iloc[holding_days] - stock.iloc[0]) / stock.iloc[0])
+    if benchmark_alignment == "exact_sessions" and (entry not in bench.index or exit_ not in bench.index):
+        return None
+    raw = float((stock.iloc[actual_days] - stock.iloc[0]) / stock.iloc[0])
     bench_entry, bench_exit = bench.asof(entry), bench.asof(exit_)
     bench_ret = float((bench_exit - bench_entry) / bench_entry)
     alpha = raw - bench_ret
@@ -158,14 +196,19 @@ def fetch_outcome(
     resolution_date = exit_.strftime("%Y-%m-%d")
     return {
         "raw_return": raw, "alpha_return": alpha, "benchmark_return": bench_ret,
-        "holding_days": holding_days, "resolution_date": resolution_date,
+        "holding_days": actual_days, "resolution_date": resolution_date,
+        "horizon_type": "calendar_months" if calendar_months else "trading_sessions",
+        "calendar_months": calendar_months,
+        "nominal_exit_date": nominal.strftime("%Y-%m-%d") if nominal is not None else None,
+        "exit_policy": "first_completed_session_on_or_after_nominal_date" if calendar_months else "nth_session_after_entry",
+        "benchmark_alignment": benchmark_alignment,
         "ticker": normalize_symbol(ticker), "benchmark": normalize_symbol(benchmark),
         "cutoff_date": start.strftime("%Y-%m-%d"),
         "published_at": published_at,
         "prices_before": prices_before,
         "publication_session_timezone": str(publication_timezone) if publication_timezone else None,
         "entry": {"date": entry.strftime("%Y-%m-%d"), "price": float(stock.iloc[0])},
-        "exit": {"date": resolution_date, "price": float(stock.iloc[holding_days])},
+        "exit": {"date": resolution_date, "price": float(stock.iloc[actual_days])},
         "benchmark_entry": {
             "date": bench.loc[:entry].index[-1].strftime("%Y-%m-%d"),
             "price": float(bench_entry),
@@ -178,7 +221,8 @@ def fetch_outcome(
         "price_adjustment": "auto_adjust=True (splits and dividends)",
         "bar_time_basis": "daily session date; not an execution timestamp",
         "entry_policy": "first valid close strictly after cutoff_date",
-        "benchmark_policy": "last valid close on or before each instrument endpoint",
+        "benchmark_policy": ("exact instrument entry and exit session dates" if benchmark_alignment == "exact_sessions"
+                             else "last valid close on or before each instrument endpoint"),
     }
 
 

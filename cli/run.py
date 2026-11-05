@@ -6,6 +6,7 @@ import time
 import webbrowser
 from functools import wraps
 from pathlib import Path
+from uuid import uuid4
 
 import typer
 from rich.live import Live
@@ -30,7 +31,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.graph.trading_graph import TradingAgentsGraph, record_attempt_event
 
 
 def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
@@ -237,6 +238,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         # interrupted run instead of re-appending the initial state (#1249); the
         # try/finally tears the checkpointer down even if the stream raises.
         trace = []
+        attempt_id = str(uuid4())
+        record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], "started")
         try:
             for messages, chunk in graph.stream_run(graph.checkpoint_input(init_agent_state), **args):
                 for message in messages:
@@ -354,6 +357,13 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             graph.clear_checkpoint_on_success(
                 selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
             )
+        except Exception as exc:
+            record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], "failed",
+                                 error_type=type(exc).__name__)
+            raise
+        else:
+            record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], "completed",
+                                 decision_id=(final_state.get("publication_record") or {}).get("decision_id"))
         finally:
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()

@@ -29,6 +29,24 @@ from .setup import GraphSetup
 logger = logging.getLogger(__name__)
 
 
+def record_attempt_event(config, attempt_id, ticker, trade_date, event, *, decision_id=None, error_type=None):
+    """Append minimal execution coverage to the existing log; never provider errors."""
+    row = {"schema_version": 1, "attempt_id": attempt_id, "event": event,
+           "recorded_at": datetime.now(UTC).isoformat(), "ticker": ticker,
+           "requested_as_of": trade_date}
+    if decision_id:
+        row["decision_id"] = decision_id
+    if error_type:
+        row["error_type"] = error_type
+    try:
+        path = Path(config["results_dir"]) / safe_ticker_component(ticker) / trade_date / "message_tool.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write("[Evaluation Attempt] " + json.dumps(row, sort_keys=True) + "\n")
+    except OSError:
+        logger.warning("Evaluation attempt coverage could not be written")
+
+
 def _validate_trade_date(trade_date) -> str:
     """The run date as a canonical ``YYYY-MM-DD`` string no later than today."""
     value = str(trade_date)
@@ -173,7 +191,7 @@ class TradingAgentsGraph:
             "event_comparison=1",
             "decision_context=1",
             "evidence_presentation=1",
-            "publication_record=2",
+            "publication_record=3",
             f"settings={digest}",
         ])
 
@@ -195,12 +213,22 @@ class TradingAgentsGraph:
         """
         trade_date = _validate_trade_date(trade_date)
 
-        with run_config(self.config), \
-                self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
-            return self._run_graph(
-                company_name, trade_date, asset_type=asset_type,
-                checkpoint_thread_id=thread_id_value, portfolio=portfolio,
-            )
+        attempt_id = str(uuid4())
+        record_attempt_event(self.config, attempt_id, company_name, trade_date, "started")
+        try:
+            with run_config(self.config), \
+                    self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
+                result = self._run_graph(
+                    company_name, trade_date, asset_type=asset_type,
+                    checkpoint_thread_id=thread_id_value, portfolio=portfolio,
+                )
+        except Exception as exc:
+            record_attempt_event(self.config, attempt_id, company_name, trade_date, "failed",
+                                 error_type=type(exc).__name__)
+            raise
+        record_attempt_event(self.config, attempt_id, company_name, trade_date, "completed",
+                             decision_id=(result[0].get("publication_record") or {}).get("decision_id"))
+        return result
 
     def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock", portfolio=None) -> str | None:
         """Recompile the graph with a per-ticker checkpointer and return the
