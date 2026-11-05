@@ -71,6 +71,7 @@ def test_review_does_not_consume_primary_and_revisions_link_without_extra_sample
 
 
 def test_historical_record_never_invents_past_publication(config, state):
+    state["evaluation_mode"] = "historical"
     record = publication.publish(config, state, 'DOCN', '2026-10-19')
     assert record['published_at'].startswith('2026-11-04')
     assert record['eligibility']['prospective'] is False
@@ -133,3 +134,19 @@ def test_local_today_stays_prospective_after_utc_rollover(config, state, monkeyp
     assert record['evaluation_mode'] == 'prospective'
     assert record['published_at'] == '2026-11-05T03:00:00+00:00'
     assert record['publication_date_local'] == '2026-11-04'
+
+
+def test_live_run_crossing_midnight_keeps_actual_publication_cutoff(config, state, monkeypatch):
+    state['evaluation_mode'] = 'prospective'
+    monkeypatch.setattr(publication, 'get_current_date', lambda: '2026-11-05')
+    monkeypatch.setattr(publication, '_utcnow', lambda: datetime(2026, 11, 5, 8, tzinfo=UTC))
+    record = publication.publish(config, state, 'DOCN', '2026-11-04')
+    assert record['evaluation_mode'] == 'prospective'
+    assert record['eligibility']['prospective'] is True
+
+
+def test_explicit_simulation_today_is_never_prospective(config, state):
+    state['evaluation_mode'] = 'historical'
+    record = publication.publish(config, state, 'DOCN', '2026-11-04')
+    assert record['evaluation_mode'] == 'historical'
+    assert record['eligibility']['prospective'] is False

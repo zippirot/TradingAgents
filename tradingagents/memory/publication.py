@@ -10,7 +10,7 @@ import hashlib
 import json
 from datetime import UTC, date, datetime
 from pathlib import Path
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
 from tradingagents.dataflows.date_window import get_current_date
@@ -119,6 +119,9 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
     decision_id = _identity(state.get('run_id'))
     asof = date.fromisoformat(str(asof)).isoformat()
     ticker = normalize_symbol(ticker)
+    mode = state.get('evaluation_mode', 'prospective')
+    if mode not in {'prospective', 'historical'}:
+        raise ValueError('Publication evaluation mode must be prospective or historical')
     snapshot = evidence_snapshot(state)
     snapshot.pop('raw_diagnostics', None)
     snapshot_hash = _digest(snapshot)
@@ -132,6 +135,7 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
     benchmark = resolve_benchmark(ticker, config)
     payload = {
         'run_id': decision_id, 'ticker': ticker, 'requested_as_of': asof,
+        'evaluation_mode_requested': mode,
         'asset_type': state.get('asset_type', 'stock'),
         'canonical_rating': rating, 'evidence_status': quality,
         'canonical_decision': decision[:12000], 'decision_truncated': len(decision) > 12000,
@@ -146,6 +150,14 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
         'target_sha256': _digest(state['target_validation']) if state.get('target_validation') else None,
         'scenarios_sha256': _digest(state['shared_valuation_scenarios']) if state.get('shared_valuation_scenarios') else None,
     }
+    return _store_payload(config, payload, snapshot)
+
+
+def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
+    decision_id, ticker, asof = payload['run_id'], payload['ticker'], payload['requested_as_of']
+    rating, quality = payload['canonical_rating'], payload['evidence_status']
+    decision, benchmark = payload['canonical_decision'], payload['benchmark']
+    legacy = bool(payload.get('legacy_import'))
     payload_hash = _digest(payload)
     root = record_root(config)
     for directory in ('records', 'evidence'):
@@ -165,27 +177,31 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError('Publication time must have a timezone')
         now = now.astimezone(UTC)
-        directional = rating in RATINGS_5_TIER and bool(decision) and quality in {'limited', 'sufficient'}
+        directional = rating in RATINGS_5_TIER and bool(decision) and (legacy or quality in {'limited', 'sufficient'})
         primary = directional and not any(r['eligibility']['primary'] for r in previous)
         local_date = get_current_date()
-        prospective = asof == local_date and directional
+        prospective = not legacy and payload.get('evaluation_mode_requested') == 'prospective' and directional
         record = {
             **payload, 'schema_version': _SCHEMA, 'decision_id': decision_id,
-            'payload_sha256': payload_hash, 'published_at': now.isoformat(),
-            'publication_date_local': local_date,
-            'publication_date_basis': 'host local date (same policy as requested research date); not an exchange session',
+            'payload_sha256': payload_hash, 'published_at': None if legacy else now.isoformat(),
+            **({'imported_at': now.isoformat()} if legacy else {}),
+            'publication_date_local': None if legacy else local_date,
+            'publication_date_basis': ('unknown legacy publication date' if legacy else
+                                       'host local date (same policy as requested research date); not an exchange session'),
             'sequence': max((r['sequence'] for r in records), default=0) + 1,
             'previous_decision_id': previous[-1]['decision_id'] if previous else None,
-            'evaluation_mode': 'prospective' if asof == local_date else 'historical',
+            'evaluation_mode': 'legacy' if legacy else payload['evaluation_mode_requested'],
             'eligibility': {
                 'directional': directional, 'primary': primary, 'prospective': prospective,
-                'reason': ('canonical research publication' if directional else
+                'reason': ('legacy recorded research; unknown publication time' if legacy else
+                           'canonical research publication' if directional else
                            'REVIEW, incomplete decision or unvalidated legacy evidence'),
             },
             'endpoints': {f'{days}_sessions': {
                 'holding_days': days, 'status': 'pending' if directional else 'ineligible',
                 'benchmark': benchmark,
-                'entry_policy': 'first valid close strictly after publication/as-of session',
+                'entry_policy': ('first valid close after recorded as-of date; legacy publication time unknown' if legacy else
+                                 'first valid close strictly after publication/as-of session'),
             } for days in (5, 21, 63)},
         }
         record['record_sha256'] = _digest(record)
@@ -214,3 +230,51 @@ def runtime_versions() -> dict:
             prompts.update(entry)
     return {'code': 'sha256:' + code.hexdigest(),
             'prompt': 'sha256:' + prompts.hexdigest(), 'schema': _SCHEMA}
+
+
+def import_legacy_entry(config: dict, entry: dict, *, source_label: str, source_sha256: str) -> dict:
+    """Explicitly import a recorded legacy decision for separately labeled scoring.
+
+    This reads no user file and changes no original memory. The caller supplies
+    a parsed existing entry and its file provenance. Rounded legacy outcomes are
+    retained as reported, never substituted for measured endpoint prices.
+    """
+    from tradingagents.memory.settlement import resolve_benchmark
+
+    if not entry.get('decision') or entry.get('rating') not in RATINGS_5_TIER:
+        raise ValueError('Legacy import requires a recorded decision and recognized rating')
+    if (not source_label or len(source_label) > 256 or len(source_sha256) != 64
+            or any(c not in '0123456789abcdef' for c in source_sha256)):
+        raise ValueError('Legacy source label and SHA256 are required')
+    ticker = normalize_symbol(entry['ticker'])
+    asof = date.fromisoformat(entry['date']).isoformat()
+    decision = entry['decision']
+    identity = {'ticker': ticker, 'date': asof, 'rating': entry['rating'], 'decision': decision}
+    decision_id = str(uuid5(NAMESPACE_URL, 'tradingagents:legacy:' + _digest(identity)))
+    existing = record_root(config) / 'records' / f'{decision_id}.json'
+    if existing.exists():
+        record = load_record(config, decision_id)
+        load_evidence(config, record)
+        return record
+    snapshot = {
+        'schema_version': 1, 'quality_status': 'unvalidated',
+        'legacy_reported_outcome': {k: entry.get(k) for k in ('raw', 'alpha', 'holding', 'resolved')},
+        'legacy_source': {'label': source_label, 'sha256': source_sha256},
+    }
+    snapshot_hash = _digest(snapshot)
+    payload = {
+        'run_id': decision_id, 'ticker': ticker, 'requested_as_of': asof,
+        'canonical_rating': entry['rating'], 'evidence_status': 'unvalidated',
+        'canonical_decision': decision[:12000], 'decision_truncated': len(decision) > 12000,
+        'decision_sha256': hashlib.sha256(decision.encode('utf-8')).hexdigest(),
+        'rating_basis': 'legacy recorded rating; evidence not revalidated; research only',
+        'evidence_snapshot': {'sha256': snapshot_hash, 'path': f'evidence/{snapshot_hash}.json'},
+        'source_references': [{'label': source_label, 'sha256': source_sha256}],
+        'run_settings': {}, 'configuration_sha256': None,
+        'versions': {'code': None, 'prompt': None, 'schema': None}, 'thesis_version_id': None,
+        'benchmark': resolve_benchmark(ticker, config),
+        'target_sha256': None, 'scenarios_sha256': None,
+        'legacy_import': {'publication_time': 'unknown',
+                          'benchmark_basis': 'declared on import; original benchmark provenance unavailable'},
+    }
+    return _store_payload(config, payload, snapshot)

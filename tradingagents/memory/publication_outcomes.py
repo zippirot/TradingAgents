@@ -154,3 +154,101 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
         except Exception as exc:
             result['failed'].append((decision_id, f'Outcome persistence unavailable ({type(exc).__name__})'))
     return result
+
+
+def _summary_cutoff(as_of: str | None) -> datetime | None:
+    if as_of is None:
+        return None
+    if len(as_of) == 10:
+        return datetime.combine(date.fromisoformat(as_of), datetime.max.time(), tzinfo=UTC)
+    cutoff = datetime.fromisoformat(as_of)
+    if cutoff.utcoffset() is None:
+        raise ValueError('Summary timestamp must include a timezone')
+    return cutoff.astimezone(UTC)
+
+
+def _known_by(timestamp: str | None, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return True
+    if not timestamp:
+        return False
+    known = datetime.fromisoformat(timestamp)
+    if known.utcoffset() is None:
+        raise ValueError('Recorded known-at timestamp must include a timezone')
+    return known <= cutoff
+
+
+def _summary_cell(value) -> str:
+    return str(value).replace('|', '\\|').replace('\n', ' ').replace('\r', ' ')
+
+
+def render_outcome_summary(
+    config: dict, ticker: str | None = None, as_of: str | None = None,
+    *, limit: int | None = None,
+) -> str:
+    """Render known primary observations and ineligible coverage, never revise them.
+
+    Dates mean the end of that UTC day; aware timestamps give an exact cutoff.
+    Legacy publications become visible only at their recorded import time. An
+    outcome must have been persisted by the cutoff as well as have its price
+    window elapsed. Thus a later retrieval never becomes a retrospective lesson.
+    ``limit`` bounds tabled publications for prompts; coverage still includes
+    every visible record. Revisions are retained in coverage but are not samples.
+    """
+    if limit is not None and (type(limit) is not int or limit < 1):
+        raise ValueError('Summary limit must be a positive integer')
+    cutoff = _summary_cutoff(as_of)
+    records = [record for record in list_records(config, ticker)
+               if _known_by(record.get('published_at') or record.get('imported_at'), cutoff)]
+    primary = [record for record in records if record['eligibility']['primary']]
+    ineligible = [record for record in records if not record['eligibility']['directional']]
+    revisions = len(records) - len(primary) - len(ineligible)
+    tabled = [record for record in records if record['eligibility']['primary']
+              or not record['eligibility']['directional']]
+    lines = [
+        '### Recommendation outcome horizons',
+        '',
+        f'Coverage: {len(records)} publications; {len(primary)} primary eligible observations; '
+        f'{len(ineligible)} ineligible; {revisions} revisions excluded from independent samples.',
+        'Gross security and benchmark returns describe price windows, not portfolio P&L. '
+        'Underweight is a relative research opinion, not an executed short position.',
+        'These are trading-session diagnostics: 63 sessions is not three calendar months. '
+        'A short-window result does not settle a longer investment thesis.',
+    ]
+    if as_of is not None:
+        lines.append(f'Known-at cutoff: {_summary_cell(cutoff.isoformat())}. '
+                     'Outcomes recorded after this cutoff remain pending in this view.')
+    if limit is not None and len(tabled) > limit:
+        lines.append(f'Showing latest {limit} of {len(tabled)} tabled publications; '
+                     'earlier records remain in coverage above.')
+        tabled = tabled[-limit:]
+    if not tabled:
+        lines.extend(['', 'No primary or ineligible publications are visible at this cutoff.'])
+        return '\n'.join(lines)
+    lines.append('')
+    for index, record in enumerate(tabled, 1):
+        published = record.get('published_at') or 'unknown (legacy publication time not recorded)'
+        lines.append(
+            f"- D{index}: {_summary_cell(record['ticker'])}, as-of {_summary_cell(record['requested_as_of'])}, "
+            f"{_summary_cell(record['canonical_rating'])}, {_summary_cell(record['evaluation_mode'])}; "
+            f"decision {_summary_cell(record['decision_id'])}; published {_summary_cell(published)}."
+        )
+    lines.extend(['', 'Decision | Horizon | Status | Gross security return | Gross benchmark return | Excess return | Price window',
+                  '--- | --- | --- | --- | --- | --- | ---'])
+    for index, record in enumerate(tabled, 1):
+        companion = load_outcomes(config, record)
+        for endpoint in sorted(companion['endpoints'].values(), key=lambda item: item['holding_days']):
+            status = endpoint['status']
+            outcome = endpoint.get('outcome')
+            if status == 'resolved' and (not _known_by(endpoint['resolved_at'], cutoff)
+                    or (cutoff is not None and outcome['resolution_date'] > cutoff.date().isoformat())):
+                status = 'pending'
+            if status == 'resolved':
+                values = [f"{outcome['raw_return']:+.2%}",
+                          f"{_summary_cell(endpoint['benchmark'])} {outcome['benchmark_return']:+.2%}",
+                          f"{outcome['alpha_return']:+.2%}",
+                          f"{outcome['entry']['date']} → {outcome['exit']['date']}"]
+            else:
+                values = ['—'] * 4
+            lines.append(f"D{index} | {endpoint['holding_days']} sessions | {status} | " + ' | '.join(values))
+    return '\n'.join(lines)

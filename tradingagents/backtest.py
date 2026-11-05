@@ -171,6 +171,7 @@ def run_backtest(
         **config,
         "results_dir": str(run_dir),
         "memory_log_path": str(run_dir / "trading_memory.md"),
+        "evaluation_mode": "historical",
     }
 
     graph = TradingAgentsGraph(selected_analysts, config=run_config)

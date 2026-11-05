@@ -3,6 +3,7 @@
 import contextlib
 import re
 from pathlib import Path
+from uuid import UUID
 
 from tradingagents.agents.evidence_presentation import compact_prior_decision
 from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
@@ -41,12 +42,15 @@ class TradingMemoryLog:
         trade_date: str,
         final_trade_decision: str,
         rating: str | None = None,
+        decision_id: str | None = None,
     ) -> None:
         """Append pending entry at end of propagate(). No LLM call.
 
         ``rating`` is the decision's own rating when the caller has it; without
         one it is read from the decision text.
         """
+        if decision_id is not None:
+            decision_id = str(UUID(decision_id))
         rating = rating or parse_rating(final_trade_decision)
         if not self._log_path or rating not in RATINGS_5_TIER:
             return
@@ -65,7 +69,8 @@ class TradingMemoryLog:
             # Historical REVIEW entries remain readable but never block a
             # corrected decision for the same ticker/date.
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            link = f"<!-- PUBLICATION_ID: {decision_id} -->\n\n" if decision_id else ""
+            entry = f"{tag}\n\n{link}DECISION:\n{final_trade_decision}{self._SEPARATOR}"
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry)
 
@@ -363,6 +368,9 @@ class TradingMemoryLog:
             "resolved": resolved,
         }
         body = "\n".join(lines[1:]).strip()
+        publication_match = re.search(r"^<!-- PUBLICATION_ID: ([0-9a-f-]{36}) -->$", body, re.MULTILINE)
+        if publication_match:
+            entry["decision_id"] = str(UUID(publication_match.group(1)))
         decision_match = self._DECISION_RE.search(body)
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""

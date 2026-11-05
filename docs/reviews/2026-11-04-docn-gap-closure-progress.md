@@ -248,3 +248,54 @@ Early C is not accepted yet. Visible horizon summaries, explicit legacy import
 without fabricated publication metadata, and the required real CLI publication /
 process restart / historical settlement proof remain. No additional paid calls
 were made; one of seven live attempts remains used.
+
+## Early C visible horizons, legacy runtime and focused review
+
+Added known-at outcome tables to graph context, saved state and Markdown/HTML.
+Pending and ineligible observations remain blank; revisions are excluded from
+independent sample counts. Security, benchmark and excess returns are distinct,
+and 63 sessions is explicitly not three calendar months. Prompt/report history
+is bounded to ten publications with omission counts; the read-only summary API
+can show all publications. Historical cutoffs exclude later publications/imports
+and outcomes not yet recorded. The original rounded legacy returns never become
+measured price results.
+
+Explicit legacy import preserves the actual recorded rating/decision and source
+file hash while leaving publication time, original code/config and original
+benchmark provenance unknown. Import time is separate. The real October 19 DOCN
+entry was copied verbatim into isolated memory and imported, then a **fresh
+process constructed TradingAgentsGraph normally and called settle_all_pending**
+with real Yahoo prices. All paid HTTP requests were blocked. Five sessions
+resolved; 21 and 63 remained pending. Another fresh-process settlement produced
+no duplicate outcome and identical publication/outcome objects. Copied memory
+and the already-recorded reflection remained unchanged. Receipts are in
+`results/docn-abc/early-c-settlement/{prepare,settlement,settlement-repeat}.json`;
+the reproducible command is `docs/reviews/docn-abc-proof-tools/settlement_proof.py`
+with `prepare`, then `settle` in separate invocations. Original memory was read
+only. This is legacy runtime evidence, not prospective investment performance.
+The initial proof predates the following reviewed corrections; the preserved
+legacy settlement path is unaffected. A new live CLI publication is still due.
+
+New memory entries retain exact publication IDs through settlement. Legacy
+entries stay unlinked rather than being guessed onto a same-date revision.
+A focused independent engineering review confirmed two material issues:
+
+- Publication mode inferred from completion date could turn a midnight-crossing
+  live run into a simulation (and a today-dated simulation into prospective).
+  Fixed with explicit invocation mode retained in state/checkpoints; ordinary
+  publication respects actual publication time even for an earlier requested
+  as-of date, and the backtest path explicitly selects historical simulation.
+- Projection scheduling could let a later same-day revision reach memory first.
+  Fixed by projecting the authoritative first primary record; later revisions
+  may repair its missing projection, with bounded-excerpt labeling if necessary.
+
+Both fixes had observed failing regression tests. The independent reviewer then
+reproduced the original concurrency probe, verified both mode cases, and ran
+53 focused tests: both findings closed, no further material blocker identified
+within this focused scope. This review does not replace the final completed-build
+audit or remaining recovery/live gates. The final offline suite after these
+fixes passed **1,915 tests and 100 subtests**, one optional dependency skip, one
+external-service deselection, 20 warnings, 13.92 seconds. Log:
+`results/docn-abc/early-c/pytest-review-fixes.log`. Full Ruff and diff checks passed;
+pip check passed earlier with unchanged dependencies. No additional paid calls
+have run yet; live proof 2 is next within the approved budget.

@@ -226,7 +226,7 @@ def settle_pending(
                     config, ticker,
                     entry["date"],
                     config.get("holding_period_days", 5),
-                    benchmark=benchmark,
+                    benchmark=benchmark, decision_id=entry.get("decision_id"),
                 )
             except Exception as exc:
                 logger.warning(
@@ -257,13 +257,14 @@ def settle_pending(
     return result
 
 
-def _returns_for_entry(config, ticker, trade_date, holding_days, benchmark):
+def _returns_for_entry(config, ticker, trade_date, holding_days, benchmark, decision_id=None):
     """New publications use their declared window; old memory remains readable."""
-    if config.get("results_dir"):
-        from tradingagents.memory.publication import list_records
+    if decision_id:
+        from tradingagents.memory.publication import load_record
         from tradingagents.memory.publication_outcomes import load_outcomes
-        primary = next((r for r in list_records(config, ticker)
-                        if r["requested_as_of"] == trade_date and r["eligibility"]["primary"]), None)
+        primary = load_record(config, decision_id)
+        if primary["ticker"] != ticker or primary["requested_as_of"] != trade_date:
+            raise ValueError("Memory publication identity mismatch")
         if primary:
             endpoint = load_outcomes(config, primary)["endpoints"].get(f"{holding_days}_sessions")
             if endpoint is not None:

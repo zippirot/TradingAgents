@@ -44,8 +44,10 @@ class RiskDebateState(TypedDict):
 
 class AgentState(MessagesState):
     run_id: Annotated[str, "Invocation identity preserved across checkpoint resume"]
+    evaluation_mode: Annotated[str, "Explicit prospective publication or historical simulation"]
     run_settings: Annotated[dict, "Allowlisted invocation settings retained across resume"]
     publication_versions: Annotated[dict, "Invocation source/prompt fingerprints"]
+    outcome_summary: Annotated[str, "Known-at horizon measurements; never inferred research evidence"]
     publication_record: Annotated[dict, "Immutable publication identity and first publication time"]
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     asset_type: Annotated[str, "Asset type under analysis such as stock or crypto"]

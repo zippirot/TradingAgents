@@ -294,6 +294,8 @@ def evidence_appendix(final_state: dict) -> str:
     references = evidence_references(canonical)
     if references:
         lines += ["", references]
+    if final_state.get("outcome_summary"):
+        lines += ["", final_state["outcome_summary"]]
     return "\n".join(lines).strip()
 
 

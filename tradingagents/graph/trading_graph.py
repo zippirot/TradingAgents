@@ -169,7 +169,7 @@ class TradingAgentsGraph:
             "publication=1",
             "shared_valuation=5",
             "evidence_presentation=1",
-            "publication_record=1",
+            "publication_record=2",
             f"settings={digest}",
         ])
 
@@ -314,6 +314,7 @@ class TradingAgentsGraph:
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
+        state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
         return state
@@ -345,7 +346,21 @@ class TradingAgentsGraph:
             logger.warning("Reading the memory log failed: %s", exc)
             past_context = ""
             note = note or f"The memory log could not be read this run ({type(exc).__name__})."
-        return {"past_context": past_context, "memory_note": note}
+        summary = ""
+        try:
+            if self.config.get("results_dir"):
+                summary = self.outcome_summary(state["company_of_interest"],
+                                               self._memory_as_of(state["trade_date"]), limit=10)
+                past_context = "\n\n".join(part for part in (past_context, summary) if part)
+        except Exception as exc:
+            logger.warning("Reading outcome history failed: %s", exc)
+            note = (note + " Outcome history unavailable; retained records need inspection.").strip()
+        return {"past_context": past_context, "memory_note": note, "outcome_summary": summary}
+
+    def outcome_summary(self, ticker=None, as_of=None, *, limit=None) -> str:
+        """Read deterministic horizon measurements without making model calls."""
+        from tradingagents.memory.publication_outcomes import render_outcome_summary
+        return render_outcome_summary(self.config, ticker, as_of, limit=limit)
 
     def settle_pending(self, company_name) -> settlement.Settlement:
         """Settle this ticker's decisions whose holding window has now traded.
@@ -382,6 +397,11 @@ class TradingAgentsGraph:
         final_state["publication_record"] = {
             key: record[key] for key in ("decision_id", "published_at", "record_sha256")
         }
+        try:
+            final_state["outcome_summary"] = self.outcome_summary(company_name, limit=10)
+        except Exception as exc:
+            logger.warning("Publication saved but outcome summary unavailable: %s", exc)
+            final_state["outcome_summary"] = "Outcome history unavailable; retained records need inspection."
         self._log_state(trade_date, final_state)
         if is_review(run_rating(final_state)):
             logger.info("Research REVIEW for %s on %s saved without trading-memory insertion", company_name, trade_date)
@@ -391,10 +411,25 @@ class TradingAgentsGraph:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
                            company_name, trade_date)
             return
-        self.memory_log.store_decision(
-            ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
-            rating=run_rating(final_state),
-        )
+        # Publication order, not projection scheduling, chooses the daily
+        # observation. A later revision may repair a missing primary projection.
+        primary = next((r for r in publication.list_records(self.config, company_name)
+                        if r["requested_as_of"] == str(trade_date) and r["eligibility"]["primary"]), None)
+        if primary is not None:
+            memory_decision = decision if primary["decision_id"] == record["decision_id"] else primary["canonical_decision"]
+            if primary["decision_truncated"] and primary["decision_id"] != record["decision_id"]:
+                memory_decision += "\n[Bounded publication excerpt; full decision hash retained in publication.]"
+            self.memory_log.store_decision(
+                ticker=company_name, trade_date=trade_date, final_trade_decision=memory_decision,
+                rating=primary["canonical_rating"], decision_id=primary["decision_id"],
+            )
+        elif not final_state.get("evidence_quality"):
+            # Existing unvalidated programmatic callers retain legacy behavior;
+            # do not link their memory to an ineligible measurement record.
+            self.memory_log.store_decision(
+                ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+                rating=run_rating(final_state),
+            )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):
@@ -493,7 +528,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

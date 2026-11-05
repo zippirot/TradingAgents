@@ -130,6 +130,7 @@ def test_historical_simulation_does_not_use_today_as_historical_publication(setu
     config, _ = setup
     state = {'run_id': str(uuid4()), 'final_rating': 'Hold', 'final_trade_decision': 'Hold',
              'evidence_quality': {'status': 'limited'}}
+    state['evaluation_mode'] = 'historical'
     record = publication.publish(config, state, 'DOCN', '2026-09-01')
     observed = []
     def fetch(*args, **kwargs):
