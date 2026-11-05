@@ -679,3 +679,17 @@ request or attempt reservation. Date parsing now uses only stdlib until setup.
 The preserved preflight-import-order-failure.log documents the failure. Ten
 proof-runner tests pass including a subprocess import-order regression; no
 application behavior changed and the prior full suite remains applicable.
+
+Frozen baseline/current engineering proof independently accepted: six paired
+DOCN/NVDA cells, June 1 development and August 3/October 1 holdout dates, 24
+repeated executions. Exact input/source hashes and declared cutoff invariants
+pass; NVDA extraction availability improves 0/3 to 3/3, DOCN remains 3/3.
+All companyfacts-only gates remain insufficient without filing documents. No
+publication, recommendation or return was synthesized. Cached snapshots were
+retrieved after some cutoffs, so this is engineering evidence with explicit
+limitations, not a contemporaneous archived feed or investment-skill proof.
+The blocked urllib3 localhost IPv6 import probe from the first offline attempt
+is retained separately and distinguished from external traffic; final proof
+had zero outbound attempts and model calls. The 108 current source hashes match
+live-06 source exactly. Evidence: 2026-11-04-docn-c-frozen-evidence.json and
+results/docn-abc/c-frozen-replay/.

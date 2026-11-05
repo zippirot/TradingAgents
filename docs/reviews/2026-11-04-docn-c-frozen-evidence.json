@@ -1,0 +1,22 @@
+{
+  "all_invariants_pass": true,
+  "all_repeats_identical": true,
+  "comparison_status": "available",
+  "limitations": [
+    "Retained snapshots were retrieved after some cutoffs; source filing/period cutoffs are enforced, but this is not an archived contemporaneous data feed.",
+    "No filing-document extraction, model research, publication, rating, historical return or profitability evidence is invented. Companyfacts-only gate coverage limits remain visible.",
+    "This is deterministic engineering replay, not a clean historical investment holdout or performance proof."
+  ],
+  "model_calls": 0,
+  "network_calls": 0,
+  "paid_cost_usd": "0",
+  "paired_cells": 6,
+  "protocol_sha256": "2e690cfd7ec09de3985d29c8fbf7fc26e0493b9011ace5ceca2fdbdc7e7d8282",
+  "runs": 24,
+  "artifact_sha256": {
+    "results/docn-abc/c-frozen-replay/receipt.json": "b6d1c19f94564197b4b6911d7f5166f5e0c50e47c18fcdf799d7ad0303af5b2a",
+    "results/docn-abc/c-frozen-replay/comparison.json": "3c594f41314aae038596071dcf3f70a125e105b35198334e2b0d51a97cb07ad7",
+    "results/docn-abc/c-frozen-replay/verification.json": "a070ca488fe96a40e84523ecafceb5f90f763d257bc175f3cb11a292b330e41f"
+  },
+  "independent_review": "Accepted: exact baseline/current source/input hashes, all24 outputs and regenerated comparison independently verified; no material findings."
+}
