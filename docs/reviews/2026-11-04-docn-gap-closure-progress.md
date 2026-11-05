@@ -320,3 +320,22 @@ are used. Cumulative maximum-rate usage is USD4.635765, not an independently
 retrieved provider bill. Original launcher preferences are unchanged. The USD30
 audit allocation remains untouched. Remaining A, B, final C and the final
 connected completed-build audit remain required.
+
+## Remaining A implementation in progress
+
+The news analyst now retains bounded coverage from its actual private tool
+results, distinguishing failed requests, successful empty news windows and
+available responses. The evidence gate separately records independent news,
+issuer-event, consensus and optional macro coverage. For unavailable/empty news,
+it exposes eligible already-retrieved 8-K metadata as an **Issuer disclosures**
+supplement, retaining URL/hash/filing date and leaving the original news prose
+unchanged. Whole documents are not called verified, and no vendor or model call
+was added. News coverage survives the analyst subgraph output boundary; the
+checkpoint signature advances for the changed post-analyst contract.
+
+Observed initial missing-behavior tests failed, then the issuer-event, evidence,
+news, routing and full-graph selection passed **91 tests** in the current working
+candidate. Changed-file Ruff passed. These are focused implementation checks,
+not the final Build A gate. Disclosure extraction, prior-quarter source/KPI and
+cash-bridge work is being integrated separately; the final full suite, actual
+report proof, second-issuer gate coverage and independent Build A review remain.

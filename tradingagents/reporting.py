@@ -219,6 +219,8 @@ def evidence_snapshot(final_state: dict) -> dict:
         "target_validation",
         "shared_valuation_scenarios",
         "canonical_financial_context",
+        "issuer_event_evidence",
+        "news_coverage",
     )
     snapshot = {
         "schema_version": 1,

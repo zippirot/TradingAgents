@@ -58,6 +58,8 @@ class AgentState(MessagesState):
     market_report: Annotated[str, "Report from the Market Analyst"]
     sentiment_report: Annotated[str, "Report from the Sentiment Analyst"]
     news_report: Annotated[str, "Report from the News Analyst on company and world news"]
+    news_coverage: Annotated[dict, "Coverage from actual private news tool results"]
+    issuer_event_evidence: Annotated[dict, "Post-analyst issuer metadata supplement; not independent news"]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Analyst"]
 
     disclosure_evidence: Annotated[dict, "Dated filing excerpts, grounded extraction and retrieval gaps; not a coverage guarantee"]

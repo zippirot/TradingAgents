@@ -6,6 +6,7 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
+from tradingagents.agents.issuer_events import news_tool_coverage
 from tradingagents.agents.tools import (
     get_global_news,
     get_macro_indicators,
@@ -63,6 +64,7 @@ def create_news_analyst(llm):
         return {
             "messages": [result],
             "news_report": report,
+            "news_coverage": news_tool_coverage(state["messages"]),
         }
 
     return news_analyst_node

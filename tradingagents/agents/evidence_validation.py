@@ -523,6 +523,17 @@ def assess_financial_package(
         )
     if disclosures is not None:
         update["filing_evidence"] = disclosures.model_dump(mode="json")
+    from tradingagents.agents.issuer_events import issuer_supplement
+    supplement = issuer_supplement(
+        state.get("news_coverage", {}), disclosures, cik=package.cik, as_of=str(package.as_of),
+        accepted_source_ids={claim.source_id for claim in grounded.claims} if disclosures is not None else (),
+    )
+    update["issuer_event_evidence"] = supplement
+    update["canonical_financial_context"] += "\n\nSource coverage: " + "; ".join(
+        f"{name.replace('_', ' ')}: {item['status']}" for name, item in supplement["coverage"].items()
+    )
+    if supplement["text"]:
+        update["canonical_financial_context"] += "\n\n" + supplement["text"]
     if extraction is not None:
         update["filing_fact_extraction"] = extraction.model_dump(mode="json")
     if quality["status"] == "insufficient":

@@ -12,8 +12,8 @@ def test_prevalidation_checkpoint_is_preserved_but_not_resumed(tmp_path):
     app.selected_analysts = ("market", "fundamentals")
     app.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
     signature = app._run_signature("stock")
-    assert "evidence=1" in signature and "publication=1" in signature
-    old_signature = signature.replace("|evidence=1", "").replace("|publication=1", "")
+    assert "evidence=2" in signature and "publication=1" in signature
+    old_signature = signature.replace("|evidence=2", "").replace("|publication=1", "")
 
     class State(TypedDict):
         count: int

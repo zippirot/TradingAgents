@@ -64,6 +64,8 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     output_fields = {spec.report_key: str}
     if spec.key == "fundamentals":
         output_fields["disclosure_evidence"] = dict
+    if spec.key == "news":
+        output_fields["news_coverage"] = dict
     output = TypedDict(f"{spec.key.capitalize()}Report", output_fields)
     graph = StateGraph(AgentState, output_schema=output)
     graph.add_node("agent", agent)
