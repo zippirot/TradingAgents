@@ -115,7 +115,11 @@ def validate_context(claim, blocks, packages):
             # A separate prose disclaimer/forecast cannot silently govern the
             # selected sentence. Only preceding simple reported-value sentences
             # in this same highlight bullet are supported.
-            preceding = re.split(r"(?<=[.!?])\s+", prefix.strip()) if prefix.strip() else []
+            # Match the subject check's list-marker handling: a bare leading
+            # bullet is layout, not a preceding prose sentence. Keep all actual
+            # words so qualifiers and unsupported preceding claims still fail.
+            prose_prefix = prefix.lstrip("•- ").strip()
+            preceding = re.split(r"(?<=[.!?])\s+", prose_prefix) if prose_prefix else []
             reported = (
                 r"[^\d.!?:;]{1,160}\s+(?:was|were|ended the quarter at)\s+\$?"
                 + _NUMBER + r"\s+(?:million|billion|thousand)"

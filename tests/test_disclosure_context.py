@@ -87,6 +87,28 @@ def test_recorded_q3_ai_arr_has_exact_period_definition_and_growth_basis():
     assert parse_disclosure_report(report, blocks_for(package), packages=(package,)).claims == (claim,)
 
 
+@pytest.mark.parametrize("marker", ["", "• ", "- ", "  •  "])
+def test_reported_value_at_start_of_highlight_accepts_list_marker(marker):
+    package = recorded_package()
+    claim = recorded_claim(package)
+    package = mutate_block(
+        package, claim.locator,
+        text=marker + "AI Customer ARR was $376 million, an increase of 288%.",
+    )
+    assert validate(claim, package).claims == (claim,)
+
+
+@pytest.mark.parametrize("prefix", ["• Hypothetically, ", "• Prior quarter: ", "• Unaudited estimate: "])
+def test_list_marker_does_not_hide_preceding_qualification(prefix):
+    package = recorded_package()
+    claim = recorded_claim(package)
+    package = mutate_block(
+        package, claim.locator,
+        text=prefix + "AI Customer ARR was $376 million, an increase of 288%.",
+    )
+    assert not validate(claim, package).claims
+
+
 @pytest.mark.parametrize(
     "changes",
     [
