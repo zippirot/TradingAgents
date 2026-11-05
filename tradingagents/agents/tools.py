@@ -306,12 +306,30 @@ def get_financial_evidence(
 ) -> str:
     """Exact dated SEC statement facts with source IDs, units and calculation lineage.
 
-    Coverage excludes issuer-specific narratives and untagged disclosures.
+    Includes strictly verified supported filing-table cells; unsupported narratives
+    remain outside canonical facts. Filing coverage failures are explicit warnings.
     Derived quarters and TTM flows are labeled; EPS and shares are never added.
     """
     cutoff = as_of(curr_date, trade_date)
     try:
-        return bounded_evidence_view(build_financial_evidence(ticker, cutoff)).model_dump_json()
+        package = build_financial_evidence(ticker, cutoff)
+        try:
+            from tradingagents.agents.evidence_validation import filing_accounting_evidence
+
+            disclosures = build_filing_evidence(ticker, cutoff)
+            enriched, _, _ = filing_accounting_evidence(package, disclosures)
+            # Existing bounding is round-robin by metric insertion order. Make
+            # the newly source-verified borrowing perimeter visible before rich
+            # historical companyfacts consume the byte budget; IDs are unchanged.
+            package = enriched.model_copy(update={"facts": tuple(sorted(
+                enriched.facts, key=lambda fact: fact.metric != "Total Borrowings"))})
+        except Exception as exc:
+            # Optional filing retrieval/validation cannot erase valid companyfacts.
+            # Provider exception details can contain URLs or credentials.
+            package = package.model_copy(update={"warnings": (*package.warnings,
+                f"Filing accounting supplement unavailable ({type(exc).__name__}); "
+                "base SEC companyfacts retained; no missing filing values inferred")})
+        return bounded_evidence_view(package).model_dump_json()
     except NoMarketDataError as exc:
         return no_data_available(exc)
     except VendorUnavailableError as exc:

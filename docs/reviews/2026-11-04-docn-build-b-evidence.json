@@ -1,0 +1,28 @@
+{
+  "milestone": "Build B reviewed offline candidate; live acceptance pending",
+  "full_suite": {
+    "passed": 2170,
+    "subtests": 100,
+    "skipped": 1,
+    "deselected": 1,
+    "warnings": 20
+  },
+  "paid_attempts": 3,
+  "conservative_proof_usage_usd": 7.324695,
+  "independent_material_findings_open": [],
+  "artifact_sha256": {
+    "results/docn-abc/b-offline/pytest-candidate.log": "390b1805cf4806e89ab834189bec65dcf108e91d64983c020b667765022544a1",
+    "results/docn-abc/b-offline/pytest-reviewed-candidate.log": "69e1f018b4bbb5fa04a069187944535d297677782de7ec6337dad2d7d8211350",
+    "results/docn-abc/b-offline/ruff-reviewed.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "results/docn-abc/b-offline/pip-reviewed.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "results/docn-abc/b-price-probe/price_observation.json": "377dd279ac6e3e1915ea9e49721fc8e13f2e5e305d8f22af1c2aa1e6ee6043dd",
+    "results/docn-abc/b-price-probe/event_comparison-bound.json": "9d6a43a8f7a5e683d90105969f401fd7f122cf8fe50c9657ef3a76a4b6a272b2"
+  },
+  "limits": [
+    "B live CLI and second-process continuity proof pending",
+    "Final C and connected final audit pending",
+    "No typed timestamped consensus source",
+    "Prior guidance comparison unavailable for real DOCN source probe",
+    "Historical unknown publication metadata remains unknown"
+  ]
+}

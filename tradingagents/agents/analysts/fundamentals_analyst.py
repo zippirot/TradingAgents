@@ -139,7 +139,7 @@ FINANCIAL_CLAIM_EXTRACTION = (
 
 
 SHARED_VALUATION_INPUTS = (
-    " Optionally propose up to three justified valuation scenarios in exactly one named fence:"
+    " Always finish with exactly one named valuation_scenarios fence. Propose up to three justified conditional scenarios when complete source inputs and defensible assumptions exist:"
     "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having exactly name and request."
     ' Structure example only (replace placeholders with supported inputs, or omit forecast to use historical EPS):\n[\n  {\n    "name": "Case A",\n    "request": {\n      "method": "pe",\n      "eps_fact_id": "<exact annual EPS fact ID>",\n      "eps_basis": "diluted",\n      "accounting_basis": "US-GAAP",\n      "multiple": "<justified positive decimal>",\n      "multiple_rationale": "<explanation>",\n      "forecast": {\n        "value": "<justified positive decimal>",\n        "unit": "USD/shares",\n        "period_start": "<YYYY-MM-DD>",\n        "period_end": "<YYYY-MM-DD>",\n        "basis": "US-GAAP",\n        "kind": "analyst_forecast",\n        "rationale": "<explicit assumptions>"\n      }\n    }\n  }\n]\n'
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
@@ -150,7 +150,8 @@ SHARED_VALUATION_INPUTS = (
     " These calculations do not require a current stock price or return-to-price comparison."
     " Inspect the annual Revenue, Basic EPS and Diluted EPS facts in the evidence tool before declaring baselines missing."
     " These are conditional research inputs, not final price targets. Use one method and comparable source IDs,"
-    " annual periods, currency, accounting and share bases throughout the table; vary only forecasts and multiples."
+    " annual periods, currency, accounting and share bases throughout the table; clearly identify varying forecasts, multiples and any projected funding assumptions."
+    " Each multiple must include multiple_assumption_date equal to this analysis date; it dates your subjective assumption, not a verified comparable market quote. Optional decision_date and rerating_assumption must be supplied together; without them these remain sensitivities, never three-/six-month targets."
     " Give rationales explaining the method/multiple and each forecast. Numeric values are decimal strings. Names are at most 80 characters; each rationale at most 1200 characters."
     " A P/E request has method='pe', eps_fact_id, eps_basis ('basic' or 'diluted'), accounting_basis"
     " ('US-GAAP' or 'management-adjusted'), multiple, multiple_rationale, and optional forecast."

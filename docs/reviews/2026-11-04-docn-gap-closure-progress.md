@@ -453,3 +453,78 @@ reproduction and second-issuer source/gate coverage. Three of seven live attempt
 are used; cumulative maximum-rate usage is USD7.324695 (not an independently
 retrieved provider bill); original preferences are unchanged. Build B, final C
 and the final connected audit remain outstanding.
+
+### Build B reviewed offline candidate (live acceptance still pending)
+
+Implemented advisory thesis versions in the existing immutable publication snapshot,
+with exact-source observations, explicit kept/overridden/retired dispositions and
+reasons. Gross Margin is a deterministic Gross Profit / Revenue observation; the
+October 19 53% text remains an advisory legacy narrative with unestablished authority.
+No automatic rule enforcement or authorization UI was added. Invalid optional
+thesis proposals preserve the canonical rating; retired/kept lifecycle conflicts
+were corrected and independently rechecked.
+
+The shared/final valuation calculator now supports explicit forward cash, debt,
+lease, equity issuance and dilution bridges per scenario. Unfunded cases retain
+cash-gap diagnostics but publish no target or return. Weights require rationale;
+multiple dates and optional decision-date/rerating assumptions distinguish dated
+conditional values from annual sensitivities. Replayed price comparisons use each
+scenario's capital and show implied multiple/revenue without calling them expected
+returns. Source-basis checks reject intervening splits, including an incomplete
+current session and later splits contaminating historical Yahoo closes.
+
+The existing financial-evidence tool now exposes the same strict filing-table
+Total Borrowings fact that was previously available only after the analyst finished.
+Actual saved DOCN evidence replay retained the exact $461.630m fact/source IDs in
+63,816 characters, within the unchanged 64KB tool limit. No additional model call
+was introduced. Current model prompts require an explicit scenario fence, allowing
+an empty list when a defensible calculation is unavailable.
+
+The decision card separates the canonical PM rating from the provisional Trader
+proposal and labels risk-based opinions without a supported valuation. Independent
+review caught raw debate and free-form horizon text leaking numeric targets/sizing
+into this card: the card now retains diagnostic references rather than duplicate
+quotes, and accepts only whole-value dates/durations for a stated horizon. Existing
+publication authority tests were preserved. Both findings were independently closed.
+
+Event comparison uses source-compatible pre-event guidance when available and
+existing configured Yahoo prices on aligned completed sessions. Consensus remains
+explicitly unavailable because there is no typed timestamped consensus source;
+no paid source or key was added. DOCN's disclosed peer AKAM is selected before
+returns, with SPY as broad benchmark. Intraday release time is unknown: these are
+filing-date windows, not causal attribution. Independent review found that a filing
+CIK could be paired with another ticker; the existing SEC-map gate identity now
+binds ticker/CIK/cutoff before either event or valuation price comparisons. A direct
+DOCN-evidence/AAPL-ticker probe now fails before any quote fetch. Legacy records
+without this binding retain arithmetic but cannot claim a new price comparison.
+
+Required offline gate: **2,170 passed, 100 subtests passed**, one optional
+`langchain_aws` skip, one configured integration deselection, 20 existing model
+warnings; 16.43 seconds. Full Ruff, pip dependency check and diff check passed.
+The initial full run had 2,161 passes and one prompt wording regression after
+trimming redundant instructions; the original Hold/conflict rule was restored,
+55 affected checks passed, then the complete reviewed candidate passed. Logs are
+`results/docn-abc/b-offline/pytest-candidate.log` and
+`results/docn-abc/b-offline/pytest-reviewed-candidate.log`.
+
+Independent targeted reviews closed funding/date/weight, historical/current-session
+split, thesis lifecycle, card-authority and issuer-binding findings. Final binding
+verification ran 100 focused/integrated tests. Earlier unaffected passing checks
+were retained; this does not replace the completed full candidate run or final
+connected exact-base/head audit.
+
+A real, non-LLM Yahoo probe returned DOCN's November 4 completed close at
+84.0199966430664 USD (about $84.02), with verified coverage from September 23;
+saved-source replay matched. A fresh SEC-map-bound event probe using the real
+saved A filing package and current provider data measured November 2–4 moves:
+DOCN approximately -6.43%, SPY +1.96%, AKAM -0.88%. Guidance comparison and consensus
+were unavailable and remained labeled. Receipts live under
+`results/docn-abc/b-price-probe/` (`event_comparison-bound.json` is the post-review
+issuer-bound receipt). These source probes do not replace the required real CLI
+B proof or second-process thesis-continuity proof.
+
+No additional paid attempt has run: three of seven used, conservative token-rate
+usage $7.324695 of the $70 proof allocation; $30 audit allocation untouched.
+Build B is **not yet accepted**. Next: commit this candidate, run live-04 at the
+approved Shallow settings, inspect reports/state/memory and prove persisted thesis
+continuity in a second real process before moving to final C.

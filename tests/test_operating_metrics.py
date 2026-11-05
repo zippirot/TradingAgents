@@ -28,14 +28,15 @@ def regular():
     return package(fact('revenue', 'Revenue', '321200000', '2026-07-01', '2026-09-30'),
         fact('prior', 'Revenue', '230000000', '2025-07-01', '2025-09-30'),
         fact('operating', 'Operating Income', '32120000', '2026-07-01', '2026-09-30'),
-        fact('net', 'Net Income', '-16060000', '2026-07-01', '2026-09-30'))
+        fact('net', 'Net Income', '-16060000', '2026-07-01', '2026-09-30'),
+        fact('gross', 'Gross Profit', '160600000', '2026-07-01', '2026-09-30'))
 
 
 def test_exact_yoy_and_margins_include_periods_and_input_lineage():
     outcomes = operating_metrics(regular())
-    assert [o.status for o in outcomes] == ['pass'] * 3
+    assert [o.status for o in outcomes] == ['pass'] * 4
     assert abs(outcomes[0].result - Decimal('39.65217391304347826086956522')) < Decimal('0.000000000001')
-    assert [o.result for o in outcomes[1:]] == [Decimal('10'), Decimal('-5')]
+    assert [o.result for o in outcomes[1:]] == [Decimal('10'), Decimal('-5'), Decimal('50')]
     assert all(o.unit == 'percent' and 'Derived' in o.message and '2026-07-01' in o.message for o in outcomes)
     assert outcomes[0].input_fact_ids == ('revenue', 'prior')
     assert outcomes[1].input_fact_ids == ('operating', 'revenue')

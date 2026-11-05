@@ -211,6 +211,12 @@ def evidence_quality_snapshot(final_state: dict) -> dict:
 def evidence_snapshot(final_state: dict) -> dict:
     """Persist canonical source packages separately from raw model diagnostics."""
     names = (
+        "thesis",
+        "price_observation",
+        "valuation_price_comparison",
+        "decision_context",
+        "event_comparison",
+        "issuer_identity",
         "financial_evidence",
         "filing_evidence",
         "filing_fact_extraction",

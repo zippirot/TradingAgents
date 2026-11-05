@@ -89,6 +89,18 @@ Use only these exact fact IDs for a supported EV/revenue or P/E request. Forecas
 multiples and scenario weights are assumptions, not verified outcomes. A legacy
 price_target does not establish a target. Management guidance/ambition cannot be
 self-certified: without a separately validated outlook mapping, omit that claim.
+Use multiple_assumption_date for each multiple (the current analysis date for your
+subjective assumption). A multi-scenario final request requires weight_rationale;
+weights are subjective, never calibrated probabilities. A dated decision valuation
+requires both decision_date and an explicit rerating_assumption. A future annual
+value is otherwise only a sensitivity, not a three-/six-month price target.
+For material financing or dilution, use capital_structure_assumption=forward_capital_v1
+and the typed funding bridge: cash flow, capex, acquisitions, explicit debt/lease
+changes, equity issuance and other share dilution. Assumptions must cover the
+entire interval after the source capital snapshot to the forecast end. Never fill
+a funding gap silently; unavailable assumptions may leave valuation unsupported.
+An unchanged snapshot remains an explicitly limited sensitivity. A risk-based
+Underweight does not establish a negative expected return.
 
 **Source-grounded management outlook records (guidance and ambitions are distinct):**
 {outlook_context}
@@ -97,7 +109,22 @@ Disclose divergence from these ranges; do not invent consensus.
 
 ---
 
-Ground every conclusion in specific evidence from the analysts. The risk debate always contains conflicting stances; deciding which is stronger is the job, so conflict alone is not a reason to Hold. Commit to the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not force a direction to appear decisive. Weigh the analysts on their merits, independent of speaking order.
+Ground conclusions in specific evidence. Weigh competing cases independently of speaking order. Choose Hold for balanced or insufficient evidence; conflict alone is not a reason to Hold. Do not force a direction to appear decisive.
+
+## Advisory thesis continuity
+
+Supply thesis_candidate in this same decision call: a concise rationale, material
+assumptions, exact canonical references and a small set of measurable conditions
+that would change the thesis. These are advisory research proposals, never hard
+trading rules. For a source-fact condition use the exact metric label for both
+metric and metric_definition, its exact unit/basis/measurement period and expiry.
+Gross Margin is a supported deterministic Gross Profit / Revenue percentage;
+use metric and metric_definition "Gross Margin", unit "percent", and US-GAAP.
+For every prior condition ID shown in the shared context, give a kept, overridden
+or retired disposition and a specific reason. A breach does not mechanically
+choose the rating. Unknown measurements remain unknown. An older narrative rule,
+including a legacy 53% margin condition, has unestablished authority unless its
+record establishes otherwise; never invent a binding sell instruction.
 
 ## Output
 
@@ -114,7 +141,14 @@ Write these sections, in this order, starting with the rating on its own line:
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
         original = dict(state.get("unvalidated_outputs") or {})
         request = None
+        thesis_candidate = None
         if decision is not None:
+            thesis_candidate = decision._unvalidated_thesis_candidate
+            if thesis_candidate is None and decision.thesis_candidate is not None:
+                thesis_candidate = decision.thesis_candidate.model_dump(mode="json")
+            if thesis_candidate is None:
+                thesis_candidate = {"rationale": decision.investment_thesis}
+            thesis_candidate = json.loads(json.dumps(thesis_candidate, default=str), parse_constant=str)
             request = decision._unvalidated_valuation_request
             if request is None and decision.valuation_request is not None:
                 request = decision.valuation_request.model_dump(mode="json")
@@ -130,6 +164,7 @@ Write these sections, in this order, starting with the rating on its own line:
                     parse_constant=str,
                 ),
                 "valuation_request": request,
+                "thesis_candidate": thesis_candidate,
             }
             target = (
                 validate_target(request, package, outlooks)
@@ -144,6 +179,7 @@ Write these sections, in this order, starting with the rating on its own line:
         else:
             final_trade_decision = llm.invoke(prompt).content
             final_rating = parse_rating(final_trade_decision)
+            thesis_candidate = {"rationale": final_trade_decision[:3000]}
             original["portfolio_manager"] = {"fallback": final_trade_decision}
             target = TargetResult(
                 status="unsupported",
@@ -170,6 +206,7 @@ Write these sections, in this order, starting with the rating on its own line:
             "final_rating": final_rating,
             "target_validation": {**target.model_dump(mode="json"), "request": request},
             "unvalidated_outputs": original,
+            "thesis_candidate": thesis_candidate,
         }
 
     return portfolio_manager_node

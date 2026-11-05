@@ -2,12 +2,14 @@
 
 from pydantic import ValidationError
 
+from tradingagents.agents.decision_context import prepare_decision_context, render_decision_context
 from tradingagents.agents.evidence_presentation import readable_evidence
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
 from tradingagents.agents.shared_valuation import prepare_shared_valuation
 from tradingagents.agents.valuation import TargetResult, validate_target
+from tradingagents.agents.valuation_comparison import compare_valuation, render_valuation_comparison
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
@@ -25,10 +27,34 @@ def enforce_evidence_review(state: dict) -> dict:
     return {
         **review_terminal_state(quality),
         "unvalidated_outputs": original,
+        "valuation_price_comparison": {"status": "unavailable", "rows": [], "reason": "Research incomplete; comparison not published."},
         "target_validation": TargetResult(
             status="unsupported", reasons=("Research incomplete; valuation not published.",),
         ).model_dump(mode="json"),
     }
+
+
+def _thesis_update(state):
+    if not state.get("run_id") or not state.get("trade_date") or not (
+        state.get("thesis_candidate") is not None or state.get("prior_thesis") or state.get("thesis")
+    ):
+        return {}
+    from tradingagents.agents.rating import run_rating
+    from tradingagents.memory.thesis import observe_conditions, prepare_thesis
+
+    prior = state.get("prior_thesis")
+    if prior:
+        usable = state if normalized_evidence_quality(state).get("status") in {"sufficient", "limited"} else {}
+        prior = {**prior, "observations": observe_conditions(prior, usable)}
+    candidate = state.get("thesis_candidate")
+    if candidate is None and state.get("thesis"):
+        saved = state["thesis"]
+        candidate = {**saved, "dispositions": [
+            {"condition_id": row["condition_id"], "disposition": row["disposition"],
+             "reason": row["disposition_reason"]} for row in saved.get("prior_conditions", [])
+        ]}
+    item = prepare_thesis(candidate, prior, run_rating(state), str(state["trade_date"]), state["run_id"])
+    return {"thesis": item, "thesis_version_id": item["version_id"]}
 
 
 def enforce_publication(state: dict) -> dict:
@@ -41,8 +67,18 @@ def enforce_publication(state: dict) -> dict:
     """
     review = enforce_evidence_review(state)
     if review:
+        if "event_comparison" in state:
+            review["event_comparison"] = {"status": "unavailable", "reason": "Research incomplete; event comparison withheld"}
         if "shared_valuation_scenarios" in state:
             review["shared_valuation_scenarios"] = prepare_shared_valuation({**state, **review}, [])
+        continuity = _thesis_update({**state, **review})
+        if continuity:
+            from tradingagents.memory.thesis import render_thesis
+            review.update(continuity)
+            review["final_trade_decision"] += "\n\n" + render_thesis(continuity["thesis"])
+        card = prepare_decision_context({**state, **review})
+        review["decision_context"] = card
+        review["final_trade_decision"] += "\n\n" + render_decision_context(card)
         return review
     if state.get("evidence_quality") is None:
         return {}
@@ -105,7 +141,20 @@ def enforce_publication(state: dict) -> dict:
             reasons=("Canonical financial evidence unavailable; target omitted.",),
         )
     updates["target_validation"] = {**target.model_dump(mode="json"), "request": request}
-    target_text = render_target_result(target)
+    comparison = compare_valuation(state, target, request)
+    updates["valuation_price_comparison"] = comparison
+    target_text = render_target_result(target) + "\n\n" + render_valuation_comparison(comparison)
+    if "event_comparison" in state:
+        from tradingagents.agents.event_comparison import (
+            render_event_comparison,
+            replay_event_comparison,
+        )
+        try:
+            event = replay_event_comparison(state, state["event_comparison"])
+        except (ValueError, TypeError, KeyError):
+            event = {"status": "unavailable", "reason": "Retained event comparison could not be verified"}
+        updates["event_comparison"] = event
+        target_text += "\n\n" + render_event_comparison(event)
     if target.status != "supported":
         target_text = "Fundamental price target: unavailable.\n\n" + target_text
     updates["final_trade_decision"] = (
@@ -117,5 +166,16 @@ def enforce_publication(state: dict) -> dict:
         "Position sizing: qualitative only; no validated numerical allocation.\n\n"
         "Original model narrative is retained separately in evidence.json diagnostics."
     )
+    continuity = _thesis_update({**state, **updates})
+    if continuity:
+        from tradingagents.memory.thesis import render_thesis
+        updates.update(continuity)
+        updates["final_trade_decision"] = updates["final_trade_decision"].replace(
+            "**Investment Thesis — canonical evidence**:",
+            render_thesis(continuity["thesis"]) + "\n\n**Investment Thesis — canonical evidence**:", 1)
     updates["unvalidated_outputs"] = originals
+    card = prepare_decision_context({**state, **updates})
+    updates["decision_context"] = card
+    updates["final_trade_decision"] = updates["final_trade_decision"].replace(
+        "**Executive Summary**:", render_decision_context(card) + "\n\n**Executive Summary**:", 1)
     return updates

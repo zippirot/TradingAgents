@@ -494,8 +494,8 @@ def test_shared_scenarios_survive_checkpoint_without_recalculation(tmp_path, mon
     monkeypatch.setattr(setup, "create_bull_researcher", bull_factory)
     graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True), checkpoint_enabled=True)
     signature = graph._run_signature("stock")
-    assert "shared_valuation=5" in signature
-    legacy = signature.replace("|shared_valuation=5", "")
+    assert "shared_valuation=6" in signature
+    legacy = signature.replace("|shared_valuation=6", "")
     assert legacy != signature
     assert thread_id("DOCN", evidence["trade_date"], legacy) != thread_id("DOCN", evidence["trade_date"], signature)
     with pytest.raises(RuntimeError, match="controlled post-evidence"):

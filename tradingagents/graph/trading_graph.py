@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -167,7 +167,11 @@ class TradingAgentsGraph:
             # publication projection. Different IDs leave historical files intact.
             "evidence=3",
             "publication=1",
-            "shared_valuation=5",
+            "shared_valuation=6",
+            "advisory_thesis=1",
+            "price_observation=1",
+            "event_comparison=1",
+            "decision_context=1",
             "evidence_presentation=1",
             "publication_record=2",
             f"settings={digest}",
@@ -355,7 +359,27 @@ class TradingAgentsGraph:
         except Exception as exc:
             logger.warning("Reading outcome history failed: %s", exc)
             note = (note + " Outcome history unavailable; retained records need inspection.").strip()
-        return {"past_context": past_context, "memory_note": note, "outcome_summary": summary}
+        prior = None
+        try:
+            if self.config.get("results_dir"):
+                from tradingagents.memory.thesis import load_latest_thesis
+                known_at = self._memory_as_of(state["trade_date"]) or datetime.now(UTC)
+                prior = load_latest_thesis(self.config, state["company_of_interest"], known_at)
+        except Exception as exc:
+            logger.warning("Reading prior thesis failed: %s", exc)
+            note = (note + " Prior thesis unavailable; retained publication needs inspection.").strip()
+        legacy_context = ""
+        if prior is None:
+            try:
+                from tradingagents.memory.thesis import legacy_thesis_context
+                legacy_context = legacy_thesis_context(
+                    self.memory_log.load_entries(), state["company_of_interest"], str(state["trade_date"]),
+                    historical=self._memory_as_of(state["trade_date"]) is not None)
+            except Exception as exc:
+                logger.warning("Reading legacy thesis context failed: %s", exc)
+                note = (note + " Legacy thesis context unavailable.").strip()
+        return {"past_context": past_context, "memory_note": note, "outcome_summary": summary,
+                "prior_thesis": prior, "thesis_context": legacy_context}
 
     def outcome_summary(self, ticker=None, as_of=None, *, limit=None) -> str:
         """Read deterministic horizon measurements without making model calls."""
@@ -528,7 +552,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

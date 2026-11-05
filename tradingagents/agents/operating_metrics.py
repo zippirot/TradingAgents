@@ -12,8 +12,8 @@ from decimal import localcontext
 from tradingagents.agents.accounting_checks import Calculation
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
-_ROLES = {'Revenue', 'Operating Income', 'Net Income'}
-_METHODS = ('revenue_yoy_growth_v1', 'operating_margin_v1', 'net_margin_v1')
+_ROLES = {'Revenue', 'Gross Profit', 'Operating Income', 'Net Income'}
+_METHODS = ('revenue_yoy_growth_v1', 'operating_margin_v1', 'net_margin_v1', 'gross_margin_v1')
 
 
 def _quarter(fact):
@@ -60,6 +60,8 @@ def operating_metrics(package: EvidencePackage) -> list[Calculation]:
          f'Derived operating margin: {start} to {latest_end}'),
         (_METHODS[2], 'Net Income', start, latest_end, 'Revenue', start, latest_end,
          f'Derived net margin: {start} to {latest_end}'),
+        (_METHODS[3], 'Gross Profit', start, latest_end, 'Revenue', start, latest_end,
+         f'Derived gross margin: {start} to {latest_end}'),
     )
     for method, numerator_role, numerator_start, numerator_end, denominator_role, denominator_start, denominator_end, label in specifications:
         ids = []

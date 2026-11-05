@@ -181,8 +181,16 @@ class GraphSetup:
             from tradingagents.agents.shared_valuation import prepare_shared_valuation
 
             checked = evidence_gate(state)
+            if state.get("prior_thesis"):
+                from tradingagents.memory.thesis import observe_conditions, render_prior_thesis
+                usable = {**state, **checked} if checked.get("evidence_quality", {}).get("status") in {"sufficient", "limited"} else {}
+                prior = {**state["prior_thesis"], "observations": observe_conditions(state["prior_thesis"], usable)}
+                checked.update(prior_thesis=prior, thesis_context=render_prior_thesis(prior))
+            from tradingagents.agents.event_comparison import prepare_event_comparison
+            from tradingagents.dataflows.config import get_config
+            event = prepare_event_comparison({**state, **checked}, get_config())
             scenarios = prepare_shared_valuation({**state, **checked})
-            return {**checked, "shared_valuation_scenarios": scenarios}
+            return {**checked, "shared_valuation_scenarios": scenarios, "event_comparison": event}
 
         workflow.add_node("Evidence Check", evidence_with_scenarios)
         workflow.add_edge(first_steps, "Evidence Check")

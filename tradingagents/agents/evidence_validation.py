@@ -291,13 +291,16 @@ def create_evidence_gate(selected_analysts):
         if state.get("asset_type", "stock") != "stock":
             return out_of_scope("Non-stock asset; US-filer accounting checks do not apply")
         try:
-            if sec_edgar.cik_for(state["company_of_interest"]) is None:
+            mapped_cik = sec_edgar.cik_for(state["company_of_interest"])
+            if mapped_cik is None:
                 return out_of_scope(
                     "Instrument not identified in SEC issuer map; no US accounting validation performed"
                 )
             package = sec_edgar.get_financial_evidence(
                 state["company_of_interest"], state["trade_date"]
             )
+            if package.cik != mapped_cik or str(package.as_of) != str(state["trade_date"]):
+                raise ValueError("SEC financial package issuer or cutoff differs from requested instrument")
         except (VendorError, ValidationError, ValueError) as exc:
             quality = evidence_quality(
                 [{"code": "source_integrity", "status": "unavailable", "message": str(exc)}]
@@ -312,7 +315,29 @@ def create_evidence_gate(selected_analysts):
         from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
 
         rpo = retrieve_rpo_comparison(state["company_of_interest"], disclosures)
-        return assess_financial_package(state, package, disclosures, rpo_comparison=rpo)
+        update = assess_financial_package(state, package, disclosures, rpo_comparison=rpo)
+        from tradingagents.dataflows.symbols import normalize_symbol
+        update["issuer_identity"] = {"ticker": normalize_symbol(state["company_of_interest"]),
+            "cik": mapped_cik, "as_of": str(package.as_of), "source": "SEC issuer map"}
+        if update["evidence_quality"]["status"] in {"sufficient", "limited"}:
+            from tradingagents.dataflows.config import get_config
+            from tradingagents.dataflows.vendors.yahoo.price_observation import (
+                get_price_observation,
+            )
+
+            config = get_config()
+            chain = config.get("tool_vendors", {}).get("get_stock_data") or config.get("data_vendors", {}).get("core_stock_apis", "")
+            if "yfinance" in {name.strip() for name in str(chain).split(",")}:
+                cash_dates = [fact.period_end for fact in package.facts
+                              if fact.metric == "Cash and Equivalents" and fact.value is not None
+                              and fact.period_start is None]
+                capital_date = max(cash_dates, default=None)
+                update["price_observation"] = get_price_observation(
+                    state["company_of_interest"], state["trade_date"], capital_date)
+            else:
+                update["price_observation"] = {"status": "unavailable",
+                    "reason": "No supported dated-close provider is configured; no additional vendor was used"}
+        return update
 
     return gate
 

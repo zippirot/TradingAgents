@@ -184,6 +184,10 @@ def test_evidence_tool_pins_cutoff_to_graph_state(monkeypatch):
         "build_financial_evidence",
         lambda ticker, cutoff: captured.append((ticker, cutoff)) or package,
     )
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    monkeypatch.setattr(tools, "build_filing_evidence", lambda ticker, cutoff:
+        DisclosurePackage(cik=package.cik, as_of=package.as_of))
     result = tools.get_financial_evidence.func("DOCN", "2099-01-01", trade_date="2026-11-04")
     assert captured == [("DOCN", "2026-11-04")]
     assert json.loads(result)["facts"][0]["value"] == "100.125"

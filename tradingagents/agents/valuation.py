@@ -15,6 +15,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from tradingagents.agents.accounting_checks import calculate_obligations
+from tradingagents.agents.funding import ForwardCapital, calculate_forward_capital
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
 Basis = Literal["US-GAAP", "management-adjusted"]
@@ -66,6 +67,8 @@ class GroundedOutlook(_Record):
 
 
 class RevenueScenario(_Record):
+    multiple_assumption_date: date | None = None
+    funding: ForwardCapital | None = None
     name: str = Field(min_length=1, max_length=80)
     weight: Decimal = Field(ge=0, le=1, max_digits=16)
     forecast: ForecastAssumption
@@ -73,7 +76,21 @@ class RevenueScenario(_Record):
     multiple_rationale: str = Field(min_length=1, max_length=1200)
 
 
-class EVRevenueTarget(_Record):
+class _DecisionHorizon(_Record):
+    decision_date: date | None = None
+    rerating_assumption: str | None = Field(default=None, min_length=1, max_length=1200)
+
+    @model_validator(mode="after")
+    def horizon(self):
+        if (self.decision_date is None) != (self.rerating_assumption is None):
+            raise ValueError("decision date and rerating assumption must be supplied together")
+        if self.rerating_assumption is not None and not self.rerating_assumption.strip():
+            raise ValueError("rerating assumption cannot be blank")
+        return self
+
+
+class EVRevenueTarget(_DecisionHorizon):
+    weight_rationale: str | None = Field(default=None, max_length=1200)
     method: Literal["ev_revenue"] = "ev_revenue"
     revenue_fact_id: str
     shares_fact_id: str
@@ -81,12 +98,13 @@ class EVRevenueTarget(_Record):
     obligation_ids_by_category: dict[str, tuple[str, ...]]
     perimeter: Perimeter
     multiple_perimeter: Perimeter
-    capital_structure_assumption: Literal["unchanged_from_snapshot"]
+    capital_structure_assumption: Literal["unchanged_from_snapshot", "forward_capital_v1"]
     capital_structure_rationale: str = Field(min_length=1, max_length=1200)
     scenarios: tuple[RevenueScenario, ...] = Field(min_length=1, max_length=5)
 
 
-class PETarget(_Record):
+class PETarget(_DecisionHorizon):
+    multiple_assumption_date: date | None = None
     method: Literal["pe"] = "pe"
     eps_fact_id: str
     eps_basis: Literal["basic", "diluted"]
@@ -97,6 +115,14 @@ class PETarget(_Record):
 
 
 class ScenarioResult(_Record):
+    multiple_assumption_date: date | None = None
+    closing_cash: Decimal | None = None
+    closing_obligations: Decimal | None = None
+    shares_outstanding: Decimal | None = None
+    net_obligations: Decimal | None = None
+    capital_date: date | None = None
+    funding_gap: Decimal | None = None
+    funding_assumptions: tuple[str, ...] = ()
     name: str
     weight: Decimal
     revenue: Decimal
@@ -109,6 +135,10 @@ class ScenarioResult(_Record):
 
 
 class TargetResult(_Record):
+    multiple_assumption_date: date | None = None
+    weight_rationale: str | None = None
+    decision_date: date | None = None
+    rerating_assumption: str | None = None
     status: Literal["supported", "unsupported"]
     target: Decimal | None = None
     unit: str | None = None
@@ -223,6 +253,9 @@ def _ev(request, package, outlooks):
         raise ValueError("multiple and equity bridge use incompatible lease perimeters")
     if not request.capital_structure_rationale.strip():
         raise ValueError("unchanged capital structure needs an explicit rationale")
+    forward = request.capital_structure_assumption == "forward_capital_v1"
+    if any((s.funding is not None) != forward for s in request.scenarios):
+        raise ValueError("forward capital requires a funding bridge per scenario; snapshot requests cannot include funding")
     revenue = _fact(package, request.revenue_fact_id)
     shares = _fact(package, request.shares_fact_id)
     cash = _fact(package, request.cash_fact_id)
@@ -276,6 +309,8 @@ def _ev(request, package, outlooks):
         raise ValueError("debt/cash bridge has missing, overlapping or incompatible source inputs")
     if selected.unit != revenue.unit:
         raise ValueError("net obligations and revenue currency mismatch")
+    if len(request.scenarios) > 1 and not (request.weight_rationale or "").strip():
+        raise ValueError("multiple scenarios require an explicit subjective weight rationale")
     with localcontext() as context:
         context.prec = 60
         if sum((s.weight for s in request.scenarios), Decimal(0)) != 1:
@@ -286,12 +321,20 @@ def _ev(request, package, outlooks):
     if len(periods) != 1:
         raise ValueError("weighted scenarios must use the same forecast period")
     assumptions = [
-        f"Capital structure unchanged from {cash.period_end}. Unvalidated rationale: {request.capital_structure_rationale}",
+        f"Capital structure {request.capital_structure_assumption} from {cash.period_end}. Unvalidated rationale: {request.capital_structure_rationale}",
         f"EV/revenue multiple and equity bridge use {request.perimeter}.",
-        "Scenario weights and valuation multiples are subjective assumptions, not calibrated probabilities or verified market fair values.",
+        ("Scenario weights and valuation multiples are subjective assumptions, not calibrated probabilities or verified market fair values."
+         if len(request.scenarios) > 1 else
+         "Single-scenario sensitivity: weight one is not a probability allocation; the valuation multiple remains subjective."),
     ]
+    if request.weight_rationale:
+        assumptions.append(f"Subjective weight rationale (unvalidated): {request.weight_rationale}")
     warnings, results = [], []
     for scenario in request.scenarios:
+        if scenario.multiple_assumption_date is not None and scenario.multiple_assumption_date > package.as_of:
+            raise ValueError("multiple assumption date cannot exceed analysis cutoff")
+        if scenario.multiple_assumption_date is None:
+            warnings.append(f"{scenario.name}: undated multiple assumption; conditional sensitivity only, not a dated target.")
         if not scenario.multiple_rationale.strip():
             raise ValueError("scenario multiple needs an explicit rationale")
         description, comparisons = _forecast(
@@ -306,14 +349,33 @@ def _ev(request, package, outlooks):
         warnings.extend(comparisons)
         with localcontext() as context:
             context.prec = 60
+            capital = {"closing_cash": cash.value, "closing_obligations": selected.result + cash.value,
+                       "shares_outstanding": shares.value, "net_obligations": selected.result,
+                       "capital_date": cash.period_end, "funding_gap": Decimal(0), "funding_assumptions": ()}
+            opening = {category: sum((_fact(package, identifier).value for identifier in ids), Decimal(0))
+                       for category, ids in request.obligation_ids_by_category.items()} if forward else {}
+        if forward:
+            calculated = calculate_forward_capital(
+                scenario.funding, snapshot_date=cash.period_end,
+                forecast_end=scenario.forecast.period_end, as_of=package.as_of,
+                unit=cash.unit, opening_cash=cash.value, opening_shares=shares.value,
+                opening_obligations=opening)
+            capital = calculated.model_dump()
+            assumptions.extend(f"{scenario.name}: {line}" for line in calculated.funding_assumptions)
+            if calculated.funding_gap:
+                warnings.append(f"{scenario.name}: unresolved funding shortfall {calculated.funding_gap} {cash.unit}; conditional sensitivity only.")
+        with localcontext() as context:
+            context.prec = 60
             ev = scenario.forecast.value * scenario.multiple
-            equity = ev - selected.result
-            price = equity / shares.value
+            equity = ev - capital['net_obligations']
+            price = equity / capital['shares_outstanding']
         if not price.is_finite() or price < 0:
             raise ValueError("equity bridge produces a negative or nonfinite target")
         results.append(
             ScenarioResult(
+                **capital,
                 name=scenario.name,
+                multiple_assumption_date=scenario.multiple_assumption_date,
                 weight=scenario.weight,
                 revenue=scenario.forecast.value,
                 multiple=scenario.multiple,
@@ -327,9 +389,15 @@ def _ev(request, package, outlooks):
     with localcontext() as context:
         context.prec = 60
         target = sum((scenario.weight * scenario.price for scenario in results), Decimal(0))
+    shortfalls = tuple(f"{s.name}: unresolved funding shortfall {s.funding_gap} {revenue.unit}; final target omitted."
+                       for s in results if s.funding_gap)
     return TargetResult(
-        status="supported",
-        target=target,
+        status="unsupported" if shortfalls else "supported",
+        weight_rationale=request.weight_rationale,
+        decision_date=request.decision_date,
+        rerating_assumption=request.rerating_assumption,
+        target=None if shortfalls else target,
+        reasons=shortfalls,
         unit=revenue.unit + "/shares",
         method=request.method,
         input_fact_ids=tuple(
@@ -339,8 +407,8 @@ def _ev(request, package, outlooks):
         valuation_period_start=request.scenarios[0].forecast.period_start,
         valuation_period_end=request.scenarios[0].forecast.period_end,
         capital_snapshot_date=cash.period_end,
-        net_obligations=selected.result,
-        shares_outstanding=shares.value,
+        net_obligations=None if forward else selected.result,
+        shares_outstanding=None if forward else shares.value,
         accounting_basis=revenue.basis,
         assumptions=tuple(assumptions),
         warnings=tuple(dict.fromkeys(warnings)),
@@ -352,6 +420,8 @@ def re_currency(unit):
 
 
 def _pe(request, package, outlooks):
+    if request.multiple_assumption_date is not None and request.multiple_assumption_date > package.as_of:
+        raise ValueError("multiple assumption date cannot exceed analysis cutoff")
     eps = _fact(package, request.eps_fact_id)
     expected_metric = "Basic EPS" if request.eps_basis == "basic" else "Diluted EPS"
     parts = eps.unit.split("/")
@@ -386,6 +456,8 @@ def _pe(request, package, outlooks):
         warnings.append(
             f"P/E uses historical reported EPS for {eps.period_start} to {eps.period_end}; it is not a forward earnings forecast."
         )
+    if request.multiple_assumption_date is None:
+        warnings.append("Undated multiple assumption; conditional sensitivity only, not a dated target.")
     with localcontext() as context:
         context.prec = 60
         target = value * request.multiple
@@ -395,6 +467,9 @@ def _pe(request, package, outlooks):
         status="supported",
         target=target,
         unit=eps.unit,
+        multiple_assumption_date=request.multiple_assumption_date,
+        decision_date=request.decision_date,
+        rerating_assumption=request.rerating_assumption,
         method=request.method,
         input_fact_ids=(eps.fact_id,),
         valuation_period_start=request.forecast.period_start
@@ -421,9 +496,13 @@ def validate_target(raw, package: EvidencePackage, outlooks=()) -> TargetResult:
             raise ValueError("no supported structured target provided")
         if raw.get("method") == "ev_revenue":
             request = EVRevenueTarget.model_validate(raw)
+            if request.decision_date is not None and request.decision_date <= package.as_of:
+                raise ValueError("decision date must be after the analysis date")
             return _ev(request, package, outlooks)
         if raw.get("method") == "pe":
             request = PETarget.model_validate(raw)
+            if request.decision_date is not None and request.decision_date <= package.as_of:
+                raise ValueError("decision date must be after the analysis date")
             return _pe(request, package, outlooks)
         raise ValueError("unsupported target method; numeric target omitted")
     except ValidationError as exc:

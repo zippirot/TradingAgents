@@ -106,7 +106,7 @@ def test_portfolio_validates_once_and_renders_formula_derived_target():
     assert result["target_validation"]["target"] == "40"
     assert result["target_validation"]["request"]["eps_fact_id"] == "eps-source-id"
     text = result["final_trade_decision"]
-    assert "**Price Target**: 40" in text and "96" not in text
+    assert "**Conditional valuation sensitivity**: 40" in text and "96" not in text
     assert "eps-source-id" in text
     assert "20" in text and "historical" in text.lower()
     llm.with_structured_output.return_value.invoke.assert_called_once()

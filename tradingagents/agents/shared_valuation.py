@@ -12,6 +12,7 @@ from html import escape
 from pydantic import ValidationError
 
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
+from tradingagents.agents.valuation_comparison import compare_valuation, render_valuation_comparison
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
@@ -32,10 +33,10 @@ def _parse(report):
 
 def _comparable(request, result):
     common = (request.method, result.unit, result.valuation_period_start,
-              result.valuation_period_end, result.accounting_basis)
+              result.valuation_period_end, result.accounting_basis, result.decision_date)
     if isinstance(request, EVRevenueTarget):
         return (*common, request.revenue_fact_id, request.shares_fact_id,
-                request.cash_fact_id, request.perimeter,
+                request.cash_fact_id, request.perimeter, request.capital_structure_assumption,
                 tuple(sorted((k, tuple(sorted(v))) for k, v in request.obligation_ids_by_category.items())))
     return (*common, request.eps_fact_id, request.eps_basis, request.forecast is not None)
 
@@ -95,12 +96,17 @@ def prepare_shared_valuation(state, requests=None):
             else:
                 raise ValueError("Unsupported scenario valuation method")
             result = validate_target(request, package, outlooks)
+            diagnostic = (result.status == "unsupported" and len(result.scenario_results) == 1
+                          and bool(result.scenario_results[0].funding_gap))
             if result.status != "supported":
-                reasons.append(f"Row {index} omitted: " + "; ".join(result.reasons))
-                continue
+                if not diagnostic:
+                    reasons.append(f"Row {index} omitted: " + "; ".join(result.reasons))
+                    continue
+                reasons.append(f"Row {index} retained as funding diagnostic only: " + "; ".join(result.reasons))
             comparisons.append(_comparable(request, result))
             rows.append({"name": name.strip(), "request": request.model_dump(mode="json"),
-                         "result": result.model_dump(mode="json")})
+                         "result": result.model_dump(mode="json"), "diagnostic_only": diagnostic,
+                         "comparison": compare_valuation(state, result, request)})
         except ValidationError:
             reasons.append(f"Row {index} omitted: malformed valuation request")
         except (ValueError, TypeError, ArithmeticError) as exc:
@@ -128,7 +134,8 @@ def render_shared_valuation(record):
             result = row["result"]
             lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue"}[result["method"]],
                 f"{result['valuation_period_start']} to {result['valuation_period_end']}",
-                f"{result['target']} {result['unit']}")))
+                f"{result['target']} {result['unit']}" if result['status'] == 'supported'
+                else "Unavailable — unfunded scenario")))
         if any(row["result"]["method"] == "ev_revenue" or row["request"].get("forecast") for row in rows):
             lines += ["", "Future-period scenario values are not discounted to today."]
         for row in rows:
@@ -137,14 +144,22 @@ def render_shared_valuation(record):
                       "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"]), ""]
             if result["method"] == "ev_revenue":
                 s = result["scenario_results"][0]
-                lines.append(f"Revenue {s['revenue']} × multiple {s['multiple']} = enterprise value {s['enterprise_value']}; less net obligations {result['net_obligations']} = equity {s['equity_value']}; divided by {result['shares_outstanding']} common shares = {s['price']}.")
-                lines.append(f"Capital snapshot: {result['capital_snapshot_date']}.")
+                lines.append(f"Revenue {s['revenue']} × multiple {s['multiple']} = enterprise value {s['enterprise_value']}; less scenario net obligations {s['net_obligations']} = conditional equity {s['equity_value']}.")
+                if result['status'] == 'supported':
+                    lines.append(f"Conditional equity divided by {s['shares_outstanding']} actual common shares = {s['price']}.")
+                else:
+                    lines.append("Funding diagnostic only: no conditional price or return is published until the shortfall is resolved.")
+                lines.append(f"Original capital snapshot: {result['capital_snapshot_date']}; scenario capital date: {s['capital_date']}; closing cash {s['closing_cash']}; closing obligations {s['closing_obligations']}; actual shares {s['shares_outstanding']}; funding gap {s['funding_gap']}.")
+                lines.append(f"Multiple assumption date: {s.get('multiple_assumption_date') or 'undated; conditional sensitivity only'}.")
             else:
                 lines.append(f"{_cell(result['eps_basis'])} EPS {result['earnings_value']} × multiple {result['multiple']} = {result['target']}; {_cell(result['accounting_basis'])}.")
+                lines.append(f"Multiple assumption date: {result.get('multiple_assumption_date') or 'undated; conditional sensitivity only'}.")
+            lines.append(f"Decision date: {result.get('decision_date') or 'not specified'}; unvalidated rerating assumption: {_cell(result.get('rerating_assumption') or 'not supplied')}.")
             lines.append("")
             lines += ["- " + _cell(v) for v in result["assumptions"] if not v.startswith("Scenario weights and valuation multiples")]
             lines += ["- Limitation: " + _cell(v) for v in result["warnings"]]
+            lines += ["", render_valuation_comparison(row.get('comparison'))]
     if record.get("status") == "partial":
-        lines += ["", "Partial table: some proposed scenarios could not be calculated."]
+        lines += ["", "Partial table: some proposed scenarios were omitted or remain unfunded diagnostics."]
     lines += ["- " + _cell(v) for v in record.get("reasons", [])]
     return "\n".join(lines)

@@ -34,6 +34,7 @@ from pydantic import (
 )
 
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, TargetResult
+from tradingagents.memory.thesis import ThesisCondition
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
 # numeric field instead of omitting it. Coerce those to None so the structured
@@ -234,6 +235,23 @@ ValuationRequest = Annotated[EVRevenueTarget | PETarget, Field(discriminator="me
 _VALUATION_REQUEST = TypeAdapter(ValuationRequest)
 
 
+class AdvisoryDisposition(BaseModel):
+    condition_id: str = Field(min_length=1, max_length=128)
+    disposition: Literal["kept", "overridden", "retired"]
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class ThesisProposal(BaseModel):
+    """Optional research proposal; observations and publication stay deterministic."""
+    rationale: str = Field(default="", max_length=3000)
+    assumptions: list[str] = Field(default_factory=list, max_length=8)
+    evidence_refs: list[str] = Field(default_factory=list, max_length=16)
+    conditions: list[ThesisCondition] | None = Field(default=None, max_length=8,
+        description="Advisory conditions only. Use exact canonical metric labels for metric and metric_definition, exact period/unit/basis, threshold and expiry. None retains prior conditions; [] explicitly retires them. No hard rules.")
+    dispositions: list[AdvisoryDisposition] = Field(default_factory=list, max_length=8,
+        description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
+
+
 class PortfolioDecision(BaseModel):
     """Structured output produced by the Portfolio Manager.
 
@@ -279,17 +297,34 @@ class PortfolioDecision(BaseModel):
             "a separately source-validated outlook reference; model assertions do not establish one."
         ),
     )
+    thesis_candidate: ThesisProposal | None = Field(default=None,
+        description="Persistent advisory thesis: material assumptions, exact evidence references, measurable future conditions and reason for each prior condition disposition. Research proposals are not verified facts or automatic trading rules.")
+    _unvalidated_thesis_candidate: object = PrivateAttr(default=None)
     _unvalidated_valuation_request: object = PrivateAttr(default=None)
 
     @model_validator(mode="wrap")
     @classmethod
     def _retain_valuation_request(cls, data, handler):
         original = data.get("valuation_request") if isinstance(data, dict) else getattr(data, "_unvalidated_valuation_request", None)
+        thesis_original = data.get("thesis_candidate") if isinstance(data, dict) else getattr(data, "_unvalidated_thesis_candidate", None)
         result = handler(data)
+        if isinstance(thesis_original, BaseModel):
+            thesis_original = thesis_original.model_dump(mode="json")
+        result._unvalidated_thesis_candidate = deepcopy(thesis_original)
         if isinstance(original, BaseModel):
             original = original.model_dump(mode="json")
         result._unvalidated_valuation_request = deepcopy(original)
         return result
+
+    @field_validator("thesis_candidate", mode="before")
+    @classmethod
+    def _invalid_thesis_to_none(cls, value):
+        if value is None:
+            return None
+        try:
+            return ThesisProposal.model_validate(value)
+        except (ValidationError, TypeError):
+            return None
 
     @field_validator("valuation_request", mode="before")
     @classmethod
@@ -355,25 +390,48 @@ def render_target_result(result: TargetResult | dict | None) -> str:
             result = None
     if result is None or result.status != "supported" or result.target is None:
         reasons = result.reasons if result is not None else ("No validated valuation bridge provided.",)
-        return "**Price Target**: not provided — " + " ".join(_target_text(reason) for reason in reasons)
+        text = "**Price Target**: not provided — " + " ".join(_target_text(reason) for reason in reasons)
+        if result is not None and any(row.funding_gap for row in result.scenario_results):
+            text += "\n\nUnfunded capital diagnostics; no conditional price or return is published.\n\n"
+            text += "| Scenario | Capital date | Closing cash | Closing obligations | Common shares | Funding gap |\n| --- | --- | ---: | ---: | ---: | ---: |\n"
+            for row in result.scenario_results:
+                text += f"| {_target_text(row.name)} | {row.capital_date} | {row.closing_cash} | {row.closing_obligations} | {row.shares_outstanding} | {row.funding_gap} |\n"
+                text += "\n".join("- Unvalidated funding assumption: " + _target_text(item) for item in row.funding_assumptions) + "\n"
+        return text
+    linked = bool(result.decision_date and result.rerating_assumption) and all(
+        row.capital_date is not None and row.capital_date <= result.decision_date
+        for row in result.scenario_results)
+    dated = (all(row.multiple_assumption_date is not None for row in result.scenario_results)
+             if result.method == "ev_revenue" else result.multiple_assumption_date is not None)
+    linked = linked and dated
+    label = "Conditional decision-date valuation" if linked else "Conditional valuation sensitivity"
     parts = [
-        f"**Price Target**: {result.target:.2f} {_target_text(result.unit)} (conditional calculation)",
+        f"**{label}**: {result.target:.2f} {_target_text(result.unit)} (conditional calculation)",
         "",
         f"**Valuation method**: {_target_text(result.method)}; {_target_text(result.accounting_basis)}.",
         f"**Valuation period**: {result.valuation_period_start} to {result.valuation_period_end}.",
         "**Source fact IDs**: " + ", ".join(_target_text(identifier) for identifier in result.input_fact_ids),
     ]
+    parts.append(f"**Decision date**: {result.decision_date or 'not specified'}; rerating assumption: {_target_text(result.rerating_assumption or 'not supplied')}. No automatic near-term target or discounting is inferred.")
+    if result.weight_rationale:
+        parts.append("**Subjective weight rationale**: " + _target_text(result.weight_rationale))
     if result.method == "pe":
+        parts.append(f"**Multiple assumption date**: {result.multiple_assumption_date or 'not supplied'}.")
         parts.append(f"**Earnings bridge**: {result.earnings_value} {_target_text(result.unit)} × {result.multiple} = {result.target:.2f}; {_target_text(result.eps_basis)} EPS.")
     if result.method == "ev_revenue":
         parts.extend([
-            f"**Capital snapshot**: {result.capital_snapshot_date}; net obligations {result.net_obligations}; common shares outstanding {result.shares_outstanding}.",
+            f"**Source capital snapshot**: {result.capital_snapshot_date}; each scenario uses its own capital bridge below.",
             "",
             "| Scenario label (unvalidated) | Subjective weight | Revenue assumption | Multiple assumption | Enterprise value | Equity value | Price |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
         ])
         for scenario in result.scenario_results:
             parts.append(f"| {_target_text(scenario.name)} | {scenario.weight} | {scenario.revenue} | {scenario.multiple} | {scenario.enterprise_value} | {scenario.equity_value} | {scenario.price:.2f} |")
+        parts.extend(["", "| Scenario | Capital date | Closing cash | Closing obligations | Common shares | Net obligations | Funding gap | Multiple assumption date |",
+                      "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |"])
+        for scenario in result.scenario_results:
+            parts.append(f"| {_target_text(scenario.name)} | {scenario.capital_date} | {scenario.closing_cash} | {scenario.closing_obligations} | {scenario.shares_outstanding} | {scenario.net_obligations} | {scenario.funding_gap} | {scenario.multiple_assumption_date or 'not supplied'} |")
+            parts.extend("- Unvalidated funding assumption: " + _target_text(item) for item in scenario.funding_assumptions)
         parts.append("Equity value = enterprise value − net obligations; price = equity value / common shares outstanding.")
     if result.assumptions:
         parts.extend(["", "**Conditional assumptions; free-form rationales remain unvalidated**:"])

@@ -115,6 +115,7 @@ def test_ev_revenue_has_exact_equity_bridge_and_explicit_assumptions():
 
 def test_scenarios_weighted_price_is_deterministic_and_subjective():
     request = ev_request()
+    request["weight_rationale"] = "Subjective illustrative scenario allocation; not calibrated."
     request["scenarios"] = [
         {
             "name": "Bear",
@@ -338,6 +339,7 @@ def test_source_derivation_cannot_make_additive_eps_or_weighted_shares_a_reporte
 
 def test_scenarios_with_different_forecast_periods_are_not_weighted():
     request = ev_request()
+    request["weight_rationale"] = "Subjective illustrative scenario allocation; not calibrated."
     request["scenarios"] = [
         {
             "name": "A",

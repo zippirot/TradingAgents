@@ -222,3 +222,55 @@ def test_unclosed_model_fence_cannot_swallow_shared_scenario_section(tmp_path):
     html = (tmp_path / "complete_report.html").read_text()
     import re
     assert re.search(r"<h[1-6][^>]*>Shared valuation scenarios", html)
+
+
+def test_forward_shared_rows_render_own_capital_and_replay_comparison(monkeypatch):
+    from tests.test_valuation_comparison import state as quoted_state
+    from tests.test_valuation_funding import request as funding_request
+    low, high = funding_request(), funding_request(equity_proceeds=200, equity_issue_price=20)
+    for raw in (low, high):
+        raw['scenarios'][0]['multiple_assumption_date'] = '2026-10-19'
+    inputs = state([{'name': 'No issuance', 'request': low}, {'name': 'Equity funded', 'request': high}])
+    inputs.update(quoted_state(monkeypatch))
+    record = prepare_shared_valuation(inputs)
+    assert record['status'] == 'available', record
+    assert all(row['comparison']['status'] == 'available' for row in record['rows'])
+    text = render_shared_valuation(record)
+    assert 'net obligations None' not in text and 'None actual common shares' not in text
+    assert '110' in text and '270' in text
+    assert '2027-12-31' in text and '2026-10-19' in text and 'What the price implies' in text
+    record['rows'][0]['comparison']['rows'][0]['implied_multiple'] = '999'
+    replay = prepare_shared_valuation(inputs, record['requests'])
+    assert replay['rows'][0]['comparison']['rows'][0]['implied_multiple'] != '999'
+
+
+def test_unfunded_shared_row_preserves_bridge_without_price_or_return():
+    from tests.test_valuation_funding import request as funding_request
+    raw = funding_request(cash_capex=500)
+    record = prepare_shared_valuation(state([{'name': 'Unfunded', 'request': raw}]))
+    assert record['status'] == 'partial' and len(record['rows']) == 1
+    row = record['rows'][0]
+    assert row['result']['target'] is None
+    assert row['result']['scenario_results'][0]['funding_gap'] == '350'
+    assert row['comparison']['status'] == 'unavailable' and not row['comparison']['rows']
+    text = render_shared_valuation(record)
+    assert '350' in text and '-350' in text and 'funding' in text.lower()
+    assert '= 30.5' not in text  # unfinanced arithmetic is not a published price
+    assert 'None USD/shares' not in text and 'net obligations None' not in text
+
+
+def test_shared_rows_with_different_decision_dates_are_not_comparable():
+    low, high = ev_request(), ev_request()
+    low.update(decision_date='2027-01-19', rerating_assumption='Results catalyst.')
+    high.update(decision_date='2027-04-19', rerating_assumption='Results catalyst.')
+    record = prepare_shared_valuation(state([{'name': 'Three months', 'request': low},
+                                           {'name': 'Six months', 'request': high}]))
+    assert record['status'] == 'unavailable' and not record['rows']
+
+
+def test_undated_shared_arithmetic_keeps_comparison_explicitly_unavailable():
+    record = prepare_shared_valuation(state([{'name': 'Legacy', 'request': ev_request()}]))
+    assert record['status'] == 'available'
+    assert record['rows'][0]['comparison']['status'] == 'unavailable'
+    text = render_shared_valuation(record)
+    assert 'undated' in text.lower() and 'What the price implies' in text
