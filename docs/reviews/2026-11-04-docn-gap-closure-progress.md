@@ -422,3 +422,34 @@ this is not a claimed token/cost reduction versus the first slice.
 All confirmed material Build A review findings are closed. Final authorized
 Shallow live proof 3, actual first-debate/report/persistence inspection and Build A
 acceptance evidence remain next; A is not yet accepted by these offline checks.
+
+## Build A runtime acceptance
+
+Shallow live proof 3 completed on `9022e47152329bf642d990ceb032b27ef0b9b2aa`
+with 17 model requests. It published limited-evidence Underweight decision
+`60e36cd4-21bb-4472-9309-e8827228b26d` at
+`2026-11-05T04:07:17.629658+00:00`, saved Markdown/HTML/evidence/quality and
+persisted the matching memory/publication. Both first debate speakers used the
+149.0m cash measure, 893.8m→799.7m RPO decline and 60%-plus management outlook,
+retaining the relevant caveats. All five exact cash checks, fifteen disclosures
+and the exact RPO comparison match state and immutable evidence. Reports contain
+one reference appendix; their HTML structure/text was inspected without claiming
+a browser screenshot.
+
+Fresh real-graph construction with paid HTTP blocked verified source fingerprints,
+ID/rating/time/evidence consistency and repeat-safe pending settlement; memory
+remained unchanged and all 5/21/63 endpoints remain pending. The acceptance script
+is `docn-abc-proof-tools/verify_build_a.py`; durable summarized hashes/results are
+in `2026-11-04-docn-build-a-evidence.json`.
+
+Live independent news was available, issuer accepted values were retained, and
+optional FRED coverage remained unavailable. The outage branch is covered by
+focused fault-injection/source tests, not claimed as an observed live news outage.
+Shared scenarios and the final target were unavailable, which remains Build B
+work. No prospective investment performance is claimed.
+
+This accepts Build A together with its required review, full suite, recorded
+reproduction and second-issuer source/gate coverage. Three of seven live attempts
+are used; cumulative maximum-rate usage is USD7.324695 (not an independently
+retrieved provider bill); original preferences are unchanged. Build B, final C
+and the final connected audit remain outstanding.

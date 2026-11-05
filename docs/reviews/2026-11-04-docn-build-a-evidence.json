@@ -1,0 +1,74 @@
+{
+  "source_head": "9022e47152329bf642d990ceb032b27ef0b9b2aa",
+  "decision_id": "60e36cd4-21bb-4472-9309-e8827228b26d",
+  "published_at": "2026-11-05T04:07:17.629658+00:00",
+  "rating": "Underweight",
+  "quality": "limited",
+  "source_manifest_matches": true,
+  "cash_checks": {
+    "ocf_less_capex_and_financing_principal_v1": "153818000",
+    "ocf_less_capex_principal_and_acquisitions_v1": "149022000",
+    "signed_investing_components_to_total_v1": "-381974000",
+    "cash_flows_plus_fx_to_cash_change_v1": "411619000",
+    "opening_plus_change_to_cash_including_restricted_v1": "666252000"
+  },
+  "rpo_delta": "-94121000",
+  "first_bull_bear_use_verified": true,
+  "news_coverage": {
+    "independent_news": {
+      "status": "available",
+      "tool": "get_news",
+      "calls": 1,
+      "failed_calls": 0
+    },
+    "optional_macro": {
+      "status": "unavailable",
+      "tool": "get_macro_indicators",
+      "calls": 6,
+      "failed_calls": 6
+    },
+    "consensus": {
+      "status": "not_retrieved",
+      "reason": "News and issuer disclosures do not establish analyst consensus"
+    }
+  },
+  "model_calls": 0,
+  "pending_endpoints": [
+    "21_sessions",
+    "5_sessions",
+    "63_sessions"
+  ],
+  "memory_unchanged": true,
+  "artifact_sha256": {
+    "results/docn-abc/live-03/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "d4948dfe7c7e7121c6c686c68e5ba42879f4653a88b73774ebd96829117aaa28",
+    "results/docn-abc/live-03/results/reports/DOCN_20261104_210717/complete_report.md": "f494b866f55d2c34fcb2733a5e6bc89a22651cec63f0b7f37f00a1b75d551f61",
+    "results/docn-abc/live-03/results/reports/DOCN_20261104_210717/complete_report.html": "511bba3847cc4766be5f72a3d00916c943c40cc98a3915e80aae3b542f1474eb",
+    "results/docn-abc/live-03/results/reports/DOCN_20261104_210717/evidence.json": "166e79df70e518d8aaf51d364f59e508a2428ee64b6199d2f147641dcbb1ec21",
+    "results/docn-abc/live-03/results/reports/DOCN_20261104_210717/quality.json": "ef4ea360a10fe7582d5fdc087f126397ebd367deac601f039591040e1d6828b2",
+    "results/docn-abc/live-03/memory/trading_memory.md": "a80805441f175006506691330139acff02d6183435a44f3f6562b31783360407"
+  },
+  "limits": [
+    "HTML structure/text inspected; no browser screenshot",
+    "Live news was available; outage fallback covered by focused fault-injection tests",
+    "Shared valuation and final target unavailable; Build B acceptance remains outstanding"
+  ],
+  "live_attempt": 3,
+  "model_requests": 17,
+  "cumulative_maximum_rate_usage_usd": "7.324695",
+  "provider_bill_independently_retrieved": false,
+  "offline_gate": {
+    "passed": 2001,
+    "subtests": 100,
+    "skipped": 1,
+    "deselected": 1,
+    "warnings": 20,
+    "log": "results/docn-abc/a-final-offline/pytest-final-candidate.log"
+  },
+  "review": {
+    "material_findings": 1,
+    "closed": 1,
+    "finding": "Malformed discovered record could abort extraction",
+    "targeted_independent_verification": "149 tests and two-malformed-range probe; valid records retained",
+    "additional_compatibility_reviews": "77 SEC-window checks plus 200-case differential probe; 75 exhibit-link checks, no material findings"
+  }
+}
