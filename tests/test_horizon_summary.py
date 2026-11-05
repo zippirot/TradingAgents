@@ -110,3 +110,29 @@ def test_legacy_visibility_uses_import_time_without_inventing_publication_time(p
     assert 'legacy' in text and 'unknown (legacy publication time not recorded)' in text
     assert '+6.9%' not in text  # original rounded memory is not a measured endpoint
     assert '| 5 sessions | pending | — | — | —' in text
+
+
+def test_denver_replay_keeps_real_docn_evening_times_but_excludes_next_day(published, monkeypatch):
+    config, add = published
+    config['analysis_timezone'] = 'America/Denver'
+    # Times copied from retained DOCN build-A/B/C publication records.
+    stamps = ['2026-11-05T04:07:17.629658+00:00',
+              '2026-11-05T04:56:51.963986+00:00',
+              '2026-11-05T05:39:47.881519+00:00',
+              '2026-11-05T12:57:45.219564+00:00']
+    records = []
+    for stamp in stamps:
+        monkeypatch.setattr(publication, '_utcnow', lambda value=stamp: datetime.fromisoformat(value))
+        records.append(add(asof='2026-11-04'))
+    denver = outcomes.render_outcome_summary(config, as_of='2026-11-04')
+    assert 'Coverage: 3 publications;' in denver
+    assert records[0]['decision_id'] in denver
+    assert records[3]['decision_id'] not in denver
+    new_york = outcomes.render_outcome_summary({**config, 'analysis_timezone': 'America/New_York'},
+                                               as_of='2026-11-04')
+    assert records[0]['decision_id'] in new_york
+    assert 'Coverage: 2 publications;' in new_york
+    utc = outcomes.render_outcome_summary({**config, 'analysis_timezone': 'UTC'}, as_of='2026-11-04')
+    assert 'Coverage: 0 publications;' in utc
+    boundary = outcomes.render_outcome_summary(config, as_of=stamps[0])
+    assert records[0]['decision_id'] in boundary and records[1]['decision_id'] not in boundary

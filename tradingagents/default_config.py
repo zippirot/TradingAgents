@@ -31,6 +31,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_ANALYSIS_TIMEZONE":      "analysis_timezone",
+    "TRADINGAGENTS_ANALYSIS_CUTOFF_UTC":    "analysis_cutoff_utc",
 }
 
 
@@ -88,6 +90,10 @@ def build_default_config() -> dict:
         # the oldest resolved entries are pruned once this limit is exceeded.
         # Pending entries are never pruned. None disables rotation entirely.
         "memory_log_max_entries": None,
+        # Date-only research closes at this local calendar day end. Instrument
+        # price sessions retain their own exchange/session clock.
+        "analysis_timezone": "America/Denver",
+        "analysis_cutoff_utc": None,
         # LLM settings
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",

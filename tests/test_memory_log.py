@@ -1,5 +1,6 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -470,7 +471,9 @@ class TestDeferredReflection:
         """All fields intact and blank line between tag and DECISION preserved after update."""
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+        before = datetime.now(UTC)
         log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
+        after = datetime.now(UTC)
         entries = log.load_entries()
         assert len(entries) == 1
         e = entries[0]
@@ -480,8 +483,10 @@ class TestDeferredReflection:
         assert e["raw"] == "+4.2%"
         assert e["alpha"] == "+2.1%"
         assert e["holding"] == "5d"
+        assert before <= datetime.fromisoformat(e["known_at"]) <= after
         raw_text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
-        assert "[2026-01-10 | NVDA | Buy | +4.2% | +2.1% | 5d]\n\nDECISION:" in raw_text
+        assert (f"[2026-01-10 | NVDA | Buy | +4.2% | +2.1% | 5d | known_at:{e['known_at']}]"
+                "\n\nDECISION:") in raw_text
 
     # Reflector.reflect_on_final_decision
 

@@ -338,7 +338,9 @@ def test_past_decisions_settle_alongside_the_analysts(tmp_path, monkeypatch, off
     lessons = graph.memory_log.get_past_context("NVDA", as_of=TRADE_DATE)
     assert lessons
     pm_prompt = next(c[1] for c in model.seen if c[0] == "Portfolio Manager")
-    assert lessons in pm_prompt
+    # This reflection was persisted during the present run, long after the
+    # historical analysis date. It cannot become hindsight context.
+    assert lessons not in pm_prompt
 
 
 @pytest.mark.unit
@@ -396,7 +398,7 @@ def test_the_memory_step_reads_lessons_as_of_the_trade_date_and_settles_once(tmp
     log_after_first = (tmp_path / "log.md").read_text()
     graph._memory_step(state)
 
-    assert asked == ["2026-01-20", "2026-01-20"]
+    assert asked == ["2026-01-21T06:59:59.999999+00:00"] * 2
     assert (tmp_path / "log.md").read_text() == log_after_first
 
 

@@ -2,6 +2,7 @@
 
 import contextlib
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -106,20 +107,43 @@ class TradingMemoryLog:
         return [e for e in self.load_entries() if e.get("pending") and is_trading_entry(e)]
 
     def get_past_context(
-        self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None
+        self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None,
+        *, allow_unstamped_legacy: bool = False, analysis_date: str | None = None,
     ) -> str:
         """Return formatted past context string for agent prompt injection.
 
-        When ``as_of`` (yyyy-mm-dd) is given, only lessons whose outcome was
-        already known by that date are included — an entry is kept only if it
-        stores a resolution date (``resolved:...``) that is on or before
-        ``as_of``. This keeps a historical/backtest run from learning from
-        outcomes that had not happened yet (#1251). ``as_of=None`` disables the
-        filter, so live runs and pre-migration entries are unaffected.
+        Date-only callers retain the older resolution-date filter. An exact
+        timestamp requires the actual persistence time (``known_at:...``), so
+        legacy date-only tags cannot become retrospective lessons by an assumed
+        timezone. A caller may retain unstamped legacy entries only when the
+        actual read time has not passed the exact cutoff. ``as_of=None`` retains
+        unfiltered direct-call behavior.
         """
         entries = [e for e in self.load_entries() if not e.get("pending") and is_trading_entry(e)]
+        if analysis_date is not None:
+            entries = [e for e in entries if not e.get('resolved') or e['resolved'] <= analysis_date]
         if as_of is not None:
-            entries = [e for e in entries if e.get("resolved") and e["resolved"] <= as_of]
+            if len(as_of) == 10:
+                # Preserve old direct date-query behavior. The graph uses an
+                # exact instant, which requires a real persisted known-at time.
+                entries = [e for e in entries if e.get("resolved") and e["resolved"] <= as_of]
+            else:
+                cutoff = datetime.fromisoformat(as_of.replace('Z', '+00:00'))
+                if cutoff.utcoffset() is None:
+                    raise ValueError('Lesson cutoff timestamp must include a timezone')
+                legacy_available_now = allow_unstamped_legacy and datetime.now(UTC) <= cutoff
+                eligible = []
+                for entry in entries:
+                    if not entry.get('known_at'):
+                        if legacy_available_now:
+                            eligible.append(entry)
+                        continue
+                    known = datetime.fromisoformat(entry['known_at'].replace('Z', '+00:00'))
+                    if known.utcoffset() is None:
+                        raise ValueError('Recorded lesson known-at timestamp must include a timezone')
+                    if known.astimezone(UTC) <= cutoff:
+                        eligible.append(entry)
+                entries = eligible
         if not entries:
             return ""
 
@@ -205,6 +229,7 @@ class TradingMemoryLog:
                         alpha_pct,
                         holding_days,
                         resolution_date,
+                        datetime.now(UTC).isoformat(),
                     )
                     rest = "\n".join(lines[1:])
                     new_blocks.append(f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}")
@@ -265,6 +290,7 @@ class TradingMemoryLog:
                             alpha_pct,
                             upd["holding_days"],
                             upd.get("resolution_date"),
+                            datetime.now(UTC).isoformat(),
                         )
                         rest = "\n".join(lines[1:])
                         new_blocks.append(
@@ -290,7 +316,8 @@ class TradingMemoryLog:
 
     @staticmethod
     def _resolved_tag(
-        trade_date, ticker, rating, raw_pct, alpha_pct, holding_days, resolution_date
+        trade_date, ticker, rating, raw_pct, alpha_pct, holding_days, resolution_date,
+        known_at=None,
     ) -> str:
         """Build a resolved entry tag, recording the outcome's known-by date.
 
@@ -301,6 +328,8 @@ class TradingMemoryLog:
         tag = f"[{trade_date} | {ticker} | {rating} | {raw_pct} | {alpha_pct} | {holding_days}d"
         if resolution_date:
             tag += f" | resolved:{resolution_date}"
+        if known_at:
+            tag += f" | known_at:{known_at}"
         return tag + "]"
 
     def _apply_rotation(self, blocks: list[str]) -> list[str]:
@@ -354,9 +383,12 @@ class TradingMemoryLog:
         # Optional trailing "resolved:YYYY-MM-DD" field records when the outcome
         # became known, for point-in-time filtering (#1251).
         resolved = None
+        known_at = None
         for f in fields[6:]:
             if f.startswith("resolved:"):
                 resolved = f[len("resolved:") :].strip()
+            elif f.startswith("known_at:"):
+                known_at = f[len("known_at:") :].strip()
         entry = {
             "date": fields[0],
             "ticker": fields[1],
@@ -366,6 +398,7 @@ class TradingMemoryLog:
             "alpha": fields[4] if len(fields) > 4 else None,
             "holding": fields[5] if len(fields) > 5 else None,
             "resolved": resolved,
+            "known_at": known_at,
         }
         body = "\n".join(lines[1:]).strip()
         publication_match = re.search(r"^<!-- PUBLICATION_ID: ([0-9a-f-]{36}) -->$", body, re.MULTILINE)

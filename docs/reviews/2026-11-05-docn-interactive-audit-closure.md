@@ -154,3 +154,34 @@ remain unproved. No injected request will be substituted for that acceptance.
 The nested remaining_gap_followup record in the existing evidence JSON records
 source/log hashes, local proof paths, costs and remaining limits. This is partial
 Goal progress, not completion or release authorization. Launcher remains unchanged.
+
+
+## Reserved decisions approved; pre-live candidate verified
+
+The user explicitly approved Denver analysis-day semantics, four additional live
+attempts (maximum two Deep, retries included), incremental $50 live/$15 audit
+ceilings within the original caps, and task-branch push/draft PR for CI. All three
+queue/notifier incidents are resolved. No merge or launcher installation authority.
+
+M1 now persists one IANA/UTC clock, uses it consistently for all memory views,
+retains current-day legacy context only when actually read before cutoff, and
+records actual new lesson known-at timestamps. A reviewer reproduced a cutoff
+crossed during settlement; the final fix checks legacy read completion, and the
+reviewer independently closed the finding. Old immutable records gain no fields.
+
+Primary review also reproduced an old-publication retry failure from new display
+text. The bounded fix verifies original payload and stored evidence before reuse;
+new/forged records still pass current validators. Verified exports retain original
+evidence and existing diagnostics separately and label current presentation views.
+Actual live07 copy/retry/export preserves originals; independent review accepted.
+
+Pre-live final source: 2288 tests plus100 subtests passed on Python3.12 UTC,
+Python3.12 New York andPython3.14; one optional AWS skip, one configured integration
+deselection and20 warnings each. Fresh no-dev install imports outside checkout and
+all installed Python files match. Ruff/diff checks passed;19 offline runner tests
+passed. Runner enforces11 lifetime attempts, maximum2Deep, cumulative$68.410925 and
+records actualCLI settings and executed counters without changing stream contents.
+
+Current public model pricing and retained ledger were checked without a completion
+request:7 attempts, $18.410925 live, no unknown reservations. Live08 continuity seed
+copies nine prior-publication/memory files exactly. No paid follow-up call yet.

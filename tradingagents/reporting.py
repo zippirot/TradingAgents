@@ -44,6 +44,10 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
         lines.append(f"- First published: {publication['published_at']}")
     label = "Export generated" if publication else "Generated"
     lines.append(f"- {label}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if final_state.get("report_view_note"):
+        lines.append("- Export view: " + final_state["report_view_note"])
+    elif publication:
+        lines.append("- Historical publication identity not verified against a configured store; current validated projection.")
     if settings:
         s = settings.get
         deep_provider = s("deep_think_provider") or s("llm_provider", "?")
@@ -318,8 +322,30 @@ def _write_json(path: Path, value: dict) -> None:
     )
 
 
+def verified_publication(config: dict, state: dict, ticker: str, asof: str):
+    """Verify an existing disk publication against the complete original state.
+
+    Missing records return None for ordinary new-run validation. Serialized
+    publication markers never establish authority; corruption/mismatch raises.
+    """
+    from tradingagents.memory import publication
+
+    if not state.get('run_id'):
+        return None
+    try:
+        record = publication.load_record(config, state['run_id'])
+    except FileNotFoundError:
+        return None
+    snapshot = publication.load_evidence(config, record)
+    # Existing-record publish performs the full payload comparison, including
+    # the full decision hash when the stored readable excerpt was truncated.
+    checked = publication.publish(config, state, ticker, asof)
+    return checked, snapshot
+
+
 def write_report_tree(
-    final_state: dict, ticker: str, save_path, settings: dict | None = None, html: bool = True
+    final_state: dict, ticker: str, save_path, settings: dict | None = None, html: bool = True,
+    *, publication_config: dict | None = None,
 ) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path.
 
@@ -327,12 +353,33 @@ def write_report_tree(
     to the report's header. ``html`` also writes ``complete_report.html``, one
     self-contained page of the same report (#1419).
     """
+    frozen = (verified_publication(publication_config, final_state, ticker, final_state.get("trade_date"))
+              if publication_config is not None else None)
+    if publication_config is not None and final_state.get("publication_record") and frozen is None:
+        raise ValueError("Claimed historical publication is missing from the configured store")
+    original_quality = evidence_quality_snapshot(final_state)
+    original_diagnostics = evidence_snapshot(final_state).get("raw_diagnostics", {})
     final_state = prepare_report_state(final_state)
+    if frozen is not None:
+        record, original_snapshot = frozen
+        final_state["publication_record"] = {key: record[key] for key in ("decision_id", "published_at", "record_sha256")}
+        final_state["report_view_note"] = ("Current validated presentation of a verified immutable publication. "
+            "Display and current validation may differ from the original; evidence.json retains its original immutable snapshot. "
+            "For this export, diagnostic references in the research text refer to companion diagnostics.json.")
+    elif final_state.get("publication_record"):
+        final_state["report_view_note"] = ("Historical publication identity not verified against a configured store. "
+            "This export is a current validated projection, not an immutable publication snapshot.")
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
-    _write_json(save_path / "quality.json", evidence_quality_snapshot(final_state))
-    _write_json(save_path / "evidence.json", evidence_snapshot(final_state))
+    _write_json(save_path / "quality.json", original_quality if frozen else evidence_quality_snapshot(final_state))
+    _write_json(save_path / "evidence.json", original_snapshot if frozen else evidence_snapshot(final_state))
+    if frozen:
+        _write_json(save_path / "diagnostics.json", original_diagnostics)
     parts = _report_parts(final_state)
+    if frozen:
+        parts = [(heading, folder, [(agent, filename, text.replace("evidence.json diagnostics", "diagnostics.json"))
+                                   for agent, filename, text in written])
+                 for heading, folder, written in parts]
     parts.append(
         (
             "VI. Evidence and Quality",
@@ -355,6 +402,6 @@ def write_report_tree(
         from tradingagents.report_html import render_report
 
         (save_path / "complete_report.html").write_text(
-            render_report(ticker, final_state, settings, parts), encoding="utf-8"
+            render_report(ticker, final_state, settings, parts, diagnostics_sidecar=bool(frozen)), encoding="utf-8"
         )
     return save_path / "complete_report.md"

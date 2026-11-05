@@ -1,9 +1,10 @@
 # DOCN remaining-gap closure plan
 
-Status: local implementation, verification and independent audit authorized by
-the November 5 Goal. Analysis-timezone behavior, additional paid attempts/budget
-and branch push/draft PR remain reserved decisions until answered. No integration
-or launcher installation is authorized.
+Status: authorized for execution by the November 5 Goal. The user subsequently
+approved America/Denver analysis-day cutoffs, up to four additional live attempts
+(at most two Deep; retries included), incremental $50 live/$15 audit ceilings
+within original subceilings, and task-branch push/draft PR for exact-head CI.
+No merge, staging integration or launcher installation is authorized.
 
 ## Outcome and starting point
 
@@ -306,3 +307,9 @@ then perform launcher import/path/configuration/report smoke checks on that exac
 installed commit. A paid installed-app research run needs remaining or separately
 approved proof authority. Machine1/production stays outside this plan. Do not
 quietly turn clean-install packaging smoke into a claim that the launcher changed.
+
+## Decision resolution — November 5
+
+All three reserved decisions above were explicitly approved in the Goal chat.
+Do not ask again. The descriptions above remain the scope of those approvals;
+all other release boundaries and proof requirements remain unchanged.

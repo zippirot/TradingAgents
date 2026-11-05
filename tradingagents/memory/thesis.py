@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, date, datetime, time
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from typing import Literal
@@ -370,7 +370,9 @@ def load_latest_thesis(config, ticker, known_at):
     if isinstance(known_at, datetime):
         cutoff = known_at
     elif isinstance(known_at, date) or len(str(known_at)) == 10:
-        cutoff = datetime.combine(date.fromisoformat(str(known_at)), time.max, UTC)
+        from tradingagents.dataflows.date_window import resolve_analysis_cutoff
+        cutoff = datetime.fromisoformat(resolve_analysis_cutoff(
+            str(known_at), config.get('analysis_timezone', 'America/Denver'))['cutoff_utc'])
     else:
         cutoff = datetime.fromisoformat(str(known_at).replace('Z', '+00:00'))
     if cutoff.tzinfo is None:

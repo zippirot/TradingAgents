@@ -13,6 +13,33 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+def resolve_analysis_cutoff(run_date: str, timezone_name: str | None = None,
+                            exact_cutoff: str | datetime | None = None) -> dict[str, str]:
+    """Resolve a date-only analysis to its local day end, once per run.
+
+    An aware explicit instant wins unchanged. Unknown IANA zones fall back to
+    UTC explicitly; this clock never determines price-session eligibility.
+    """
+    day = date.fromisoformat(run_date)
+    requested = timezone_name or 'UTC'
+    try:
+        zone = ZoneInfo(requested)
+        zone_name = requested
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = UTC
+        zone_name = 'UTC'
+    if exact_cutoff is None:
+        cutoff = datetime.combine(day, datetime.max.time(), zone).astimezone(UTC)
+    else:
+        cutoff = (datetime.fromisoformat(exact_cutoff.replace('Z', '+00:00'))
+                  if isinstance(exact_cutoff, str) else exact_cutoff)
+        if cutoff.utcoffset() is None:
+            raise ValueError('Analysis cutoff timestamp must include a timezone')
+        cutoff = cutoff.astimezone(UTC)
+    return {'analysis_timezone': zone_name, 'cutoff_utc': cutoff.isoformat()}
 
 
 def to_utc(dt: datetime) -> datetime:

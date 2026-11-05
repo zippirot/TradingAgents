@@ -47,6 +47,18 @@ def test_repeat_publish_and_reload_keep_identity_time_and_source_snapshot(config
     assert all('PRIVATE' not in p.read_text() for p in Path(config['results_dir']).rglob('*.json'))
 
 
+def test_analysis_clock_is_retained_only_for_new_clocked_publications(config, state):
+    old = publication.publish(config, state, 'DOCN', '2026-11-04')
+    assert 'analysis_clock' not in old
+    assert publication.publish(config, copy.deepcopy(state), 'DOCN', '2026-11-04') == old
+    state['run_id'] = str(uuid4())
+    state['analysis_clock'] = {'analysis_timezone': 'America/Denver',
+                               'cutoff_utc': '2026-11-05T06:59:59.999999+00:00'}
+    new = publication.publish(config, state, 'DOCN', '2026-11-04')
+    assert new['analysis_clock'] == state['analysis_clock']
+    assert publication.load_record(config, new['decision_id']) == new
+
+
 def test_changed_payload_with_same_run_cannot_rewrite_publication(config, state):
     first = publication.publish(config, state, 'DOCN', '2026-11-04')
     state['final_trade_decision'] += ' Changed.'

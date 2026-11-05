@@ -110,9 +110,7 @@ def prepare_shared_valuation(state, requests=None):
             comparisons.append(_comparable(request, result))
             rows.append({"name": name.strip(), "request": request.model_dump(mode="json"),
                          "result": result.model_dump(mode="json"), "diagnostic_only": diagnostic,
-                         "comparison": compare_valuation(state, result, request),
-                         "input_labels": [f"{fact.metric} ({fact.period_end}, {fact.unit})"
-                                          for fact in package.facts if fact.fact_id in result.input_fact_ids]})
+                         "comparison": compare_valuation(state, result, request)})
         except ValidationError:
             reasons.append(f"Row {index} omitted: malformed valuation request")
         except (ValueError, TypeError, ArithmeticError) as exc:
@@ -147,8 +145,8 @@ def render_shared_valuation(record):
         for row in rows:
             result = row["result"]
             lines += ["", f"**{_cell(row['name'])} — inputs and assumptions**", "",
-                      "Source inputs: " + ", ".join(_cell(v) for v in row.get("input_labels", []))
-                      + ". Exact source fact IDs and values: evidence.json → shared_valuation_scenarios.", ""]
+                      "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"])
+                      + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]
             if result["method"] == "ev_revenue":
                 s = result["scenario_results"][0]
                 lines.append(f"Revenue {display_number(s['revenue'])} × multiple {display_number(s['multiple'])} = enterprise value {display_number(s['enterprise_value'])}; less scenario net obligations {display_number(s['net_obligations'])} = conditional equity {display_number(s['equity_value'])}.")

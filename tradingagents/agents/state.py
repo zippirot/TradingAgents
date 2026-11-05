@@ -43,6 +43,7 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    analysis_clock: Annotated[dict, "Resolved IANA analysis timezone and UTC known-at cutoff"]
     run_id: Annotated[str, "Invocation identity preserved across checkpoint resume"]
     evaluation_mode: Annotated[str, "Explicit prospective publication or historical simulation"]
     run_settings: Annotated[dict, "Allowlisted invocation settings retained across resume"]

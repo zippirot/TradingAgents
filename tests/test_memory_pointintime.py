@@ -79,17 +79,23 @@ def test_cross_ticker_lessons_are_also_gated(tmp_path):
 
 
 @pytest.mark.unit
-def test_memory_as_of_gates_historical_but_not_live():
-    # The graph filters only for a past trade date; a current-date run passes
-    # None so live behavior and legacy entries are unaffected (#1251).
-    from datetime import datetime, timedelta
-
+def test_graph_uses_one_explicit_cutoff_for_every_run_date():
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
     g = object.__new__(TradingAgentsGraph)
-    past = "2024-01-01"
-    today = datetime.now().strftime("%Y-%m-%d")
-    future = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-    assert g._memory_as_of(past) == past       # backtest -> filter on the trade date
-    assert g._memory_as_of(today) is None      # live -> no filter
-    assert g._memory_as_of(future) is None     # future-dated run -> no filter
+    g.config = {'analysis_timezone': 'America/Denver'}
+    assert g._analysis_cutoff('2026-11-04')['cutoff_utc'] == '2026-11-05T06:59:59.999999+00:00'
+
+
+def test_exact_lesson_cutoff_requires_recorded_known_at_time(tmp_path):
+    log = _log(tmp_path)
+    _resolve(log, 'NVDA', '2026-01-05', '2026-01-10', 'known later')
+    entry = log.load_entries()[0]
+    known_at = entry['known_at']
+    assert known_at and known_at.endswith('+00:00')
+    assert log.get_past_context('NVDA', as_of=known_at)
+    # An older date-only tag has no actual reflection time, even if its price
+    # window ended before the query. Do not invent one during historical replay.
+    path = tmp_path / 'mem.md'
+    path.write_text(path.read_text().replace(f' | known_at:{known_at}', ''))
+    assert log.get_past_context('NVDA', as_of=known_at) == ''

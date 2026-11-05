@@ -278,7 +278,7 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
     return details
 
 
-def render_report(ticker: str, final_state: dict, settings: dict | None, parts) -> str:
+def render_report(ticker: str, final_state: dict, settings: dict | None, parts, *, diagnostics_sidecar: bool = False) -> str:
     """The report page: title and rating, what produced the run, contents, sections."""
     prepared = prepare_report_state(final_state)
     if prepared != final_state:
@@ -300,6 +300,10 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
     title = f'<span class="ticker">{escape(ticker)}</span>'
     if rating:
         title += f' <span class="rating {tone}">{escape(rating)}</span>'
+    export_view = ("<p>" + escape(final_state["report_view_note"]) + "</p>"
+                   if final_state.get("report_view_note") else
+                   "<p>Historical publication identity not verified against a configured store; current validated projection.</p>"
+                   if final_state.get("publication_record") else "")
     condition_summary = (md.render(render_condition_summary(final_state["decision_context"]))
                          if final_state.get("decision_context") else "")
     details = "".join(
@@ -321,6 +325,8 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
         )
         body.append(f'<section id="s{n}"><h2>{escape(heading)}</h2>')
         for m, (agent, _filename, text) in enumerate(written, 1):
+            if diagnostics_sidecar:
+                text = text.replace("evidence.json diagnostics", "diagnostics.json")
             body.append(f'<h3 id="s{n}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
         body.append("</section>")
 
@@ -342,6 +348,7 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
 <div class="condition-summary">{condition_summary}</div>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 <dl class="run">{details}</dl>
+{export_view}
 </header>
 <nav class="contents" aria-label="Sections"><ul>{"".join(contents)}</ul></nav>
 <main>

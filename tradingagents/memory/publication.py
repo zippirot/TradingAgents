@@ -168,6 +168,8 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
         'target_sha256': _digest(state['target_validation']) if state.get('target_validation') else None,
         'scenarios_sha256': _digest(state['shared_valuation_scenarios']) if state.get('shared_valuation_scenarios') else None,
     }
+    if state.get('analysis_clock'):
+        payload['analysis_clock'] = state['analysis_clock']
     return _store_payload(config, payload, snapshot)
 
 

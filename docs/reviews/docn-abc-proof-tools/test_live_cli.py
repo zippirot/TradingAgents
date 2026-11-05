@@ -144,10 +144,6 @@ class GuardTests(unittest.TestCase):
             httpx.AsyncClient.send, httpx2.AsyncClient.send = original_async
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def test_argument_validation_does_not_import_application_configuration():
     import subprocess
     import sys
@@ -159,3 +155,158 @@ def test_argument_validation_does_not_import_application_configuration():
     )
     subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).parent, check=True,
                    capture_output=True, text=True)
+
+
+class ExtendedAuthorityTests(unittest.TestCase):
+    def baseline(self):
+        events = [{'type': 'attempt', 'number': n, 'run_name': f'live-{n:02}'} for n in range(1, 8)]
+        events += [{'type': 'settle', 'usd': 18.410925, 'request': 1},
+                   {'type': 'attempt_end', 'number': 7, 'committed_usd': 18.410925}]
+        return events
+
+    def test_new_authority_is_four_attempts_with_at_most_two_deep(self):
+        events = self.baseline()
+        self.assertEqual(live_cli.validate_attempt(events, 'live-08', 5), 8)
+        events.append({'type': 'attempt', 'number': 8, 'run_name': 'live-08', 'depth': 5})
+        events.append({'type': 'attempt', 'number': 9, 'run_name': 'live-09', 'depth': 5})
+        with self.assertRaisesRegex(RuntimeError, 'Deep'):
+            live_cli.validate_attempt(events, 'live-10', 5)
+        self.assertEqual(live_cli.validate_attempt(events, 'live-10', 1), 10)
+        events += [{'type': 'attempt', 'number': n, 'run_name': f'live-{n}', 'depth': 1} for n in (10, 11)]
+        with self.assertRaisesRegex(RuntimeError, 'Eleven'):
+            live_cli.validate_attempt(events, 'retry-12', 1)
+
+    def test_missing_prior_ledger_and_reused_run_names_cannot_reset_authority(self):
+        with self.assertRaisesRegex(RuntimeError, 'baseline'):
+            live_cli.validate_attempt([], 'live-08', 1)
+        with self.assertRaisesRegex(RuntimeError, 'already used'):
+            live_cli.validate_attempt(self.baseline(), 'live-01', 1)
+        events = self.baseline()
+        events[-2]['usd'] = 1.0
+        with self.assertRaisesRegex(RuntimeError, 'baseline'):
+            live_cli.validate_attempt(events, 'live-08', 1)
+
+    def test_incremental_budget_is_fixed_across_run_names(self):
+        self.assertAlmostEqual(live_cli.CAP_USD, 68.410925)
+        events = self.baseline() + [{'type': 'reserve', 'usd': 50., 'request': 2}]
+        with self.assertRaisesRegex(RuntimeError, 'ceiling'):
+            live_cli.validate_attempt(events, 'fresh-name', 1)
+
+    def test_claim_preserves_seeded_publications_but_never_reuses_proof(self):
+        with tempfile.TemporaryDirectory() as temp:
+            work = Path(temp) / 'fresh'
+            (work / 'results/publications/records').mkdir(parents=True)
+            seed = work / 'results/publications/records/prior.json'
+            seed.write_text('{}')
+            (work / 'cli.stdout.log').touch()
+            live_cli.claim_workdir(work, {'ticker': 'DOCN', 'depth': 5})
+            self.assertEqual(json.loads((work / 'run_claim.json').read_text())['depth'], 5)
+            self.assertEqual(seed.read_text(), '{}')
+            with self.assertRaisesRegex(RuntimeError, 'existing proof'):
+                live_cli.claim_workdir(work, {'ticker': 'OTHER', 'depth': 1})
+            other = Path(temp) / 'old'
+            other.mkdir()
+            (other / 'source_sha256.json').write_text('retained')
+            with self.assertRaisesRegex(RuntimeError, 'existing proof'):
+                live_cli.claim_workdir(other, {'ticker': 'DOCN', 'depth': 1})
+            self.assertEqual((other / 'source_sha256.json').read_text(), 'retained')
+
+    def test_ticker_and_depth_are_bounded_without_paid_setup(self):
+        import subprocess
+        import sys
+        runner = str(Path(live_cli.__file__).resolve())
+        for ticker, depth in [('AAPL', 'deep'), ('600000.SS', 'shallow')]:
+            result = subprocess.run([sys.executable, runner, '--ticker', ticker, '--depth', depth],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for args in [('--ticker', '../escape'), ('--depth', '10')]:
+            result = subprocess.run([sys.executable, runner, *args], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+
+
+class RuntimeEvidenceTests(unittest.TestCase):
+    def test_declared_seed_receipts_are_not_execution_outputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            work = Path(temp)
+            (work / 'seed-continuity.json').write_text('{"seed":true}')
+            (work / 'engineering-seed.json').write_text('{"historical_opinion":false}')
+            live_cli.claim_workdir(work, {'depth': 1})
+            self.assertTrue((work / 'seed-continuity.json').is_file())
+
+    def test_round_observer_forwards_original_objects_and_records_actual_turns(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        first = (['message'], {'investment_debate_state': {'count': 1}})
+        second = ([], {'investment_debate_state': {'count': 10}, 'risk_debate_state': {'count': 15}})
+        def stream(*args, **kwargs):
+            yield first
+            yield second
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_cli, 'WORK', Path(temp)), \
+                patch.object(live_cli, 'DEPTH', 5), patch.object(TradingAgentsGraph, 'stream_run', stream):
+            live_cli.install_round_observer()
+            result = list(TradingAgentsGraph.stream_run(object()))
+            self.assertIs(result[0], first)
+            self.assertIs(result[1], second)
+            saved = json.loads((Path(temp) / 'executed_rounds.json').read_text())
+            self.assertEqual(saved['research_counts'], [1, 10])
+            self.assertEqual(saved['research_count_max'], 10)
+            self.assertEqual(saved['risk_count_max'], 15)
+            self.assertEqual(saved['expected_research_turns'], 10)
+            self.assertEqual(saved['expected_risk_turns'], 15)
+            self.assertTrue(saved['stream_completed'])
+            self.assertIsNone(saved['error_type'])
+
+    def test_round_observer_retains_partial_counts_and_original_failure(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        error = RuntimeError('fixture error')
+        first = ([], {'risk_debate_state': {'count': 2}})
+        def stream(*args, **kwargs):
+            yield first
+            raise error
+        with tempfile.TemporaryDirectory() as temp, patch.object(live_cli, 'WORK', Path(temp)), \
+                patch.object(TradingAgentsGraph, 'stream_run', stream):
+            live_cli.install_round_observer()
+            result = TradingAgentsGraph.stream_run(object())
+            self.assertIs(next(result), first)
+            with self.assertRaises(RuntimeError) as caught:
+                next(result)
+            self.assertIs(caught.exception, error)
+            saved = json.loads((Path(temp) / 'executed_rounds.json').read_text())
+            self.assertFalse(saved['stream_completed'])
+            self.assertEqual(saved['risk_counts'], [2])
+            self.assertEqual(saved['error_type'], 'RuntimeError')
+
+    def test_both_depths_reach_real_cli_config_and_source_manifest(self):
+        import subprocess
+        import sys
+        for depth in (1, 5):
+            with tempfile.TemporaryDirectory() as temp:
+                script = '''import json,sys
+from pathlib import Path
+import live_cli
+live_cli.WORK=Path(sys.argv[1]); live_cli.DEPTH=int(sys.argv[2]); live_cli.TICKER='AAPL'
+live_cli.configure(); live_cli.verify_config(); live_cli.install_run_config_guard()
+import cli.run
+selection={'research_depth':1,'quick_think_llm':live_cli.MODEL,'deep_think_llm':live_cli.MODEL,
+           'backend_url':'https://openrouter.ai/api/v1','llm_provider':'openrouter'}
+config=cli.run._build_run_config(selection,True)
+assert config['max_debate_rounds']==live_cli.DEPTH
+assert config['max_risk_discuss_rounds']==live_cli.DEPTH
+live_cli.source_record()
+config['max_risk_discuss_rounds']=99
+try: live_cli.verify_config(config)
+except RuntimeError: pass
+else: raise AssertionError('wrong actual depth accepted')
+'''
+                subprocess.run([sys.executable, '-c', script, temp, str(depth)],
+                               cwd=Path(live_cli.__file__).parent, check=True, capture_output=True, text=True)
+                manifest = json.loads((Path(temp) / 'source_sha256.json').read_text())['configuration']
+                actual = json.loads((Path(temp) / 'actual_run_config.json').read_text())
+                self.assertEqual(manifest['ticker'], 'AAPL')
+                self.assertEqual(manifest['depth'], depth)
+                self.assertEqual(manifest['analysis_timezone'], 'America/Denver')
+                self.assertEqual(actual['max_debate_rounds'], depth)
+                self.assertEqual(actual['max_risk_discuss_rounds'], depth)
+
+
+if __name__ == "__main__":
+    unittest.main()

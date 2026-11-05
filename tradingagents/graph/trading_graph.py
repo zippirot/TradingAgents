@@ -7,19 +7,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
-from tradingagents.dataflows.date_window import get_current_date, is_historical
+from tradingagents.dataflows.date_window import get_current_date, resolve_analysis_cutoff
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, publication, settlement
 from tradingagents.memory.reflection import Reflector
-from tradingagents.reporting import write_report_tree
+from tradingagents.reporting import verified_publication, write_report_tree
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -147,15 +148,12 @@ class TradingAgentsGraph:
         identity = resolve_instrument_identity(ticker)
         return build_instrument_context(ticker, asset_type, identity, trade_date)
 
-    def _memory_as_of(self, trade_date) -> str | None:
-        """Point-in-time cutoff for past-context lessons (#1251).
-
-        A historical/backtest run (trade date before today) filters lessons to
-        those already resolved by the trade date. A current-date run returns
-        None, disabling the filter so live behavior and pre-migration entries
-        (which have no stored resolution date) are unaffected.
-        """
-        return str(trade_date) if is_historical(trade_date) else None
+    def _analysis_cutoff(self, trade_date) -> dict[str, str]:
+        """One explicit clock for every historical context read in this run."""
+        return resolve_analysis_cutoff(
+            str(trade_date), self.config.get("analysis_timezone", "America/Denver"),
+            self.config.get("analysis_cutoff_utc"),
+        )
 
     def _run_signature(self, asset_type: str, portfolio=None) -> str:
         """Run inputs that must invalidate a checkpoint if changed.
@@ -192,6 +190,7 @@ class TradingAgentsGraph:
             "decision_context=1",
             "evidence_presentation=1",
             "publication_record=3",
+            "analysis_cutoff=1",
             f"settings={digest}",
         ])
 
@@ -324,7 +323,7 @@ class TradingAgentsGraph:
         """
         if save_path is None:
             save_path = self.default_report_path(ticker)
-        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings(), html=html)
+        return write_report_tree(final_state, ticker, save_path, settings=self.run_settings(), html=html, publication_config=getattr(self, "config", None))
 
     def default_report_path(self, ticker) -> Path:
         """Where a run's reports go unless told otherwise: under results_dir, stamped now."""
@@ -349,6 +348,7 @@ class TradingAgentsGraph:
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
+        state["analysis_clock"] = self._analysis_cutoff(trade_date)
         return state
 
     def _memory_step(self, state):
@@ -362,6 +362,17 @@ class TradingAgentsGraph:
         the log are used, and the report says what could not be settled.
         """
         note = ""
+        clock = state.get("analysis_clock") or self._analysis_cutoff(state["trade_date"])
+        cutoff = clock["cutoff_utc"]
+        analysis_zone = ZoneInfo(clock["analysis_timezone"])
+        cutoff_instant = datetime.fromisoformat(cutoff)
+        # Existing unstamped memory is demonstrably available at this read only
+        # on the current analysis day, before its explicit cutoff. Historical
+        # replays cannot infer when an old entry was first published or settled.
+        read_at = datetime.now(UTC)
+        current_read = (read_at.astimezone(analysis_zone).date().isoformat()
+                        == str(state["trade_date"])
+                        and read_at <= cutoff_instant)
         try:
             # Another run settling the same log does the work; this one goes on.
             done = self.settle_all_pending(wait=False)
@@ -373,7 +384,8 @@ class TradingAgentsGraph:
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
         try:
             past_context = self.memory_log.get_past_context(
-                state["company_of_interest"], as_of=self._memory_as_of(state["trade_date"]))
+                state["company_of_interest"], as_of=cutoff,
+                allow_unstamped_legacy=current_read, analysis_date=str(state["trade_date"]))
         except Exception as exc:
             logger.warning("Reading the memory log failed: %s", exc)
             past_context = ""
@@ -382,7 +394,7 @@ class TradingAgentsGraph:
         try:
             if self.config.get("results_dir"):
                 summary = self.outcome_summary(state["company_of_interest"],
-                                               self._memory_as_of(state["trade_date"]), limit=10)
+                                               cutoff, limit=10)
                 past_context = "\n\n".join(part for part in (past_context, summary) if part)
         except Exception as exc:
             logger.warning("Reading outcome history failed: %s", exc)
@@ -391,8 +403,7 @@ class TradingAgentsGraph:
         try:
             if self.config.get("results_dir"):
                 from tradingagents.memory.thesis import load_latest_thesis
-                known_at = self._memory_as_of(state["trade_date"]) or datetime.now(UTC)
-                prior = load_latest_thesis(self.config, state["company_of_interest"], known_at)
+                prior = load_latest_thesis(self.config, state["company_of_interest"], cutoff)
         except Exception as exc:
             logger.warning("Reading prior thesis failed: %s", exc)
             note = (note + " Prior thesis unavailable; retained publication needs inspection.").strip()
@@ -400,14 +411,20 @@ class TradingAgentsGraph:
         if prior is None:
             try:
                 from tradingagents.memory.thesis import legacy_thesis_context
+                legacy_entries = self.memory_log.load_entries()
+                legacy_read_at = datetime.now(UTC)
+                legacy_available = (
+                    legacy_read_at.astimezone(analysis_zone).date().isoformat() == str(state["trade_date"])
+                    and legacy_read_at <= cutoff_instant)
                 legacy_context = legacy_thesis_context(
-                    self.memory_log.load_entries(), state["company_of_interest"], str(state["trade_date"]),
-                    historical=self._memory_as_of(state["trade_date"]) is not None)
+                    legacy_entries, state["company_of_interest"], str(state["trade_date"]),
+                    historical=not legacy_available)
             except Exception as exc:
                 logger.warning("Reading legacy thesis context failed: %s", exc)
                 note = (note + " Legacy thesis context unavailable.").strip()
         return {"past_context": past_context, "memory_note": note, "outcome_summary": summary,
-                "prior_thesis": prior, "thesis_context": legacy_context}
+                "prior_thesis": prior, "thesis_context": legacy_context,
+                "analysis_clock": clock}
 
     def outcome_summary(self, ticker=None, as_of=None, *, limit=None) -> str:
         """Read deterministic horizon measurements without making model calls."""
@@ -438,14 +455,18 @@ class TradingAgentsGraph:
     def record_decision(self, company_name, trade_date, final_state):
         """Record a finished run: its state log, and its decision in the memory log
         for reflection on the next same-ticker run. propagate() and the CLI both end here."""
-        final_state.update(enforce_publication(final_state))
-        # Older programmatic callers have no invocation ID. Assign one on first
-        # publication now; never imply this was published at its requested date.
-        final_state.setdefault("run_id", str(uuid4()))
-        final_state.setdefault("run_settings", self.run_settings())
-        if "publication_versions" not in final_state:
-            final_state["publication_versions"] = publication.runtime_versions()
-        record = publication.publish(self.config, final_state, company_name, trade_date)
+        frozen = verified_publication(self.config, final_state, company_name, trade_date)
+        if frozen is not None:
+            record, _snapshot = frozen
+        else:
+            final_state.update(enforce_publication(final_state))
+            # An actual new publication uses current validators; a forged saved
+            # marker cannot turn this path into a historical re-export.
+            final_state.setdefault("run_id", str(uuid4()))
+            final_state.setdefault("run_settings", self.run_settings())
+            if "publication_versions" not in final_state:
+                final_state["publication_versions"] = publication.runtime_versions()
+            record = publication.publish(self.config, final_state, company_name, trade_date)
         final_state["publication_record"] = {
             key: record[key] for key in ("decision_id", "published_at", "record_sha256")
         }
@@ -580,7 +601,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("analysis_clock", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

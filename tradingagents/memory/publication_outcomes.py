@@ -225,11 +225,12 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
     return result
 
 
-def _summary_cutoff(as_of: str | None) -> datetime | None:
+def _summary_cutoff(as_of: str | None, timezone_name: str = 'America/Denver') -> datetime | None:
     if as_of is None:
         return None
     if len(as_of) == 10:
-        return datetime.combine(date.fromisoformat(as_of), datetime.max.time(), tzinfo=UTC)
+        from tradingagents.dataflows.date_window import resolve_analysis_cutoff
+        return datetime.fromisoformat(resolve_analysis_cutoff(as_of, timezone_name)['cutoff_utc'])
     cutoff = datetime.fromisoformat(as_of)
     if cutoff.utcoffset() is None:
         raise ValueError('Summary timestamp must include a timezone')
@@ -257,7 +258,8 @@ def render_outcome_summary(
 ) -> str:
     """Render known primary observations and ineligible coverage, never revise them.
 
-    Dates mean the end of that UTC day; aware timestamps give an exact cutoff.
+    Dates mean the end of that calendar day in the configured analysis timezone;
+    aware timestamps give an exact cutoff.
     Legacy publications become visible only at their recorded import time. An
     outcome must have been persisted by the cutoff as well as have its price
     window elapsed. Thus a later retrieval never becomes a retrospective lesson.
@@ -266,7 +268,20 @@ def render_outcome_summary(
     """
     if limit is not None and (type(limit) is not int or limit < 1):
         raise ValueError('Summary limit must be a positive integer')
-    cutoff = _summary_cutoff(as_of)
+    timezone_name = config.get('analysis_timezone', 'America/Denver')
+    cutoff = _summary_cutoff(as_of, timezone_name)
+    # Session dates remain separate from the analysis clock. A completed price
+    # window dated tomorrow cannot be pulled into an evening-local-day replay.
+    if as_of is not None:
+        if len(as_of) == 10:
+            analysis_day = date.fromisoformat(as_of)
+        else:
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            try:
+                zone = ZoneInfo(timezone_name)
+            except (ZoneInfoNotFoundError, ValueError):
+                zone = UTC
+            analysis_day = cutoff.astimezone(zone).date()
     records = [record for record in list_records(config, ticker)
                if _known_by(record.get('published_at') or record.get('imported_at'), cutoff)]
     primary = [record for record in records if record['eligibility']['primary']]
@@ -316,7 +331,7 @@ def render_outcome_summary(
             status = endpoint['status']
             outcome = endpoint.get('outcome')
             if status == 'resolved' and (not _known_by(endpoint['resolved_at'], cutoff)
-                    or (cutoff is not None and outcome['resolution_date'] > cutoff.date().isoformat())):
+                    or (cutoff is not None and outcome['resolution_date'] > analysis_day.isoformat())):
                 status = 'pending'
             if status == 'resolved':
                 values = [f"{outcome['raw_return']:+.2%}",
