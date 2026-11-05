@@ -436,6 +436,7 @@ def render_valuation_reference(record):
             lines.append(f"{row['quarter_end']} / {row['price_session']} | {row['share_date']} | "
                          f"{row['revenue_fact']['period_start']} to {row['revenue_fact']['period_end']} | "
                          f"{_number(row['multiple'])}× | {', '.join(filed)}")
+        lines.append("")
         position = history.get("current_position", {})
         if position.get("status") == "available":
             lines.append(f"Today is {_cell(position['relative_to_range'])} the history range; "
@@ -496,6 +497,7 @@ def render_vendor_expectations(record):
             *[_number(row.get(key)) for key in ("average", "low", "high")],
             _cell(row.get("analyst_count") if row.get("analyst_count") is not None else "unknown"),
             _cell(" / ".join(row.get(key) or "unknown" for key in ("currency", "unit", "basis")))]))
+    lines.append("")
     for row in record.get("price_targets", [])[:1]:
         lines.append("Vendor price targets, unverified: low " + _number(row.get("low")) +
                      ", mean " + _number(row.get("mean")) + ", high " + _number(row.get("high")) +

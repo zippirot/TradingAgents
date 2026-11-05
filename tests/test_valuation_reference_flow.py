@@ -363,3 +363,17 @@ def test_source_management_guidance_is_adjacent_to_unknown_consensus(monkeypatch
     assert "sec-guidance" in text and "block-46" in text
     assert "Guidance/consensus difference unavailable" in text
     assert "explicit fiscal dates" in text
+
+
+def test_reference_notes_render_outside_history_and_consensus_tables(monkeypatch):
+    from tradingagents.agents import valuation_reference_flow as flow
+    from tradingagents.report_html import _markdown
+    state, config, _, _ = flow_fixture(monkeypatch)
+    record = flow.acquire_reference_inputs(state, config)["valuation_reference"]
+    html = _markdown().render(flow.render_valuation_reference(record))
+    assert html.index("</table>") < html.index("Today is")
+    vendor = {"status": "available", "estimates": [
+        {"metric": "revenue", "period_code": "0y", "average": "100", "low": "90", "high": "110"}],
+        "price_targets": [{"low": "10", "mean": "12", "high": "14"}]}
+    html = _markdown().render(flow.render_vendor_expectations(vendor))
+    assert html.index("</table>") < html.index("Vendor price targets")

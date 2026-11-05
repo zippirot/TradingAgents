@@ -1,6 +1,6 @@
 # Part A valuation reference acceptance
 
-Status: implementation in progress. This record does not claim final acceptance.
+Status: offline implementation and tooling qualified; live proof and final acceptance remain pending.
 
 ## Authorized scope and baseline
 
@@ -21,7 +21,7 @@ External task evidence root: /Users/zipp/Developer/tradingagents-valuation-refer
 
 ## Work remaining
 
-A1/A2 arithmetic and acquisition, A3 consensus integration, A4 context/reporting, A5 audit graph/recovery integration, A6 run metrics, A7 qualified harness/budget proposal, full applicable verification, rendered replay, one authorized live Part A proof and independent audit/gap closure. Part A publication CI awaits separate publication authority.
+The authorized live Part A CLI proof, its independent artifact review, the usage-based A7 budget proposal and synchronized final records remain. A1–A6, A7 offline tooling, affected recovery and the retained-input replay have passing evidence below. Part A publication CI awaits separate publication authority.
 
 ## Spending and release boundaries
 
@@ -55,3 +55,21 @@ Independent review confirmed and closed source gaps in mixed valid/invalid user 
 Evidence reuse is by impact: unchanged product checks from the broad run remain applicable under the unchanged Python/dependency environment; peer/history flow, rendering, REVIEW/audit routing and the corrected constructor-bypassing fixture were rerun. This is combined evidence across revisions, not a full passing run on one revision. Final tooling coverage, full repository Ruff, final independent audit/artifact closure and live proof are pending.
 
 Read-only OpenRouter endpoint/key metadata was refreshed at 2026-11-05T22:48:46Z and retained privately with no credential/identifier fields. All three planned model IDs are served. Provider-specific prices include long-context/cache and faster-route variants; the proof guard must conservatively cover permitted routes and refresh again before paid execution. This task still has zero paid attempts and zero spend. Prior account usage is not charged to this task.
+
+## Offline qualification boundary before the live proof
+
+The complete current offline inventory is accounted for with combined evidence across revisions: 2,505 selected tests have passing evidence, one optional Bedrock SDK test remains skipped, and one configured integration test remains deselected (2,507 collected in total). This is not one complete passing run on one revision. The broad run supplied 2,461 passes; its two fixture failures were corrected and rerun; all six subsequently added product regressions passed; the final A7 pair supplied 36 passes. The existing 100 subtest passes remain separate from these test counts.
+
+Reuse is justified by the recorded broad-run source manifest and unchanged Python 3.12 environment, all 90 noneditable dependency pins, pytest configuration and product operating assumptions. Only the peer/history/render flow, explicit valuation-basis text, REVIEW/audit routing and constructor-bypassing portfolio fixture changed after the broad run; their focused tests and affected publication/checkpoint/recovery paths were rerun. The final Markdown table correction passed 48 affected tests. Publication, reports and checkpoint recovery passed 130 affected tests. New A7 files have their own final 36-test evidence, including actual CLI capture/replay with fake model HTTP, an eligible synthetic DOCN filer, RPO sources, prior/default/new peers, exact depth, the real SDK transport, one-shot claims, cost caps, unknown costs and the blinded reviewer callback.
+
+Final gates: full repository Ruff passed; pip check passed; all 90 dependency pins still match; diff check passed. The final source-control correction reran the affected 36 checks and full Ruff; source hashes remained stable during execution. Logs and manifests: part-a-final-local-checks.json, a7-source-control-final.json, a7-source-control-final.log, full-ruff-final.log, final-pip-check.log and test-inventory-final.log. Collection alone is inventory evidence, not passing-test evidence.
+
+The final retained-input replay is private/evidence/offline-replay-20261105-v3. Markdown hash 074e7b9f89e98382b650f738a7674cc0665fdc0769cc98de40fc2e00383cc8aa; HTML ffdeac0ba6054341f9f2b32b39aa18623eb00129208b3a377d7a45bbfe0e86b3; CLI e0200765f51b26450a80169a7fe05af47add4e087816b44a3b57d235972f4d6f. Its 22 artifact checks passed and all 26 original inputs remained unchanged. Primary and source-check agents inspected PDF-rendered HTML pages 36–37: eight history rows, eight consensus rows, notes outside tables, correct enterprise/equity labels and adjacent source guidance. Direct headless viewport screenshots were blank; PDF printing and native PDFKit page rendering supplied the visual inspection. This is an offline replay of old model text, not live peer/audit proof.
+
+Two separately retained real-source peer packages reproduced independently: MSFT 11.9151x equity/revenue, 17.9138% growth and 67.6569% gross margin; ORCL 5.2128x, 21.6188% growth and unavailable gross margin. AKAM was excluded because the existing approved SEC mapping supplied no compatible TTM revenue. Both valid peers use the retained DOCN November 4 completed session and dated shares/filings. These later acquisitions are retrospective arithmetic/source-eligibility proof, not original-run timing or verified business comparability. The 16-file hashed inventory is private/evidence/two-peer-source-check/proof-summary.json.
+
+A7 tooling preserves the A/B model IDs and ABBAAB order, uses original model prose for metrics and blind review, records source misses even if the product catches the error, and rejects a controlled-comparison receipt when replay is incomplete. Internal audit counts never rank setups. The proposed common reviewer is anthropic/claude-opus-5.5, temperature 0, maximum 4,096 output tokens, one fresh nonstream JSON call per output, provider-default reasoning (record actual usage), no retries. It overlaps setup B's deep tier; style may still reveal identity. Its six calls and six CLI runs remain separately unapproved. A usage-based ceiling will follow the Part A proof; no comparison call is required for Part A acceptance.
+
+The new task-specific harness is separate from the earlier fixed-Terra/depth-1-or-5 harness so its old ledger and authorization remain untouched. It reuses the real CLI, source functions, HTTP transports and publication/recovery paths; its fixture drills are explicitly not live evidence. Private proof runtime disables dotenv reloading, isolates yfinance/cache/results/memory/preferences, refreshes actual account usage and all three model endpoint rates before execution, and reserves conservatively before each request. The aggregate proof ceiling remains $10; this Part A attempt is additionally capped at $5, retaining at least $5 for a later separately authorized Part B attempt. Unknown costs retain their reservations.
+
+Independent pre-live review and primary inspection closed the material product and tooling findings in this worktree. The external audit record is evidence/part-a-independent-audit-prelive.md; final live observations still require review. The one authorized Part A paid CLI attempt remains unstarted at this boundary. No additional reports, Part B work or publication are authorized.
