@@ -109,7 +109,7 @@ def test_supported_target_is_replayed_not_trusted_from_saved_number():
     }
     public = {**state, **enforce_publication(state)}
     assert public["target_validation"]["target"] == "20"
-    assert "**Conditional valuation sensitivity**: 20.00 USD/shares" in public["final_trade_decision"]
+    assert "**Historical diagnostic**: 20.00 USD/shares" in public["final_trade_decision"]
     assert "999" not in public["final_trade_decision"]
     assert "**Source fact IDs**: eps" in public["final_trade_decision"]
     assert {**public, **enforce_publication(public)} == public

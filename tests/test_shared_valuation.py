@@ -238,7 +238,7 @@ def test_forward_shared_rows_render_own_capital_and_replay_comparison(monkeypatc
     text = render_shared_valuation(record)
     assert 'net obligations None' not in text and 'None actual common shares' not in text
     assert '110' in text and '270' in text
-    assert '2027-12-31' in text and '2026-10-19' in text and 'What the price implies' in text
+    assert '2027-12-31' in text and '2026-10-19' in text and 'Conditional scenario comparison' in text
     record['rows'][0]['comparison']['rows'][0]['implied_multiple'] = '999'
     replay = prepare_shared_valuation(inputs, record['requests'])
     assert replay['rows'][0]['comparison']['rows'][0]['implied_multiple'] != '999'
@@ -273,7 +273,7 @@ def test_undated_shared_arithmetic_keeps_comparison_explicitly_unavailable():
     assert record['status'] == 'available'
     assert record['rows'][0]['comparison']['status'] == 'unavailable'
     text = render_shared_valuation(record)
-    assert 'undated' in text.lower() and 'What the price implies' in text
+    assert 'undated' in text.lower() and 'Conditional scenario comparison' in text
 
 
 def test_explicit_empty_proposal_is_distinct_from_malformed_payload():

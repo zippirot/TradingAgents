@@ -161,6 +161,17 @@ def prepare_report_state(final_state: dict) -> dict:
             prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
         return prepared
     if not prepared.get("evidence_quality"):
+        # New export commentary is presentation-only: never rewrite an old
+        # decision or introduce a current assessment into publication/memory state.
+        original = prepared.get("final_trade_decision")
+        reason = "Legacy evidence was not validated; current source-only assessment unavailable."
+        if isinstance(original, str) and original.strip() and reason not in original:
+            from tradingagents.agents.valuation_comparison import render_price_implied_valuation
+
+            section = render_price_implied_valuation({"status": "unavailable", "reason": reason})
+            if "### What the price implies" in original:
+                section = section.replace("### What the price implies", "### Current price-implied assessment", 1)
+            prepared["final_trade_decision"] = original + "\n\n" + section
         if isinstance(prepared.get("trader_investment_plan"), str):
             prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
         return prepared
@@ -229,6 +240,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "thesis",
         "price_observation",
         "valuation_price_comparison",
+        "price_implied_valuation",
         "decision_context",
         "event_comparison",
         "issuer_identity",

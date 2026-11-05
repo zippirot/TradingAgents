@@ -452,7 +452,10 @@ def render_target_result(result: TargetResult | dict | None) -> str:
     dated = (all(row.multiple_assumption_date is not None for row in result.scenario_results)
              if result.method == "ev_revenue" else result.multiple_assumption_date is not None)
     linked = linked and dated
-    label = "Conditional decision-date valuation" if linked else "Conditional valuation sensitivity"
+    assessment = result.decision_use
+    historical = assessment.classification == "historical_diagnostic"
+    label = ("Historical diagnostic" if historical else
+             "Conditional decision-date valuation" if linked else "Conditional valuation sensitivity")
     parts = [
         f"**{label}**: {display_number(result.target)} {_target_text(result.unit)} (conditional calculation)",
         "",
@@ -462,6 +465,17 @@ def render_target_result(result: TargetResult | dict | None) -> str:
         "Display values are rounded; exact arithmetic remains in evidence.json → target_validation.",
     ]
     parts.append(f"**Decision date**: {result.decision_date or 'not specified'}; rerating assumption: {_target_text(result.rerating_assumption or 'not supplied')}. No automatic near-term target or discounting is inferred.")
+    if not assessment.final_target_eligible:
+        parts.append("**Price Target**: not provided — decision-use suitability: "
+                     + _target_text(assessment.suitability) + ". "
+                     + " ".join(_target_text(reason) for reason in assessment.reasons))
+    if historical:
+        parts.append("Historical arithmetic is retained for inspection; it is not a forward earnings forecast or endorsed fair value.")
+        for event in assessment.events:
+            parts.append("Capital-change evidence: " + _target_text(event.fact_id)
+                         + "; sources " + ", ".join(_target_text(item) for item in event.source_ids)
+                         + f"; interval {event.period_start} to {event.period_end}; filed "
+                         + ", ".join(str(item) for item in event.filed_dates) + ".")
     if result.weight_rationale:
         parts.append("**Subjective weight rationale**: " + _target_text(result.weight_rationale))
     if result.method == "pe":

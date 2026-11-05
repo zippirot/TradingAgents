@@ -134,7 +134,28 @@ class ScenarioResult(_Record):
     forecast_period_end: date
 
 
+class CapitalChangeEvidence(_Record):
+    fact_id: str
+    source_ids: tuple[str, ...]
+    metric: str
+    value: Decimal
+    unit: str
+    period_start: date | None
+    period_end: date
+    filed_dates: tuple[date, ...]
+
+
+class DecisionUse(_Record):
+    # Default means an old arithmetic record has not been assessed by this policy.
+    classification: Literal["historical_diagnostic", "forward_scenario", "unassessed"] = "unassessed"
+    suitability: Literal["excluded", "comparability_unestablished", "conditional", "unassessed"] = "unassessed"
+    final_target_eligible: bool = False
+    reasons: tuple[str, ...] = ()
+    events: tuple[CapitalChangeEvidence, ...] = ()
+
+
 class TargetResult(_Record):
+    decision_use: DecisionUse = Field(default_factory=DecisionUse)
     multiple_assumption_date: date | None = None
     weight_rationale: str | None = None
     decision_date: date | None = None
@@ -485,6 +506,56 @@ def _pe(request, package, outlooks):
     )
 
 
+def _decision_use(request, package, result):
+    """Source-only capital comparability policy, independent of arithmetic."""
+    if result.status != "supported":
+        return DecisionUse()
+    if isinstance(request, EVRevenueTarget) or request.forecast is not None:
+        return DecisionUse(classification="forward_scenario", suitability="conditional",
+                           final_target_eligible=True,
+                           reasons=("Explicit forward assumptions remain subject to existing validation; arithmetic is not fair-value endorsement.",))
+    eps = _fact(package, request.eps_fact_id)
+    sources = {source.source_id: source for source in package.sources}
+    events = []
+    overlapping = False
+    for fact in package.facts:
+        if (fact.metric not in {"Common Stock Issuance Proceeds", "Equity Common Stock Issuance Value",
+                                "Equity Conversion of Debt", "Employee Stock Purchase Plan Issuance Value"}
+                or fact.origin != "reported" or fact.value is None or fact.value <= 0
+                or fact.unit != eps.unit.split("/")[0] or fact.basis != "US-GAAP"
+                or fact.cik != eps.cik or not fact.source_ids
+                or fact.period_end > package.as_of):
+            continue
+        cited = [sources[identifier] for identifier in fact.source_ids]
+        if any(source.cik != eps.cik or source.filed_date > package.as_of for source in cited):
+            continue
+        # These metrics are flows: a missing start is not an event date.
+        # Accept only an explicit instant event definition in a future extension.
+        if fact.period_start is None:
+            continue
+        if fact.period_start <= eps.period_end:
+            overlapping |= fact.period_end > eps.period_end
+            continue
+        events.append(CapitalChangeEvidence(
+            fact_id=fact.fact_id, source_ids=fact.source_ids, metric=fact.metric,
+            value=fact.value, unit=fact.unit, period_start=fact.period_start,
+            period_end=fact.period_end, filed_dates=tuple(source.filed_date for source in cited)))
+    if events:
+        return DecisionUse(classification="historical_diagnostic", suitability="excluded",
+                           reasons=("historical_earnings_precedes_verified_capital_change",),
+                           events=tuple(events))
+    # No intervening interval exists at the earnings cutoff itself. For an older
+    # period, absent events do not establish complete coverage or share comparability.
+    if eps.period_end == package.as_of:
+        return DecisionUse(classification="historical_diagnostic", suitability="conditional",
+                           reasons=("Historical diagnostic at the earnings-period cutoff; not a forward target.",))
+    reasons = ("comparability_unestablished",)
+    if overlapping:
+        reasons += ("Capital-change reporting interval overlaps the earnings period; later event timing is unestablished.",)
+    return DecisionUse(classification="historical_diagnostic",
+                       suitability="comparability_unestablished", reasons=reasons)
+
+
 def validate_target(raw, package: EvidencePackage, outlooks=()) -> TargetResult:
     """Invalid targets become null with reasons; never retain model numeric output."""
     try:
@@ -498,12 +569,14 @@ def validate_target(raw, package: EvidencePackage, outlooks=()) -> TargetResult:
             request = EVRevenueTarget.model_validate(raw)
             if request.decision_date is not None and request.decision_date <= package.as_of:
                 raise ValueError("decision date must be after the analysis date")
-            return _ev(request, package, outlooks)
+            result = _ev(request, package, outlooks)
+            return result.model_copy(update={"decision_use": _decision_use(request, package, result)})
         if raw.get("method") == "pe":
             request = PETarget.model_validate(raw)
             if request.decision_date is not None and request.decision_date <= package.as_of:
                 raise ValueError("decision date must be after the analysis date")
-            return _pe(request, package, outlooks)
+            result = _pe(request, package, outlooks)
+            return result.model_copy(update={"decision_use": _decision_use(request, package, result)})
         raise ValueError("unsupported target method; numeric target omitted")
     except ValidationError as exc:
         error = exc.errors(include_input=False)[0]

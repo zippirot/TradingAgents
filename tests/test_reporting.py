@@ -35,7 +35,9 @@ def test_write_report_tree_creates_files(tmp_path):
     assert (tmp_path / "1_analysts" / "news.md").read_text() == "NEWS"
     assert (tmp_path / "2_research" / "manager.md").read_text() == "RM PLAN"
     assert (tmp_path / "3_trading" / "trader.md").read_text() == "TRADE"
-    assert (tmp_path / "5_portfolio" / "decision.md").read_text() == "PM DECISION"
+    decision = (tmp_path / "5_portfolio" / "decision.md").read_text()
+    assert decision.startswith("PM DECISION")
+    assert "What the price implies" in decision and "Legacy evidence was not validated" in decision
     complete = out.read_text()
     assert "Trading Analysis Report: AAPL" in complete
     assert "MKT" in complete and "PM DECISION" in complete

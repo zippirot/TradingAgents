@@ -122,7 +122,7 @@ def test_cli_complete_display_contains_labeled_research(capsys):
     assert "Fundamental price target: unavailable" in text
 
 
-def test_supported_target_remains_authoritative_next_to_conflicting_research():
+def test_historical_arithmetic_remains_labeled_next_to_conflicting_research():
     from tests.test_valuation import evidence
     state = narrative_state()
     state["financial_evidence"] = evidence().model_dump(mode="json")
@@ -133,7 +133,7 @@ def test_supported_target_remains_authoritative_next_to_conflicting_research():
     }
     shown = prepare_report_state(state)
     assert shown["target_validation"]["target"] == "20"
-    assert "**Conditional valuation sensitivity**: 20.00 USD/shares" in shown["final_trade_decision"]
+    assert "**Historical diagnostic**: 20.00 USD/shares" in shown["final_trade_decision"]
     assert state["final_trade_decision"] in shown["final_trade_decision"]
     assert shown["final_trade_decision"].index("20.00 USD/shares") < shown["final_trade_decision"].index("Unvalidated model research")
 
