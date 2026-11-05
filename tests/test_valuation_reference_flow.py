@@ -237,6 +237,67 @@ def test_vendor_replay_rejects_mutation_and_guidance_difference_requires_all_dim
     assert "999" not in flow.render_guidance_consensus(state)
 
 
+def test_late_vendor_snapshot_remains_typed_unavailable_through_publication(monkeypatch):
+    from tradingagents.agents import valuation_reference_flow as flow
+    from tradingagents.agents.output_validation import enforce_publication
+    from tradingagents.dataflows.vendors.yahoo.expectations import (
+        Estimate,
+        VendorExpectations,
+        _hash,
+    )
+
+    state, config, _, _ = flow_fixture(monkeypatch)
+    state.update(flow.acquire_reference_inputs(state, config))
+    state.update(evidence_quality={"status": "limited"}, final_rating="Hold")
+    state["analysis_clock"] = {"timezone": "America/Denver",
+                               "cutoff_utc": "2026-10-19T21:00:00+00:00"}
+    snapshot = VendorExpectations(status="available", ticker="DOCN",
+        requested_as_of="2026-10-19", retrieved_at=datetime(2026, 10, 19, 22, tzinfo=UTC),
+        estimates=[Estimate(metric="revenue", period_code="0q", average="95000000")])
+    snapshot.snapshot_hash = _hash(snapshot)
+    state["vendor_expectations"] = snapshot.model_dump(mode="json")
+
+    first = flow.validate_vendor_expectations(state)
+    assert first["status"] == "unavailable"
+    assert first["reason"] == "Vendor expectations retrieved after analysis cutoff"
+    assert first["ticker"] == "DOCN" and first["requested_as_of"] == "2026-10-19"
+    assert first["retrieved_at"] == "2026-10-19T22:00:00Z"
+    assert first["estimates"] == [] and first["snapshot_hash"] is None
+    state["vendor_expectations"] = first
+    assert flow.validate_vendor_expectations(state) == first
+    publication = enforce_publication(state)
+    assert publication["vendor_expectations"] == first
+    assert "Consensus unavailable: Vendor expectations retrieved after analysis cutoff" in publication["final_trade_decision"]
+    assert "validation errors" not in publication["final_trade_decision"]
+    state.update(publication)
+    assert enforce_publication(state)["vendor_expectations"] == first
+
+
+def test_late_vendor_unavailability_is_stable_during_event_replay(monkeypatch):
+    from tests.test_event_comparison import CONFIG, install, state as event_state
+    from tradingagents.agents import event_comparison, valuation_reference_flow as flow
+    from tradingagents.dataflows.vendors.yahoo.expectations import (
+        Estimate,
+        VendorExpectations,
+        _hash,
+    )
+
+    install(monkeypatch)
+    state = event_state()
+    state["analysis_clock"] = {"timezone": "America/Denver",
+                               "cutoff_utc": "2026-11-04T21:00:00+00:00"}
+    snapshot = VendorExpectations(status="available", ticker="DOCN",
+        requested_as_of="2026-11-04", retrieved_at=datetime(2026, 11, 4, 22, tzinfo=UTC),
+        estimates=[Estimate(metric="revenue", period_code="0q", average="95000000")])
+    snapshot.snapshot_hash = _hash(snapshot)
+    state["vendor_expectations"] = flow.validate_vendor_expectations(
+        {**state, "vendor_expectations": snapshot.model_dump(mode="json")})
+    record = event_comparison.prepare_event_comparison(state, CONFIG)
+    assert record["status"] == "available"
+    assert record["consensus"] == state["vendor_expectations"]
+    assert event_comparison.replay_event_comparison(state, record) == record
+
+
 def test_evidence_step_finalizes_peers_before_event_and_debate(monkeypatch):
     from tradingagents.agents import event_comparison, valuation_reference_flow as flow
     from tradingagents.graph import setup

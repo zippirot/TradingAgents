@@ -1,6 +1,6 @@
 # Part A valuation reference acceptance
 
-Status: offline implementation and tooling qualified; live proof and final acceptance remain pending.
+Status: implementation and offline corrections verified; Part A remains incomplete because live consensus, accepted-peer and event observations are missing. Additional proof requires approval.
 
 ## Authorized scope and baseline
 
@@ -21,7 +21,7 @@ External task evidence root: /Users/zipp/Developer/tradingagents-valuation-refer
 
 ## Work remaining
 
-The authorized live Part A CLI proof, its independent artifact review, the usage-based A7 budget proposal and synchronized final records remain. A1–A6, A7 offline tooling, affected recovery and the retained-input replay have passing evidence below. Part A publication CI awaits separate publication authority.
+The approved Part A attempt is complete but acceptance is unmet. Implementation, independent review, affected recovery, artifact corrections and the A7 tooling/budget proposal are complete. A further live proof needs explicit approval; see the current decision below. Exact-head publication CI and all release actions still await separate authority.
 
 ## Spending and release boundaries
 
@@ -73,3 +73,39 @@ A7 tooling preserves the A/B model IDs and ABBAAB order, uses original model pro
 The new task-specific harness is separate from the earlier fixed-Terra/depth-1-or-5 harness so its old ledger and authorization remain untouched. It reuses the real CLI, source functions, HTTP transports and publication/recovery paths; its fixture drills are explicitly not live evidence. Private proof runtime disables dotenv reloading, isolates yfinance/cache/results/memory/preferences, refreshes actual account usage and all three model endpoint rates before execution, and reserves conservatively before each request. The aggregate proof ceiling remains $10; this Part A attempt is additionally capped at $5, retaining at least $5 for a later separately authorized Part B attempt. Unknown costs retain their reservations.
 
 Independent pre-live review and primary inspection closed the material product and tooling findings in this worktree. The external audit record is evidence/part-a-independent-audit-prelive.md; final live observations still require review. The one authorized Part A paid CLI attempt remains unstarted at this boundary. No additional reports, Part B work or publication are authorized.
+
+## Live attempt and corrected candidate — acceptance incomplete
+
+The one authorized Part A CLI attempt ran from frozen clean commit 6764186f633294fdd08bfa47e6b522fde73283c5 on 2026-11-05, 23:24:15.495203–23:29:30.411505 UTC, after the NYSE regular close at 21:00 UTC. Machine 1 PID 60746; private runtime ../private/part-a-live-proof; job evidence/part-a-live-proof.job.json. It ran all four analysts and one research/risk round, with Terra Pro in both tiers. All 17 requests settled to $1.14128440; zero unknown costs or automatic retries. The resolved provider was OpenAI; no response reported length truncation. Fresh account usage before/after agrees with the request-cost sum. Remaining aggregate allowance is $8.85871560, but Part A's attempt authority is consumed. Remaining money does not authorize another attempt. Part B still needs its own go-ahead.
+
+The canonical quote is the completed November 5 close, $70.69999694824219, retrieved at 23:24:22.287964 UTC with provider regular-session end 16:00 America/New_York. Current equity/revenue is 7.5607278344x; eight historical rows, low 3.12x, median 4.47x and high 16.31x. This after-close proof contains no live partial bar; partial-bar exclusions retain their offline evidence. Optional FRED macro data was unavailable because no credential was authorized.
+
+The model proposed AKAM and NET with reasons; both were fetched after the analysts. AKAM lacked compatible verified TTM revenue; NET lacked eligible outstanding shares. These are honest exclusions, but no accepted live peer table was observed. Separate MSFT/ORCL source checks do not substitute for live model-selected success.
+
+The advisory audit executed with 20 accepted, quote-attributed findings, all labeled unsupported by the supplied material; zero rejected. Independent review matched every quoted claim to original role prose. This verifies execution, attribution and status, not substantive accuracy or contradiction/numerical-error detection. All roles correctly say same model. Input truncation is disclosed; evidence absent from its bounded context can exist elsewhere. The original Portfolio Manager prose names findings that mattered and remains in diagnostics under ordinary publication rules.
+
+The proof exposed two product defects, now corrected:
+- Rejected consensus became a minimal dictionary; later validation printed raw schema errors and downgraded the saved event comparison. Unavailable consensus is now typed, scoped and idempotent, preserving the reason and same-scope timing while removing unusable rows. Historical and after-cutoff rejection remain strict.
+- Debate lengths were 67/67 because publication replaced histories with placeholder text. Metrics now use retained original histories. Offline recomputation gives 11,088 research and 7,735 risk characters, preserving 17 calls and one round each.
+
+Consensus was suppressed by the private harness fixing the analysis cutoff to run start, before acquisition. The retained valuation brief explicitly states "Vendor expectations retrieved after analysis cutoff". The normal application analysis-day clock was not used. An offline drill with retained real Yahoo data confirms that strict early cutoff rejects the snapshot and the normal day clock accepts all eight estimates, leaving the completed-market cutoff unchanged. Any further authorized proof must use the normal analysis clock. The original typed snapshot and event record cannot be recovered from the final state; no values were reconstructed as live evidence.
+
+The corrections passed 275 affected checks across vendor/event handling, metrics, publication/reporting, recovery and A7 real-CLI fixture drills. Full Ruff and diff checks passed. Python/dependencies/configuration are unchanged, including all 90 noneditable pins; pip check and unaffected broad results are reused. Current inventory: 2,510 tests, with combined passing evidence for 2,508, one optional SDK skip and one configured integration deselection. Three new regressions explain the increase from the pre-live inventory. This is not a full passing run on one revision. Exact source hashes and checks are in evidence/live-corrections-checks.json.
+
+Original report: ../private/part-a-live-proof/results/reports/DOCN_20261105_162929. Offline corrected derivative: ../private/evidence/live-proof-corrected-render, explicitly labeled as a correction of recorded data, not a new analysis. Markdown SHA 0407921666e1753a8c6f1a9b65818a24c2c16dc5e799aedc562e1c944f52630e; HTML SHA 058f630ace3194769e2d1966e663762609613c2884c35383265ddb5af6f0c520. A plain generic retained-snapshot-unavailable reason replaces schema errors; zero accepted peers and unavailable event comparison remain. Original report, receipt and publication hashes are unchanged. Primary and independent visual inspection covered valuation and audit pages.
+
+Independent code findings are closed; live acceptance remains open. Audits: evidence/part-a-independent-audit-prelive.md and evidence/part-a-independent-audit-live.md. No push, PR, merge, installation, production, scheduler or broker action occurred.
+
+## Prepared comparison proposal, not spending authority
+
+A7 remains unexecuted and separate from the proof allowance. Proposed ceiling: $65 for exactly six ABBAAB two-round runs plus six blind Opus 5.5 reviews, without retries or replacements. Reviewer: anthropic/claude-opus-5.5, temperature 0, output cap 4,096, provider-default reasoning recorded, fresh nonstream JSON context. Setup models remain as approved. Common run limits: all four analysts, four tool rounds, 16,384 output tokens, context cap 1,000,000 (within the smallest advertised model context). Reviewer overlap with B and residual style identification are disclosed.
+
+The shallow proof used 1,373,847 prompt tokens and 48,299 completion tokens (including 7,559 reasoning tokens); 561,948 prompt tokens were reported cached. Planning adds five debate turns, each at this run's largest observed input/output, yielding 2,409,647 input and 129,269 output tokens per two-round run. Ignoring cache discounts and pricing all B calls at standard Opus rates yields $3.055992 per A run and $12.223968 per B run. Six reviews at 250,000 input plus 4,096 output tokens each add $6.491520. Total $52.331400 plus 20% margin is $62.797680, rounded to a proposed $65 ceiling. Details: ../private/evidence/comparison-budget-proposal.json.
+
+This is a planning estimate, not measured B behavior or a guarantee. Faster/long-context/cache-write routes can exceed these planning rates; fresh Sol metadata includes a $24/$90 per-million input/output override and cache writes up to $30. The wire guard uses refreshed conservative route caps, not planning rates. More expensive routing or larger inputs may stop the pilot incomplete at $65. No top-up, automatic retry or comparison call is authorized. Freeze and revalidate actual common-source maps plus the exact source/prompt/starting-state manifest before approved execution.
+
+## Decision needed for remaining live proof
+
+Currently authorized implementation and offline correction work is complete. A further paid Part A attempt requires approval because the goal allowed one, and failures/missing acceptance consume it.
+
+Recommended proof adjustment: one additional after-close DOCN attempt, capped at $3.85 within the existing $10 aggregate allowance, with temporary explicitly user-pinned MSFT/ORCL peers for this proof only. Their real source packages passed independent arithmetic checks; business comparability is not established. This combines the first run's live model proposal/rejection evidence with a live accepted-user-pin path, without claiming successful model-selected peer acceptance. It also exercises available consensus and event replay with corrected clock/record handling. Pins remain isolated from preferences and launcher settings. This proposal is unapproved; no extra attempt has started.

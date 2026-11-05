@@ -171,8 +171,14 @@ class TradingAgentsGraph:
         Provider-level retries are not visible in this callback count.
         """
         previous = dict(state.get("run_metrics") or {})
-        research = state.get("investment_debate_state") or {}
-        risk = state.get("risk_debate_state") or {}
+        # Publication replaces debate prose with diagnostic placeholders. The
+        # original histories remain authoritative for measuring actual debate.
+        originals = state.get("unvalidated_outputs") or {}
+        originals = originals if isinstance(originals, dict) else {}
+        research = originals.get("investment_debate_state")
+        risk = originals.get("risk_debate_state")
+        research = research if isinstance(research, dict) else state.get("investment_debate_state") or {}
+        risk = risk if isinstance(risk, dict) else state.get("risk_debate_state") or {}
         research_turns = max(0, research.get("count", 0)) if type(research.get("count")) is int else 0
         risk_turns = max(0, risk.get("count", 0)) if type(risk.get("count")) is int else 0
         result = {

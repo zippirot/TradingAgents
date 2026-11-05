@@ -540,8 +540,11 @@ def validate_vendor_expectations(state):
     from datetime import UTC
     from zoneinfo import ZoneInfo
 
+    from pydantic import ValidationError
+
     from tradingagents.dataflows.vendors.yahoo.expectations import VendorExpectations, _hash
 
+    record = None
     try:
         raw = state.get("vendor_expectations")
         if not isinstance(raw, dict):
@@ -563,7 +566,23 @@ def validate_vendor_expectations(state):
             raise ValueError("Vendor expectations retrieved after analysis cutoff")
         return record.model_dump(mode="json")
     except (ValueError, TypeError, KeyError) as exc:
-        return {**_unavailable(exc), "label": "vendor consensus, unverified"}
+        reason = ("Retained vendor expectations are invalid" if isinstance(exc, ValidationError)
+                  else str(exc))
+        try:
+            ticker = normalize_symbol(state["company_of_interest"])
+            requested_as_of = state["trade_date"]
+            same_scope = (record is not None and record.ticker == ticker
+                          and str(record.requested_as_of) == requested_as_of)
+            unavailable = VendorExpectations(
+                status="unavailable", reason=reason[:400], ticker=ticker,
+                requested_as_of=requested_as_of,
+                retrieved_at=record.retrieved_at if same_scope else None,
+                vendor_as_of=record.vendor_as_of if same_scope else None,
+            )
+            return unavailable.model_dump(mode="json")
+        except (ValueError, TypeError, KeyError):
+            return {**_unavailable("Vendor expectations cannot be tied to the analysis scope"),
+                    "label": "vendor consensus, unverified"}
 
 
 def render_guidance_consensus(state):

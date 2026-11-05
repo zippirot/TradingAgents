@@ -79,3 +79,21 @@ def test_reused_graph_counts_each_run_from_its_own_baseline():
     second = graph._initial_run_metrics()
     counter.calls = 13
     assert graph._observe_run_metrics({"run_metrics": second})["model_calls"] == 3
+
+
+def test_published_state_measures_retained_original_debate_prose():
+    graph = owner(Counter(17))
+    initial = graph._initial_run_metrics()
+    research = {"count": 2, "history": "Bull: check the source.\nBear: test the assumptions."}
+    risk = {"count": 3, "history": "Aggressive: upside.\nConservative: downside.\nNeutral: conditions."}
+    state = {
+        "run_metrics": initial,
+        "investment_debate_state": {"count": 2, "history": "Unvalidated debate narrative retained in evidence.json diagnostics."},
+        "risk_debate_state": {"count": 3, "history": "Unvalidated debate narrative retained in evidence.json diagnostics."},
+        "unvalidated_outputs": {"investment_debate_state": research, "risk_debate_state": risk},
+    }
+    metrics = graph._observe_run_metrics(state)
+    assert metrics["research_debate_characters"] == len(research["history"])
+    assert metrics["risk_debate_characters"] == len(risk["history"])
+    assert metrics["research_rounds_completed"] == metrics["risk_rounds_completed"] == 1
+    assert state["investment_debate_state"]["history"].startswith("Unvalidated debate")
