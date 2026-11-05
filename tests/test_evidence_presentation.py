@@ -69,7 +69,7 @@ def test_published_decision_retains_values_without_hash_index():
 
 def test_report_has_one_reference_appendix_and_memory_keeps_readable_decision(tmp_path):
     from tradingagents.memory import TradingMemoryLog
-    from tradingagents.reporting import _report_parts, prepare_report_state
+    from tradingagents.reporting import evidence_appendix, prepare_report_state, write_report_tree
 
     package = _package()
     state = {
@@ -87,8 +87,10 @@ def test_report_has_one_reference_appendix_and_memory_keeps_readable_decision(tm
     assert "Research hypothesis." in rendered["fundamentals_report"]
     assert "untrusted-row" not in rendered["fundamentals_report"]
     assert "untrusted-row" in published["financial_claim_validation"]["raw_report"]
-    sections = _report_parts(rendered)
-    assert len([heading for heading, _, _ in sections if "Reference Appendix" in heading]) == 1
+    saved = write_report_tree(published, "DOCN", tmp_path / "reports")
+    report_text = saved.read_text()
+    assert report_text.count("### Evidence reference appendix") == 1
+    assert report_text.count("## VI.") == 1
     assert prepare_report_state(published) == rendered
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
     log.store_decision("DOCN", "2026-11-04", published["final_trade_decision"])
@@ -97,7 +99,7 @@ def test_report_has_one_reference_appendix_and_memory_keeps_readable_decision(tm
     assert "Evidence reference appendix" not in decision
     for fact in package.facts:
         assert fact.fact_id not in decision
-    assert all(source.source_id in rendered["evidence_reference_appendix"] for source in package.sources)
+    assert all(source.source_id in evidence_appendix(rendered) for source in package.sources)
 
 
 def test_legacy_memory_hashes_are_compact_only_in_prompt_view(tmp_path):

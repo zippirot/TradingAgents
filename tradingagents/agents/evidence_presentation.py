@@ -24,6 +24,13 @@ def evidence_references(text: str) -> str:
     return "\n\n".join(match.group(1) for match in _REFERENCE_BLOCK.finditer(text))
 
 
+def fact_reference_labels(text: str) -> dict[str, str]:
+    return {
+        ident: label
+        for label, ident in re.findall(r"^- (F\d+): fact_id (.+)$", evidence_references(text), re.M)
+    }
+
+
 def compact_prior_decision(text: str) -> str:
     """Shorten legacy provenance only in the unvalidated memory prompt view."""
     labels = {}

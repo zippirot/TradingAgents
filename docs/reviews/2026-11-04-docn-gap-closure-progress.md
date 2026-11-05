@@ -87,7 +87,7 @@ references is 18,536 characters; its readable brief alone is 6,164 characters.
 This measures accounting presentation, not total model-token cost or investment
 quality. Source: `/Users/zipp/.tradingagents/logs/reports/DOCN_20261104_171931/evidence.json`.
 
-Verification on the final source candidate: full offline suite **1,869 passed,
+Verification on the application candidate committed as `bb48cf1`: full offline suite **1,869 passed,
 1 optional dependency skipped, 1 configured external-service deselected, 100
 subtests passed** in 13.92s. Full Ruff, dependency consistency and whitespace
 checks passed. Logs: `results/docn-abc/a1-offline/pytest-final-candidate.log`,
@@ -96,6 +96,21 @@ behavior; the final full suite includes them. Live proof and visual inspection
 of the actual saved live report remain pending, so the first slice is not yet
 accepted. A second full suite was justified by the added memory/report projections
 and final fact-selection change after the earlier 1,867-test run.
+
+The subsequent report-only polish puts the exact references inside the existing
+Evidence and Quality appendix, preventing duplicate section VI numbering, and
+uses its fact labels in the calculation table. The affected report/presentation
+selection passed 36 tests in 1.04s; full Ruff and whitespace checks passed.
+This reuses the unaffected `bb48cf1` suite evidence, not a claim that the entire
+suite ran again on the later report revision.
+
+The tracked proof runner is `docs/reviews/docn-abc-proof-tools/live_cli.py`.
+Nine offline runner tests passed, including the installed SDK's HTTP transport,
+price checks, cross-attempt reservations and failure handling. A free SEC
+submissions preflight returned HTTP 200 and valid JSON. No paid request has run
+yet. Runtime artifacts are excluded locally at `/results/docn-abc/`; helper
+source and evidence records are committed. The original launcher preferences
+are hashed before/after each proof; credentials are never written to artifacts.
 
 ## Paid verification decision
 

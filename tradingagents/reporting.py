@@ -10,7 +10,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from tradingagents.agents.evidence_presentation import analyst_prose, evidence_references
+from tradingagents.agents.evidence_presentation import (
+    analyst_prose,
+    evidence_references,
+    fact_reference_labels,
+)
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.files import replace_file
@@ -100,11 +104,6 @@ _SECTIONS = (
         "5_portfolio",
         (("Portfolio Manager", "decision.md", ("final_trade_decision",)),),
     ),
-    (
-        "VI. Evidence Reference Appendix",
-        "6_evidence",
-        (("Evidence References", "references.md", ("evidence_reference_appendix",)),),
-    ),
 )
 
 
@@ -132,9 +131,6 @@ def prepare_report_state(final_state: dict) -> dict:
     decision consumers; this copy is for presentation only.
     """
     prepared = {**final_state, **enforce_publication(final_state)}
-    references = evidence_references(prepared.get("canonical_financial_context") or "")
-    if references:
-        prepared["evidence_reference_appendix"] = references
     if (prepared.get("evidence_quality") or {}).get("status") == "insufficient":
         diagnostics = dict(prepared.get("unvalidated_outputs") or {})
         for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report"):
@@ -241,6 +237,8 @@ def _markdown_cell(value) -> str:
 def evidence_appendix(final_state: dict) -> str:
     """Deterministic coverage and arithmetic; model prose remains unvalidated."""
     quality = evidence_quality_snapshot(final_state)
+    canonical = final_state.get("canonical_financial_context") or ""
+    labels = fact_reference_labels(canonical)
     lines = [
         f"Evidence status: **{_markdown_cell(quality.get('status', 'unvalidated'))}**. "
         "Checks apply to cited source values and calculations; narrative interpretations are not all verified.",
@@ -278,7 +276,7 @@ def evidence_appendix(final_state: dict) -> str:
                         calculation.get("method"),
                         calculation.get("status"),
                         result,
-                        ", ".join(calculation.get("input_fact_ids") or ()),
+                        ", ".join(labels.get(ident, ident) for ident in calculation.get("input_fact_ids") or ()),
                         calculation.get("message"),
                     )
                 )
@@ -288,6 +286,9 @@ def evidence_appendix(final_state: dict) -> str:
     if warnings:
         lines += ["#### Warnings and gaps", ""]
         lines += [f"- {_markdown_cell(w)}" for w in warnings]
+    references = evidence_references(canonical)
+    if references:
+        lines += ["", references]
     return "\n".join(lines).strip()
 
 
