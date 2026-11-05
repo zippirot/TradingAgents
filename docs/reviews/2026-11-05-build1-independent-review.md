@@ -41,3 +41,69 @@ Inspected the historical-output provenance branch and associated fixtures: `mark
 Reviewer directly ran `tests/test_date_boundaries.py tests/test_undated_tools_as_of.py`: **26 passed in 0.63s**. Final `git diff --check` is clean. Application diff SHA-256 remains `6de32af0bbc5ef18eaecc624d698b79c4eb1b9b2a523d7ba73a4006487964bca`. Primary's full-suite/Ruff/dependency logs were inspected separately; these runs are primary-executed evidence, not reviewer-executed checks. Primary reports visual desktop/narrow HTML inspection separately; this reviewer has not performed browser visual inspection.
 
 Independent Build 1 source and replay review is closed with no unresolved material findings on the identified application diff. Freeze the candidate and record its commit against the primary verification evidence; live market-open proof, exact published-candidate GitHub CI and user release authority remain independent gates.
+
+
+## Post-live Mapping delta
+
+# Build 1 Mapping correction — independent focused review
+
+Date: 2026-11-05. Reviewer: delegated independent read-only source reviewer.
+Machine verified before evidence write: Apple M1 Pro, 16 GB, MacBookPro18,3, accessed only through the prescribed SSH connection.
+Worktree: /Users/zipp/Developer/tradingagents-market-evidence-20261105/build1.
+Branch: codex/market-evidence-build1-correction. Base/frozen paid-run source: 8850b74fb5cb6bf4d65572b50cd56ed18cee0378.
+No source edits, commits, vendor/LLM calls, release actions or permission decisions by reviewer. This receipt is the only intentional reviewer evidence write.
+
+## Result
+
+No material findings in the narrow correction. Accepting collections.abc.Mapping preserves dict compatibility and admits installed yfinance HistoryMetadata. Reading exchangeTimezoneName, currency and currentTradingPeriod uses existing available metadata; it does not request lazy tradingPeriods. The regression uses the actual installed wrapper and fails if its lazy provider callback is invoked. Both pre-close rejection and post-close admission are covered.
+
+Source inspection covered ohlcv loader, cache provenance/TTL, session_is_complete, snapshot consumption, stock/indicator load_ohlcv callers, existing graph-injected cutoff test, installed HistoryMetadata implementation and approved plan/review receipt. No repository AGENTS.md was found in this checkout.
+
+Reviewed application file SHA-256: 3086c2b29d406f6813d3ae8ff5472c8e9cbab41766b465e61ed1def866e65ff5.
+Reviewed test file SHA-256: af88f0aecd98f237e8ffbbdae0976af7b48b1e77e5eb02e7263fbc9e22a5ae37.
+Only application delta is Mapping import/type check; only test delta is two real-wrapper cases.
+
+## Reviewer-executed verification
+
+Command: .venv/bin/python -m pytest -q tests/test_completed_market_inputs.py tests/test_vendor_snapshot_provenance.py tests/test_price_observation.py
+Result: 40 passed in 1.06s. git diff --check: clean.
+The tests are offline fixtures, not live provider proofs. Reviewer independently compared all entries in paid-proof/build1-open/source_sha256.json to git show at the recorded 8850 SHA: no mismatches.
+
+## Original paid proof inspected
+
+Retained source fetches occurred at 18:47:59–18:49:59 UTC on November 5, before the retained Yahoo regular session end 21:00 UTC / 16:00 New York. history-01 contains November 4 close 84.0199966430664 and unfinished November 5 close 72.5. Later captures contain unfinished 72.5250015258789. Actual message_tool.log shows:
+- Stock output completed session November 4.
+- Snapshot latest row November 4, close 84.02.
+- Indicator output November 5 N/A: no completed bar at cutoff.
+- Currency unknown in stock/snapshot, which is the observable defect corrected here.
+
+Actual complete_report.md identifies November 4 completed session, provisional November 5 quote 72.50 with 18:47:46 UTC quote time, vendor cap/P/E basis limitations, and advisory Reference Sale Level 84.02. Purchase Entry Price is explicitly not provided. Original report incorrectly lacks the available currency because the original loader discarded the Mapping; that historical artifact must remain unchanged.
+
+Original metadata-01/02/03.json contain JSON-encoded string representations, not structured metadata objects. Their visible source timestamps and regular session bounds corroborate the observation, but do not describe them as replayable structured raw JSON. Corrected free proof should retain selected plain metadata fields with explicit encoding. Original news capture records quote-news success (two returns), no search-news call; this is not live search-fallback proof.
+
+## Evidence reuse judgment and limits
+
+Original partial-row rejection evidence remains valid for unchanged pre-close behavior: the original loader recovered exchange timezone from the frame index, and missing regular_end caused conservative exclusion of today's row. The correction supplies end/currency metadata; before that same end it yields the same completed rows. Cache TTL and retrieval/cutoff guards are unchanged. The original paid run remains useful evidence for actual graph/tools/model/report execution, news success and advisory Sell rendering.
+
+A corrected full offline suite, focused actual-wrapper boundary tests, and a separate real free Yahoo source/caller proof can credibly support this narrow correction together with the original paid proof. The free proof should exercise stock/snapshot/indicator paths using the corrected loader, show USD/end propagation, preserve fetch times/raw partial versus completed rows, and demonstrate the prior session remains selected during market hours. Post-close admission is proved by fixed-clock real-wrapper tests unless separately observed live.
+
+This is combined evidence across revisions, NOT an end-to-end paid CLI run or one complete suite on the corrected commit. Changed model prose from newly available currency has not been observed in a corrected paid run. Primary owns corrected full-suite/Ruff/dependency results, free proof, final commit/source identity and exact published-candidate CI. Those pending outcomes are not asserted by this receipt. No need for a further paid run is inferred solely from the Mapping delta, but this reviewer does not waive an explicit exact-candidate release requirement or authorize release.
+
+Files released to primary; no source ownership retained.
+
+
+## Final supplemental-proof and rendered-artifact closure
+
+Corrected committed source: 2c3b7d00e4088380e7f2637371e86e3dd658d966. Diff from original frozen candidate is exactly the Mapping correction plus its two tests. Primary-executed full-suite log inspected: 2329 passed, 1 skipped (optional langchain_aws absent), 1 deselected, 100 subtests passed in 16.10s. These results are primary-executed evidence, not reviewer-executed full-suite claims.
+
+Independently inspected build1_corrected_source_proof.py, assess_build1_corrected_source.py, receipt and retained artifacts. Independently verified every receipt artifact SHA-256 and recomputed all 11 default indicator values from captured raw rows strictly before November 5; all match. Corrected actual callers propagate USD, retain the 16:00 New York / 21:00 UTC end, exclude observed unfinished 72.38999938964844, and agree with canonical November 4 close 84.0199966430664. Fetches at 19:03:51–52 UTC precede session end. Initial failed assertion compared equivalent ISO timestamp spellings; instant-equality correction is a valid expectation fix using the same captures. No need to refetch, alter application code or claim the failed initial assertion passed.
+
+Rendered original paid CLI HTML using M1 Chrome headless. Initial direct #s3 screenshot was blank; it is retained as a failed capture, not visual evidence. Successful bounded exact-body excerpts preserve original CSS and original content, with a virtual-time budget. Visually inspected actual-sale-focus.png, actual-market-focus.png and actual-vendor-focus.png at 1100x1250. Sale field is legible, purchase entry explicitly absent, sale advisory qualification visible; market shows completed November 4 and historical missing-currency statement; vendor paragraph visibly separates provisional72.50 and incomplete cap/P/E bases. No new visual/material findings. These are actual paid-report excerpts, not synthetic reports or corrected-model output; market screenshot intentionally preserves the original defect.
+
+Remote screenshot directory: /Users/zipp/Developer/tradingagents-market-evidence-20261105/evidence/build1-paid-visual-review.
+Local coordination/display copies: /tmp/actual-sale-focus.png, /tmp/actual-market-focus.png, /tmp/actual-vendor-focus.png.
+Original paid HTML SHA-256: 35bd2141c7ee981193039ee1d78f27a8be04e32b37458f84fa6a097b25784156.
+
+Inspected existing replay receipt (26 immutable input members verified before/after; original publication preserved; explicit rounded/unverified-adjustment limitations) and replay/recovery log (59 passed). Reuse is justified: correction changes only acceptance of live metadata Mapping at source acquisition; publication loading, rendering, persistence, replay and recovery interfaces/implementations and dependency configuration are unchanged. The new full suite also supplies current broad regression evidence. This does not convert historical reconstructed prices into fresh live source evidence.
+
+Focused independent correction and supplemental-artifact review is closed with no unresolved material findings. Combined evidence supports the correction under the stated limitations. Exact-candidate published CI, any explicit release gates and user release authority remain separate; corrected paid CLI model prose remains unobserved.

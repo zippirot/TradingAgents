@@ -9,9 +9,9 @@ Approved revision 2 began 2026-11-05. This record separates local development ac
 - SSH: `zipp@100.89.132.10`, key `/Users/zipp/.ssh/tradingagents_machine1`, IdentitiesOnly/BatchMode/StrictHostKeyChecking enabled.
 - Canonical repository: `/Users/zipp/Developer/tradingagents-integrity/repository`. Its existing staging checkout was preserved at `f1e846d`.
 - Fetched GitHub origin/staging: `6340c9df6cd557195ea13ae994d19bd874b00746`, exactly the reviewed baseline; no intervening drift.
-- Build 1: `/Users/zipp/Developer/tradingagents-market-evidence-20261105/build1`, branch `codex/market-evidence-build1`.
+- Build 1: `/Users/zipp/Developer/tradingagents-market-evidence-20261105/build1`, original frozen branch `codex/market-evidence-build1` at `8850b74fb5cb6bf4d65572b50cd56ed18cee0378`; corrected release branch `codex/market-evidence-build1-correction`, application head `2c3b7d00e4088380e7f2637371e86e3dd658d966`.
 - Task evidence/private root: `/Users/zipp/Developer/tradingagents-market-evidence-20261105`. No installed runtime or other project was modified.
-- New authority: $10 aggregate, at most three paid CLI attempts total; failures count, no retry reserve. No paid attempt yet.
+- New authority: $10 aggregate, at most three paid CLI attempts total; failures count, no retry reserve. Attempt 1 completed: 17 model requests, $0.83083285 actual cost; $9.16916715 and two planned attempts remain.
 - No push, PR, merge, installation, promotion, worktree removal, scheduler or broker authority. Exact-head GitHub CI is pending authorized publication.
 - Goal notifier key: `thread:01a1acf2-856a-7883-aa92-274cb5e7a172:goal:1793902973`, enabled and verified; dry-run bodies `blocked` / `decision needed`. No test notification sent. Disable only on completion/abandonment.
 
@@ -44,11 +44,37 @@ Replay: 277 retained rounded tool rows become 276 completed rows ending November
 
 Independent review receipt: `evidence/build1-independent-review.md` (also committed beside this record). All material application/artifact findings closed, including final historical-presentation delta. Reviewer executed 26 final affected tests and inspected full-suite/lint/dependency evidence; no claim that source inspection alone proves live behavior.
 
+## Build 1 live proof and narrow correction
+
+The all-analyst shallow CLI on frozen `8850b74fb5cb6bf4d65572b50cd56ed18cee0378` completed successfully (exit 0), with actual price fetches November 5 at 18:47:59–18:49:59 UTC / 13:47:59–13:49:59 New York, before the 21:00 UTC / 16:00 session end. Official schedule: https://www.nyse.com/trade/hours-calendars, corroborated by provider session metadata. Run: `evidence/paid-proof/build1-open`; report: `results/reports/DOCN_20261105_115240`. Raw Yahoo rows show completed November 4 close 84.0199966430664 and actual unfinished November 5 values 72.50 / 72.5250015258789. Actual stock/snapshot/indicator tool output excluded November 5 before calculation; all used November 4. The report separately labels a provisional 72.50 quote, vendor cap/P/E limitations and advisory sale reference 84.02. Quote news succeeded twice with retained publication-window filtering; search fallback was not exercised in this attempt and remains a final-proof obligation. No target or scenario was forced.
+
+The installed yfinance 1.8.0 returns lazy `HistoryMetadata`, a Mapping rather than dict. Live inspection found the new OHLCV loader had conservatively dropped its currency/end metadata, although partial-row exclusion was correct using the frame timezone. Preserved the paid-run branch and corrected only the type acceptance on a separate branch. Actual-wrapper regressions failed before and pass after correction, including before-close rejection, after-close admission and no lazy trading-period fetch.
+
+Corrected application commit: `2c3b7d00e4088380e7f2637371e86e3dd658d966`. Full suite: **2329 passed, 1 optional skip, 1 integration deselection, 100 subtests**, 20 known warnings, 16.10 seconds; full Ruff/pip check/diff check pass. Reviewer independently ran 40 focused tests and verified original paid-run source hashes. Supplemental **free source/caller proof**, not another paid CLI attempt, on the clean corrected commit fetched actual Yahoo data at 19:03:51–52 UTC / 14:03:51–52 New York. It retained USD and 16:00-05:00 end metadata, excluded actual unfinished 72.38999938964844, and produced the same November 4 84.0199966430664 canonical close in stock/snapshot paths. All 11 default indicators independently reconcile to captured completed rows. Receipt: `evidence/build1-corrected-source-proof/receipt.json`.
+
+Evidence reuse is explicit: the only application delta is dict→Mapping acceptance. Pre-close finality, cutoff, cache TTL, indicator algorithms, graph, model calls, news, rendering, publication and memory paths are unchanged. Original paid execution, rendered replay, fresh-wheel import smoke and 59 recovery tests remain valid for those unchanged paths/dependencies; affected loader and callers received new offline/full-suite and actual-source checks. **This is combined evidence across revisions, not a paid all-analyst run on the corrected SHA.** Changed model prose from restored currency was not observed in a corrected paid run. Live after-close admission was not observed; actual-wrapper fixed-clock tests cover that boundary. Original metadata captures are JSON strings of the provider wrapper, not replayable structured objects; the supplemental proof includes selected structured fields. Its initial assertion compared equivalent timezone strings; the assessment corrected that expectation by comparing instants against the original captures, with no application change or repeated source calls.
+
+Actual cost: **$0.83083285**, one of three attempts. All 17 requests settled using provider response usage; refreshed key-level usage after reporting lag agrees exactly. The earlier immediate key delta was incomplete due to reporting lag. Two final attempts and $9.16916715 remain; no retries/top-up authorized. Original inputs, preferences and installed applications preserved.
+
+## Build 1 release decision
+
+Build 1 local development acceptance is supported by the disclosed combined evidence and independent review. Candidate is isolated from Build 2/3. Original paid source 8850b74 and reviewed staging baseline `6340c9df6cd557195ea13ae994d19bd874b00746` are preserved as references. Publication/CI/release acceptance is pending. Proposed next step under separate user authorization: publish only this corrected Build 1 branch, run required exact-head GitHub CI, reassess staging drift, and integrate/install only the accepted Build 1 source after green CI. Preserve current launcher/source/configuration and user data before any separately authorized replacement; rollback must preserve newer reports, memory and immutable publications. No release action has been performed.
+
 ## Outstanding acceptance
 
-- Build 1 offline development gates and independent review complete on the frozen candidate's source. The first actual NYSE regular-session all-analyst shallow CLI proof and spend reconciliation remain required. Missing required proof means acceptance remains incomplete.
-- Paid proof runner and observer are task-private, adapted from the existing runner with three ordered phases, request reservations, actual reported cost reconciliation, no SDK retries, isolated runtime paths and raw source capture. No paid attempt at this commit. Official November 5 NYSE session verified at https://www.nyse.com/trade/hours-calendars: 14:30–21:00 UTC / 09:30–16:00 Eastern. Live fetch timing must still be observed.
-- Build 2: deterministic independent valuation and source-only historical scenario suitability, not started.
-- Build 3: pre-analyst evidence acquisition/shared brief and recovery, not started.
-- Final full offline/lint/dependency gates, two remaining paid proofs, independent code-and-artifact audit/material-finding closure, clean committed records, notifier disable on completion.
-- Release acceptance is not claimed: separate integration/publication/installation approval and exact-published-head GitHub CI remain required.
+- Build 2: deterministic independent valuation and source-only historical scenario suitability are in progress in `/Users/zipp/Developer/tradingagents-market-evidence-20261105/build23`, branch `codex/market-evidence-build23`, based on frozen 8850b74. It will inherit the narrow Mapping correction without moving the original frozen branch.
+- Build 3: pre-analyst acquisition/shared brief and recovery remain required.
+- Final full offline/lint/dependency gates, two remaining paid proofs, independent code-and-artifact audit/material-finding closure, clean committed records, notifier disable only on actual completion/abandonment.
+- Exact-published-head GitHub CI remains pending separate publication authority; local checks do not establish release acceptance.
+
+## Build 1 boundary evidence hashes
+
+- `evidence/build1-correction-full-suite.log`: `8f1f37338c343e880a301366c86a663543e8576536c310f9159e6af61b89652c`
+- `evidence/build1-corrected-source-proof/receipt.json`: `e7cb639012916bae07d65e19cc0d9cb445bd511ca8d853eeb52ae7d6f3511a42`
+- `evidence/build1-correction-independent-review.md`: `1bcbb2eac699109c78362789e4b2578b231a3ad04c764ffef03266d9801b3173`
+- `evidence/paid-proof/cost_ledger.jsonl`: `e11d3bcc7ee7804993c39e3a616ca6a8e04e1cfc16c6c56e47e87d160f9756e1`
+- `evidence/paid-proof/build1-open/usage_after_lag.json`: `f73cf93655adb58dc45a121646c9c0c897b060d9e4943edc6711d8f67104d6fa`
+- `evidence/paid-proof/build1-open/source_sha256.json`: `7f307bbace0578a823e8940de2e38a50e5f31077a1d79f1c3e861e4258af31f9`
+- `evidence/paid-proof/build1-open/results/reports/DOCN_20261105_115240/complete_report.html`: `35bd2141c7ee981193039ee1d78f27a8be04e32b37458f84fa6a097b25784156`
+
+Actual paid-report HTML: primary and independent reviewer visually inspected exact sale, market and vendor sections rendered with original CSS; labels readable. Direct long-page anchor capture was blank, so bounded section captures were used. Original report unchanged. Screenshots: `evidence/build1-paid-visual-review/`.
