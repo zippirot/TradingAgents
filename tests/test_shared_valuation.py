@@ -211,3 +211,14 @@ def test_final_request_is_independent_of_early_price():
         published = prepare_report_state({**inputs, **updates})
         assert published["shared_valuation_scenarios"]["rows"][0]["result"]["target"] == "40"
         assert published["target_validation"]["target"] == expected
+
+
+def test_unclosed_model_fence_cannot_swallow_shared_scenario_section(tmp_path):
+    from tradingagents.reporting import write_report_tree
+
+    inputs = report_state()
+    inputs["financial_claim_validation"]["raw_report"] = "Research\n```disclosures\n["
+    write_report_tree(inputs, "DOCN", tmp_path)
+    html = (tmp_path / "complete_report.html").read_text()
+    import re
+    assert re.search(r"<h[1-6][^>]*>Shared valuation scenarios", html)

@@ -181,7 +181,7 @@ def prepare_report_state(final_state: dict) -> dict:
 
         table = render_shared_valuation(scenarios)
         if table:
-            prepared["fundamentals_report"] = (prepared.get("fundamentals_report") or "") + "\n\n" + table
+            prepared["fundamentals_report"] = table + "\n\n" + (prepared.get("fundamentals_report") or "")
     return prepared
 
 
