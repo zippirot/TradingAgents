@@ -14,7 +14,7 @@ Fetched local and remote staging both matched b075166df6f1738ef691cee23d1473e508
 | Live CLI | shared-valuation-live-06, exit 0, 17 model calls; acceptance-checks.json | Three supported scenarios delivered identically to eight downstream roles; debate challenges assumptions; PM explicit request independently validated; state/report/memory consistency proved. |
 | Artifacts and recovery | Recorded hashes and screenshots; same-version recovery regression | All recorded artifacts rehashed successfully before merge; preserved outside retired worktree. |
 
-Required GitHub checks on the exact pushed SHA are five Python/timezone test jobs, strict Ruff, and clean-install smoke. They are not replaced by local evidence. Final exact SHA, CI run/job receipts, worktree retirement and measured disk cleanup are retained in `/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-staging-wrap-up-receipt.json`.
+Required GitHub checks on the exact pushed SHA are four Python-version test jobs (3.12 runs in America/New_York; the include entry augments that matrix combination rather than adding a fifth), strict Ruff, and clean-install smoke. They are not replaced by local evidence. Final exact SHA, CI run/job receipts, worktree retirement and measured disk cleanup are retained in `/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-staging-wrap-up-receipt.json`.
 
 ## Preservation and retirement
 
