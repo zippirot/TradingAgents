@@ -12,7 +12,7 @@
   ],
   "verification": {
     "focused": "183 passed in 4.59s",
-    "full_offline": "1844 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 13.44s after publication fix",
+    "full_offline": "1845 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 13.22s after annual-baseline tool view fix",
     "skip": "optional langchain_aws unavailable",
     "deselected": "existing default external-service exclusion",
     "ruff": "passed",
@@ -20,7 +20,9 @@
     "diff_check": "passed",
     "visual": "Original synthetic reports inspected; actual live HTML hid appended section inside truncated disclosure fence. After fix, saved live state re-exported separately and scenario-unavailable heading visually verified.",
     "complete_diff": "Tracked diff and new adapter/tests reviewed",
-    "affected_reporting": "34 passed in 0.92s; new unclosed-fence test observed failing before fix"
+    "affected_reporting": "34 passed in 0.92s; new unclosed-fence test observed failing before fix",
+    "annual_view_focused": "88 passed in 4.35s (financial evidence, SEC fact integrity, shared scenarios, checkpoints, full graph)",
+    "annual_view_replay": "Saved live canonical package projects three annual baselines with exact IDs in 63878 characters; no network calls"
   },
   "test_limits": [
     "Graph integration uses synthetic canonical evidence; live run proved fallback only. Required usable-scenario/debate engagement proof is still missing.",
@@ -51,14 +53,15 @@
     "retry_runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli-64k.py"
   },
   "deviations": [
-    "Move scenario section before unvalidated narrative to prevent an unclosed model Markdown fence from hiding deterministic outputs. No change to calculations, provider or validation."
+    "Move scenario section before unvalidated narrative to prevent an unclosed model Markdown fence from hiding deterministic outputs. No change to calculations, provider or validation.",
+    "Existing bounded financial-evidence projection needed a narrow selection adjustment so annual source baselines reach the fundamentals analyst. Same 64000-character cap, warning lineage and source validation retained; quarterly baseline for these three metrics may be omitted when capped, explicitly labeled partial."
   ],
   "deferred": [
     "Additional methods, mid-debate calculation, probability calibration and investment-performance evaluation remain excluded"
   ],
   "source_sha256": {
-    "tests/test_graph_end_to_end.py": "92b5f10502527f8dbab7dbeb0eae7405214e95fe9b3224911640beac0e7a9a84",
-    "tradingagents/agents/analysts/fundamentals_analyst.py": "82440721fc4c350bc6d9466ffb7bfc7f646781dcd78943f714acdcdfdf829d59",
+    "tests/test_graph_end_to_end.py": "948824518ebdce09e7b13842210c4ac8795da11829e1801e19f3fa854f3cb987",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "1dfaf4e1aac67f01d9b6dba1ce95243c864d8e3a3f7ef7e5795cf4dd32109068",
     "tradingagents/agents/context.py": "2a5b6ced6a2222805c5ce211dec89756d3cbbf5a609da07e7db9cca7650c9d33",
     "tradingagents/agents/managers/research_manager.py": "9215df518afa579c15afe1a787284767bb27b3f5591c8d2dd1242dbc762e13a0",
     "tradingagents/agents/output_validation.py": "32b36b0aceb07c638827345df953dc0371a469cef638274a0fe19c7f749fdce2",
@@ -66,10 +69,12 @@
     "tradingagents/agents/researchers/bull_researcher.py": "b619de33fdaea412f9e5d570a9ef53a7ab41100c2fee1bb0c80f3b76b7fc11e0",
     "tradingagents/agents/state.py": "c05b5b24280e2bc95525d45a336ee712c7d9892a4400d6c15e40cdb16f63f560",
     "tradingagents/graph/setup.py": "ecd039ae6ef308d1514080cd0e954b2151570c1f3bf88b80d45b07f0c830058d",
-    "tradingagents/graph/trading_graph.py": "765ad38e7674b9ccda606b5949c8e76fa7b11e806ab0bbab51d82f2d7e1335f6",
+    "tradingagents/graph/trading_graph.py": "663704bea4ee031e4a16a09ebd078931867fc4507c58d251bad507312a7233aa",
     "tradingagents/reporting.py": "59e47b437776bf2c8cd6d0d33c47bcaeec25a8bb1a3f243c781b685964d26a18",
     "tradingagents/agents/shared_valuation.py": "a9806a3e3c70303b8ef6b466cbbc4eab1876304d6e53270a42cca6bee1bfa935",
-    "tests/test_shared_valuation.py": "827b820b1409d39930252dde810466c5fbee42ad2ea950ae360e6582c7756c71"
+    "tests/test_shared_valuation.py": "827b820b1409d39930252dde810466c5fbee42ad2ea950ae360e6582c7756c71",
+    "tradingagents/dataflows/financial_evidence.py": "888b6132846722e717a678470cc37cfcd01a34489223063204595e653fcb6789",
+    "tests/test_financial_evidence.py": "70ef0a527e925419fbb770ece0f51d484be1b9e044c6e50da4b7dccfb3fd3e79"
   },
   "artifacts": {
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-focused.log": "5efa04543e55a7542969ab436c992224808df01c6f0c2cd5febc4475fb246b67",
@@ -90,8 +95,22 @@
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-01/cli.log": "9ca8420ac764e031352ff036462b6676a2cb730c6bc2c223cb0b9d19de086b59",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-01/llm-diagnostics/ee725d24-c539-4d51-855f-69d8be90859f.json": "4770d23cce5ab3c88035d9e2780a4f922de3b31ff3f7f3ec4b9cddf0ad310e24",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-reexport/complete_report.html": "27e603cbf98e7770c1f21eae7c5a5dc33162048290c18bc8fd241507d8fa965b",
-    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-reexport/report-scenarios.png": "488f972713ee233de370a161efd9bd52142dfbfd3fde4164510bdf9117e9ab4d"
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-reexport/report-scenarios.png": "488f972713ee233de370a161efd9bd52142dfbfd3fde4164510bdf9117e9ab4d",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-annual-view-replay.json": "8f6f16b132cbf281c225eab47463b13b3d08aef722b3002883e5bcfd317aba89",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-baseline-view.log": "d1f04d6db382006ad612909123f8051a9efad746229e8dc7e4932a7633f06b6c",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-baseline-view-final.log": "e46a76592f96855375c8ba30abef4d17d1eaebaa31f5e20267740903f715ad7f",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02/llm-diagnostics/f1ff0eb0-8d06-4830-b80e-7b191f9e6069.json": "4f417e4f2129586a571ab91b9d91cc25f1438431504449b46d64fc0a0c3a8ab7"
   },
   "release": "No push, PR, merge, deployment, installed-app replacement or cleanup authorized",
-  "notifier": "Enabled; keep enabled until completion or abandonment"
+  "notifier": "Enabled; keep enabled until completion or abandonment",
+  "live_attempt_02": {
+    "status": "running_but_acceptance_failed_empty_scenarios",
+    "commit": "6911e392ca8d04321ba70b35f0d0eb0f7cc18d66",
+    "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02",
+    "finish_reason_fundamentals": "stop",
+    "completion_tokens_fundamentals": 38846,
+    "cause": "Actual financial evidence tool view contained only quarterly Revenue, Diluted EPS and Basic EPS. Analyst emitted [] citing absent annual baselines and incorrectly requiring a current market price. Full canonical package did contain annual facts.",
+    "fix": "Prioritize latest reported annual Revenue/Basic EPS/Diluted EPS within existing bounded view and clarify current price unnecessary; no new calls or source data. Checkpoint shared_valuation=2.",
+    "test_iteration": "First priority ordering crowded out one other metric in existing DOCN fixture. Corrected round-robin ordering retains metric coverage; unchanged existing regression now passes."
+  }
 }

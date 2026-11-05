@@ -270,3 +270,26 @@ def test_explicit_combined_principal_preserves_reported_sign_and_derived_lineage
     assert reported.value < 0 and result.value == 39895000
     assert result.metric == reported.metric and result.input_fact_ids == (reported.fact_id,)
     assert result.source_ids == reported.source_ids
+
+
+def test_bounded_tool_view_retains_annual_valuation_baselines_without_extra_data():
+    from tradingagents.dataflows.financial_evidence import bounded_evidence_view
+
+    recent = [fact(fact_id=f"recent-{i}", metric=f"Metric {i}",
+                   period_start="2026-07-01", locator="source " + "x" * 1000)
+              for i in range(80)]
+    annual = [fact(fact_id=metric, metric=metric, period_start="2025-01-01",
+                   period_end="2025-12-31", unit=unit)
+              for metric, unit in (("Revenue", "USD"), ("Diluted EPS", "USD/shares"),
+                                   ("Basic EPS", "USD/shares"))]
+    recent += [f.model_copy(update={"fact_id": "quarter-" + f.fact_id,
+                                   "period_start": date(2026, 7, 1),
+                                   "period_end": date(2026, 9, 30)}) for f in annual]
+    package = EvidencePackage(cik="0001582961", as_of="2026-11-04",
+                              facts=tuple(recent + annual), sources=(source(),))
+    original = package.model_dump_json()
+    view = bounded_evidence_view(package)
+    assert len(view.model_dump_json()) <= 64000
+    assert {f.fact_id for f in annual} <= {f.fact_id for f in view.facts}
+    assert all(f in package.facts for f in view.facts)
+    assert package.model_dump_json() == original

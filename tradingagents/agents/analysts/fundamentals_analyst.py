@@ -140,6 +140,8 @@ SHARED_VALUATION_INPUTS = (
     " Optionally propose up to three justified valuation scenarios in exactly one named fence:"
     "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having name and request."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
+    " These calculations do not require a current stock price or return-to-price comparison."
+    " Inspect the annual Revenue, Basic EPS and Diluted EPS facts in the evidence tool before declaring baselines missing."
     " These are conditional research inputs, not final price targets. Use one method and comparable source IDs,"
     " annual periods, currency, accounting and share bases throughout the table; vary only forecasts and multiples."
     " Give rationales explaining the method/multiple and each forecast. Numeric values are decimal strings."

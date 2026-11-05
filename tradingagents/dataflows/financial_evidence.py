@@ -307,7 +307,7 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
         return package
     warnings = (
         *package.warnings,
-        "bounded tool view: older facts omitted; this is not the full evidence package",
+        "bounded tool view: some facts omitted; annual valuation baselines prioritized; this is not the full evidence package",
     )
     by_id = {f.fact_id: f for f in package.facts}
     groups = {}
@@ -315,6 +315,18 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
         groups.setdefault(fact.metric, []).append(fact)
     for group in groups.values():
         group.sort(key=lambda f: (f.period_end, f.origin == "reported"), reverse=True)
+    # Preserve the annual baselines needed by the existing valuation methods.
+    # Latest-quarter facts alone cannot support annual EPS/revenue scenarios.
+    # These are existing source facts, still subject to the same byte/lineage cap.
+    prioritized_groups = {}
+    for metric in ("Revenue", "Diluted EPS", "Basic EPS"):
+        annual = next((f for f in groups.get(metric, ())
+                       if f.origin == "reported" and f.value is not None
+                       and f.period_start is not None
+                       and 330 <= (f.period_end - f.period_start).days <= 400), None)
+        if annual is not None:
+            prioritized_groups[metric] = [annual, *(f for f in groups[metric] if f != annual)]
+    groups = {**prioritized_groups, **{k: v for k, v in groups.items() if k not in prioritized_groups}}
     ordered = [
         group[i]
         for i in range(max(map(len, groups.values())))
