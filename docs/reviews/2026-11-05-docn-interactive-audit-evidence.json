@@ -1,0 +1,47 @@
+{
+  "source_head": "2945b2a69ec0a42ee13f9324636374991f54dc78",
+  "source_manifest_sha256": "75b1ad73450d0bee9efdf97a4eb6927ddbfe84cf917586f50b47ea9264ec76f3",
+  "decision_id": "6b2148ff-c107-4bf6-8b75-8d77a82de870",
+  "published_at": "2026-11-05T12:57:45.219564+00:00",
+  "rating": "Underweight",
+  "thesis_version_id": "3daa3a9e-f25d-5525-a141-9304e248feb1",
+  "five_endpoints_pending": true,
+  "fresh_graph_readback": true,
+  "memory_unchanged": true,
+  "paid_calls": 0,
+  "evaluation_attempts": {
+    "status": "available",
+    "started": 1,
+    "completed": 1,
+    "failed": 0,
+    "in_progress": 0,
+    "errors": [],
+    "failure_rate": 0.0,
+    "failure_rate_denominator": "valid started attempts visible at cutoff",
+    "logs_without_markers": 0,
+    "coverage_completeness": "recorded_markers_only",
+    "coverage_start": "2026-11-05T12:52:57.921722+00:00",
+    "coverage_end": "2026-11-05T12:57:45.305946+00:00",
+    "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history."
+  },
+  "artifact_sha256": {
+    "results/docn-abc/live-07/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-05.json": "f3e056370c07aa4110804ee58ade3d30b05cb46636891ec68f03cd61fc9896ae",
+    "results/docn-abc/live-07/results/reports/DOCN_20261105_055745/complete_report.md": "9c12af880c5621d099e45360784da4080711dad2e326a6908d5fefe07d6611c8",
+    "results/docn-abc/live-07/results/reports/DOCN_20261105_055745/complete_report.html": "22c4a7e15fe39d5a17cc35ee60b0ff91fbac5e6371ebe3cf731cd246ac2be94c",
+    "results/docn-abc/live-07/results/reports/DOCN_20261105_055745/evidence.json": "ca2ee09090872b504816752747ef090beb313e8f123259b8508086e8913308b6",
+    "results/docn-abc/live-07/memory/trading_memory.md": "e6983c19afc8d5ff0bb023455f6c44c0f17663691873a1761569bb1237a126f3"
+  },
+  "live_attempt": 7,
+  "model_requests": 16,
+  "live_usage_cost_usd": 2.8199875,
+  "cumulative_live_usage_cost_usd": 18.410925,
+  "prior_condition_roles": [
+    "unspecified",
+    "unspecified"
+  ],
+  "live_known_role_observation": "not demonstrated; legacy intent explicitly unspecified, Q4 actuals unavailable",
+  "supported_scenario_rows": 3,
+  "final_target_status": "unsupported",
+  "full_suite": "2230 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,21.57s",
+  "full_suite_log_sha256": "1a27ceaf5821a3f3671a3041bdd2fc0236ca97192a3bd08bfcaa7cb98cd79ef8"
+}

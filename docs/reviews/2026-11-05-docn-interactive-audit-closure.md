@@ -31,21 +31,21 @@ same isolated branch; it does not authorize integration or installation.
    preserved all 15 DOCN and one NVDA valid claims with identical payloads.
 
 Independent focused reviews accepted all three corrections. Crypto's affected
-selection passed169 checks; disclosure selection passed172 and independent142;
-role/graph/PM selection passed90 and final independent27. An initial full suite
-found PM instructions exceeded the existing70000-character bound (70178); the
+selection passed 169 checks; disclosure selection passed 172 and independent 142;
+role/graph/PM selection passed 90 and final independent 27. An initial full suite
+found PM instructions exceeded the existing 70000-character bound (70178); the
 paragraph was condensed without loosening that bound or dropping semantics.
-Final full suite:2230 passed,100subtests,one optional langchain_aws skip,one
-integration deselection,20warnings,21.57seconds. Ruff/diff checks passed.
+Final full suite: 2230 passed, 100 subtests,one optional langchain_aws skip,one
+integration deselection,20 warnings,21.57 seconds. Ruff/diff checks passed.
 Log: results/docn-abc/interactive-audit-final-offline.log.
 
 ## Acceptance limits and deferred low findings
 
-The audit's missing exact-commit CI, Python3.11/3.13 legs, clean-install smoke,
+The audit's missing exact-commit CI, Python 3.11/3.13 legs, clean-install smoke,
 no live final target, no live forward-funding request, no live observed met/
-breached Q4 condition, and saved-depth5 coverage are not represented as verified.
+breached Q4 condition, and saved depth 5 coverage are not represented as verified.
 All paid proofs are deliberately Shallow under the user's seven-run budget;
-no saved model/depth changes or depth5 run is authorized here. A numerical target
+no saved model/depth changes or depth 5 run is authorized here. A numerical target
 is not forced without supported inputs. Scripted graph coverage is separately
 labeled and cannot substitute for required provider/runtime proofs.
 
@@ -53,9 +53,21 @@ Historical date-only prior-thesis lookup uses UTC end-of-day; evening US
 publications on the following UTC date may be absent when rerunning the prior
 date. This is a disclosed cutoff limitation. Switching it to current time would
 admit future knowledge; a changed historical session-cutoff contract is deferred.
-The reviewer-reported non-US63-session retrieval slack, pre-existing unversioned
+The reviewer-reported non-US 63-session retrieval slack, pre-existing unversioned
 legacy in-progress bars, exact-label condition matching, and remaining numerical/
 source-reference presentation issues are deferred. None is silently claimed fixed.
 
-The seventh/final authorized Shallow run and a connected targeted audit are pending.
+The seventh/final authorized Shallow run completed on
+2945b2a69ec0a42ee13f9324636374991f54dc78 for November 5. It published
+6b2148ff-c107-4bf6-8b75-8d77a82de870 at 2026-11-05T12:57:45.219564+00:00,
+Underweight with limited evidence,15 deterministic disclosures and three shared
+scenarios. The final target remains unsupported. Two prior conditions retain
+their original IDs and explicit kept reasons; Q4 observations remain unknown
+and legacy roles explicitly unspecified. This does not establish live coverage
+of a classified supporting/reconsideration condition becoming met/breached.
+Fresh-process source/hash/report/evidence/thesis/endpoint/memory readback passed.
+All five new endpoints are pending; saved preferences are unchanged. This used
+16 requests,$2.8199875 conservative usage cost; all seven proofs total$18.410925.
+No further paid CLI proof is authorized under the existing seven-attempt cap.
+Connected targeted audit of this correction remains pending.
 No merge,push,PR,installation,deployment,production creation or cleanup is authorized.
