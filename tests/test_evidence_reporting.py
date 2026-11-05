@@ -61,7 +61,8 @@ def test_review_export_has_deterministic_evidence_and_no_buy_decision(tmp_path):
     assert "Target $96" not in md and "Target $96" not in html
     assert "Evidence and Quality" in md and "Evidence and Quality" in html
     assert "Assets reconcile" in md and "Claim unsupported" in html
-    assert "123.456" in md and "123.456" in html
+    assert "123.46" in md and "123.46" in html
+    assert evidence["financial_calculations"][0]["result"] == "123.456"
     assert "Source excerpt truncated" in md and "Source excerpt truncated" in html
     assert quality["status"] == "insufficient"
     assert evidence["financial_evidence"]["facts"][0]["value"] == "123.456"

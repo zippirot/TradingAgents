@@ -68,7 +68,8 @@ def _thesis_update(state):
             {"condition_id": row["condition_id"], "disposition": row["disposition"],
              "reason": row["disposition_reason"]} for row in saved.get("prior_conditions", [])
         ]}
-    item = prepare_thesis(candidate, prior, run_rating(state), str(state["trade_date"]), state["run_id"])
+    item = prepare_thesis(candidate, prior, run_rating(state), str(state["trade_date"]), state["run_id"],
+                          financial_evidence=state.get("financial_evidence"))
     return {"thesis": item, "thesis_version_id": item["version_id"]}
 
 

@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.evidence_presentation import (
     analyst_prose,
     evidence_references,
@@ -17,6 +18,7 @@ from tradingagents.agents.evidence_presentation import (
 )
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
+from tradingagents.agents.valuation_comparison import display_number
 from tradingagents.dataflows.files import replace_file
 
 
@@ -32,6 +34,8 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
         lines.append(f"- Analysis date: {final_state['trade_date']}")
     if final_state.get("final_trade_decision"):
         lines.append(f"- Rating: {run_rating(final_state)}")
+        if final_state.get("decision_context"):
+            lines += ["", render_condition_summary(final_state["decision_context"]), ""]
     if not final_state.get("evidence_quality"):
         lines.append("- Evidence: Legacy export — financial evidence unvalidated")
     publication = final_state.get("publication_record")
@@ -280,7 +284,7 @@ def evidence_appendix(final_state: dict) -> str:
             result = (
                 "unavailable"
                 if value is None
-                else f"{value} {calculation.get('unit') or ''}".strip()
+                else f"{display_number(value)} {calculation.get('unit') or ''}".strip()
             )
             lines.append(
                 " | ".join(

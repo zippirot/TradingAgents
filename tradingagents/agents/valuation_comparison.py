@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal, localcontext
+from decimal import Decimal, InvalidOperation, localcontext
 from html import escape
 
 from tradingagents.agents.valuation import TargetResult, validate_target
@@ -130,8 +130,22 @@ def _cell(value):
     return escape(' '.join(str(value).split())).replace('|', r'\|')
 
 
-def _number(value):
-    return f'{Decimal(value):.2f}'
+def display_number(value):
+    """Bound presentation precision only; preserve tiny nonzero/large magnitudes."""
+    if value is None:
+        return 'unavailable'
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return str(value)
+    if not number.is_finite():
+        return 'unavailable'
+    if number and (abs(number) < Decimal('0.01') or abs(number) >= Decimal('1e12')):
+        return f'{number:.2E}'
+    return f'{number:.2f}'
+
+
+_number = display_number
 
 
 def render_valuation_comparison(record: dict) -> str:
@@ -140,7 +154,7 @@ def render_valuation_comparison(record: dict) -> str:
     if not record or record.get('status') != 'available':
         return '\n'.join(lines + ['Unavailable: ' + _cell((record or {}).get('reason', 'Dated comparison unavailable.'))])
     quote = record['price']
-    lines += [f"Observed {_cell(quote['close'])} {_cell(quote['currency'])} on {_cell(quote['session_date'])} ({_cell(quote['session_status'])}); {_cell(record['label'])}.",
+    lines += [f"Observed {_cell(display_number(quote['close']))} {_cell(quote['currency'])} on {_cell(quote['session_date'])} ({_cell(quote['session_status'])}); {_cell(record['label'])}.",
               _cell(record['horizon_note']),
               f"Decision date: {_cell(record.get('decision_date') or 'not specified')}; rerating assumption: {_cell(record.get('rerating_assumption') or 'not supplied')}.", '',
               'Scenario | Financial period | Capital date | Multiple assumption date | Conditional price | Conditional difference % | Price implies',

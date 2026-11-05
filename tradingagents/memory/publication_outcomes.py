@@ -15,7 +15,11 @@ from pathlib import Path
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.files import locked, replace_file
 from tradingagents.memory.publication import list_records, load_evidence, load_record, record_root
-from tradingagents.memory.settlement import calendar_exit_date, fetch_outcome
+from tradingagents.memory.settlement import (
+    SettlementCoverageError,
+    calendar_exit_date,
+    fetch_outcome,
+)
 
 
 def _json(value) -> str:
@@ -199,6 +203,9 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
                         _validate_price_outcome(outcome, record, endpoint)
                         if outcome['resolution_date'] >= before:
                             continue
+                    except SettlementCoverageError as exc:
+                        result['failed'].append((decision_id, f'{name}: {exc}'))
+                        continue
                     except Exception as exc:
                         result['failed'].append((decision_id, f'{name}: prices unavailable ({type(exc).__name__})'))
                         continue

@@ -12,7 +12,11 @@ from html import escape
 from pydantic import ValidationError
 
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
-from tradingagents.agents.valuation_comparison import compare_valuation, render_valuation_comparison
+from tradingagents.agents.valuation_comparison import (
+    compare_valuation,
+    display_number,
+    render_valuation_comparison,
+)
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
@@ -106,7 +110,9 @@ def prepare_shared_valuation(state, requests=None):
             comparisons.append(_comparable(request, result))
             rows.append({"name": name.strip(), "request": request.model_dump(mode="json"),
                          "result": result.model_dump(mode="json"), "diagnostic_only": diagnostic,
-                         "comparison": compare_valuation(state, result, request)})
+                         "comparison": compare_valuation(state, result, request),
+                         "input_labels": [f"{fact.metric} ({fact.period_end}, {fact.unit})"
+                                          for fact in package.facts if fact.fact_id in result.input_fact_ids]})
         except ValidationError:
             reasons.append(f"Row {index} omitted: malformed valuation request")
         except (ValueError, TypeError, ArithmeticError) as exc:
@@ -126,7 +132,7 @@ def render_shared_valuation(record):
     if not record or record.get("status") == "not_applicable":
         return ""
     lines = ["### Shared valuation scenarios — conditional research inputs", "",
-             "Forecasts and multiples are assumptions, not verified predictions. These are independent scenarios, not a final price target or probability-weighted forecast.", ""]
+             "Display values are rounded; exact arithmetic and provenance remain in evidence.json. Forecasts and multiples are assumptions, not verified predictions. These are independent scenarios, not a final price target or probability-weighted forecast.", ""]
     rows = record.get("rows") or []
     if rows:
         lines += ["Scenario | Method | Period | Conditional price", "--- | --- | --- | ---"]
@@ -134,25 +140,26 @@ def render_shared_valuation(record):
             result = row["result"]
             lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue"}[result["method"]],
                 f"{result['valuation_period_start']} to {result['valuation_period_end']}",
-                f"{result['target']} {result['unit']}" if result['status'] == 'supported'
+                f"{display_number(result['target'])} {result['unit']}" if result['status'] == 'supported'
                 else "Unavailable — unfunded scenario")))
         if any(row["result"]["method"] == "ev_revenue" or row["request"].get("forecast") for row in rows):
             lines += ["", "Future-period scenario values are not discounted to today."]
         for row in rows:
             result = row["result"]
             lines += ["", f"**{_cell(row['name'])} — inputs and assumptions**", "",
-                      "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"]), ""]
+                      "Source inputs: " + ", ".join(_cell(v) for v in row.get("input_labels", []))
+                      + ". Exact source fact IDs and values: evidence.json → shared_valuation_scenarios.", ""]
             if result["method"] == "ev_revenue":
                 s = result["scenario_results"][0]
-                lines.append(f"Revenue {s['revenue']} × multiple {s['multiple']} = enterprise value {s['enterprise_value']}; less scenario net obligations {s['net_obligations']} = conditional equity {s['equity_value']}.")
+                lines.append(f"Revenue {display_number(s['revenue'])} × multiple {display_number(s['multiple'])} = enterprise value {display_number(s['enterprise_value'])}; less scenario net obligations {display_number(s['net_obligations'])} = conditional equity {display_number(s['equity_value'])}.")
                 if result['status'] == 'supported':
-                    lines.append(f"Conditional equity divided by {s['shares_outstanding']} actual common shares = {s['price']}.")
+                    lines.append(f"Conditional equity divided by {display_number(s['shares_outstanding'])} actual common shares = {display_number(s['price'])}.")
                 else:
                     lines.append("Funding diagnostic only: no conditional price or return is published until the shortfall is resolved.")
-                lines.append(f"Original capital snapshot: {result['capital_snapshot_date']}; scenario capital date: {s['capital_date']}; closing cash {s['closing_cash']}; closing obligations {s['closing_obligations']}; actual shares {s['shares_outstanding']}; funding gap {s['funding_gap']}.")
+                lines.append(f"Original capital snapshot: {result['capital_snapshot_date']}; scenario capital date: {s['capital_date']}; closing cash {display_number(s['closing_cash'])}; closing obligations {display_number(s['closing_obligations'])}; actual shares {display_number(s['shares_outstanding'])}; funding gap {display_number(s['funding_gap'])}.")
                 lines.append(f"Multiple assumption date: {s.get('multiple_assumption_date') or 'undated; conditional sensitivity only'}.")
             else:
-                lines.append(f"{_cell(result['eps_basis'])} EPS {result['earnings_value']} × multiple {result['multiple']} = {result['target']}; {_cell(result['accounting_basis'])}.")
+                lines.append(f"{_cell(result['eps_basis'])} EPS {display_number(result['earnings_value'])} × multiple {display_number(result['multiple'])} = {display_number(result['target'])}; {_cell(result['accounting_basis'])}.")
                 lines.append(f"Multiple assumption date: {result.get('multiple_assumption_date') or 'undated; conditional sensitivity only'}.")
             lines.append(f"Decision date: {result.get('decision_date') or 'not specified'}; unvalidated rerating assumption: {_cell(result.get('rerating_assumption') or 'not supplied')}.")
             lines.append("")

@@ -15,7 +15,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from tradingagents.dataflows.financial_evidence import EvidencePackage
+from tradingagents.dataflows.financial_evidence import ADDITIVE_METRICS, EvidencePackage
 
 
 class ThesisCondition(BaseModel):
@@ -42,6 +42,40 @@ class ThesisCondition(BaseModel):
         return self
 
 
+# Only spelling/case/spacing aliases of existing canonical labels. This is not
+# fuzzy matching: issuer-defined or adjusted scopes remain distinct.
+_METRIC_LABELS = {" ".join(name.split()).casefold(): name for name in (
+    *ADDITIVE_METRICS, 'Gross Margin', 'Diluted EPS', 'Total Assets', 'Current Assets',
+    'Cash and Equivalents', 'Total Liabilities', 'Current Liabilities',
+    'Stockholders Equity', 'Total Borrowings',
+)}
+
+
+def _package(value):
+    try:
+        return EvidencePackage.model_validate(value)
+    except (ValidationError, ValueError, TypeError):
+        return None
+
+
+def _normalize_condition(condition, package=None):
+    updates = {}
+    for field in ('metric', 'metric_definition'):
+        value = getattr(condition, field)
+        canonical = _METRIC_LABELS.get(' '.join(value.split()).casefold())
+        if canonical is not None and canonical != value:
+            updates[field] = canonical
+    if condition.unit.strip().casefold() in ('%', 'percent'):
+        updates['unit'] = 'percent'
+    # GAAP is jurisdiction-dependent. Only the existing validated SEC US-GAAP
+    # package scope authorizes this alias; IFRS/adjusted bases never normalize.
+    if (package is not None and package.scope == 'SEC US-GAAP statements'
+            and condition.basis.strip().casefold() == 'gaap'):
+        updates['basis'] = 'US-GAAP'
+    updates = {k:v for k,v in updates.items() if getattr(condition,k) != v}
+    return condition.model_copy(update=updates), {k:getattr(condition,k) for k in updates}
+
+
 def _id(condition):
     # Measurement identity excludes explanatory prose. Tuple normalization is
     # exact even beyond Decimal's default context precision (no normalize()).
@@ -60,7 +94,7 @@ def _id(condition):
 
 def _condition(row):
     return ThesisCondition.model_validate({k:v for k,v in row.items()
-                                          if k not in {'condition_id', 'condition_aliases'}})
+                                          if k not in {'condition_id', 'condition_aliases', 'original_labels'}})
 
 
 def _valid_id(value):
@@ -68,7 +102,7 @@ def _valid_id(value):
             and all(c in '0123456789abcdef' for c in value[10:]))
 
 
-def _conditions(values, *, preserve_ids=False):
+def _conditions(values, *, preserve_ids=False, package=None):
     accepted, warnings, by_measurement = [], [], {}
     if not isinstance(values, (list, tuple)):
         return [], ['Invalid advisory conditions: expected a list']
@@ -77,7 +111,12 @@ def _conditions(values, *, preserve_ids=False):
     for index, item in enumerate(values[:8]):
         try:
             payload = dict(item)
-            condition = _condition(payload)
+            condition, originals = _normalize_condition(_condition(payload), package)
+            saved_originals = payload.get('original_labels', {}) if preserve_ids else {}
+            if isinstance(saved_originals, dict):
+                originals = {**{k:v for k,v in saved_originals.items()
+                              if k in ('metric', 'metric_definition', 'unit', 'basis')
+                              and isinstance(v, str) and len(v) <= 500}, **originals}
             key = _id(condition)
             identifier = payload.get('condition_id') if preserve_ids else None
             identifier = identifier if _valid_id(identifier) else key
@@ -92,6 +131,8 @@ def _conditions(values, *, preserve_ids=False):
                 warnings.append(f'Equivalent advisory measurement coalesced into {row["condition_id"]}.')
             else:
                 row = {**condition.model_dump(mode='json'), 'condition_id':identifier}
+                if originals:
+                    row['original_labels'] = originals
                 by_measurement[key] = row
                 accepted.append(row)
             aliases = [v for v in aliases if v != row['condition_id']]
@@ -159,11 +200,8 @@ def observe_conditions(prior: dict | None, state: dict) -> list[dict]:
     metric_definition must equal the canonical metric label; specialized
     subsets cannot borrow consolidated facts. No parsing of model narrative creates facts.
     """
-    rows, _ = _conditions((prior or {}).get('conditions', []), preserve_ids=True)
-    try:
-        package = EvidencePackage.model_validate(state.get('financial_evidence'))
-    except (ValidationError, ValueError, TypeError):
-        package = None
+    package = _package(state.get('financial_evidence'))
+    rows, _ = _conditions((prior or {}).get('conditions', []), preserve_ids=True, package=package)
     extraction = state.get('filing_fact_extraction')
     precision = extraction.get('rounding_quantum_by_fact', {}) if isinstance(extraction, dict) else {}
     precision = precision if isinstance(precision, dict) else {}
@@ -237,18 +275,19 @@ def _texts(value, count, length):
     return [item[:length] for item in value[:count] if isinstance(item, str)] if isinstance(value, list) else []
 
 
-def prepare_thesis(candidate, prior, canonical_rating, asof, run_id) -> dict:
+def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financial_evidence=None) -> dict:
     """Prepare an idempotent JSON proposal; publication supplies its known-at time."""
     UUID(run_id)
     date.fromisoformat(asof)
     candidate = candidate if isinstance(candidate, dict) else {}
     prior = prior if isinstance(prior, dict) else {}
-    prior_conditions, warnings = _conditions(prior.get('conditions', []), preserve_ids=True)
+    package = _package(financial_evidence)
+    prior_conditions, warnings = _conditions(prior.get('conditions', []), preserve_ids=True, package=package)
     proposed = candidate.get('conditions')
     if proposed is None:
         conditions = prior_conditions
     else:
-        conditions, proposal_warnings = _conditions(proposed)
+        conditions, proposal_warnings = _conditions(proposed, package=package)
         warnings.extend(proposal_warnings)
         if proposal_warnings and not conditions and proposed != []:
             conditions = prior_conditions

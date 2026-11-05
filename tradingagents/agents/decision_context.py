@@ -151,8 +151,22 @@ def prepare_decision_context(state: dict) -> dict:
 
 
 def _display(value):
-    text = escape(str(value))
+    # Compact opaque hashes only in presentation; exact text stays in evidence.json.
+    text = escape(re.sub(r"\b[0-9a-fA-F]{32,64}\b", "[source reference in evidence.json]", str(value)))
     return re.sub(r'([\\`*_\[\]()#!|])', r'\\\1', text)
+
+
+def render_condition_summary(record: dict) -> str:
+    """Compact advisory outcomes beside the rating, retaining uncertainty and reasons."""
+    rows = record.get('conditions') or []
+    lines = ['**Advisory conditions at a glance** (not automatic rating rules):']
+    if not rows:
+        lines.append('No prior structured observations; condition status is unknown.')
+    for row in rows:
+        lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
+                     f"{_display(row.get('status_label') or condition_status_label(row))}; "
+                     f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+    return '\n'.join(lines)
 
 
 def render_decision_context(record: dict) -> str:
@@ -160,6 +174,7 @@ def render_decision_context(record: dict) -> str:
     title = 'Legacy reported rating' if record['status'] == 'legacy' else 'Canonical Portfolio Manager rating'
     coverage = record['coverage']
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
+             render_condition_summary(record),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',

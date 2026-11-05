@@ -113,3 +113,44 @@ $5.33832825 reported cost; combined $23.74925325 of the approved $100, excluding
 Codex usage. Follow-up paid usage was $3.6968395. No saved settings changed.
 No merge, push, PR, installation, deployment, production creation or worktree
 removal occurred. The launcher remains b075166df6f1738ef691cee23d1473e5085e05a1.
+
+
+## Remaining-gap Goal: verified offline batch (November 5)
+
+The new Goal authorizes the remaining-gap plan's local work. Its three reserved
+decisions (analysis timezone, extra paid attempts/budget, branch push/draft PR)
+remain pending. Goal notifier is enabled; provider accepted one alert per decision.
+No new paid requests or external repository mutations occurred.
+
+Milestones 2 and 3 are implemented: at most two disjoint retrieval extensions
+reach mature endpoints without relying on a fixed holiday estimate; legacy pending
+settlement excludes unfinished bars before reflection; equivalent condition labels
+normalize conservatively while saved identity and original wording survive;
+reports show bounded numbers and nearby condition dispositions with exact evidence
+retained. A wider test caught lost standalone target source IDs; these were
+restored without weakening assertions before final verification.
+
+Final current-source suites: Python3.12 UTC and New York each 2269 passed plus
+100 subtests (28.44s and 27.79s); Python3.14 2269 passed plus100 subtests (25.46s).
+All have one optional AWS skip, one configured integration deselection and20
+warnings. Earlier default3.12/3.14 passes preceded a final benchmark-cutoff edit;
+they are not represented as the final source passes. Ruff, dependency checks and
+whitespace checks pass. Fresh no-dev Python3.12 installation imports both package
+and CLI outside the checkout; every installed Python source matches the candidate.
+Python3.11/3.13 are unavailable locally and remain for remote CI.
+
+Independent local reviewers accepted M2 (148 focused tests), M3 (150 focused
+tests and19 rehashed artifacts), and the bounded CI adjustment. Original integration
+checks remain; additional PR-head checks use the explicit final head SHA. This is
+workflow/source verification, not an executed GitHub run or the required connected
+completed-build audit. Presentation inspection covered actual Markdown/HTML source;
+browser visual inspection remains pending after browser local-file access rejection.
+
+Offline live-proof preflight recommends DOCN2026-11-05 as the strongest retained
+source set. Live07's final PM explicitly abstained from a target; no parser loss
+was found. Model-origin forward-funding assumptions and a supported final request
+remain unproved. No injected request will be substituted for that acceptance.
+
+The nested remaining_gap_followup record in the existing evidence JSON records
+source/log hashes, local proof paths, costs and remaining limits. This is partial
+Goal progress, not completion or release authorization. Launcher remains unchanged.

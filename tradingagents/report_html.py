@@ -12,6 +12,7 @@ from importlib.resources import files
 
 from markdown_it import MarkdownIt
 
+from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.rating import run_rating
 from tradingagents.reporting import (
     _report_parts,
@@ -299,6 +300,8 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
     title = f'<span class="ticker">{escape(ticker)}</span>'
     if rating:
         title += f' <span class="rating {tone}">{escape(rating)}</span>'
+    condition_summary = (md.render(render_condition_summary(final_state["decision_context"]))
+                         if final_state.get("decision_context") else "")
     details = "".join(
         f'<div class="{"note" if label == "Memory log" else "detail"}">'
         f"<dt>{escape(label)}</dt><dd>{value}</dd></div>"
@@ -336,6 +339,7 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
 <header class="masthead">
 <a class="logo" href="{_COMPANY}" rel="noopener" aria-label="Tauric Research">{_LOGO}</a>
 <h1>{title}</h1>
+<div class="condition-summary">{condition_summary}</div>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 <dl class="run">{details}</dl>
 </header>

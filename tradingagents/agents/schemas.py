@@ -383,6 +383,8 @@ def render_target_result(result: TargetResult | dict | None) -> str:
     publication boundaries must replay the saved request against canonical
     evidence before passing the result here.
     """
+    from tradingagents.agents.valuation_comparison import display_number
+
     if isinstance(result, dict):
         try:
             result = TargetResult.model_validate({key: value for key, value in result.items() if key in TargetResult.model_fields})
@@ -395,7 +397,7 @@ def render_target_result(result: TargetResult | dict | None) -> str:
             text += "\n\nUnfunded capital diagnostics; no conditional price or return is published.\n\n"
             text += "| Scenario | Capital date | Closing cash | Closing obligations | Common shares | Funding gap |\n| --- | --- | ---: | ---: | ---: | ---: |\n"
             for row in result.scenario_results:
-                text += f"| {_target_text(row.name)} | {row.capital_date} | {row.closing_cash} | {row.closing_obligations} | {row.shares_outstanding} | {row.funding_gap} |\n"
+                text += f"| {_target_text(row.name)} | {row.capital_date} | {display_number(row.closing_cash)} | {display_number(row.closing_obligations)} | {display_number(row.shares_outstanding)} | {display_number(row.funding_gap)} |\n"
                 text += "\n".join("- Unvalidated funding assumption: " + _target_text(item) for item in row.funding_assumptions) + "\n"
         return text
     linked = bool(result.decision_date and result.rerating_assumption) and all(
@@ -406,18 +408,19 @@ def render_target_result(result: TargetResult | dict | None) -> str:
     linked = linked and dated
     label = "Conditional decision-date valuation" if linked else "Conditional valuation sensitivity"
     parts = [
-        f"**{label}**: {result.target:.2f} {_target_text(result.unit)} (conditional calculation)",
+        f"**{label}**: {display_number(result.target)} {_target_text(result.unit)} (conditional calculation)",
         "",
         f"**Valuation method**: {_target_text(result.method)}; {_target_text(result.accounting_basis)}.",
         f"**Valuation period**: {result.valuation_period_start} to {result.valuation_period_end}.",
         "**Source fact IDs**: " + ", ".join(_target_text(identifier) for identifier in result.input_fact_ids),
+        "Display values are rounded; exact arithmetic remains in evidence.json → target_validation.",
     ]
     parts.append(f"**Decision date**: {result.decision_date or 'not specified'}; rerating assumption: {_target_text(result.rerating_assumption or 'not supplied')}. No automatic near-term target or discounting is inferred.")
     if result.weight_rationale:
         parts.append("**Subjective weight rationale**: " + _target_text(result.weight_rationale))
     if result.method == "pe":
         parts.append(f"**Multiple assumption date**: {result.multiple_assumption_date or 'not supplied'}.")
-        parts.append(f"**Earnings bridge**: {result.earnings_value} {_target_text(result.unit)} × {result.multiple} = {result.target:.2f}; {_target_text(result.eps_basis)} EPS.")
+        parts.append(f"**Earnings bridge**: {display_number(result.earnings_value)} {_target_text(result.unit)} × {display_number(result.multiple)} = {display_number(result.target)}; {_target_text(result.eps_basis)} EPS.")
     if result.method == "ev_revenue":
         parts.extend([
             f"**Source capital snapshot**: {result.capital_snapshot_date}; each scenario uses its own capital bridge below.",
@@ -426,11 +429,11 @@ def render_target_result(result: TargetResult | dict | None) -> str:
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
         ])
         for scenario in result.scenario_results:
-            parts.append(f"| {_target_text(scenario.name)} | {scenario.weight} | {scenario.revenue} | {scenario.multiple} | {scenario.enterprise_value} | {scenario.equity_value} | {scenario.price:.2f} |")
+            parts.append(f"| {_target_text(scenario.name)} | {display_number(scenario.weight)} | {display_number(scenario.revenue)} | {display_number(scenario.multiple)} | {display_number(scenario.enterprise_value)} | {display_number(scenario.equity_value)} | {display_number(scenario.price)} |")
         parts.extend(["", "| Scenario | Capital date | Closing cash | Closing obligations | Common shares | Net obligations | Funding gap | Multiple assumption date |",
                       "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |"])
         for scenario in result.scenario_results:
-            parts.append(f"| {_target_text(scenario.name)} | {scenario.capital_date} | {scenario.closing_cash} | {scenario.closing_obligations} | {scenario.shares_outstanding} | {scenario.net_obligations} | {scenario.funding_gap} | {scenario.multiple_assumption_date or 'not supplied'} |")
+            parts.append(f"| {_target_text(scenario.name)} | {scenario.capital_date} | {display_number(scenario.closing_cash)} | {display_number(scenario.closing_obligations)} | {display_number(scenario.shares_outstanding)} | {display_number(scenario.net_obligations)} | {display_number(scenario.funding_gap)} | {scenario.multiple_assumption_date or 'not supplied'} |")
             parts.extend("- Unvalidated funding assumption: " + _target_text(item) for item in scenario.funding_assumptions)
         parts.append("Equity value = enterprise value − net obligations; price = equity value / common shares outstanding.")
     if result.assumptions:

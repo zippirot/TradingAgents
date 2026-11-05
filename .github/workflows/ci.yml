@@ -34,6 +34,17 @@ jobs:
           pip install -e ".[dev]"
       - name: Run test suite
         run: pytest -q
+      - name: Check out exact PR head
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact PR head
+        if: github.event_name == 'pull_request'
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip check
+          pytest -q
 
   smoke-install:
     name: clean-install smoke
@@ -49,7 +60,20 @@ jobs:
           pip install .
           # Catches undeclared runtime deps (e.g. #994 python-dotenv): a bare
           # install must import the package and the CLI module.
-          python -c "import tradingagents, cli.main; print('clean-install import OK')"
+          cd "$RUNNER_TEMP"
+          python -c "import pathlib, sys, tradingagents, cli.main; root = pathlib.Path(sys.prefix).resolve(); assert all(pathlib.Path(m.__file__).resolve().is_relative_to(root) for m in (tradingagents, cli.main)); print('clean-install import OK')"
+      - name: Check out exact PR head
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Clean-install exact PR head
+        if: github.event_name == 'pull_request'
+        run: |
+          python -m venv "$RUNNER_TEMP/head-smoke"
+          "$RUNNER_TEMP/head-smoke/bin/python" -m pip install .
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/head-smoke/bin/python" -c "import pathlib, sys, tradingagents, cli.main; root = pathlib.Path(sys.prefix).resolve(); assert all(pathlib.Path(m.__file__).resolve().is_relative_to(root) for m in (tradingagents, cli.main)); print('exact-head clean-install import OK')"
 
   lint:
     name: ruff (strict, full repo)
@@ -64,4 +88,12 @@ jobs:
       - name: Lint the repository
         # The repo is fully clean under the strict select, so we lint everything
         # (generated results/ is excluded via pyproject extend-exclude).
+        run: ruff check .
+      - name: Check out exact PR head
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Lint exact PR head
+        if: github.event_name == 'pull_request'
         run: ruff check .

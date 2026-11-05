@@ -7,11 +7,20 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+import pandas as pd
+
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes
 from tradingagents.memory.log import is_trading_entry
 
 logger = logging.getLogger(__name__)
+
+
+class SettlementCoverageError(ValueError):
+    """Bounded retrieval could not establish a complete price window.
+
+    Messages contain generated counts/dates only, never provider diagnostics.
+    """
 
 
 def resolve_benchmark(ticker: str, config: dict) -> str:
@@ -71,7 +80,15 @@ def fetch_returns(
     yet (#1169). A failure to get or read the prices is raised, for the caller
     to report.
     """
-    outcome = fetch_outcome(ticker, trade_date, holding_days, benchmark)
+    from tradingagents.dataflows.date_window import get_current_date
+    try:
+        outcome = fetch_outcome(ticker, trade_date, holding_days, benchmark,
+                                prices_before=get_current_date())
+    except SettlementCoverageError as exc:
+        # Legacy callers retain the unavailable tuple; the bounded coverage
+        # reason remains visible without changing old memory or reflecting.
+        logger.warning("Legacy settlement pending: %s", exc)
+        outcome = None
     if outcome is None:
         return None, None, None, None
     return (outcome["raw_return"], outcome["alpha_return"], holding_days,
@@ -112,60 +129,92 @@ def fetch_outcome(
     request_start = start
     if publication is not None:
         request_start = max(start, datetime.combine(publication.date(), datetime.min.time()) - timedelta(days=1))
-    # holding_days counts trading days after the entry session, so ask for the
-    # calendar span they occupy (about 7 for every 5) plus a week for holidays.
+    # An initial estimate is only a request bound, never an exchange calendar.
+    # Reuse it, then at most two disjoint extensions. The final extension reaches
+    # the completed cutoff so an old fixed end date cannot strand a mature run.
+    from tradingagents.dataflows.date_window import get_current_date
+    before = datetime.strptime(prices_before or get_current_date(), "%Y-%m-%d")
+    before = min(before, datetime.combine(datetime.now().date(), datetime.min.time()))
+    if request_start >= before:
+        return None
     end = (calendar_exit_date(request_start, calendar_months) + timedelta(days=21)
            if calendar_months else request_start + timedelta(days=round((holding_days + 1) * 7 / 5) + 9))
-    end_str = end.strftime("%Y-%m-%d")
-
-    # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
-    # from the first session after the decision date.
-    stock_prices = get_closes(ticker, request_start.strftime("%Y-%m-%d"), end_str)
+    end = min(end, before)
+    stock = pd.Series(dtype=float)
+    stock_timezone = None
+    timezone_observed = False
     publication_timezone = None
-    if publication is not None:
-        publication_timezone = getattr(stock_prices.index, "tz", None)
-        if stock_prices.empty:
-            return None
-        if publication_timezone is None:
-            raise ValueError("Instrument timezone unavailable for publication-session cutoff")
-        publication_day = publication.astimezone(publication_timezone).date()
-        start = max(start, datetime.combine(publication_day, datetime.min.time()))
-    stock = _by_day(stock_prices)
-    stock = stock[stock.index > start]
-    if prices_before is not None:
-        before = datetime.strptime(prices_before, "%Y-%m-%d")
-        stock_timezone = getattr(stock_prices.index, "tz", None)
-        if stock_timezone is not None:
-            exchange_today = datetime.now(stock_timezone).date()
+    retrieval_spans = []
+    chunk_start = request_start
+    for attempt in range(3):
+        raw = get_closes(ticker, chunk_start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+        timezone = getattr(raw.index, "tz", None)
+        if not raw.empty:
+            if timezone_observed and timezone != stock_timezone:
+                raise ValueError("Instrument timezone changed during settlement retrieval")
+            stock_timezone = timezone
+            timezone_observed = True
+        if timezone is not None:
+            exchange_today = datetime.now(timezone).date()
             before = min(before, datetime.combine(exchange_today, datetime.min.time()))
-        stock = stock[stock.index < before]
-    if calendar_months and not stock.empty:
-        # A delayed first tradable close shifts the calendar horizon. Extend
-        # the bounded request from that actual entry, never the analysis date.
-        actual_entry = stock.index[0]
-        needed_end = calendar_exit_date(actual_entry, calendar_months) + timedelta(days=21)
-        if needed_end > end:
-            end_str = needed_end.strftime("%Y-%m-%d")
-            extended_prices = get_closes(ticker, request_start.strftime("%Y-%m-%d"), end_str)
-            if getattr(extended_prices.index, "tz", None) != getattr(stock_prices.index, "tz", None):
-                raise ValueError("Instrument timezone changed during calendar retrieval")
-            stock = _by_day(extended_prices)
-            stock = stock[stock.index > start]
+        if publication is not None and not raw.empty:
+            if timezone is None:
+                raise ValueError("Instrument timezone unavailable for publication-session cutoff")
+            publication_timezone = timezone
+            publication_day = publication.astimezone(timezone).date()
+            start = max(start, datetime.combine(publication_day, datetime.min.time()))
+        chunk = _by_day(raw)
+        # Ignore out-of-request rows rather than let an overbroad response admit
+        # future bars or replace the entry already selected from earlier data.
+        if not chunk.empty:
+            chunk = chunk[(chunk.index >= chunk_start) & (chunk.index < end)
+                          & (chunk.index > start) & (chunk.index < before)]
+            stock = pd.concat([stock, chunk]).sort_index() if not stock.empty else chunk
+        retrieval_spans.append({"start": chunk_start.strftime("%Y-%m-%d"),
+                                "end_exclusive": end.strftime("%Y-%m-%d")})
+        complete = (not stock.empty and
+                    ((stock.index >= calendar_exit_date(stock.index[0], calendar_months)).any()
+                     if calendar_months else len(stock) > holding_days))
+        if complete:
+            break
+        # Even a daily-trading instrument cannot have finished this window.
+        if not stock.empty:
+            earliest = (calendar_exit_date(stock.index[0], calendar_months) if calendar_months
+                        else stock.index[0] + timedelta(days=holding_days))
+            if earliest >= before:
+                return None
+        if attempt == 2 or (attempt > 0 and end >= before):
+            reason = (f"Insufficient completed instrument sessions through {before.date()}: "
+                      f"{len(stock)} observed after at most two extensions; "
+                      "provider coverage, suspension or an immature window remains unresolved")
             if prices_before is not None:
-                stock = stock[stock.index < before]
-            if stock.empty or stock.index[0] != actual_entry:
-                raise ValueError("Entry session changed during calendar retrieval")
+                raise SettlementCoverageError(reason)
+            logger.warning("Settlement pending: %s", reason)
+            return None
+        if end >= before:
+            return None
+        chunk_start = end
+        if attempt == 1:
+            end = before
+        elif calendar_months and not stock.empty:
+            end = min(before, max(end + timedelta(days=21),
+                                  calendar_exit_date(stock.index[0], calendar_months) + timedelta(days=21)))
+        else:
+            missing = holding_days + 1 - len(stock) if holding_days else 21
+            end = min(before, end + timedelta(days=max(21, round(missing * 7 / 5) + 9)))
+    # Fetch the benchmark only after the instrument window is established, and
+    # never request its incomplete current bar.
+    end_str = min(end, before).strftime("%Y-%m-%d")
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
     benchmark_prices = get_closes(benchmark, bench_start, end_str)
     bench = _by_day(benchmark_prices)
-    if prices_before is not None:
-        benchmark_before = datetime.strptime(prices_before, "%Y-%m-%d")
-        benchmark_timezone = getattr(benchmark_prices.index, "tz", None)
-        if benchmark_timezone is not None:
-            benchmark_today = datetime.now(benchmark_timezone).date()
-            benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
-        bench = bench[bench.index < benchmark_before]
+    benchmark_before = before
+    benchmark_timezone = getattr(benchmark_prices.index, "tz", None)
+    if benchmark_timezone is not None:
+        benchmark_today = datetime.now(benchmark_timezone).date()
+        benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
+    bench = bench[bench.index < benchmark_before]
 
     if stock.empty:
         return None
@@ -206,6 +255,7 @@ def fetch_outcome(
         "cutoff_date": start.strftime("%Y-%m-%d"),
         "published_at": published_at,
         "prices_before": prices_before,
+        "instrument_retrieval_spans": retrieval_spans,
         "publication_session_timezone": str(publication_timezone) if publication_timezone else None,
         "entry": {"date": entry.strftime("%Y-%m-%d"), "price": float(stock.iloc[0])},
         "exit": {"date": resolution_date, "price": float(stock.iloc[actual_days])},
