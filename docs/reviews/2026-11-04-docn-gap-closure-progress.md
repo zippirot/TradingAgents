@@ -40,10 +40,10 @@ All checks passed!
 No broken requirements found.
 ```
 
-Remaining first-slice work: compact accepted-evidence presentation, separate
+At this initial checkpoint, remaining first-slice work was compact accepted-evidence presentation, separate
 bounded narrative, readable prior decisions, integrated negative/positive tests,
 and one authorized real CLI proof. No first-slice acceptance or full-suite success
-is claimed. No paid calls have run under this Goal.
+was claimed. No paid calls had run at that checkpoint.
 
 ### Bounded narrative context
 
@@ -108,7 +108,7 @@ The tracked proof runner is `docs/reviews/docn-abc-proof-tools/live_cli.py`.
 Nine offline runner tests passed, including the installed SDK's HTTP transport,
 price checks, cross-attempt reservations and failure handling. A free SEC
 submissions preflight returned HTTP 200 and valid JSON. No paid request has run
-yet. Runtime artifacts are excluded locally at `/results/docn-abc/`; helper
+at that preflight checkpoint. Runtime artifacts are excluded locally at `/results/docn-abc/`; helper
 source and evidence records are committed. The original launcher preferences
 are hashed before/after each proof; credentials are never written to artifacts.
 
@@ -124,5 +124,38 @@ Saved CLI models are OpenRouter `openai/gpt-6.1-terra-pro` for both roles; saved
 depth is 5. Proofs use explicit depth 1 without changing saved preferences.
 Earlier shared-valuation proof costs used DeepSeek and are not comparable.
 
-Final independent audit, full build checks, remaining A/B/C implementation and
-all runtime acceptance remain outstanding.
+## First-slice runtime acceptance and next milestone
+
+Live proof 1 on `34c1c44` completed with exit 0 and 17 model calls. Revenue
+(`321 million`, including its source bullet) and AI Customer ARR (`376 million`)
+were accepted. Both first debate turns used the accepted figures and distinguished
+the AI-customer definition from pure AI-product revenue. Saved state, canonical
+rating, memory, Markdown, HTML and machine evidence were inspected. Original
+launcher preferences matched their pre-run hash.
+
+One presentation defect was found: rejected-disclosure warnings still repeated
+the source hash in the saved decision. A failing regression was added, then
+`6a4e54a` replaced those occurrences with the existing source labels while
+retaining warning reasons/locators and the exact machine evidence. The affected
+56-test selection passed; full Ruff passed. Using the existing bare-graph test
+setup, the actual saved live state was replayed through `record_decision`, required
+state/memory writes and report export into a new isolated directory with zero
+model calls. All replay checks passed and original artifacts remain untouched.
+The live source manifest confirms that only this presentation helper and its test
+changed. This is explicit evidence reuse across revisions, not a new live analysis
+on the later commit. See `2026-11-04-docn-first-slice-evidence.json` for hashes,
+checks, source revisions and exact artifact paths.
+
+The browser tool rejected local `file:` navigation. Actual saved HTML structure
+and text were inspected directly without page execution; no visual screenshot
+inspection is claimed. Existing HTML rendering tests passed.
+
+**First A slice accepted; early C is next.** Guidance/EBITDA and other extraction
+rejections remain for the rest of A. Shared scenarios were unavailable in this
+run, so it does not establish Build B valuation acceptance. One of seven live
+attempts has been used. All 17 requests reported usage; the conservative
+maximum-rate usage total is USD 2.3436025 (not an independently retrieved bill).
+The USD30 audit allocation is untouched.
+
+Final independent audit, full build acceptance, remaining A/B/C implementation
+and their required runtime proofs remain outstanding.

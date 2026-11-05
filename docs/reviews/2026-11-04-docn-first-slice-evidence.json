@@ -1,0 +1,54 @@
+{
+  "milestone": "A first slice",
+  "status": "accepted with presentation correction verified by offline publication replay",
+  "live_commit": "34c1c44fab2e43b5de220ac42e6897f51e8844a6",
+  "publication_fix_commit": "6a4e54afb6811b82cd74bc6c83a333f58535d3d8",
+  "live_exit_code": 0,
+  "attempts_used": 1,
+  "attempt_limit": 7,
+  "model_calls": 17,
+  "conservative_usage_upper_usd": 2.3436024999999994,
+  "actual_billed_cost": "not independently retrieved",
+  "checks": {
+    "revenue_accepted": true,
+    "ai_customer_arr_accepted": true,
+    "both_debaters_used_accepted_ai_arr": true,
+    "original_preferences_unchanged": true,
+    "all_requests_have_usage": true,
+    "only_source_label_projection_changed_since_live": true,
+    "publication_replay_passed": true
+  },
+  "original_publication_defect": {
+    "description": "Rejected disclosure warnings repeated full source hashes in memory",
+    "count": 5,
+    "original_artifacts_preserved": true
+  },
+  "checks_after_fix": {
+    "source_preserved": true,
+    "memory_no_hash_dump": true,
+    "rating_consistent": true,
+    "reason_and_locator_retained": true,
+    "actual_html_text_checked": true,
+    "one_reference_appendix": true,
+    "one_section_vi": true,
+    "canonical_evidence_unchanged": true
+  },
+  "reuse_basis": "Fetched evidence, model inputs/outputs, validation and pipeline source unchanged; only deterministic source-label projection and its regression test changed. Required record_decision/state/memory/report publication paths replayed on saved live state without new model calls, in a fresh isolated directory. This is combined evidence across revisions, not a claim of a complete live run on the later commit.",
+  "limitations": [
+    "No browser screenshot: file URL policy rejected local navigation; actual saved HTML structure/text inspected without executing scripts",
+    "Guidance and other disclosure-context rejections remain for remaining A",
+    "Shared scenarios unavailable in this run: no Build B valuation acceptance claimed",
+    "Independent final audit and remaining A/B/C work are not complete"
+  ],
+  "artifacts": {
+    "results/docn-abc/live-01/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "3f8213a5392594ec4f4887d629db629be026bf97dd2954e7adcf030d301bea4a",
+    "results/docn-abc/live-01/results/reports/DOCN_20261104_194941/complete_report.md": "91d273ee0947490bff21ba4fd73f48a2d717b09227bf55e99b23a26e8555019c",
+    "results/docn-abc/live-01/results/reports/DOCN_20261104_194941/complete_report.html": "59402e1b6dc58a434f3c7fdc5db33c1238fb717cc72767695d8f5422eaa0f513",
+    "results/docn-abc/live-01/results/reports/DOCN_20261104_194941/evidence.json": "9a7c2e5b68f2c261499376d5e3614b14c1f752ec6fd399d72fe123f721137226",
+    "results/docn-abc/live-01/results/reports/DOCN_20261104_194941/quality.json": "a7154acdef4c83d0cdbd77478dee0205d1680e0d122fe45bae258a8501fb0594",
+    "results/docn-abc/live-01/source_sha256.json": "6581cb94313263d67a9ff4f728ed4d3864f55c237341baa021b46b52b3a9d6b5",
+    "results/docn-abc/live-01/pricing_snapshot.json": "9b4c57a935ee22425a573a57bc68996a1546d17920e294ba1b27a7e08754da82",
+    "results/docn-abc/cost_ledger.jsonl": "df614c4e3c91e7a0f2542565899ee303fbff585ceb0de0815c89effa02ad48c8",
+    "results/docn-abc/live-01-publication-replay/acceptance-checks.json": "ac85661b68422093d21b016232a977bf34f7095451e265e8826cda85494a14b1"
+  }
+}
