@@ -45,6 +45,25 @@ bounded narrative, readable prior decisions, integrated negative/positive tests,
 and one authorized real CLI proof. No first-slice acceptance or full-suite success
 is claimed. No paid calls have run under this Goal.
 
+### Bounded narrative context
+
+Added failing behavior checks for labeled narrative reaching the shared context
+and for removing unterminated extraction fences (2 failures before implementation).
+The shared context now carries at most 6,000 characters of original research after
+canonical evidence, explicitly labeled unvalidated, with instructions preserving
+canonical calculation/publication authority. Financial/disclosure/scenario JSON
+extraction blocks are removed from this prose view, including an unterminated
+final block. Original diagnostics remain intact and truncation is disclosed.
+The run signature adds `evidence_presentation=1` so older checkpoints cannot resume
+under the changed context contract.
+
+Verification: evidence-gate/graph/publication selection 53 passed in 4.19s;
+checkpoint resume/lifecycle selection 13 passed in 0.78s; changed context/test
+Ruff check passed. These are focused checks, not full first-slice acceptance.
+Additional adversarial integrated assertions, compact evidence/prior-decision
+presentation and real proof remain required. The earlier parser results remain
+valid: its source and dependency environment have not changed.
+
 ## Paid verification decision
 
 User approved: USD100 combined ceiling, allocated USD70 to at most seven

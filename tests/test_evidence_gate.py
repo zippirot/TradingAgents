@@ -410,6 +410,47 @@ def test_downstream_context_receives_canonical_values_directly():
     assert "Issuer DOCN" in result and "Checked OCF: 100 USD" in result
 
 
+def test_downstream_narrative_is_labeled_bounded_and_extraction_free():
+    from tradingagents.agents.context import get_instrument_context_from_state
+
+    state = {
+        "company_of_interest": "DOCN",
+        "canonical_financial_context": "Checked revenue: 100 USD",
+        "financial_claim_validation": {
+            "raw_report": (
+                "Revenue is a trillion dollars; investigate AI retention.\n"
+                '```financial_claims\n[{"fact_id":"untrusted-id"}]\n```\n'
+                "Research context. " * 1000
+            ),
+        },
+    }
+    import copy
+
+    original = copy.deepcopy(state)
+    context = get_instrument_context_from_state(state)
+    assert "Checked revenue: 100 USD" in context
+    assert "Analyst research — unvalidated interpretation" in context
+    assert "investigate AI retention" in context
+    assert "untrusted-id" not in context
+    assert "truncated" in context.lower()
+    assert len(context) < 7500
+    assert state == original
+
+
+def test_unterminated_extraction_cannot_become_research_prose():
+    from tradingagents.agents.context import get_instrument_context_from_state
+
+    context = get_instrument_context_from_state({
+        "company_of_interest": "DOCN",
+        "canonical_financial_context": "Checked revenue: 100 USD",
+        "financial_claim_validation": {
+            "raw_report": 'Research hypothesis.\n```valuation_scenarios\n{"secret_claim":999}',
+        },
+    })
+    assert "Research hypothesis." in context
+    assert "secret_claim" not in context
+
+
 def test_earnings_bridge_never_substitutes_net_income_for_diluted_numerator():
     from decimal import Decimal
 
