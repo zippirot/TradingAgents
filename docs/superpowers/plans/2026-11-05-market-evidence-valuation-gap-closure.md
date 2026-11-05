@@ -1,6 +1,6 @@
 # Market evidence and valuation gap closure
 
-Date: 2026-11-05. Revision 2: independent Build 1 release, live session proof, explicit suitability and remote handoff. Status: revision 2 approved for autonomous implementation by the user on 2026-11-05. The user separately authorized a new $10 aggregate budget for at most three paid CLI attempts, with no retry reserve. Publication and installation remain unauthorized. The original approved input is frozen by hash outside Git.
+Date: 2026-11-05. Revision 2: independent Build 1 release, live session proof, explicit suitability and remote handoff. Status: revision 2 approved for autonomous implementation by the user on 2026-11-05. The user separately authorized a new $10 aggregate budget for at most three paid CLI attempts, with no retry reserve. The original plan granted no publication or installation authority. Later scoped Build 1 approvals and execution are recorded in the acceptance record; Build 2/3 release remains unauthorized. The original approved input is frozen by hash outside Git.
 
 ## Outcome and evidence
 
@@ -172,3 +172,8 @@ Finish with all source/tests/plan updates and acceptance records committed, clea
 - **FRED:** optional user configuration using a user-owned key. Never require it for the other fixes; retain readable missing-macro coverage. No account creation or secret collection in chat.
 - **Deferred:** full cash-flow/DCF valuation, new peer/consensus service, recurring watchlist runs, automatic trading rules and broker execution. Scheduled watchlist collection requires its own cost/selection policy; it cannot accelerate each horizon's passage of time.
 - **Release:** no push, PR, merge, staging/production promotion, app replacement, worktree deletion or remote branch deletion without separate authorization. On later authorized installation, pin the accepted SHA, preserve previous source/configuration and user data, and smoke-test the actual launcher. Rollback must not overwrite newer user reports, memory or immutable publications.
+
+
+## Execution closure — November 5
+
+All three builds, three authorized CLI proofs, full boundary suites, rendering/recovery and independent final audit are complete for local development acceptance. Application/proof source: d5bf3a61537c4a9e61035b50da5fe78d375d00e7. Final records and limitations: [acceptance](../../reviews/2026-11-05-market-evidence-valuation-acceptance.md). Build 1 was separately approved for publication, staging merge and pinned installation; Build 2/3 remains local pending separate publication/exact-head CI/release authority. No acceptance criterion or material finding remains deferred as a required proof.
