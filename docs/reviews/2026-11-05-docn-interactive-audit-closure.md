@@ -185,3 +185,84 @@ records actualCLI settings and executed counters without changing stream content
 Current public model pricing and retained ledger were checked without a completion
 request:7 attempts, $18.410925 live, no unknown reservations. Live08 continuity seed
 copies nine prior-publication/memory files exactly. No paid follow-up call yet.
+
+
+## Live08 and refreshed real settlement proof
+
+Live08 on7e4014b completed17 requests for$2.723965, with saved preferences
+unchanged. RealCLI config and observed counters confirm depth1,2 research turns
+and3 risk turns. Report/publication/evidence/memory/restart readback passed. An
+independent reviewer rehashed280 source files,7 artifacts and9 copied seed files,
+verified immutable hashes and found no material defect. Underweight/limited
+published as a linked revision; all five endpoints remain pending. Model-origin
+target/funding/scenario requests were absent, so those acceptance rows stay open.
+
+Refreshed settlement uses an eligible October19 legacy memory entry and real Yahoo
+closes. Five-session entry October20/exit October27 settled once; repeat added
+nothing; memory unchanged; publication time remains unknown. Longer endpoints
+remain pending. No model requests were permitted. Deep live09 remains running.
+
+
+## Deep live09 completed
+
+Live09 completed37 requests for$7.371325 on7e4014b. Observed counters show all
+10research and15risk turns, with configured5/5rounds, Denver clock and unchanged
+saved preferences. Fresh report/publication/evidence/memory/restart readback passed.
+Underweight/limited is a linked revision; all five endpoints remain pending.
+Optional target/funding/scenario requests again absent; those acceptance rows
+remain open. Condition roles are still legacy-unspecified with unreported Q4
+measurements; the planned labeled engineering-seed live proof remains to run.
+
+
+## Remaining-plan acceptance map (before live10 and final audit)
+
+| Requirement | Evidence / disposition |
+| --- | --- |
+| One explicit Denver historical cutoff | Implemented; boundary/DST/current-legacy tests and actual saved DOCN replay; live08/09 publication clocks verified |
+| Mature session retrieval, legacy completed bars | Bounded disjoint retrieval tests using official SSE closures; current-source real Yahoo legacy settlement/repeat passed |
+| Safe condition aliases and identity | Positive/negative alias, basis, currency, period and saved-ID regressions; independent local review passed |
+| Readable numbers, prominent role/disposition, provenance | Retained report inspection and tests; exact arithmetic retained; browser visual review unavailable |
+| Immutable publication re-export | Actual live07 retries/export preserve original record/evidence/diagnostics; independent38-case review passed |
+| Runtime Python compatibility and no-dev installation | Local2288+100subtests on3.12UTC/NY and3.14; remote initial CI42054405210 passes3.11/3.12NY/3.13/3.14, smoke and lint |
+| Complete intended CI matrix | Found original YAML include replaced3.12UTC; local workflow now explicitly adds UTC axis so NY is a fifth job; final remote run pending |
+| Deep actual execution and persistence | Live09 executed10research/15risk turns,37requests; report/state/record/restart checks and independent hash review passed |
+| Supported model-origin final target | OPEN: live08/09 explicitly abstained; no demonstrated parser defect |
+| Model-origin forward funding | OPEN: neither live08 nor09 requested it; offline fixtures cannot substitute |
+| Classified condition through real model | Live10 running with visibly labeled engineering seed; no natural-maturation claim |
+| Connected completed-build audit and material closure | Pending final runtime evidence and committed candidate |
+| Exact final-commit CI | Draft PR1 open; initial7e4014b CI green; final evidence/workflow commit still required |
+| Release boundary | No merge or launcher installation; original launcherb075166 remains intact |
+
+The original model-generated shared scenarios remain retained positive evidence
+from live07; recent absence is reported, not recast as a new successful request.
+Longer performance observations remain pending by design. Current live spending
+after attempt9 is$28.506215; cumulative audits$5.33832825; combined$33.84454325,
+excluding Codex usage. Attempt10 is in progress; attempt11 remains a diagnostic
+reserve and cannot be used merely to seek a desired investment output.
+
+
+## Live10 completed; audit candidate
+
+Live10 completed17 requests for$2.7472125, with saved preferences unchanged.
+Observed2research/3risk turns and fresh report/publication/evidence/memory/restart
+readback passed. Its seed was visibly ENGINEERING SEED CREATED NOW, stored with
+actual current publication time and historical evaluation mode; no natural
+thesis maturation or historical model opinion is claimed. Retained source facts
+are Q3Revenue$321.192m and GrossMargin50.1476%. The real model recognized support
+breached versus reconsideration not met, retired both completed-period conditions
+with specific reasons, and retained its own Underweight rating.
+
+Supported target and forward-funding requests remain absent after all three planned
+additional calls. No parser/transport defect is demonstrated; the reserve attempt
+cannot be used merely to seek a desired research output. This acceptance remains
+open for a scope decision after remaining authorized audit/CI work.
+
+Cumulative live usage$31.2534275, prior audit usage$5.33832825, combined$36.59175575
+excluding Codex. Ten lifetime attempts used (one Deep); attempt11 is reserved for
+diagnosed corrections. Connected audit has incremental$15 authorized; first audit
+will use$10 hard ceiling, preserving$5 for targeted material rechecks.
+
+Draft PR1 is open. Initial remoteCI42054405210 passed on7e4014b, including3.11/3.13,
+smoke and lint. Review of actual jobs revealed YAMLinclude had replaced3.12UTC
+withNewYork rather than adding a fifth job; explicitUTC axis fixes this and was
+parsed/verified locally. Final remoteCI on the reconciled commit remains required.

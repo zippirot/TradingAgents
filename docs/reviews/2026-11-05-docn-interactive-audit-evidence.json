@@ -384,17 +384,17 @@
       "push_and_draft_pr": "approved task branch to staging draft PR only"
     },
     "goal_notifier_key": "thread:01a1a916-23a3-70f2-bc0d-e2da550b38e0:goal:1793886824",
-    "new_paid_calls": 0,
-    "live_attempts_used": 7,
-    "live_usd": 18.410925,
+    "new_paid_calls": 71,
+    "live_attempts_used": 10,
+    "live_usd": 31.2534275,
     "audit_usd": 5.33832825,
     "limits": [
-      "Additional live target/funding/classified-condition/depth5 proofs pending",
-      "Connected completed-build audit pending final runtime evidence",
-      "Exact-head remote CI pending final candidate; push/draft PR authorized",
-      "Python3.11/3.13 unavailable locally; remote matrix required",
-      "Browser visual inspection pending",
-      "Launcher remains b075166df6f1738ef691cee23d1473e5085e05a1"
+      "Supported model-origin final target and forward-funding request remain unproved after three planned additional calls; reserve retry not justified by desired-output seeking",
+      "Connected completed-build audit pending",
+      "Exact-final-commit CI pending; initial candidate CI passed",
+      "Browser visual inspection unavailable",
+      "Future performance endpoints pending by design",
+      "Launcher unchanged at b075166df6f1738ef691cee23d1473e5085e05a1"
     ],
     "prelive_verification": {
       "source_sha256": {
@@ -689,6 +689,262 @@
       },
       "clean_install": "3.12 no-dev installation, imports outside checkout, all installed Python source bytes match",
       "reexport_receipt": "results/docn-abc/remaining-gaps/m3-reexport/receipt.json"
+    },
+    "live08": {
+      "runtime_acceptance": {
+        "supported_final_target": false,
+        "target_reasons": [
+          "no supported structured target provided"
+        ],
+        "forward_capital_requests": 0,
+        "shared_scenarios": 0,
+        "classified_observations": [],
+        "executed_rounds": {
+          "depth": 1,
+          "expected_research_turns": 2,
+          "expected_risk_turns": 3,
+          "research_counts": [
+            0,
+            1,
+            2
+          ],
+          "risk_counts": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "research_count_max": 2,
+          "risk_count_max": 3,
+          "stream_completed": true,
+          "error_type": null
+        }
+      },
+      "source_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+      "source_manifest_sha256": "0bf1fdac1a3efef9e9a987eb8ef84c3c1dd76f5d4e16ed24daffc502493c5c70",
+      "decision_id": "1d0a262d-3ea0-4bc2-8519-9192aa38f492",
+      "published_at": "2026-11-05T15:06:25.187948+00:00",
+      "rating": "Underweight",
+      "thesis_version_id": "a214c20d-9b67-5450-8adf-eccc402b9e59",
+      "five_endpoints_pending": true,
+      "fresh_graph_readback": true,
+      "memory_unchanged": true,
+      "paid_calls": 0,
+      "evaluation_attempts": {
+        "status": "available",
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "in_progress": 0,
+        "errors": [],
+        "failure_rate": 0.0,
+        "failure_rate_denominator": "valid started attempts visible at cutoff",
+        "logs_without_markers": 0,
+        "coverage_completeness": "recorded_markers_only",
+        "coverage_start": "2026-11-05T15:01:26.565313+00:00",
+        "coverage_end": "2026-11-05T15:06:25.280002+00:00",
+        "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history."
+      },
+      "artifact_sha256": {
+        "results/docn-abc/live-08/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-05.json": "67ff8cf94a554734f94eed0d57f5bca178a9c35ae5775c5a2cded5ac44ccf83b",
+        "results/docn-abc/live-08/results/reports/DOCN_20261105_080625/complete_report.md": "74dbb5ad5151270ae7cd3cadfb8d1014e7fce0e614526d34b7334dca486d6cbd",
+        "results/docn-abc/live-08/results/reports/DOCN_20261105_080625/complete_report.html": "f86ce13c2c937c52d03c5a35923b36d542de30b6582996e45b3e95f7ebb5d325",
+        "results/docn-abc/live-08/results/reports/DOCN_20261105_080625/evidence.json": "c6bc9e594c938d05927ace2f62d3f15329af233328838186bb287955d126a825",
+        "results/docn-abc/live-08/memory/trading_memory.md": "e6983c19afc8d5ff0bb023455f6c44c0f17663691873a1761569bb1237a126f3",
+        "results/docn-abc/live-08/executed_rounds.json": "87083373cc36a728badd20c95c402555ff90d6778c2ceec157358cf4e357ff27",
+        "results/docn-abc/live-08/actual_run_config.json": "274526817f5d043d6bf8d23a69bffbe89fead9a105c97ad933e28620806d3b83"
+      },
+      "cost_usd": 2.723965,
+      "independent_review": "280 source files,7 artifacts,9 seed files rehashed; publication/evidence/decision digests checked; no material defect. Target/funding/classified conditions remain unproved."
+    },
+    "refreshed_settlement": {
+      "root": "results/docn-abc/remaining-settlement",
+      "kind": "real Yahoo price settlement of eligible legacy record; no paid model requests",
+      "first_settled": 1,
+      "repeat_settled": 0,
+      "memory_unchanged": true,
+      "published_at": null,
+      "artifact_sha256": {
+        "results/docn-abc/remaining-settlement/settlement-repeat.json": "4898c90c8ce59a6639c8ed6fb563840517faee8918211936e29c767222f97a37",
+        "results/docn-abc/remaining-settlement/prepare.json": "82d05c4372a4675984d945f18bb2f35891f586f6bb947a895bd1fd0094febf52",
+        "results/docn-abc/remaining-settlement/settlement.json": "8da14f38be3f8f9d6caba19307410443f1e1c785ba4b82e9ef7dc95be9a309eb"
+      }
+    },
+    "live09": {
+      "runtime_acceptance": {
+        "supported_final_target": false,
+        "target_reasons": [
+          "no supported structured target provided"
+        ],
+        "forward_capital_requests": 0,
+        "shared_scenarios": 0,
+        "classified_observations": [],
+        "executed_rounds": {
+          "depth": 5,
+          "expected_research_turns": 10,
+          "expected_risk_turns": 15,
+          "research_counts": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "risk_counts": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "research_count_max": 10,
+          "risk_count_max": 15,
+          "stream_completed": true,
+          "error_type": null
+        }
+      },
+      "source_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+      "source_manifest_sha256": "0ee8fe05cd569b0ee641cceea5a4b10714e5bc6a86994217289d98a747929c2c",
+      "decision_id": "b4d91444-7277-4055-953f-d158ca9c970b",
+      "published_at": "2026-11-05T15:18:43.929855+00:00",
+      "rating": "Underweight",
+      "thesis_version_id": "ce779ece-c38c-5334-b0c5-77f7f9eae318",
+      "five_endpoints_pending": true,
+      "fresh_graph_readback": true,
+      "memory_unchanged": true,
+      "paid_calls": 0,
+      "evaluation_attempts": {
+        "status": "available",
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "in_progress": 0,
+        "errors": [],
+        "failure_rate": 0.0,
+        "failure_rate_denominator": "valid started attempts visible at cutoff",
+        "logs_without_markers": 0,
+        "coverage_completeness": "recorded_markers_only",
+        "coverage_start": "2026-11-05T15:08:15.559409+00:00",
+        "coverage_end": "2026-11-05T15:18:44.074064+00:00",
+        "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history."
+      },
+      "artifact_sha256": {
+        "results/docn-abc/live-09/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-05.json": "90d2f1faa76df34a858344400833fc4fc77b5b73ee354b7ae22417f9da16f3cf",
+        "results/docn-abc/live-09/results/reports/DOCN_20261105_081844/complete_report.md": "9e84b8569e4ba6760c682b3df5d3d273a3c8b9a8a02541ce9a41a4f8edb188bb",
+        "results/docn-abc/live-09/results/reports/DOCN_20261105_081844/complete_report.html": "919832f47a32b5ab442882b65d65ae3e079c7788c23fdefc4c7d5717df7c4ab7",
+        "results/docn-abc/live-09/results/reports/DOCN_20261105_081844/evidence.json": "c8be1fe69ffc33094b68a1835654569d32b7352676e6257966e7a4ec7125223b",
+        "results/docn-abc/live-09/memory/trading_memory.md": "e6983c19afc8d5ff0bb023455f6c44c0f17663691873a1761569bb1237a126f3",
+        "results/docn-abc/live-09/executed_rounds.json": "2ed6046689bb683954faab3e4782fe7a6b93d846a79a600dd884d53e01edf880",
+        "results/docn-abc/live-09/actual_run_config.json": "eba607ed788bda9271fbef9b409ea2a215fd430573ddb1e72518f18f60c84002"
+      },
+      "cost_usd": 7.371325,
+      "independent_review": "280source/7artifact/11seed hashes verified;10research15risk,37requests;no materialdefect;target/funding absent legitimateabstention."
+    },
+    "live10": {
+      "runtime_acceptance": {
+        "supported_final_target": false,
+        "target_reasons": [
+          "no supported structured target provided"
+        ],
+        "forward_capital_requests": 0,
+        "shared_scenarios": 0,
+        "classified_observations": [
+          {
+            "condition_id": "condition-eaf96efe6d3f085129927ef9",
+            "role": "supports_thesis",
+            "status": "breached",
+            "disposition": "retired",
+            "reason": "The Q3 support condition was breached: gross margin was 50.15%, below 53%. The observation is incorporated in the current risk assessment; the historical period is complete and a new Q4 advisory review replaces it without imposing an automatic exit."
+          },
+          {
+            "condition_id": "condition-f07abe0efa8f2e99720779cf",
+            "role": "reconsideration_trigger",
+            "status": "breached",
+            "disposition": "retired",
+            "reason": "The Q3 reconsideration trigger was not met: revenue was $321.192 million versus $400 million. A trigger not met is not a failed thesis; its historical period is complete and future growth will be reviewed in context rather than applying that stale threshold."
+          }
+        ],
+        "executed_rounds": {
+          "depth": 1,
+          "expected_research_turns": 2,
+          "expected_risk_turns": 3,
+          "research_counts": [
+            0,
+            1,
+            2
+          ],
+          "risk_counts": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "research_count_max": 2,
+          "risk_count_max": 3,
+          "stream_completed": true,
+          "error_type": null
+        }
+      },
+      "source_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+      "source_manifest_sha256": "0bf1fdac1a3efef9e9a987eb8ef84c3c1dd76f5d4e16ed24daffc502493c5c70",
+      "decision_id": "2f069179-0abf-44fe-95fb-650dde66acd0",
+      "published_at": "2026-11-05T15:30:31.680593+00:00",
+      "rating": "Underweight",
+      "thesis_version_id": "bbe11586-2d9e-5504-8c12-4d9428bc4fc7",
+      "five_endpoints_pending": true,
+      "fresh_graph_readback": true,
+      "memory_unchanged": true,
+      "paid_calls": 0,
+      "evaluation_attempts": {
+        "status": "available",
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "in_progress": 0,
+        "errors": [],
+        "failure_rate": 0.0,
+        "failure_rate_denominator": "valid started attempts visible at cutoff",
+        "logs_without_markers": 0,
+        "coverage_completeness": "recorded_markers_only",
+        "coverage_start": "2026-11-05T15:25:47.586715+00:00",
+        "coverage_end": "2026-11-05T15:30:31.828209+00:00",
+        "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history."
+      },
+      "artifact_sha256": {
+        "results/docn-abc/live-10/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-05.json": "dff0d28f1f5d4574acf11fe0f2b6dfc37a6349e8338bb45d06d8589a1768f075",
+        "results/docn-abc/live-10/results/reports/DOCN_20261105_083031/complete_report.md": "be2dd0b24afb838196996b4c3863a96b071a21ca614ff20c3c99402397f0fd12",
+        "results/docn-abc/live-10/results/reports/DOCN_20261105_083031/complete_report.html": "023027408a103aeb5445a4242b1ce35f54eabc1948f129bade2e8130847f82f0",
+        "results/docn-abc/live-10/results/reports/DOCN_20261105_083031/evidence.json": "8e358f667d28620bc0d21d4f8cb6c18c0907a4f3bf31e5fcb36eab2631416bd6",
+        "results/docn-abc/live-10/memory/trading_memory.md": "e6983c19afc8d5ff0bb023455f6c44c0f17663691873a1761569bb1237a126f3",
+        "results/docn-abc/live-10/executed_rounds.json": "87083373cc36a728badd20c95c402555ff90d6778c2ceec157358cf4e357ff27",
+        "results/docn-abc/live-10/actual_run_config.json": "274526817f5d043d6bf8d23a69bffbe89fead9a105c97ad933e28620806d3b83"
+      },
+      "cost_usd": 2.7472125,
+      "engineering_seed_receipt": "results/docn-abc/live-10/engineering-seed.json"
+    },
+    "remote_ci": {
+      "draft_pr": "https://github.com/zippirot/TradingAgents/pull/1",
+      "initial_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+      "run_id": 42054405210,
+      "conclusion": "success",
+      "matrix_correction": "Explicit UTC axis added so New York3.12 is a fifth job; final run pending"
     }
   }
 }
