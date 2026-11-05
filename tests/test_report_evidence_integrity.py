@@ -12,8 +12,8 @@ def test_prevalidation_checkpoint_is_preserved_but_not_resumed(tmp_path):
     app.selected_analysts = ("market", "fundamentals")
     app.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
     signature = app._run_signature("stock")
-    assert "evidence=3" in signature and "publication=1" in signature
-    old_signature = signature.replace("|evidence=3", "").replace("|publication=1", "")
+    assert "evidence=4" in signature and "publication=1" in signature
+    old_signature = signature.replace("|evidence=4", "").replace("|source_acquisition=1", "").replace("|publication=1", "")
 
     class State(TypedDict):
         count: int
@@ -22,7 +22,7 @@ def test_prevalidation_checkpoint_is_preserved_but_not_resumed(tmp_path):
     builder.add_node("after_old_validation", lambda state: {"count": state["count"] + 1})
     builder.set_entry_point("after_old_validation")
     builder.add_edge("after_old_validation", END)
-    assert thread_id("DOCN", "2026-11-04", signature.replace("evidence=3", "evidence=2")) != thread_id("DOCN", "2026-11-04", signature)
+    assert thread_id("DOCN", "2026-11-04", signature.replace("evidence=4", "evidence=3").replace("|source_acquisition=1", "")) != thread_id("DOCN", "2026-11-04", signature)
     old_id = thread_id("DOCN", "2026-11-04", old_signature)
     new_id = thread_id("DOCN", "2026-11-04", signature)
     assert old_id != new_id

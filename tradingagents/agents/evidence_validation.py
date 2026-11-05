@@ -269,83 +269,156 @@ def review_terminal_state(quality: dict) -> dict:
     }
 
 
-def create_evidence_gate(selected_analysts):
-    """Acquire canonical evidence outside model choice, then assess selected scope."""
+def _outside_financial_scope(reason):
+    return {
+        "evidence_quality": {
+            "schema_version": 1, "scope": "not_applicable", "status": "limited",
+            "checks": [{"code": "scope", "status": "not_applicable", "message": reason}],
+            "warnings": [reason],
+        }
+    }
+
+
+def _acquisition_scope(state, selected_analysts):
+    from tradingagents.dataflows.symbols import normalize_symbol
+
+    return {
+        "schema_version": 1,
+        "ticker": normalize_symbol(state.get("company_of_interest", "")),
+        "as_of": str(state.get("trade_date", "")),
+        "asset_type": state.get("asset_type", "stock"),
+        "selected_analysts": list(selected_analysts),
+    }
+
+
+def create_source_acquisition(selected_analysts):
+    """Acquire one source vintage before analyst fan-out; never authorize publication."""
     from tradingagents.dataflows.errors import VendorError
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
 
-    def out_of_scope(reason):
-        return {
-            "evidence_quality": {
-                "schema_version": 1,
-                "scope": "not_applicable",
-                "status": "limited",
-                "checks": [{"code": "scope", "status": "not_applicable", "message": reason}],
-                "warnings": [reason],
-            }
-        }
-
-    def gate(state):
+    def acquire(state):
+        scope = _acquisition_scope(state, selected_analysts)
+        retained = state.get("evidence_acquisition")
+        if retained is not None:
+            if any(retained.get(key) != value for key, value in scope.items()):
+                raise ValueError("Retained evidence acquisition differs from run scope; start a fresh run")
+            return {}  # A compatible resumed node must never replace its vintage.
+        record = {**scope, "status": "not_applicable", "reason": "",
+                  "raw_financial_evidence": None, "disclosure_error": None,
+                  "rpo_comparison": None, "source_checks": []}
+        update = {}
         if "fundamentals" not in selected_analysts:
-            return out_of_scope("Fundamentals not selected; no US accounting validation performed")
-        if state.get("asset_type", "stock") != "stock":
-            return out_of_scope("Non-stock asset; US-filer accounting checks do not apply")
-        try:
-            mapped_cik = sec_edgar.cik_for(state["company_of_interest"])
-            if mapped_cik is None:
-                return out_of_scope(
-                    "Instrument not identified in SEC issuer map; no US accounting validation performed"
-                )
-            package = sec_edgar.get_financial_evidence(
-                state["company_of_interest"], state["trade_date"]
-            )
-            if package.cik != mapped_cik or str(package.as_of) != str(state["trade_date"]):
-                raise ValueError("SEC financial package issuer or cutoff differs from requested instrument")
-        except (VendorError, ValidationError, ValueError) as exc:
-            quality = evidence_quality(
-                [{"code": "source_integrity", "status": "unavailable", "message": str(exc)}]
-            )
-            return review_terminal_state(quality)
-        try:
-            disclosures = sec_documents.get_filing_evidence(
-                state["company_of_interest"], state["trade_date"]
-            )
-        except (VendorError, ValidationError, ValueError) as exc:
-            return assess_financial_package(state, package, disclosure_error=str(exc))
-        from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
+            record["reason"] = "Fundamentals not selected; no US accounting validation performed"
+        elif scope["asset_type"] != "stock":
+            record["reason"] = "Non-stock asset; US-filer accounting checks do not apply"
+        else:
+            try:
+                mapped_cik = sec_edgar.cik_for(scope["ticker"])
+                if mapped_cik is None:
+                    record["reason"] = "Instrument not identified in SEC issuer map; no US accounting validation performed"
+                else:
+                    package = sec_edgar.get_financial_evidence(scope["ticker"], scope["as_of"])
+                    if package.cik != mapped_cik or str(package.as_of) != scope["as_of"]:
+                        raise ValueError("SEC financial package issuer or cutoff differs from requested instrument")
+                    record["raw_financial_evidence"] = package.model_dump(mode="json")
+                    record["status"] = "ready"
+                    update["issuer_identity"] = {"ticker": scope["ticker"], "cik": mapped_cik,
+                                                "as_of": scope["as_of"], "source": "SEC issuer map"}
+                    disclosures = None
+                    try:
+                        disclosures = sec_documents.get_filing_evidence(scope["ticker"], scope["as_of"])
+                        if disclosures.cik != package.cik or str(disclosures.as_of) != scope["as_of"]:
+                            raise ValueError("SEC filing package issuer or cutoff differs from requested instrument")
+                    except (VendorError, ValidationError, ValueError) as exc:
+                        record["disclosure_error"] = str(exc)
+                        disclosures = None
+                    if disclosures is not None:
+                        from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
 
-        rpo = retrieve_rpo_comparison(state["company_of_interest"], disclosures)
-        update = assess_financial_package(state, package, disclosures, rpo_comparison=rpo)
-        from tradingagents.dataflows.symbols import normalize_symbol
-        update["issuer_identity"] = {"ticker": normalize_symbol(state["company_of_interest"]),
-            "cik": mapped_cik, "as_of": str(package.as_of), "source": "SEC issuer map"}
-        if update["evidence_quality"]["status"] in {"sufficient", "limited"}:
-            from tradingagents.dataflows.config import get_config
-            from tradingagents.dataflows.vendors.yahoo.price_observation import (
-                completed_price_scope,
-                get_price_observation,
-            )
+                        record["rpo_comparison"] = retrieve_rpo_comparison(scope["ticker"], disclosures)
+                    prepared = assess_financial_package(
+                        state, package, disclosures, record["disclosure_error"],
+                        rpo_comparison=record["rpo_comparison"], source_only=True,
+                    )
+                    record["source_checks"] = prepared.pop("source_checks")
+                    update.update(prepared)
+            except (VendorError, ValidationError, ValueError) as exc:
+                record["status"] = "unavailable"
+                record["reason"] = str(exc)
+        # Price is independent of financial scope and critical-accounting status.
+        from tradingagents.dataflows.config import get_config
+        from tradingagents.dataflows.vendors.yahoo.price_observation import (
+            completed_price_scope,
+            get_price_observation,
+        )
 
-            config = get_config()
-            chain = config.get("tool_vendors", {}).get("get_stock_data") or config.get("data_vendors", {}).get("core_stock_apis", "")
-            if "yfinance" in {name.strip() for name in str(chain).split(",")}:
-                cash_dates = [fact.period_end for fact in package.facts
-                              if fact.metric == "Cash and Equivalents" and fact.value is not None
-                              and fact.period_start is None]
-                capital_date = max(cash_dates, default=None)
-                with completed_price_scope(state):
-                    update["price_observation"] = get_price_observation(
-                        state["company_of_interest"], state["trade_date"], capital_date)
-            else:
-                update["price_observation"] = {"status": "unavailable",
-                    "reason": "No supported dated-close provider is configured; no additional vendor was used"}
+        config = get_config()
+        chain = config.get("tool_vendors", {}).get("get_stock_data") or config.get("data_vendors", {}).get("core_stock_apis", "")
+        if "yfinance" in {name.strip() for name in str(chain).split(",")}:
+            dates = [date.fromisoformat(f["period_end"])
+                     for f in update.get("financial_evidence", {}).get("facts", [])
+                     if f["metric"] == "Cash and Equivalents" and f.get("value") is not None
+                     and f.get("period_start") is None]
+            with completed_price_scope(state):
+                update["price_observation"] = get_price_observation(
+                    scope["ticker"], scope["as_of"], max(dates, default=None))
+        else:
+            update["price_observation"] = {"status": "unavailable",
+                "reason": "No supported dated-close provider is configured; no additional vendor was used"}
+        update["evidence_acquisition"] = record
+        from tradingagents.agents.context import build_shared_source_brief
+
+        update["shared_source_brief"] = build_shared_source_brief({**state, **update})
         return update
+
+    return acquire
+
+
+def create_evidence_gate(selected_analysts):
+    """Validate model claims against the retained source vintage after all analysts."""
+    def gate(state):
+        retained = state.get("evidence_acquisition")
+        if retained is None:
+            # Narrow compatibility for direct callers outside the compiled graph.
+            if "fundamentals" not in selected_analysts:
+                return _outside_financial_scope("Fundamentals not selected; no US accounting validation performed")
+            if state.get("asset_type", "stock") != "stock":
+                return _outside_financial_scope("Non-stock asset; US-filer accounting checks do not apply")
+            acquired = create_source_acquisition(selected_analysts)(state)
+            return {**acquired, **gate({**state, **acquired})}
+        scope = _acquisition_scope(state, selected_analysts)
+        if any(retained.get(key) != value for key, value in scope.items()):
+            quality = evidence_quality([{"code": "source_integrity", "status": "unavailable",
+                "message": "Retained evidence acquisition differs from run scope; start a fresh run"}])
+            return review_terminal_state(quality)
+        if retained["status"] == "not_applicable":
+            return _outside_financial_scope(retained["reason"])
+        if retained["status"] != "ready":
+            return review_terminal_state(evidence_quality([
+                {"code": "source_integrity", "status": "unavailable", "message": retained["reason"]}]))
+        from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+        try:
+            package = EvidencePackage.model_validate(retained["raw_financial_evidence"])
+            disclosures = (DisclosurePackage.model_validate(state["filing_evidence"])
+                           if state.get("filing_evidence") and not retained.get("disclosure_error") else None)
+            if package.cik != state.get("issuer_identity", {}).get("cik") or str(package.as_of) != scope["as_of"]:
+                raise ValueError("Retained financial package issuer or cutoff mismatch")
+            if disclosures is not None and (disclosures.cik, disclosures.as_of) != (package.cik, package.as_of):
+                raise ValueError("Retained filing package issuer or cutoff mismatch")
+        except (KeyError, ValidationError, ValueError) as exc:
+            return review_terminal_state(evidence_quality([
+                {"code": "source_integrity", "status": "unavailable", "message": str(exc)}]))
+        return assess_financial_package(
+            state, package, disclosures, retained.get("disclosure_error"),
+            rpo_comparison=retained.get("rpo_comparison"),
+        )
 
     return gate
 
 
 def assess_financial_package(
-    state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None
+    state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None, source_only=False
 ) -> dict:
     """Assess available canonical evidence; unfinished critical bridges remain unavailable."""
     calculations = []
@@ -395,7 +468,8 @@ def assess_financial_package(
         *validate_calculation_lineage(package),
         *reported_fact_conflicts(package, source_precision),
     ]
-    claims = validate_financial_claims(state.get("fundamentals_report", ""), package)
+    claims = ({"status": "unavailable", "reasons": ["Model claims are assessed after analyst reasoning"]}
+              if source_only else validate_financial_claims(state.get("fundamentals_report", ""), package))
     balance = latest_balance_check(package, source_precision)
     checks = [
         core_statement_check(package),
@@ -491,8 +565,9 @@ def assess_financial_package(
             for doc in disclosures.documents
             for block in doc.blocks
         }
-        grounded = parse_disclosure_report(state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
         discovered = discover_disclosures((disclosures,))
+        grounded = discovered if source_only else parse_disclosure_report(
+            state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
         # Deterministic proposals pass the same validator. Keep rejected model
         # submissions visible; accepted discovery never retroactively repairs them.
         accepted = {}
@@ -605,6 +680,13 @@ def assess_financial_package(
         )
     if disclosures is not None:
         update["filing_evidence"] = disclosures.model_dump(mode="json")
+    if source_only:
+        if extraction is not None:
+            update["filing_fact_extraction"] = extraction.model_dump(mode="json")
+        update["source_checks"] = [check for check in checks if check["code"] != "material_claims"]
+        update.pop("evidence_quality")
+        update.pop("financial_claim_validation")
+        return update
     from tradingagents.agents.issuer_events import issuer_supplement
     supplement = issuer_supplement(
         state.get("news_coverage", {}), disclosures, cik=package.cik, as_of=str(package.as_of),

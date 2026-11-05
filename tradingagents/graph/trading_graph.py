@@ -181,7 +181,8 @@ class TradingAgentsGraph:
             "memory=parallel",
             # Old checkpoints must not resume beyond the new evidence gate or
             # publication projection. Different IDs leave historical files intact.
-            "evidence=3",
+            "evidence=4",
+            "source_acquisition=1",
             "publication=1",
             "shared_valuation=6",
             "advisory_thesis=2",
@@ -606,7 +607,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("analysis_clock", "market_observation_cutoff", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("analysis_clock", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

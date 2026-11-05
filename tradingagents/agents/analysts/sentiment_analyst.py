@@ -88,6 +88,7 @@ def create_sentiment_analyst(llm):
             reddit_block=reddit_block,
             subreddits=subreddits,
         )
+        system_message += (" A social numeric claim matches a retained fact only when metric, period, unit and definition agree. Matching a number does not authenticate an account, causal explanation or broader story; a different unit or period remains unverified.")
 
         prompt = ChatPromptTemplate.from_messages(
             [

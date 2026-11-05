@@ -79,6 +79,8 @@ class AgentState(MessagesState):
 
     filing_evidence: Annotated[dict, "Canonical dated filing documents for this run"]
     filing_fact_extraction: Annotated[dict, "Verified filing cells and table coverage"]
+    evidence_acquisition: Annotated[dict, "Retained pre-analyst source vintage and scope; not final evidence authority"]
+    shared_source_brief: Annotated[str, "Bounded common primary-source brief consumed by every analyst"]
     financial_evidence: Annotated[dict, "Canonical immutable source facts for this run"]
     financial_calculations: Annotated[list, "Deterministic accounting checks and calculated values"]
     financial_claim_validation: Annotated[dict, "Canonical fact claims and original unvalidated research"]
