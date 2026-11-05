@@ -155,7 +155,7 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
         extraction = parse_disclosure_report(report, blocks, packages=(disclosures,))
         results = {}
         for claim in extraction.claims:
-            if claim.kind not in {"guidance", "ambition"}:
+            if claim.kind not in {"guidance", "ambition"} or claim.comparator != "exact":
                 continue
             metric, period, basis = (
                 _metric(claim.metric),

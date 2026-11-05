@@ -30,10 +30,13 @@ class DisclosureClaim(BaseModel):
     metric: str = Field(min_length=1, max_length=160)
     value: Decimal
     upper_value: Decimal | None = None
+    comparator: Literal["exact", "at_least", "central_estimate"] = "exact"
+    tolerance_percent: Decimal | None = Field(default=None, gt=0, lt=100)
     unit: str = Field(min_length=1, max_length=80)
     period: str = Field(min_length=1, max_length=160)
     kind: Literal["historical", "guidance", "ambition"]
     quote: str = Field(min_length=1, max_length=2400)
+    value_quote: str | None = Field(default=None, min_length=1, max_length=1200)
     definition: str | None = Field(default=None, min_length=1, max_length=2400)
 
     period_locator: str | None = Field(default=None, min_length=1, max_length=256)
@@ -42,6 +45,15 @@ class DisclosureClaim(BaseModel):
 
     @model_validator(mode="after")
     def range_order(self):
+        if self.comparator == "central_estimate":
+            if self.tolerance_percent is None or self.upper_value is not None or not self.value_quote:
+                raise ValueError("central estimate needs its explicit tolerance/value span and no invented upper bound")
+        elif self.tolerance_percent is not None:
+            raise ValueError("tolerance belongs only to a central estimate")
+        if self.comparator == "at_least" and self.upper_value is not None:
+            raise ValueError("a lower-bound disclosure cannot have an invented upper bound")
+        if self.value_quote and not self.period_locator:
+            raise ValueError("a qualified value span requires explicit period context")
         if self.upper_value is not None and self.upper_value < self.value:
             raise ValueError("disclosed range is reversed")
         return self
@@ -80,7 +92,7 @@ def _value_has_unit(claim: DisclosureClaim) -> bool:
                 return True
         else:
             second = re.match(
-                r"\s*(?:to|through|[-–—])\s*\$?\s*(" + number + r")" + tail, after, re.I
+                r"\s*(?:" + unit + r")?\s*(?:to|through|[-–—])\s*\$?\s*(" + number + r")" + tail, after, re.I
             )
             if second and Decimal(second.group(1).replace(",", "")) == claim.upper_value:
                 return True
@@ -122,7 +134,10 @@ def _local_amount_subject(claim: DisclosureClaim) -> bool:
     text = re.sub(re.escape(claim.period), " ", claim.quote, flags=re.I)
     metric = re.search(re.escape(claim.metric), text, re.I)
     amounts = list(re.finditer(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?", text))
-    if metric is None or not amounts:
+    if metric is None:
+        return False
+    amounts = [amount for amount in amounts if amount.end() <= metric.start() or amount.start() >= metric.end()]
+    if not amounts:
         return False
     # First amount is the lower value in supported prose ranges. Date numbers
     # have already been removed, and the caller checks all remaining values.
@@ -201,37 +216,44 @@ def validate_disclosure_claims(
         text = blocks.get((claim.source_id, claim.locator))
         period_external, definition_external, context_error = validate_context(claim, blocks, packages)
         reason = None
-        if context_error:
+        numeric = claim.model_copy(update={"quote": claim.value_quote}) if claim.value_quote else claim
+        plus_bound = any(Decimal(m.replace(",", "")) == claim.value
+                         for m in re.findall(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*%\+", numeric.quote))
+        if (claim.comparator == "at_least") != plus_bound:
+            reason = "lower-bound comparator must match explicit percent-plus source language"
+        elif context_error:
             reason = context_error
         elif text is None:
             reason = "source or locator unavailable"
         elif claim.quote not in text:
             reason = "quotation is not an exact retrieved source span"
         elif not all(
-            _phrase(claim.quote, field) for field in ((claim.metric, claim.unit) if period_external else (claim.metric, claim.unit, claim.period))
+            _phrase(numeric.quote, field) for field in ((claim.metric, claim.unit) if period_external else (claim.metric, claim.unit, claim.period))
         ):
             reason = "metric, unit or period is not present in the quoted span"
-        elif claim.value not in _numbers(claim.quote) or (
-            claim.upper_value is not None and claim.upper_value not in _numbers(claim.quote)
+        elif claim.value not in _numbers(numeric.quote) or (
+            claim.upper_value is not None and claim.upper_value not in _numbers(numeric.quote)
         ):
             reason = "numeric value is not present in the quoted span"
-        elif not _value_has_unit(claim):
+        elif not _value_has_unit(numeric):
             reason = "numeric value is not explicitly associated with the asserted unit"
-        elif not _unambiguous_association(claim, period_external):
+        elif not _unambiguous_association(numeric, period_external):
             reason = "metric, period and value lack an unambiguous local association"
         elif claim.definition and not definition_external and claim.definition not in text:
             reason = "definition is not an exact retrieved source span"
         else:
             ambition = bool(
-                re.search(r"\b(ambition|aspiration|aspire|aspirational)\b", claim.quote, re.I)
+                re.search(r"\b(ambition|aspiration|aspire|aspirational)\b", numeric.quote, re.I)
             )
             guidance = bool(
                 re.search(
                     r"\b(guidance|outlook|expects?|expected|forecasts?|projected|targets?|plans?|estimates?|anticipates?|aims?|will|would|could)\b",
-                    claim.quote,
+                    numeric.quote,
                     re.I,
                 )
             )
+            if period_external and claim.kind == "guidance":
+                guidance = True
             if claim.kind == "ambition" and not ambition:
                 reason = "ambition classification lacks explicit source language"
             elif claim.kind == "guidance" and (not guidance or ambition):

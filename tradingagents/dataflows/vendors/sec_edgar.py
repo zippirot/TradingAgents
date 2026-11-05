@@ -206,8 +206,50 @@ def _span_index(fact: dict, spans: tuple[tuple[int, int], ...]) -> int | None:
     return next((i for i, (low, high) in enumerate(spans) if low <= days <= high), None)
 
 
+def _eligible_records(facts: dict, tag: str, cutoff: date,
+                      spans: tuple[tuple[int, int], ...], forms: tuple[str, ...],
+                      allowed_ends: set[str] | None = None) -> dict:
+    """Group eligible source records without resolving conflicting meanings."""
+    candidates = {}
+    covered = set()
+    container = facts.get(tag) or {}
+    if not isinstance(container, dict) or not isinstance(container.get("units", {}), dict):
+        raise VendorUnavailableError(f"Malformed SEC units for {tag}")
+    for unit, values in container.get("units", {}).items():
+        if not isinstance(unit, str) or not isinstance(values, list):
+            continue
+        for fact in values:
+            if not isinstance(fact, dict) or fact.get("segment") or fact.get("dimensions"):
+                continue
+            try:
+                end = date.fromisoformat(fact["end"])
+                filed = date.fromisoformat(fact["filed"])
+                value = fact["val"]
+                if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+                    continue
+                if not Decimal(str(value)).is_finite() or end > cutoff or filed > cutoff:
+                    continue
+                index = _span_index(fact, spans)
+            except (KeyError, ValueError, TypeError, InvalidOperation):
+                continue
+            if index is None:
+                continue
+            key = (fact["end"], index)
+            if allowed_ends is not None and key[0] not in allowed_ends:
+                continue
+            record = {**deepcopy(fact), "tag": tag, "unit": unit}
+            candidates.setdefault(key, []).append(record)
+            if not forms or str(fact.get("form", "")).startswith(forms):
+                covered.add((key, fact.get("start"), unit))
+    return {
+        key: eligible for key, records in candidates.items()
+        if (eligible := [r for r in records if (key, r.get("start"), r["unit"]) in covered])
+    }
+
+
 def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
-                   spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = ()) -> dict:
+                   spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = (),
+                   *, allowed_ends: set[str] | None = None) -> dict:
     """Select consolidated facts with their original filing context and exact value.
 
     Tag preference is applied per period, never summed. Reject ambiguity rather
@@ -218,40 +260,9 @@ def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
     cutoff = date.fromisoformat(as_of_date)
     chosen = {}
     for tag in tags:
-        candidates = {}
-        covered = set()
-        container = facts.get(tag) or {}
-        if not isinstance(container, dict) or not isinstance(container.get("units", {}), dict):
-            raise VendorUnavailableError(f"Malformed SEC units for {tag}")
-        for unit, values in container.get("units", {}).items():
-            if not isinstance(unit, str) or not isinstance(values, list):
-                continue
-            for fact in values:
-                if not isinstance(fact, dict) or fact.get("segment") or fact.get("dimensions"):
-                    continue
-                try:
-                    end = date.fromisoformat(fact["end"])
-                    filed = date.fromisoformat(fact["filed"])
-                    value = fact["val"]
-                    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
-                        continue
-                    if not Decimal(str(value)).is_finite() or end > cutoff or filed > cutoff:
-                        continue
-                    index = _span_index(fact, spans)
-                except (KeyError, ValueError, TypeError, InvalidOperation):
-                    continue
-                if index is None:
-                    continue
-                key = (fact["end"], index)
-                if key in chosen:
-                    continue
-                record = {**deepcopy(fact), "tag": tag, "unit": unit}
-                candidates.setdefault(key, []).append(record)
-                if not forms or str(fact.get("form", "")).startswith(forms):
-                    covered.add((key, fact.get("start"), unit))
-        for key, records in candidates.items():
-            eligible = [r for r in records if (key, r.get("start"), r["unit"]) in covered]
-            if not eligible:
+        candidates = _eligible_records(facts, tag, cutoff, spans, forms, allowed_ends)
+        for key, eligible in candidates.items():
+            if key in chosen:
                 continue
             if len({(r.get("start"), r["unit"]) for r in eligible}) > 1:
                 raise VendorUnavailableError(f"SEC period or unit ambiguous for {tag} at {key[0]}")
@@ -381,17 +392,27 @@ def get_financial_evidence(ticker: str, as_of_date: str):
     observed = datetime.fromtimestamp(cache.stat().st_mtime, UTC) if cache.exists() else datetime.now(UTC)
     snapshot_hash = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     quarterly_spans = (_SPANS["quarterly"], *((low, high) for low, high, _ in _YEAR_TO_DATE))
-    selected = {}
+    # Discover the eligible period window before resolving values. Ambiguities
+    # outside this explicitly discarded history cannot invalidate current facts;
+    # every selected period still goes through the same strict resolver.
     quarterly_ends, annual_ends = set(), set()
     for rows in _STATEMENTS.values():
-        for metric, tags in rows:
-            quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans)
-            annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS)
-            quarterly_ends.update(k[0] for k in quarter)
-            annual_ends.update(k[0] for k in annual)
-            selected[metric] = (quarter, annual)
+        for _, tags in rows:
+            for tag in tags:
+                quarterly_ends.update(key[0] for key in _eligible_records(
+                    facts, tag, cutoff, quarterly_spans, ()))
+                annual_ends.update(key[0] for key in _eligible_records(
+                    facts, tag, cutoff, (_SPANS["annual"],), _ANNUAL_FORMS))
     allowed_quarters = set(sorted(quarterly_ends)[-12:])
     allowed_annual = set(sorted(annual_ends)[-5:])
+    selected = {}
+    for rows in _STATEMENTS.values():
+        for metric, tags in rows:
+            quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
+                                     allowed_ends=allowed_quarters)
+            annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
+                                    allowed_ends=allowed_annual)
+            selected[metric] = (quarter, annual)
     sources, records = {}, {}
     for metric, (quarter, annual) in selected.items():
         picked = [v for (end, _), v in quarter.items() if end in allowed_quarters]

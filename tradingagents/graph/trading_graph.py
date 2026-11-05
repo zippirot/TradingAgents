@@ -165,7 +165,7 @@ class TradingAgentsGraph:
             "memory=parallel",
             # Old checkpoints must not resume beyond the new evidence gate or
             # publication projection. Different IDs leave historical files intact.
-            "evidence=2",
+            "evidence=3",
             "publication=1",
             "shared_valuation=5",
             "evidence_presentation=1",

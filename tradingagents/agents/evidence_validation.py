@@ -309,13 +309,16 @@ def create_evidence_gate(selected_analysts):
             )
         except (VendorError, ValidationError, ValueError) as exc:
             return assess_financial_package(state, package, disclosure_error=str(exc))
-        return assess_financial_package(state, package, disclosures)
+        from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
+
+        rpo = retrieve_rpo_comparison(state["company_of_interest"], disclosures)
+        return assess_financial_package(state, package, disclosures, rpo_comparison=rpo)
 
     return gate
 
 
 def assess_financial_package(
-    state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None
+    state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None
 ) -> dict:
     """Assess available canonical evidence; unfinished critical bridges remain unavailable."""
     calculations = []
@@ -414,10 +417,17 @@ def assess_financial_package(
         }
     )
     cash_results, cash_check, cash_warnings = cash_flow_checks(
-        package, disclosures, source_precision
+        package, disclosures, source_precision, extraction=extraction
     )
     calculations.extend(cash_results)
     checks.append(cash_check)
+    for calculation in cash_results:
+        checks.append({"code": "optional_cash_" + calculation.method,
+                       "status": calculation.status, "message": calculation.message})
+        if calculation.status == "fail":
+            integrity = next(c for c in checks if c["code"] == "source_integrity")
+            integrity["status"] = "fail"
+            integrity["message"] += "; cash reconciliation failed: " + calculation.message
     checks.extend(
         {"code": f"optional_cash_scope_{i}", "status": "unavailable", "message": warning}
         for i, warning in enumerate(cash_warnings)
@@ -437,9 +447,16 @@ def assess_financial_package(
                 "message": calculation.message,
             }
         )
+    from tradingagents.agents.operating_metrics import operating_metrics
+
+    operating = operating_metrics(package)
+    calculations.extend(operating)
+    checks.extend({"code": "optional_operating_" + c.method, "status": c.status,
+                   "message": c.message} for c in operating)
     disclosure_summary = ""
     disclosure_references = []
     if disclosures is not None:
+        from tradingagents.dataflows.disclosure_discovery import discover_disclosures
         from tradingagents.dataflows.disclosure_evidence import parse_disclosure_report
 
         blocks = {
@@ -448,6 +465,19 @@ def assess_financial_package(
             for block in doc.blocks
         }
         grounded = parse_disclosure_report(state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
+        discovered = discover_disclosures((disclosures,))
+        # Deterministic proposals pass the same validator. Keep rejected model
+        # submissions visible; accepted discovery never retroactively repairs them.
+        accepted = {}
+        for claim in (*discovered.claims, *grounded.claims):
+            identity = (claim.source_id, claim.locator, claim.metric, claim.value,
+                        claim.upper_value, claim.comparator, claim.tolerance_percent, claim.unit, claim.period, claim.kind)
+            accepted.setdefault(identity, claim)
+        grounded = grounded.model_copy(update={
+            "claims": tuple(accepted.values()),
+            "rejected": tuple(dict.fromkeys((*grounded.rejected, *discovered.rejected))),
+            "warnings": tuple(dict.fromkeys((*grounded.warnings, *discovered.warnings))),
+        })
         disclosure_lines = [
             "Source-grounded disclosure excerpts (definitions and stated periods retained)"
         ]
@@ -463,11 +493,16 @@ def assess_financial_package(
         for claim in grounded.claims:
             source_label = source_labels[claim.source_id]
             disclosure_lines.append(
-                f"- {claim.kind}: {claim.quote} Period: {claim.period}"
+                f"- {'verified historical' if claim.kind == 'historical' else 'verified management statement'} ({claim.kind}): {claim.quote} Period: {claim.period}"
                 f" ({source_label}, {claim.period_locator or claim.locator})."
                 f" Definition: {claim.definition or 'not extracted'}"
                 f" ({source_label}, {claim.definition_locator or claim.locator})."
                 f" Value source {source_label}, {claim.locator}."
+                + (f" Lower bound: ≥{claim.value}{claim.unit}; no upper bound supplied, not an exact forecast."
+                   if claim.comparator == "at_least" else "")
+                + (f" Central estimate: {claim.value} {claim.unit} ±{claim.tolerance_percent}%; "
+                   "source qualifications retained; not an exact forecast."
+                   if claim.comparator == "central_estimate" else "")
                 + (
                     f" Reported comparison: {claim.comparison.quote}; year-over-year basis source"
                     f" {source_label}, {claim.comparison.basis_locator}. No comparator amount inferred."
@@ -491,6 +526,9 @@ def assess_financial_package(
             if "Document text limit reached" in gap
             or "Older submissions archive not retrieved" in gap
         )
+    if rpo_comparison is not None:
+        checks.append({"code": "optional_rpo_comparison", "status": rpo_comparison["status"],
+                       "message": rpo_comparison["reason"]})
     quality = evidence_quality(checks)
     update = {
         "financial_evidence": package.model_dump(mode="json"),
@@ -510,6 +548,23 @@ def assess_financial_package(
             "extraction": grounded.model_dump(mode="json"),
             "coverage_gaps": list(disclosures.gaps),
         }
+    if rpo_comparison is not None and disclosures is not None:
+        update["disclosure_evidence"]["kpi_comparisons"] = [rpo_comparison]
+        update["canonical_financial_context"] += "\n\n" + rpo_comparison["text"]
+        references = []
+        for i, (role, source) in enumerate(rpo_comparison.get("sources", {}).items(), 1):
+            label = f"K{i}"
+            update["canonical_financial_context"] += (
+                f" {role.capitalize()} RPO: {label}, {source['fact']['locator']}; "
+                f"filed {source['known_at']}."
+            )
+            references.append(f"- {label}: source_id {source['source_id']}; {source['url']}")
+        if references:
+            from tradingagents.agents.evidence_presentation import REFERENCE_END
+
+            update["canonical_financial_context"] = update["canonical_financial_context"].replace(
+                REFERENCE_END, "\n" + "\n".join(references) + REFERENCE_END, 1,
+            )
     if quality["warnings"]:
         update["canonical_financial_context"] += "\n\nEvidence coverage warnings:\n" + "\n".join(
             "- " + warning for warning in quality["warnings"]
@@ -951,10 +1006,12 @@ def _canonical_filing_cash_fact(package, fact, disclosures):
     return False
 
 
-def cash_flow_checks(package, disclosures=None, source_precision=None):
+def cash_flow_checks(package, disclosures=None, source_precision=None, *, extraction=None):
     """Publish enumerated cash investment separately from lease/equipment principal."""
     from tradingagents.agents.accounting_checks import (
+        calculate_cash_after_acquisitions,
         calculate_cash_generation,
+        cash_statement_reconciliations,
         check_financed_equipment_bridge,
     )
 
@@ -962,6 +1019,9 @@ def cash_flow_checks(package, disclosures=None, source_precision=None):
         (f.period_end for f in package.facts if f.metric == "Total Assets" and f.value is not None),
         default=None,
     )
+    if end is None:
+        end = max((f.period_end for f in package.facts
+                   if f.metric == "Operating Cash Flow" and f.origin == "reported" and f.value is not None), default=None)
     ocfs = [
         f
         for f in package.facts
@@ -1086,6 +1146,15 @@ def cash_flow_checks(package, disclosures=None, source_precision=None):
     }
     if financed_bridge is not None:
         results = (*results, financed_bridge)
+    if extraction is not None:
+        statement = cash_statement_reconciliations(package, extraction, source_precision or {}, start=start, end=end)
+        acquisition_ids = tuple(f.fact_id for f in (
+            lookup("Intangible Asset Acquisition Payments"), lookup("Business Acquisition Payments")) if f is not None)
+        after_acquisitions = calculate_cash_after_acquisitions(
+            package, ocf.fact_id if ocf else "missing-operating-cash", capex_ids,
+            tuple(f.fact_id for f in principal), acquisition_ids, capex is not None,
+        )
+        results = (*results, *statement, after_acquisitions)
     return results, check, warnings
 
 
@@ -1158,6 +1227,8 @@ def canonical_accounting_context(package, calculations):
         lines.append("Accounting checks:")
     for i, calculation in enumerate(calculations, 1):
         value = str(calculation.result) if calculation.result is not None else "unavailable"
+        if calculation.result is not None and calculation.unit == "percent":
+            value = f"{calculation.result:.2f} (rounded for display)"
         title = calculation.method.removesuffix("_v1").replace("_", " ")
         inputs = ", ".join(labels.get(ident, "unavailable input") for ident in calculation.input_fact_ids)
         lines.append(f"- [C{i}] {title}: {calculation.status}; {value} {calculation.unit or ''}; {calculation.message}; inputs {inputs}")

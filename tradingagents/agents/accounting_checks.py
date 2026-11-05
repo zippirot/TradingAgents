@@ -654,3 +654,193 @@ def check_adjusted_bridge(package, gaap_id, adjusted_id, signed_components, comp
             return _reconcile(method, ids, result, adjusted.value, gaap.unit, precision)
     except (ValueError, ArithmeticError) as exc:
         return _unavailable(method, ids, "incompatible_inputs", str(exc))
+
+
+_INVESTING_PAYMENTS = frozenset({
+    "Cash-flow Property and Equipment Payments", "Cash-flow Software Development Payments",
+    "Equipment Financing Acquisition Payments", "Intangible Asset Acquisition Payments",
+    "Business Acquisition Payments", "Financial Investment Purchases",
+})
+_INVESTING_PROCEEDS = frozenset({"Financial Investment Sale Proceeds", "Property and Equipment Sale Proceeds"})
+
+
+def _cash_statement_sources(package, facts):
+    """Signed statement bridges require reported rows from the same filed statement."""
+    sources = {s.source_id: s for s in package.sources}
+    if any(f.origin != "reported" for f in facts):
+        raise ValueError("signed statement bridge requires reported cash-flow rows")
+    if any(s not in sources for f in facts for s in f.source_ids):
+        raise ValueError("cash statement input refers to an unavailable source")
+    records = [sources[s] for f in facts for s in f.source_ids]
+    if not records or any(not s.accession for s in records) or len({
+        (s.cik, s.accession, s.filed_date, s.content_hash, s.url) for s in records
+    }) != 1:
+        raise ValueError("cash statement inputs must share exact filing provenance")
+
+
+def check_investing_cash_bridge(package, total_id, component_ids, complete, precision):
+    """Reconcile signed investing rows without netting financed equipment away."""
+    method = "signed_investing_components_to_total_v1"
+    ids = (total_id, *component_ids)
+    try:
+        if complete is not True or not component_ids:
+            raise ValueError("complete investing statement row coverage required")
+        facts = _facts(package, ids)
+        _same(facts, duration=True)
+        _money(facts)
+        _cash_statement_sources(package, facts)
+        total, components = facts[0], facts[1:]
+        if total.metric != "Investing Cash Flow":
+            raise ValueError("reported investing cash-flow total required")
+        if len({f.metric for f in components}) != len(components):
+            raise ValueError("duplicate investing category risks overlapping cash flows")
+        for fact in components:
+            if fact.metric in _INVESTING_PAYMENTS:
+                if fact.value > 0:
+                    raise ValueError("investing payment needs original nonpositive statement sign")
+            elif fact.metric in _INVESTING_PROCEEDS:
+                if fact.value < 0:
+                    raise ValueError("investing proceeds need original nonnegative statement sign")
+            else:
+                raise ValueError("unclassified investing component")
+        with localcontext() as context:
+            context.prec = 50
+            result = _reconcile(method, ids, sum((f.value for f in components), Decimal(0)),
+                                total.value, total.unit, precision)
+        return result.model_copy(update={"message":
+            "Signed investing components; financed equipment retained gross, acquisitions and securities separate. "
+            + result.message})
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incomplete_or_incompatible_investing_bridge", str(exc))
+
+
+def check_cash_balance_bridge(package, ocf_id, investing_id, financing_id, fx_id, change_id,
+                              opening_id, closing_id, precision):
+    """Cash-flow change and cash-plus-restricted-cash closing balance, independently checked."""
+    flow_ids = (ocf_id, investing_id, financing_id, fx_id, change_id)
+    flow_method = "cash_flows_plus_fx_to_cash_change_v1"
+    balance_method = "opening_plus_change_to_cash_including_restricted_v1"
+    try:
+        facts = _facts(package, flow_ids)
+        _same(facts, duration=True)
+        _money(facts)
+        _cash_statement_sources(package, facts)
+        expected_roles = ("Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow",
+                          "Exchange Effect on Cash Including Restricted Cash", "Change in Cash Including Restricted Cash")
+        if tuple(f.metric for f in facts) != expected_roles:
+            raise ValueError("cash-flow and FX roles must explicitly include restricted cash in the change")
+        with localcontext() as context:
+            context.prec = 50
+            flow = _reconcile(flow_method, flow_ids, sum((f.value for f in facts[:4]), Decimal(0)),
+                              facts[4].value, facts[4].unit, precision)
+    except (ValueError, ArithmeticError) as exc:
+        flow = _unavailable(flow_method, flow_ids, "incompatible_cash_change_inputs", str(exc))
+    balance_ids = (change_id, opening_id, closing_id)
+    try:
+        change, opening, closing = _facts(package, balance_ids)
+        _money((change, opening, closing))
+        _cash_statement_sources(package, (change, opening, closing))
+        if (change.metric != "Change in Cash Including Restricted Cash"
+                or opening.metric != "Cash Including Restricted Cash" or closing.metric != opening.metric
+                or change.period_start is None or opening.period_start is not None or closing.period_start is not None
+                or opening.period_end != change.period_start - timedelta(days=1)
+                or closing.period_end != change.period_end
+                or len({f.unit for f in (change, opening, closing)}) != 1
+                or len({f.basis for f in (change, opening, closing)}) != 1):
+            raise ValueError("opening/closing restricted-cash scope, currency, basis or dates differ")
+        if opening.value < 0 or closing.value < 0:
+            raise ValueError("cash balances cannot be negative")
+        with localcontext() as context:
+            context.prec = 50
+            balance = _reconcile(balance_method, balance_ids, opening.value + change.value,
+                                 closing.value, closing.unit, precision)
+        balance = balance.model_copy(update={"message":
+            "Statement cash plus restricted cash; not unrestricted valuation cash. " + balance.message})
+    except (ValueError, ArithmeticError) as exc:
+        balance = _unavailable(balance_method, balance_ids, "incompatible_cash_balance_inputs", str(exc))
+    return flow, balance
+
+
+def calculate_cash_after_acquisitions(package, ocf_id, capex_ids, principal_ids, acquisition_ids, complete):
+    """Principal-adjusted cash generation after explicitly enumerated acquisitions.
+
+    Uses the existing nonnegative capex/principal definition. Acquisition rows
+    retain their original signed statement amounts; securities purchases and
+    financed-equipment gross acquisition are not deducted in this measure.
+    """
+    method = "ocf_less_capex_principal_and_acquisitions_v1"
+    ids = (ocf_id, *capex_ids, *principal_ids, *acquisition_ids)
+    try:
+        base = calculate_cash_generation(package, ocf_id, capex_ids, principal_ids, complete)[1]
+        if base.status != "pass" or complete is not True or not acquisition_ids:
+            raise ValueError("complete compatible capex, principal and acquisition coverage required")
+        facts = _facts(package, ids)
+        _same(facts, duration=True)
+        _money(facts)
+        acquisitions = _facts(package, acquisition_ids)
+        if {f.metric for f in acquisitions} != {"Intangible Asset Acquisition Payments", "Business Acquisition Payments"}:
+            raise ValueError("both intangible and business acquisition cash coverage required; absent is not zero")
+        if len({f.metric for f in acquisitions}) != len(acquisitions) or any(
+            f.metric not in {"Intangible Asset Acquisition Payments", "Business Acquisition Payments"}
+            or f.origin != "reported" or f.value > 0 for f in acquisitions
+        ):
+            raise ValueError("acquisitions must be distinct, reported, signed intangible/business cash payments")
+        _cash_statement_sources(package, acquisitions)
+        with localcontext() as context:
+            context.prec = 50
+            value = base.result + sum((f.value for f in acquisitions), Decimal(0))
+        return Calculation(method=method, status="pass", result=value, unit=facts[0].unit,
+                           input_fact_ids=ids, reason_code="calculated",
+                           message="OCF less enumerated PP&E/software, financing principal and business/intangible acquisitions; "
+                                   "excludes securities, financed-equipment gross flows and noncash additions; not universal shareholder free cash flow")
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incomplete_or_incompatible_acquisition_cash", str(exc))
+
+
+def cash_statement_reconciliations(package, extraction, precision, *, start, end):
+    """Wire one explicitly selected statement duration to the three cash bridges.
+
+    Caller supplies the same primary start/end used by existing cash-generation
+    selection. Only exact extracted facts still present in the canonical package
+    qualify; companyfacts with similar labels cannot displace signed table rows.
+    """
+    methods = ("signed_investing_components_to_total_v1", "cash_flows_plus_fx_to_cash_change_v1",
+               "opening_plus_change_to_cash_including_restricted_v1")
+    coverages = [c for c in getattr(extraction, "investing_coverage", ())
+                 if start is not None and end is not None and c.period_start == start and c.period_end == end]
+    if len(coverages) != 1:
+        return tuple(_unavailable(method, (), "cash_statement_coverage_unavailable",
+                                  "One source-linked investing coverage record for the selected cash period required")
+                     for method in methods)
+    coverage = coverages[0]
+    canonical = {f.fact_id: f for f in package.facts}
+    extracted = {f.fact_id: f for f in extraction.evidence.facts}
+    verified = {key: fact for key, fact in extracted.items() if canonical.get(key) == fact}
+    anchor = next((verified[key] for key in (coverage.total_fact_id, *coverage.component_fact_ids)
+                   if key in verified), None)
+    if anchor is None:
+        return tuple(_unavailable(method, (), "cash_statement_source_unavailable",
+                                  "Selected cash statement coverage has no canonical verified source rows")
+                     for method in methods)
+
+    def select(metric, period_start, period_end):
+        candidates = []
+        for fact in verified.values():
+            if (fact.metric != metric or fact.period_start != period_start or fact.period_end != period_end
+                    or fact.value is None or fact.origin != "reported"):
+                continue
+            try:
+                _cash_statement_sources(package, (anchor, fact))
+            except ValueError:
+                continue
+            candidates.append(fact.fact_id)
+        return candidates[0] if len(candidates) == 1 else "missing-or-ambiguous:" + metric
+
+    investing = check_investing_cash_bridge(package, coverage.total_fact_id or "missing-investing-total",
+        coverage.component_fact_ids, coverage.complete, precision)
+    roles = ("Operating Cash Flow", "Investing Cash Flow", "Financing Cash Flow",
+             "Exchange Effect on Cash Including Restricted Cash", "Change in Cash Including Restricted Cash")
+    flows = [select(metric, start, end) for metric in roles]
+    opening = select("Cash Including Restricted Cash", None, start - timedelta(days=1))
+    closing = select("Cash Including Restricted Cash", None, end)
+    return (investing, *check_cash_balance_bridge(package, *flows, opening, closing, precision))

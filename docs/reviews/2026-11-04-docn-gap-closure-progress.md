@@ -339,3 +339,86 @@ candidate. Changed-file Ruff passed. These are focused implementation checks,
 not the final Build A gate. Disclosure extraction, prior-quarter source/KPI and
 cash-bridge work is being integrated separately; the final full suite, actual
 report proof, second-issuer gate coverage and independent Build A review remain.
+
+### Remaining A integrated evidence and review corrections
+
+Deterministic disclosure discovery now uses the same strict validator as model
+proposals. It retains complete qualifiers, separate exact period locators,
+lower-bound growth without an invented ceiling, and NVIDIA's fiscal-period
+central estimate with its stated tolerance and China exclusion. Non-exact
+outlooks cannot become exact finite valuation inputs. Fifteen source-backed
+DOCN records survive the recorded-source replay; rejected model records remain
+rejected independently.
+
+The actual live-02 multi-document package exposed the 128-cell discovery cap:
+old annual/release material exhausted it before current 10-Q cash rows. Current
+primary filings now receive priority, with the same cap and an explicit omitted
+row warning. The actual saved companyfacts inputs and filing package, reprocessed
+without network/model calls, reproduce all five required cash examples:
+−381.974m investing, 153.818m after capex/principal, 149.022m after acquisitions,
+411.619m cash change, and 666.252m cash plus restricted cash. Gross financed
+investment remains separate and no residual becomes capex.
+
+Exact compatible quarter facts now produce 39.87% revenue YoY, 10.28% operating
+margin and −13.27% net margin (rounded presentation; exact decimals/lineage in
+state). Bounded real SEC retrieval verifies RPO 893.828m at June 30 to 799.707m
+at September 30: derived −94.121m/−10.53%. Source currency, recognition scope,
+inline fact/context/unit spans and filing provenance are retained. The comparison
+makes no causal or demand claim. Missing bounded excerpts do not establish
+company nondisclosure. Receipts and replay inputs are under
+`results/docn-abc/a-prior-source/rpo-comparison.json` and
+`results/docn-abc/a-evidence-replay/`; executable replay is
+`docn-abc-proof-tools/replay_a_evidence.py`.
+
+Independent Build A review identified malformed deterministic proposals raising
+before per-record rejection. Two regression tests first reproduced the failure;
+construction is now bounded and tolerant per record, followed by unchanged strict
+validation. Independent recheck passed 149 focused tests and a two-malformed-range
+probe retained 13 other valid records. Reviewer found no additional material
+issue in the integrated cash, RPO, operating metrics or issuer fallback paths.
+
+The required second-issuer source proof exposed a pre-existing companyfacts bug:
+NVIDIA's 2009 and Microsoft's 2016 ambiguous records aborted the current package
+before the existing twelve-quarter/five-year bound was applied. Window discovery
+now precedes value resolution, preserving strict rejection inside the window and
+the default unbounded selector's behavior. Independent review passed 77 tests and
+a 200-case differential probe against the original selector. Actual cached SEC
+replays now produce NVIDIA 797 facts and Microsoft 891 facts. NVIDIA's full gate
+then revealed a separate split exhibit-link layout; that narrow source-selection
+fix and its proof are still pending here. No missing accounting coverage is being
+converted to a passing actionable decision.
+
+These checks establish implementation progress, not final Build A acceptance.
+Final full-suite, actual complete source-gate/report/live proof and synchronized
+candidate evidence remain required. No additional paid calls occurred in this
+work; live attempts remain 2/7 and the prior spending receipt is unchanged.
+
+### Build A offline candidate gate
+
+The NVIDIA split-link fix is complete and independently reviewed: 75 focused
+checks passed, preserving item-2.02 qualification, same-accession URL restrictions,
+deduplication and the two-exhibit limit. A normal provider/evidence-gate source
+proof now retrieves six NVIDIA documents and accepts its actual fiscal-quarter
+108.0bn central estimate with ±2% tolerance and the China exclusion. Its missing
+accounting/claim coverage remains REVIEW, as intended; this is source/gate coverage,
+not a successful actionable NVIDIA research run. No model calls were used.
+Receipt: `results/docn-abc/a-second-issuer-nvda/gate-result.json`.
+
+Full offline candidate gate: **2,001 passed, 100 subtests passed**, one optional
+`langchain_aws` skip, one configured external-service deselection, 20 warnings,
+16.08 seconds. Full Ruff, dependency and diff checks passed. Initial full run had
+2,000 passes and one obsolete expected checkpoint-version assertion; the fixture
+now expects evidence version 3 and checks that version 2 yields a different
+checkpoint identity. Eight focused recovery checks passed before the required
+complete rerun. Both full-run logs are in `results/docn-abc/a-final-offline/`.
+
+Current recorded-source context measures 33,930 characters including exact
+references, 16,461 readable characters and 17,099 reference-appendix characters.
+This exceeds the first slice's smaller coverage because it now includes fifteen
+qualified disclosures, cash reconciliations, operating comparisons and RPO.
+References remain separately rendered and narrative remains independently bounded;
+this is not a claimed token/cost reduction versus the first slice.
+
+All confirmed material Build A review findings are closed. Final authorized
+Shallow live proof 3, actual first-debate/report/persistence inspection and Build A
+acceptance evidence remain next; A is not yet accepted by these offline checks.

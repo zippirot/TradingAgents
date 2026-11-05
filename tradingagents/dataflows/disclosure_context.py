@@ -25,6 +25,71 @@ _DATE_OR_PRIOR = re.compile(
 )
 
 
+_OUTLOOK = re.compile(
+    r"(?:[A-Za-z][A-Za-z .&-]{0,80} is providing guidance for the "
+    r"(?P<quarter>(?:first|second|third|fourth) quarter ending "
+    r"(?:March 31|June 30|September 30|December 31), (?P<qyear>(?:19|20)\d{2})) as follows:"
+    r"|For the (?P<annual>full year (?P<ayear>(?:19|20)\d{2})), we now expect:"
+    r"|[A-Za-z][A-Za-z .&-]{0,80}[’']s outlook for the (?P<fiscal>(?:first|second|third|fourth) quarter of fiscal (?P<fyear>(?:19|20)\d{2})) is as follows:)", re.I,
+)
+
+
+def outlook_period(text):
+    match = _OUTLOOK.fullmatch(text.strip())
+    return (match['quarter'] or match['annual'] or match['fiscal']) if match else None
+
+
+def lower_bound_clause(text):
+    """One supported complete two-period release headline, not an arbitrary cut."""
+    match = re.fullmatch(
+        r"Raising Q[1-4] 20\d{2} exit revenue growth outlook to " + _NUMBER
+        + r"[-–]" + _NUMBER + r"% and (?P<quote>increasing expected (?P<year>20\d{2}) "
+        r"(?P<metric>revenue growth) to (?P<value>" + _NUMBER + r")%\+)\.?", text, re.I)
+    return match
+
+
+def central_estimate_clause(text):
+    """Supported revenue outlook with its explicit tolerance and market exclusion."""
+    return re.fullmatch(
+        r"(?P<amount>Revenue is expected to be \$(?P<value>" + _NUMBER + r") billion), "
+        r"plus or minus (?P<tolerance>" + _NUMBER + r")%\. "
+        r"NVIDIA is not assuming any Data Center compute revenue from China in its outlook\.", text)
+
+
+def qualified_value_spans(quote, kind):
+    """Only these complete release sentences support a separate numeric span.
+
+    Remaining qualifications are retained verbatim; they are not discarded or
+    reassigned to the selected value. Unknown clauses/instructions fail closed.
+    """
+    n = _NUMBER
+    if kind == 'historical':
+        match = re.fullmatch(
+            r"(?P<amount>(?P<metric>Adjusted operating income|Adjusted EBITDA) was \$" + n
+            + r" (?:million|billion)), an (?:increase|decrease) of " + n
+            + r"%, and (?P<margin>(?P<margin_metric>adjusted operating income|adjusted EBITDA) margin was "
+            + n + r"%)\.", quote, re.I)
+        if match and match['metric'].casefold() == match['margin_metric'].casefold():
+            return (match['amount'], match['margin'])
+        match = re.fullmatch(
+            r"(?P<amount>Remaining Performance Obligation (?:[('“\"]+RPO[)'”\"]+)(?:\(\d{1,2}\))? was \$"
+            + n + r" (?:million|billion)), of which, \$" + n
+            + r" (?:million|billion) is expected to be recognized over the next 12 months\.", quote, re.I)
+        if match:
+            return (match['amount'],)
+    if kind == 'guidance':
+        central = central_estimate_clause(quote)
+        if central:
+            return (central['amount'],)
+        match = re.fullmatch(
+            r"(?P<amount>Total revenue of \$" + n + r" to \$" + n
+            + r" (?:million|billion)), up (?:approximately )?" + n
+            + r"%(?: to " + n + r"%)? year-over-year\.", quote, re.I)
+        if match:
+            return (match['amount'],)
+    return ()
+
+
 def _number(block):
     match = re.fullmatch(r"block-(\d+)", block.locator)
     return int(match[1]) if match else None
@@ -32,7 +97,8 @@ def _number(block):
 
 def validate_context(claim, blocks, packages):
     """Return (period_is_external, definition_is_external, rejection_reason)."""
-    if not (claim.period_locator or claim.definition_locator or claim.comparison):
+    scoped = bool(claim.period_locator or claim.definition_locator or claim.comparison or claim.value_quote)
+    if not scoped and (claim.comparator != "at_least" or not packages):
         return False, False, None
     try:
         if claim.definition is not None and claim.definition_locator is None:
@@ -75,10 +141,32 @@ def validate_context(claim, blocks, packages):
             return block
 
         value_block = source(claim.locator)
+        if claim.comparator == "at_least":
+            bound = lower_bound_clause(value_block.text.strip())
+            if bound is None or claim.quote != bound['quote']:
+                raise ValueError("lower-bound clause lacks its supported complete source headline")
+        if not scoped:
+            return False, False, None
+        qualified = bool(claim.value_quote)
+        central = central_estimate_clause(claim.quote)
+        if central:
+            if (claim.kind != "guidance" or claim.comparator != "central_estimate"
+                    or claim.tolerance_percent != Decimal(central['tolerance'])):
+                raise ValueError("central revenue estimate must retain its explicit percentage tolerance")
+        elif claim.comparator == "central_estimate" or claim.tolerance_percent is not None:
+            raise ValueError("uncertainty fields lack a supported complete source statement")
+        if qualified and (not claim.period_locator or claim.value_quote not in qualified_value_spans(claim.quote, claim.kind)):
+            raise ValueError("numeric value span lacks a supported complete qualified source sentence")
         if value_block.text.count(claim.quote) != 1:
             raise ValueError("numeric quote must occur once in the source block")
+        if qualified:
+            following = value_block.text.split(claim.quote, 1)[1].strip()
+            prior_rpo = (claim.quote.startswith("Remaining Performance Obligation") and re.fullmatch(
+                r"RPO was \$" + _NUMBER + r" (?:million|billion) in the (?:first|second|third|fourth) quarter of (?:19|20)\d{2}\.", following, re.I))
+            if following and not prior_rpo:
+                raise ValueError("qualified metric has unsupported following source qualifications")
         sentences = re.split(r"(?<=[.!?])\s+", value_block.text)
-        sentence = next((s for s in sentences if claim.quote in s), "")
+        sentence = claim.quote if central else next((s for s in sentences if claim.quote in s), "")
         subject = sentence.lstrip("•- ")
         if not subject.startswith(claim.quote):
             raise ValueError("numeric quote drops part of the source subject or qualifier")
@@ -88,16 +176,23 @@ def validate_context(claim, blocks, packages):
         heading = None
         period_external = bool(claim.period_locator)
         if period_external:
-            if claim.kind != "historical":
-                raise ValueError("external highlights period supports historical KPIs only")
             period_block = source(claim.period_locator)
-            heading = _HEADING.fullmatch(period_block.text.strip())
-            if (
-                heading is None
-                or heading["period"].casefold() != claim.period.casefold()
-                or int(heading["year"]) > package.as_of.year
-            ):
-                raise ValueError("period is not the exact dated financial-highlights heading")
+            if central and (package.cik != "0001045810" or not re.match(r"NVIDIA[’']s outlook", period_block.text)):
+                raise ValueError("named central-estimate pattern must share NVIDIA issuer and outlook heading")
+            if claim.kind == "guidance":
+                declared = outlook_period(period_block.text)
+                if declared is None or declared.casefold() != claim.period.casefold():
+                    raise ValueError("period is not the exact supported outlook heading")
+                year = int(re.search(r"(?:19|20)\d{2}", declared)[0])
+                if not package.as_of.year <= year <= package.as_of.year + 1:
+                    raise ValueError("outlook heading year is outside the bounded current/next-year scope")
+            elif claim.kind == "historical":
+                heading = _HEADING.fullmatch(period_block.text.strip())
+                if (heading is None or heading["period"].casefold() != claim.period.casefold()
+                        or int(heading["year"]) > package.as_of.year):
+                    raise ValueError("period is not the exact dated financial-highlights heading")
+            else:
+                raise ValueError("external period scope supports historical highlights or explicit guidance")
             start, end = locators.index(period_block.locator), locators.index(value_block.locator)
             if not 0 < end - start <= 32:
                 raise ValueError("period heading does not precede a bounded claim section")
@@ -110,7 +205,7 @@ def validate_context(claim, blocks, packages):
                 if not block.text.lstrip().startswith(("•", "- ")):
                     raise ValueError("intervening heading or prose breaks period scope")
             prefix = value_block.text[:value_block.text.index(claim.quote)]
-            if not sentence or _DATE_OR_PRIOR.search(prefix + sentence):
+            if not sentence or _DATE_OR_PRIOR.search(prefix) or (not qualified and _DATE_OR_PRIOR.search(sentence)):
                 raise ValueError("claim clause has its own or contradictory temporal qualifier")
             # A separate prose disclaimer/forecast cannot silently govern the
             # selected sentence. Only preceding simple reported-value sentences
@@ -154,13 +249,14 @@ def validate_context(claim, blocks, packages):
             comparison = claim.comparison
             if heading is None or heading["note"] is None:
                 raise ValueError("comparison basis requires a referenced highlights heading")
-            suffix = value_block.text[value_block.text.index(claim.quote) + len(claim.quote):]
+            numeric_quote = claim.value_quote or claim.quote
+            suffix = value_block.text[value_block.text.index(numeric_quote) + len(numeric_quote):]
             match = re.match(r",\s+an (?:increase|decrease) of (" + _NUMBER + r")%", suffix, re.I)
             if (
                 match is None or comparison.quote != match[0]
                 or Decimal(match[1].replace(",", "")) != comparison.value
                 or comparison.unit != "%"
-                or not re.fullmatch(r"[.!?]?", suffix[len(match[0]):], re.S)
+                or (not qualified and not re.fullmatch(r"[.!?]?", suffix[len(match[0]):], re.S))
             ):
                 raise ValueError("comparison is not the exact adjacent reported percentage")
             note = source(comparison.basis_locator)
@@ -186,5 +282,7 @@ def validate_context(claim, blocks, packages):
             ):
                 raise ValueError("another highlights section or same-number note intervenes")
         return period_external, definition_external, None
-    except (ValueError, TypeError, AttributeError, KeyError):
-        return False, False, "missing, ambiguous or contradictory source-linked disclosure context"
+    except ValueError as exc:
+        return False, False, "source-linked disclosure context: " + str(exc)[:240]
+    except (TypeError, AttributeError, KeyError):
+        return False, False, "malformed source-linked disclosure context"

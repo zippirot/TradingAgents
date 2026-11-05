@@ -20,6 +20,19 @@ from tradingagents.dataflows.financial_evidence import EvidencePackage, Financia
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
 Metric = Literal[
+    "Cash-flow Property and Equipment Payments",
+    "Cash-flow Software Development Payments",
+    "Intangible Asset Acquisition Payments",
+    "Business Acquisition Payments",
+    "Financial Investment Purchases",
+    "Financial Investment Sale Proceeds",
+    "Property and Equipment Sale Proceeds",
+    "Investing Cash Flow",
+    "Financing Cash Flow",
+    "Exchange Effect on Cash Including Restricted Cash",
+    "Change in Cash Including Restricted Cash",
+    "Cash Including Restricted Cash",
+
     "Stockholders Equity",
     "Equity Common Stock Issuance Value",
     "Equity Stock Repurchases/Retirements",
@@ -98,12 +111,28 @@ class AdjustedTableCoverage(BaseModel):
     complete: bool = False
 
 
+class InvestingTableCoverage(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    source_id: str
+    locator: str
+    column_index: int
+    period_start: date | None = None
+    period_end: date | None = None
+    total_fact_id: str | None = None
+    component_fact_ids: tuple[str, ...] = ()
+    unmapped_rows: tuple[int, ...] = ()
+    omitted_rows: tuple[int, ...] = ()
+    gaps: tuple[str, ...] = ()
+    complete: bool = False
+
+
 class FilingFactsResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     evidence: EvidencePackage
     rounding_quantum_by_fact: dict[str, Decimal]
     equity_coverage: tuple[EquityTableCoverage, ...]
     adjusted_coverage: tuple[AdjustedTableCoverage, ...] = ()
+    investing_coverage: tuple[InvestingTableCoverage, ...] = ()
     gaps: tuple[str, ...]
 
 
@@ -189,6 +218,39 @@ _ALIASES = {
         "Total present value of finance lease liabilities and equipment financing obligations",
     ),
 }
+_CASH_ALIASES = {
+    "Cash-flow Property and Equipment Payments": ("Capital expenditures - property and equipment", "Purchases of property and equipment"),
+    "Cash-flow Software Development Payments": ("Capital expenditures - internal-use software", "Capitalized software development costs"),
+    "Intangible Asset Acquisition Payments": ("Purchase of intangible assets", "Purchases of intangible assets"),
+    "Business Acquisition Payments": ("Cash paid for acquisition of businesses, net of cash acquired", "Acquisitions of businesses, net of cash acquired"),
+    "Financial Investment Purchases": ("Purchase of marketable securities", "Purchases of marketable securities"),
+    "Financial Investment Sale Proceeds": ("Proceeds from sales and maturities of marketable securities", "Proceeds from sales of marketable securities"),
+    "Property and Equipment Sale Proceeds": ("Proceeds from sale of equipment",),
+    "Operating Cash Flow": ("Net cash provided by operating activities", "Net cash provided by (used in) operating activities"),
+    "Investing Cash Flow": ("Net cash used in investing activities", "Net cash provided by (used in) investing activities"),
+    "Financing Cash Flow": ("Net cash provided by (used in) financing activities", "Net cash used in financing activities"),
+    "Exchange Effect on Cash Including Restricted Cash": ("Effect of exchange rate changes on cash, cash equivalents, and restricted cash",),
+    "Change in Cash Including Restricted Cash": ("Increase (decrease) in cash, cash equivalents and restricted cash",),
+    "Cash Including Restricted Cash": ("Cash, cash equivalents and restricted cash - beginning of period", "Cash, cash equivalents and restricted cash - end of period"),
+}
+_CASH_LABELS = {_normal(label): metric for metric, labels in _CASH_ALIASES.items() for label in labels}
+_INVESTING_COMPONENTS = frozenset({
+    "Cash-flow Property and Equipment Payments", "Cash-flow Software Development Payments",
+    "Intangible Asset Acquisition Payments", "Business Acquisition Payments",
+    "Financial Investment Purchases", "Financial Investment Sale Proceeds",
+    "Property and Equipment Sale Proceeds", "Equipment Financing Acquisition Payments",
+})
+
+
+def _cash_context(block):
+    return bool(re.search(r"\bstatements? of cash flows?\b", block.section, re.I)) and not _adjusted_context(block)
+
+
+def _cash_number(cell, scale):
+    # An explicitly printed dash in a dated cash statement is the zero marker;
+    # blanks, malformed cells and absent rows remain unavailable.
+    return (Decimal(0), scale) if cell.strip() in {"—", "–"} else _number(cell, scale)
+
 _ADJUSTED_ALIASES = {
     "Net Income": ("Net income", "Net income (loss)", "Net loss"),
     "Operating Income": ("Operating income", "Operating income (loss)", "Operating loss"),
@@ -562,6 +624,8 @@ def _borrowings_definition(document, block, rows, selection, end, scale, value):
 def _metric(label, block=None):
     if block is not None and _adjusted_context(block):
         return _ADJUSTED_LABELS.get(_normal(label))
+    if block is not None and _cash_context(block) and _normal(label) in _CASH_LABELS:
+        return _CASH_LABELS[_normal(label)]
     if re.match(r"^(?:balance|balances)\s+(?:at|as of)\b", label, re.I) and len(_dates(label)) == 1:
         return "Stockholders Equity"
     return _LABELS.get(_normal(label))
@@ -672,6 +736,14 @@ def _dated_column(rows, selection):
 
 
 def _period(block, rows, selection):
+    if selection.metric in _CASH_ALIASES and _cash_context(block):
+        if any(re.search(r"non[- ]cash .*activities", row[0], re.I) for row in rows[:selection.row_index]):
+            raise ValueError("noncash supplemental rows cannot establish cash-flow inputs")
+        start, end = _duration(block, rows, column_end=_dated_column(rows, selection))
+        if selection.metric == "Cash Including Restricted Cash":
+            opening = "beginning of period" in rows[selection.row_index][0].lower()
+            return None, start - timedelta(days=1) if opening else end
+        return start, end
     if _adjusted_context(block):
         if selection.metric not in _ADJUSTED_ALIASES:
             raise ValueError("unsupported adjusted-reconciliation role")
@@ -745,7 +817,17 @@ def _period(block, rows, selection):
 def discover_filing_cells(disclosures: DisclosurePackage) -> tuple[FilingCellSelection, ...]:
     """Propose only known row roles; every proposal still passes verification."""
     selections = []
-    for document in disclosures.documents[:8]:
+    documents = disclosures.documents[:8]
+    primary_forms = {"10-Q", "10-Q/A", "10-K", "10-K/A"}
+    latest_primary = max((d.filing.filed_date for d in documents if d.filing.form in primary_forms), default=None)
+    # Spend the existing cell budget on the current primary statement before a
+    # long earnings release or stale annual tables. Remaining contemporaneous
+    # documents then precede older sources; no source/header checks are relaxed.
+    documents = sorted(documents, key=lambda d: (
+        d.filing.form in primary_forms and d.filing.filed_date == latest_primary,
+        d.filing.filed_date, d.filing.form in primary_forms, d.source_id,
+    ), reverse=True)
+    for document in documents:
         for block in document.blocks[:2000]:
             rows = _rows(block)
             for index, row in enumerate(rows[:2001]):
@@ -754,6 +836,7 @@ def discover_filing_cells(disclosures: DisclosurePackage) -> tuple[FilingCellSel
                     continue
                 if (
                     _adjusted_context(block)
+                    or (_cash_context(block) and metric in _CASH_ALIASES)
                     or metric in _OBLIGATIONS
                     or metric
                     in {
@@ -805,8 +888,8 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
         for document in disclosures.documents
         for gap in document.gaps
     ]
-    if len(selections) > 128:
-        gaps.append("Filing cell selection limit reached")
+    if len(selections) >= 128:
+        gaps.append("Filing cell selection limit reached; unselected source rows remain unverified")
         selections = selections[:128]
     duplicates = {
         d.source_id
@@ -844,7 +927,8 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
             ):
                 raise ValueError("source row label does not establish selected role")
             scale = _scale(block, rows)
-            value, rounding = _number(rows[selection.row_index][selection.column_index], scale)
+            number = _cash_number if _cash_context(block) and selection.metric in _CASH_ALIASES else _number
+            value, rounding = number(rows[selection.row_index][selection.column_index], scale)
             start, end = _period(block, rows, selection)
             if end > disclosures.as_of:
                 raise ValueError("source period exceeds analysis cutoff")
@@ -1020,9 +1104,10 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
                     complete=complete,
                 )
             )
+    investing_coverage = _investing_coverage(disclosures, accepted, duplicates)
     adjusted_coverage = _adjusted_coverage(disclosures, accepted, duplicates)
     gaps.extend(
-        f"{c.source_id}/{c.locator}: {g}" for c in (*coverage, *adjusted_coverage) for g in c.gaps
+        f"{c.source_id}/{c.locator}: {g}" for c in (*coverage, *adjusted_coverage, *investing_coverage) for g in c.gaps
     )
     return FilingFactsResult(
         evidence=EvidencePackage(
@@ -1036,6 +1121,7 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
         rounding_quantum_by_fact=quantum,
         equity_coverage=tuple(coverage),
         adjusted_coverage=tuple(adjusted_coverage),
+        investing_coverage=tuple(investing_coverage),
         gaps=tuple(dict.fromkeys(gaps)),
     )
 
@@ -1145,3 +1231,51 @@ def _table_source_gaps(document, block):
     if getattr(block, "truncated", False):
         gaps.append("Source table block is truncated")
     return gaps
+
+
+def _investing_coverage(disclosures, accepted, duplicates):
+    coverage = []
+    for document in disclosures.documents[:8]:
+        for block in document.blocks[:2000]:
+            if not _cash_context(block):
+                continue
+            rows = _rows(block)
+            headings = [i for i, row in enumerate(rows) if _normal(row[0]) == "investingactivities"]
+            totals = [i for i, row in enumerate(rows) if _metric(row[0], block) == "Investing Cash Flow"]
+            if len(headings) != 1 or len(totals) != 1 or headings[0] >= totals[0]:
+                continue
+            total_row = totals[0]
+            for column in range(1, min(len(rows[total_row]), 31)):
+                gaps, unknown, missing, components = _table_source_gaps(document, block), [], [], []
+                if document.source_id in duplicates:
+                    gaps.append("duplicate filing source identifier")
+                total = accepted.get((document.source_id, block.locator, total_row, column))
+                if total is None:
+                    gaps.append("Investing statement total is unavailable")
+                for index in range(headings[0] + 1, total_row):
+                    row = rows[index]
+                    if not row[0] and len(row) == 1:
+                        continue
+                    role = _metric(row[0], block)
+                    if role not in _INVESTING_COMPONENTS:
+                        unknown.append(index)
+                        continue
+                    fact = accepted.get((document.source_id, block.locator, index, column))
+                    if fact is None:
+                        missing.append(index)
+                    else:
+                        components.append(fact.fact_id)
+                if not components:
+                    gaps.append("No investing cash components verified")
+                if unknown:
+                    gaps.append("Investing statement contains unclassified rows")
+                if missing:
+                    gaps.append("Investing cash rows are missing or unverified")
+                coverage.append(InvestingTableCoverage(
+                    source_id=document.source_id, locator=block.locator, column_index=column,
+                    period_start=total.period_start if total else None, period_end=total.period_end if total else None,
+                    total_fact_id=total.fact_id if total else None, component_fact_ids=tuple(components),
+                    unmapped_rows=tuple(unknown), omitted_rows=tuple(missing), gaps=tuple(gaps),
+                    complete=not bool(gaps or unknown or missing),
+                ))
+    return coverage

@@ -369,7 +369,11 @@ def test_analyst_and_canonical_gate_preserve_context_and_render_definition():
         state, EvidencePackage(cik=package.cik, as_of=package.as_of), package)
     assert result["final_rating"] == "REVIEW"
     accepted = result["disclosure_evidence"]["extraction"]["claims"]
-    assert len(accepted) == 1
+    ai_arr = [item for item in accepted if item["metric"] == "AI Customer ARR"]
+    assert len(ai_arr) == 1
+    assert ai_arr[0]["period_locator"] == "block-11"
+    assert ai_arr[0]["definition"] == claim.definition
+    assert ai_arr[0]["comparison"]["basis_locator"] == "block-35"
     context = result["canonical_financial_context"]
     for text in (claim.definition, "Third Quarter 2026", "288%", "year-over-year",
                  "block-11", "block-13", "block-35", "block-95"):

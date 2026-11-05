@@ -12,7 +12,9 @@ import re
 import threading
 import time
 from contextlib import suppress
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
@@ -53,6 +55,27 @@ class SourceBlock(BaseModel):
     currency_locator: str | None = None
 
 
+class RemainingPerformanceObligationFact(BaseModel):
+    """One exact consolidated instant RPO inline fact, not arbitrary XBRL."""
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    metric: str = "Revenue Remaining Performance Obligation"
+    locator: str
+    value: Decimal
+    currency: str
+    period_end: date
+    recognition_start: date | None = None
+    display_value: str
+    scale: int
+    decimals: int | None
+    context_id: str
+    unit_id: str
+    character_start: int
+    character_end: int
+    exact_html: str
+    context_html: str
+    unit_html: str
+
+
 class FilingDocument(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     source_id: str
@@ -62,6 +85,7 @@ class FilingDocument(BaseModel):
     content_hash: str
     blocks: tuple[SourceBlock, ...]
     gaps: tuple[str, ...] = ()
+    rpo_facts: tuple[RemainingPerformanceObligationFact, ...] = ()
 
 
 class DisclosurePackage(BaseModel):
@@ -78,8 +102,8 @@ class DisclosurePackage(BaseModel):
     selected_accessions: tuple[str, ...] = ()
 
 
-def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
-    """Select annual/quarterly baselines and subsequent relevant 8-Ks."""
+def _filing_rows(data: dict, cik: str, as_of: str):
+    """Validate recent submissions once for both bounded selection paths."""
     cutoff = date.fromisoformat(as_of)
     if not isinstance(data, dict) or str(data.get("cik", "")).zfill(10) != cik:
         raise VendorUnavailableError("SEC submissions issuer mismatch")
@@ -139,6 +163,13 @@ def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
                 url=f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{name}",
             )
         )
+    return rows, gaps
+
+
+def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
+    """Select annual/quarterly baselines and subsequent relevant 8-Ks."""
+    cutoff = date.fromisoformat(as_of)
+    rows, gaps = _filing_rows(data, cik, as_of)
     selected = []
     # Keep originals alongside amendments; an amendment is not a full replacement.
     for form in ("10-K", "10-Q"):
@@ -419,7 +450,7 @@ class _Sections(HTMLParser):
                 self.link_text.append(data)
 
 
-def extract_sections(text: str, max_chars: int = 60000):
+def extract_sections(text: str, max_chars: int = 60000, *, prioritize_rpo: bool = False):
     unit_currencies = {
         ref: code.upper()
         for ref, code in re.findall(
@@ -475,7 +506,10 @@ def extract_sections(text: str, max_chars: int = 60000):
             # Source statements and obligation tables establish the numbers;
             # adjacent financing/acquisition prose establishes their scope.
             tier = (
-                3
+                4
+                if prioritize_rpo and re.search(r"remaining performance obligations", block.text, re.I)
+                and re.search(r"aggregate transaction price|recognize.*revenue", block.text, re.I)
+                else 3
                 if statement_table or obligation_table
                 else 2
                 if financing_scope.search(block.text)
@@ -670,7 +704,10 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                         if re.search(r"(?:99[._-]?\d|ex99)", href + " " + label, re.I)
                         or (
                             "2.02" in filing.items
-                            and re.search(r"\bpress release issued by\b", label, re.I)
+                            and (
+                                re.search(r"\bpress release issued by\b", label, re.I)
+                                or re.search(r"^press release,?\s+dated\b", label, re.I)
+                            )
                         )
                     ]
                     exhibits = list(dict.fromkeys(u for u in exhibits if u and u != filing.url))
@@ -690,3 +727,214 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
         gaps=tuple(dict.fromkeys(gaps)),
         selected_accessions=tuple(f.accession for f in filings),
     )
+
+
+def select_prior_quarter_filings(data: dict, cik: str, as_of: str, current_report_date: str):
+    """One preceding quarter snapshot, explicitly requested for a KPI comparator.
+
+    A 10-K can supply a year-end point-in-time KPI for a first-quarter comparison;
+    it is never relabeled a quarterly income/cash-flow statement. Missing quarters,
+    competing originals and multiple amendments remain visible coverage gaps.
+    """
+    rows, gaps = _filing_rows(data, cik, as_of)
+    current = date.fromisoformat(current_report_date)
+    originals = [row for row in rows if row.form in {'10-Q', '10-K'} and row.report_date]
+    if not any(row.report_date == current for row in originals):
+        return [], gaps + ['No eligible current report-period anchor for prior-quarter retrieval']
+    candidates = [row for row in originals if 60 <= (current - row.report_date).days <= 120]
+    if not candidates:
+        return [], gaps + ['Immediately preceding quarter filing unavailable in recent metadata']
+    prior_date = max(row.report_date for row in candidates)
+    prior = [row for row in candidates if row.report_date == prior_date]
+    if len(prior) != 1:
+        return [], gaps + ['Prior-quarter original filing is ambiguous; comparison unavailable']
+    original = prior[0]
+    amendments = [row for row in rows if row.form == original.form + '/A'
+                  and row.report_date == prior_date and row.filed_date >= original.filed_date]
+    if len(amendments) > 1:
+        return [], gaps + ['Multiple prior-quarter amendments exceed bounded comparison coverage']
+    return [original, *amendments], gaps
+
+
+def get_prior_quarter_evidence(ticker: str, as_of_date: str, current_report_date: str) -> DisclosurePackage:
+    """Retrieve only the prior snapshot when the evidence gate requests it.
+
+    Reuses the existing SEC cache and request policy, with at most metadata,
+    one original and one amendment. No exhibits or unrelated annual/events are
+    fetched, and failed/truncated retrieval stays an explicit package gap.
+    """
+    cutoff = date.fromisoformat(as_of_date)
+    cik = cik_for(ticker)
+    if cik is None:
+        raise NoMarketDataError(ticker, ticker, 'not a US SEC filer')
+    client = DocumentClient(max_requests=3, max_seconds=45)
+    metadata = client.fetch(f'https://data.sec.gov/submissions/CIK{cik}.json')
+    try:
+        filings, gaps = select_prior_quarter_filings(json.loads(metadata['text']), cik,
+                                                    as_of_date, current_report_date)
+    except ValueError as exc:
+        raise VendorUnavailableError('Unreadable prior-quarter submissions metadata') from exc
+    documents = []
+    for filing in filings:
+        try:
+            source = client.fetch(filing.url)
+            blocks, _, extraction_gaps = extract_sections(source['text'], max_chars=40000, prioritize_rpo=True)
+            rpo_facts, rpo_gaps = extract_rpo_facts(source['text'], cik, as_of_date)
+            extraction_gaps = [*extraction_gaps, *rpo_gaps]
+            documents.append(FilingDocument(
+                source_id='sec-document-' + hashlib.sha256(filing.url.encode()).hexdigest(),
+                filing=filing, url=filing.url, retrieved_at=source['retrieved_at'],
+                content_hash=source['content_hash'], blocks=tuple(blocks), gaps=tuple(extraction_gaps),
+                rpo_facts=rpo_facts,
+            ))
+            gaps.extend(f'{filing.accession}: {gap}' for gap in extraction_gaps)
+        except VendorUnavailableError as exc:
+            gaps.append(f'{filing.accession}: {exc}')
+    return DisclosurePackage(cik=cik, as_of=cutoff, documents=tuple(documents),
+                             gaps=tuple(dict.fromkeys(gaps)),
+                             selected_accessions=tuple(f.accession for f in filings),
+                             scope='Explicitly requested immediately preceding quarter KPI snapshot; not current financial statements')
+
+
+def _inline_attribute(fragment: str, name: str) -> str | None:
+    matches = re.findall(r"\s" + re.escape(name) + r"\s*=\s*([\"'])(.*?)\1", fragment.split('>', 1)[0], re.S)
+    if len(matches) > 1:
+        raise ValueError('duplicate inline attribute')
+    return unescape(matches[0][1]) if matches else None
+
+
+def extract_rpo_facts(text: str, cik: str, as_of_date: str):
+    """Parse only the standard consolidated instant RPO concept and its basis.
+
+    Keep exact cell/context/unit spans. Missing or ambiguous units, dimensions,
+    unsupported number transforms and issuer/date mismatches stay unavailable.
+    """
+    cutoff = date.fromisoformat(as_of_date)
+    # Preserve source offsets while excluding quoted code/comments from facts.
+    searchable = re.sub(r'<!--.*?-->|<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>',
+                        lambda match: ' ' * len(match.group()), text, flags=re.S | re.I)
+    contexts, units = {}, {}
+    for tag, target in (('context', contexts), ('unit', units)):
+        for match in re.finditer(r'<xbrli:' + tag + r'\b[^>]*>.*?</xbrli:' + tag + '>', searchable, re.S):
+            fragment = match.group()
+            try:
+                identity = _inline_attribute(fragment, 'id')
+                if identity:
+                    target.setdefault(identity, []).append(fragment)
+            except ValueError:
+                continue
+    facts, gaps, seen = [], [], set()
+    duplicate_ids = False
+    candidates = [m for m in re.finditer(r'<ix:nonFraction\b[^>]*>.*?</ix:nonFraction>', searchable, re.S)
+                  if re.search(r"""\bname\s*=\s*(["'])us-gaap:RevenueRemainingPerformanceObligation\1""", m.group().split('>', 1)[0])]
+    if len(candidates) > 16:
+        return (), ('RPO inline fact count exceeds bounded extraction',)
+    for match in candidates:
+        fragment = match.group()
+        try:
+            if fragment != text[match.start():match.end()]:
+                raise ValueError('RPO cell contains excluded code/comment content')
+            if len(fragment) > 2000 or _inline_attribute(fragment, 'name') != 'us-gaap:RevenueRemainingPerformanceObligation':
+                raise ValueError('unsupported inline RPO cell')
+            identity = _inline_attribute(fragment, 'id')
+            context_id, unit_id = _inline_attribute(fragment, 'contextRef'), _inline_attribute(fragment, 'unitRef')
+            duplicate_ids = duplicate_ids or identity in seen
+            if (not identity or not re.fullmatch(r'[A-Za-z0-9_.:-]+', identity)
+                    or identity in seen or len(contexts.get(context_id, [])) != 1
+                    or len(units.get(unit_id, [])) != 1):
+                raise ValueError('RPO source identity, context or unit is missing/ambiguous')
+            seen.add(identity)
+            context, unit = contexts[context_id][0], units[unit_id][0]
+            if len(context) > 4000 or len(unit) > 1000:
+                raise ValueError('RPO context/unit exceeds bounded extraction')
+            identifiers = re.findall(r'<xbrli:identifier\b[^>]*>(.*?)</xbrli:identifier>', context, re.S)
+            instants = re.findall(r'<xbrli:instant>(.*?)</xbrli:instant>', context)
+            if len(identifiers) != 1 or identifiers[0].strip().zfill(10) != cik or len(instants) != 1:
+                raise ValueError('RPO context issuer/instant mismatch')
+            period = date.fromisoformat(instants[0].strip())
+            if period > cutoff or '<xbrli:startDate>' in context or '<xbrli:endDate>' in context:
+                raise ValueError('RPO instant exceeds cutoff or conflicts with duration')
+            recognition_start = None
+            if re.search(r'<(?:xbrli:(?:segment|scenario)|xbrldi:)', context):
+                axis = 'us-gaap:RevenueRemainingPerformanceObligationExpectedTimingOfSatisfactionStartDateAxis'
+                members = re.findall(r'<xbrldi:typedMember\b[^>]*>.*?</xbrldi:typedMember>', context, re.S)
+                segments = re.findall(r'<xbrli:segment>(.*?)</xbrli:segment>', context, re.S)
+                if (len(members) != 1 or len(segments) != 1 or segments[0].strip() != members[0]
+                        or '<xbrli:scenario' in context or '<xbrldi:explicitMember' in context
+                        or _inline_attribute(members[0], 'dimension') != axis):
+                    raise ValueError('RPO dimensional context is not a supported total')
+                starts = re.findall(r'<us-gaap:date.domain>(.*?)</us-gaap:date.domain>', members[0])
+                if len(starts) != 1:
+                    raise ValueError('RPO recognition-start axis unavailable')
+                recognition_start = date.fromisoformat(starts[0].strip())
+                if recognition_start != period + timedelta(days=1):
+                    raise ValueError('RPO recognition start does not immediately follow the instant')
+            measures = re.findall(r'<xbrli:measure>iso4217:([A-Z]{3})</xbrli:measure>', unit)
+            if len(measures) != 1 or '<xbrli:divide>' in unit or unit.count('<xbrli:measure>') != 1:
+                raise ValueError('RPO currency unit unavailable')
+            if _inline_attribute(fragment, 'sign') not in (None, '+') or _inline_attribute(fragment, 'xsi:nil') is not None:
+                raise ValueError('RPO negative/nil amount unsupported')
+            if _inline_attribute(fragment, 'format') not in (None, 'ixt:num-dot-decimal', 'ixt:numdotdecimal'):
+                raise ValueError('RPO number transform unsupported')
+            displayed = unescape(fragment.split('>', 1)[1].rsplit('<', 1)[0]).strip()
+            if not re.fullmatch(r'(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?', displayed):
+                raise ValueError('RPO numeric value malformed')
+            scale = int(_inline_attribute(fragment, 'scale') or '0')
+            if not -9 <= scale <= 12:
+                raise ValueError('RPO scale unsupported')
+            decimals_text = _inline_attribute(fragment, 'decimals')
+            decimals = int(decimals_text) if decimals_text not in (None, 'INF') else None
+            value = Decimal(displayed.replace(',', '')) * (Decimal(10) ** scale)
+            if not value.is_finite() or value < 0:
+                raise ValueError('RPO amount must be finite/nonnegative')
+            facts.append(RemainingPerformanceObligationFact(
+                locator='inline-fact-' + identity, value=value, currency=measures[0], period_end=period, recognition_start=recognition_start,
+                display_value=displayed, scale=scale, decimals=decimals, context_id=context_id, unit_id=unit_id,
+                character_start=match.start(), character_end=match.end(), exact_html=fragment,
+                context_html=context, unit_html=unit,
+            ))
+        except (ValueError, ArithmeticError) as exc:
+            gaps.append(str(exc))
+    if not candidates:
+        gaps.append('Standard consolidated instant RPO inline fact unavailable')
+    if duplicate_ids:
+        return (), tuple(dict.fromkeys(gaps + ['Duplicate RPO inline fact IDs']))
+    return tuple(facts), tuple(dict.fromkeys(gaps))
+
+
+def get_current_quarter_rpo_evidence(current: DisclosurePackage) -> DisclosurePackage:
+    """Re-extract the current RPO section from its same cached SEC filing bytes.
+
+    At most one latest primary filing is re-read. Changed bytes do not silently
+    acquire the original document identity/hash; the comparison stays unavailable.
+    """
+    originals = [d for d in current.documents if d.filing.form in {'10-Q', '10-K'}
+                 and d.filing.report_date and d.url == d.filing.url
+                 and d.filing.cik == current.cik and d.filing.filed_date <= current.as_of
+                 and d.filing.report_date <= current.as_of]
+    if not originals:
+        return current.model_copy(update={'documents': (), 'gaps': ('Current RPO primary filing unavailable',)})
+    latest = max(d.filing.report_date for d in originals)
+    candidates = [d for d in originals if d.filing.report_date == latest]
+    if len(candidates) != 1:
+        return current.model_copy(update={'documents': (), 'gaps': ('Current RPO primary filing ambiguous',)})
+    document = candidates[0]
+    expected_url = (f"https://www.sec.gov/Archives/edgar/data/{int(current.cik)}/"
+                    f"{document.filing.accession.replace('-', '')}/{document.filing.primary_document}")
+    if (not _ACCESSION.fullmatch(document.filing.accession)
+            or not _NAME.fullmatch(document.filing.primary_document)
+            or document.url != expected_url
+            or document.source_id != 'sec-document-' + hashlib.sha256(document.url.encode()).hexdigest()):
+        return current.model_copy(update={'documents': (), 'gaps': ('Current RPO source identity mismatch',)})
+    try:
+        source = DocumentClient(max_requests=1, max_seconds=20).fetch(document.url)
+        if source['content_hash'] != document.content_hash:
+            raise VendorUnavailableError('Current filing content changed; RPO comparison unavailable')
+        blocks, _, gaps = extract_sections(source['text'], max_chars=40000, prioritize_rpo=True)
+        facts, fact_gaps = extract_rpo_facts(source['text'], current.cik, str(current.as_of))
+        updated = document.model_copy(update={'blocks': tuple(blocks), 'gaps': tuple(gaps), 'rpo_facts': facts})
+        return current.model_copy(update={'documents': (updated,), 'gaps': tuple(dict.fromkeys([*gaps, *fact_gaps])),
+                                          'selected_accessions': (document.filing.accession,),
+                                          'scope': 'Current-quarter RPO source supplement; same filing bytes'})
+    except VendorUnavailableError as exc:
+        return current.model_copy(update={'documents': (), 'gaps': (str(exc),), 'selected_accessions': (document.filing.accession,)})
