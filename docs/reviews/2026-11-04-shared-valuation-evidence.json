@@ -99,18 +99,25 @@
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-annual-view-replay.json": "8f6f16b132cbf281c225eab47463b13b3d08aef722b3002883e5bcfd317aba89",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-baseline-view.log": "d1f04d6db382006ad612909123f8051a9efad746229e8dc7e4932a7633f06b6c",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-baseline-view-final.log": "e46a76592f96855375c8ba30abef4d17d1eaebaa31f5e20267740903f715ad7f",
-    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02/llm-diagnostics/f1ff0eb0-8d06-4830-b80e-7b191f9e6069.json": "4f417e4f2129586a571ab91b9d91cc25f1438431504449b46d64fc0a0c3a8ab7"
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02/llm-diagnostics/f1ff0eb0-8d06-4830-b80e-7b191f9e6069.json": "4f417e4f2129586a571ab91b9d91cc25f1438431504449b46d64fc0a0c3a8ab7",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02/manifest.json": "be8d9d3ccb96e9338c8e3697cbbf4c5fd2206121c2294e1b745b6defb7531e04",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02/cli.log": "9fd1419a0eb2031d8a8be0280513724fbdae465938c6d825724f2b7af9eb8f0f"
   },
   "release": "No push, PR, merge, deployment, installed-app replacement or cleanup authorized",
   "notifier": "Enabled; keep enabled until completion or abandonment",
   "live_attempt_02": {
-    "status": "running_but_acceptance_failed_empty_scenarios",
+    "status": "stopped_after_diagnosed_empty_scenario_failure",
     "commit": "6911e392ca8d04321ba70b35f0d0eb0f7cc18d66",
     "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-02",
     "finish_reason_fundamentals": "stop",
     "completion_tokens_fundamentals": 38846,
     "cause": "Actual financial evidence tool view contained only quarterly Revenue, Diluted EPS and Basic EPS. Analyst emitted [] citing absent annual baselines and incorrectly requiring a current market price. Full canonical package did contain annual facts.",
     "fix": "Prioritize latest reported annual Revenue/Basic EPS/Diluted EPS within existing bounded view and clarify current price unnecessary; no new calls or source data. Checkpoint shared_valuation=2.",
-    "test_iteration": "First priority ordering crowded out one other metric in existing DOCN fixture. Corrected round-robin ordering retains metric coverage; unchanged existing regression now passes."
-  }
+    "test_iteration": "First priority ordering crowded out one other metric in existing DOCN fixture. Corrected round-robin ordering retains metric coverage; unchanged existing regression now passes.",
+    "exit_code": -15,
+    "observed_cost_usd": "0.055322389",
+    "billing_limit": "One interrupted bear request may settle later; reserve USD 0.20 additionally (request-byte/output bound USD 0.1033062).",
+    "preservation": "Diagnostics, manifest and checkpoint retained; no live proof claimed."
+  },
+  "retry_authority": "User explicitly allowed further diagnosed attempts within original USD 10 total for next 24 hours. Next run budget USD 9.50; prior observed task costs USD 0.179639570 plus USD 0.20 late-billing reserve leave aggregate below USD 10."
 }
