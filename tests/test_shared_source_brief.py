@@ -131,3 +131,27 @@ def test_source_vintage_and_brief_survive_evidence_export(monkeypatch, tmp_path)
     snapshot = evidence_snapshot(state)
     for key in ("shared_source_brief", "evidence_acquisition"):
         assert saved[key] == snapshot[key] == state[key]
+
+def test_bounded_brief_keeps_guidance_base_growth_shares_and_filing_reference(monkeypatch):
+    from tests.test_price_implied_guidance_ranges import source_state as source_guidance_state
+    from tradingagents.dataflows.disclosure_discovery import discover_disclosures
+    from tradingagents.dataflows.financial_evidence import EvidencePackage, FinancialFact
+
+    state = source_guidance_state(monkeypatch)
+    package = EvidencePackage.model_validate(state["financial_evidence"])
+    document, source = package.sources
+    extra_sources = tuple(source.model_copy(update={"source_id": f"other-{i}", "url": "https://example.test/" + "x"*180 + str(i)}) for i in range(20))
+    extra_facts = tuple(FinancialFact(fact_id=f"extra-{i}", metric=f"Other metric {i}", value=i+1,
+        unit="USD", cik=package.cik, period_end="2026-09-30", as_of=package.as_of,
+        source_ids=(s.source_id,), locator="synthetic") for i,s in enumerate(extra_sources))
+    package = package.model_copy(update={"sources": (source, *extra_sources, document), "facts": (*package.facts, *extra_facts)})
+    state["financial_evidence"] = package.model_dump(mode="json")
+    state["disclosure_evidence"]["extraction"] = discover_disclosures(state["disclosure_evidence"]["packages"]).model_dump(mode="json")
+    state["evidence_acquisition"] = {"status": "ready", "ticker": "DOCN", "as_of": state["trade_date"],
+        "source_checks": [{"code": "source_integrity", "status": "pass"}]}
+    brief = context.build_shared_source_brief(state)
+    assert '"locator":"block-46"' in brief  # Full-year revenue base for growth floor.
+    assert '"locator":"block-4"' in brief   # Growth floor and its horizon.
+    assert '"locator":"block-44"' in brief  # Conditional guided share range.
+    assert document.url in brief
+    assert len(brief) <= context.SHARED_SOURCE_BRIEF_MAX_CHARS

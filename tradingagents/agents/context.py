@@ -290,7 +290,23 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
         lines.append("Issuer disclosures: historical records and management statements are distinct from independent news coverage.")
         budget = 4500
         known_sources = {source.source_id for source in package.sources}
-        for claim in extraction.get("claims", ()):
+        disclosure_sources = set()
+
+        def disclosure_priority(claim):
+            if claim.get("kind") == "guidance":
+                metric = claim.get("metric", "").casefold()
+                if metric == "total revenue" and "full year" in claim.get("period", "").casefold():
+                    return 0
+                if metric == "revenue growth":
+                    return 1
+                if metric == "fully diluted weighted average shares outstanding":
+                    return 2
+                return 3
+            return 4
+
+        # Keep the annual base, growth qualification and share definition
+        # together before optional historical highlights consume the bound.
+        for claim in sorted(extraction.get("claims", ()), key=disclosure_priority):
             if claim.get("source_id") not in known_sources:
                 continue
             record = {key: claim.get(key) for key in (
@@ -303,8 +319,9 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             lines.append(line)
             budget -= len(line) + 1
             used_sources.add(claim["source_id"])
+            disclosure_sources.add(claim["source_id"])
         budget = 1700
-        for source in package.sources:
+        for source in sorted(package.sources, key=lambda item: item.source_id not in disclosure_sources):
             if source.source_id in used_sources:
                 line = f"Source {source.source_id}; filed {source.filed_date}; {source.url}"
                 if len(line) <= budget:
