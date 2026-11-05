@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+from collections.abc import Mapping
 
 import pandas as pd
 import yfinance as yf
@@ -41,7 +42,7 @@ def _retrieval_time():
 def _source_metadata(source, downloaded, canonical, retrieved):
     method = getattr(source, "get_history_metadata", None)
     metadata = method() if method is not None else {}
-    metadata = metadata if isinstance(metadata, dict) else {}
+    metadata = metadata if isinstance(metadata, Mapping) else {}
     zone = metadata.get("exchangeTimezoneName") or str(getattr(downloaded.index, "tz", "") or "")
     end = metadata.get("currentTradingPeriod", {}).get("regular", {}).get("end")
     return {

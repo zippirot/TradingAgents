@@ -166,3 +166,28 @@ def test_legacy_adjusted_cache_refreshes_through_existing_fetch(monkeypatch, tmp
     assert actual["Close"].iloc[-1] == 84.02
     assert actual.attrs["market_provenance"]["adjustment_basis"] == price_observation.ADJUSTMENT
 
+
+
+@pytest.mark.parametrize("now,expected", [
+    ("2026-11-05T17:00:00+00:00", 84.02),
+    ("2026-11-05T22:00:00+00:00", 74.24),
+])
+def test_installed_yfinance_lazy_mapping_preserves_session_metadata(monkeypatch, tmp_path, now, expected):
+    from types import SimpleNamespace
+
+    from yfinance.scrapers.history import HistoryMetadata
+
+    install(monkeypatch, tmp_path, now=now)
+    ticker = ohlcv.yf.Ticker("DOCN")
+    plain = ticker.get_history_metadata()
+    lazy = HistoryMetadata(SimpleNamespace(
+        _history_metadata=plain,
+        _load_history_metadata_trading_periods=lambda: pytest.fail("must not fetch lazy intraday periods"),
+    ))
+    ticker.get_history_metadata = lambda: lazy
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda _: ticker)
+    result = ohlcv.load_ohlcv("DOCN", "2026-11-05")
+    assert result.attrs["market_provenance"]["currency"] == "USD"
+    assert result.attrs["market_provenance"]["regular_end"] == "2026-11-05T21:00:00+00:00"
+    assert result["Close"].iloc[-1] == expected
+
