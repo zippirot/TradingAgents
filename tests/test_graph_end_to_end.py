@@ -109,6 +109,9 @@ def offline(monkeypatch, tmp_path):
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
     monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: None)
     monkeypatch.setattr(sec_documents, "cik_for", lambda ticker: None)
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    monkeypatch.setattr(price_observation, "get_price_observation",
+                        lambda *a, **k: {"status": "unavailable", "reason": "Legacy graph fixture has no dated price"})
     called: set[str] = set()
     for method, vendors in router.VENDOR_METHODS.items():
         for vendor in vendors:

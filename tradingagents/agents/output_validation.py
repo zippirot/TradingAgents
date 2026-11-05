@@ -11,7 +11,12 @@ from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
 from tradingagents.agents.shared_valuation import prepare_shared_valuation
 from tradingagents.agents.valuation import TargetResult, validate_target
-from tradingagents.agents.valuation_comparison import compare_valuation, render_valuation_comparison
+from tradingagents.agents.valuation_comparison import (
+    compare_valuation,
+    price_implied_valuation,
+    render_price_implied_valuation,
+    render_valuation_comparison,
+)
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
@@ -30,6 +35,7 @@ def enforce_evidence_review(state: dict) -> dict:
         **review_terminal_state(quality),
         "unvalidated_outputs": original,
         "valuation_price_comparison": {"status": "unavailable", "rows": [], "reason": "Research incomplete; comparison not published."},
+        "price_implied_valuation": {"status": "unavailable", "rows": [], "reason": "Research evidence insufficient for a price-implied table."},
         "target_validation": TargetResult(
             status="unsupported", reasons=("Research incomplete; valuation not published.",),
         ).model_dump(mode="json"),
@@ -95,6 +101,7 @@ def enforce_publication(state: dict) -> dict:
         card = prepare_decision_context({**state, **review})
         review["decision_context"] = card
         review["final_trade_decision"] += "\n\n" + render_decision_context(card)
+        review["final_trade_decision"] += "\n\n" + render_price_implied_valuation(review["price_implied_valuation"])
         return review
     if state.get("evidence_quality") is None:
         return {}
@@ -159,7 +166,10 @@ def enforce_publication(state: dict) -> dict:
     updates["target_validation"] = {**target.model_dump(mode="json"), "request": request}
     comparison = compare_valuation(state, target, request)
     updates["valuation_price_comparison"] = comparison
-    target_text = render_target_result(target) + "\n\n" + render_valuation_comparison(comparison)
+    independent = price_implied_valuation(state)
+    updates["price_implied_valuation"] = independent
+    target_text = (render_price_implied_valuation(independent) + "\n\n"
+                   + render_target_result(target) + "\n\n" + render_valuation_comparison(comparison))
     if "event_comparison" in state:
         from tradingagents.agents.event_comparison import (
             render_event_comparison,
@@ -171,7 +181,7 @@ def enforce_publication(state: dict) -> dict:
             event = {"status": "unavailable", "reason": "Retained event comparison could not be verified"}
         updates["event_comparison"] = event
         target_text += "\n\n" + render_event_comparison(event)
-    if target.status != "supported":
+    if target.status != "supported" or not target.decision_use.final_target_eligible:
         target_text = "Fundamental price target: unavailable.\n\n" + target_text
     updates["final_trade_decision"] = (
         f"**Rating**: {run_rating(state)}\n\n"

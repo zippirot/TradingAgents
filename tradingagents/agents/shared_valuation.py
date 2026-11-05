@@ -108,9 +108,11 @@ def prepare_shared_valuation(state, requests=None):
                     continue
                 reasons.append(f"Row {index} retained as funding diagnostic only: " + "; ".join(result.reasons))
             comparisons.append(_comparable(request, result))
+            historical = result.decision_use.classification == "historical_diagnostic"
             rows.append({"name": name.strip(), "request": request.model_dump(mode="json"),
-                         "result": result.model_dump(mode="json"), "diagnostic_only": diagnostic,
-                         "comparison": compare_valuation(state, result, request)})
+                         "result": result.model_dump(mode="json"), "diagnostic_only": diagnostic or historical,
+                         "comparison": (compare_valuation(state, result, request)
+                                        if not historical or result.decision_use.suitability == "conditional" else None)})
         except ValidationError:
             reasons.append(f"Row {index} omitted: malformed valuation request")
         except (ValueError, TypeError, ArithmeticError) as exc:
@@ -133,7 +135,7 @@ def render_shared_valuation(record):
              "Display values are rounded; exact arithmetic and provenance remain in evidence.json. Forecasts and multiples are assumptions, not verified predictions. These are independent scenarios, not a final price target or probability-weighted forecast.", ""]
     rows = record.get("rows") or []
     if rows:
-        lines += ["Scenario | Method | Period | Conditional price", "--- | --- | --- | ---"]
+        lines += ["Scenario | Method | Period | Conditional price / historical arithmetic", "--- | --- | --- | ---"]
         for row in rows:
             result = row["result"]
             lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue"}[result["method"]],
@@ -144,6 +146,14 @@ def render_shared_valuation(record):
             lines += ["", "Future-period scenario values are not discounted to today."]
         for row in rows:
             result = row["result"]
+            assessment = result.get("decision_use", {})
+            if assessment.get("classification") == "historical_diagnostic":
+                lines += ["", "Historical diagnostic — " + _cell(assessment.get("suitability")) + ". Not a forward target.",
+                          "Decision-use assessment: " + "; ".join(_cell(v) for v in assessment.get("reasons", []))]
+                for event in assessment.get("events", []):
+                    lines += ["Capital-change evidence: " + _cell(event["fact_id"]) + "; sources "
+                              + ", ".join(_cell(v) for v in event["source_ids"])
+                              + "; interval " + _cell(event["period_start"]) + " to " + _cell(event["period_end"]) + "."]
             lines += ["", f"**{_cell(row['name'])} — inputs and assumptions**", "",
                       "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"])
                       + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]

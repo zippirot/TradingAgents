@@ -21,7 +21,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
-from tradingagents.agents.evidence_validation import create_evidence_gate
+from tradingagents.agents.evidence_validation import create_evidence_gate, create_source_acquisition
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.state import AgentState
 
@@ -166,15 +166,19 @@ class GraphSetup:
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        # The analysts work at the same time; the research debate starts once
-        # every one of them has filed its report. The memory log settles past
-        # decisions alongside them: only the Portfolio Manager reads its lessons.
+        # One retained source vintage precedes parallel analyst reasoning. The
+        # memory log retains its independent start and joins every analyst before
+        # evidence validation, preserving prior-thesis cutoff dependencies.
         first_steps = [spec.agent_node for spec in plan.specs]
         if memory_node is not None:
             workflow.add_node("Memory Log", memory_node)
             first_steps.append("Memory Log")
-        for node in first_steps:
-            workflow.add_edge(START, node)
+        workflow.add_node("Source Acquisition", create_source_acquisition(selected_analysts))
+        workflow.add_edge(START, "Source Acquisition")
+        for spec in plan.specs:
+            workflow.add_edge("Source Acquisition", spec.agent_node)
+        if memory_node is not None:
+            workflow.add_edge(START, "Memory Log")
         evidence_gate = create_evidence_gate(selected_analysts)
 
         def evidence_with_scenarios(state):

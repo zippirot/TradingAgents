@@ -80,11 +80,12 @@ def prepare_decision_context(state: dict) -> dict:
             target = TargetResult(status='unsupported', reasons=('Canonical financial evidence unavailable.',))
     scenarios = _mapping(state.get('shared_valuation_scenarios'))
     replayed = prepare_shared_valuation(state, scenarios.get('requests', [])) if eligible else {'status': 'unavailable', 'rows': []}
-    supported_scenarios = sum(_mapping(row.get('result')).get('status') == 'supported'
+    supported_scenarios = sum((_mapping(row.get('result')).get('status') == 'supported'
+                               and _mapping(_mapping(row.get('result')).get('decision_use')).get('suitability') == 'conditional')
                               for row in replayed.get('rows', []) if isinstance(row, dict))
     if not eligible:
         basis, note = 'insufficient evidence', 'Current canonical evidence does not support a completed research conclusion.'
-    elif target.status == 'supported':
+    elif target.status == 'supported' and target.decision_use.final_target_eligible:
         basis, note = 'valuation', 'Conditional valuation arithmetic is available; assumptions and the rating remain research judgments.'
     else:
         basis, note = 'risk assessment', 'The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.'
@@ -142,7 +143,8 @@ def prepare_decision_context(state: dict) -> dict:
     trader = originals.get('trader_investment_plan', state.get('trader_investment_plan'))
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
             'horizon': horizon, 'coverage': coverage,
-            'target': {'status': target.status, 'reasons': [_text(r) for r in target.reasons[:3]]},
+            'target': {'status': target.status, 'decision_use': target.decision_use.model_dump(mode='json'),
+                       'reasons': [_text(r) for r in (*target.reasons, *target.decision_use.reasons)[:3]]},
             'scenarios': {'status': replayed['status'], 'supported_count': supported_scenarios,
                           'diagnostic_count': len(replayed.get('rows', [])) - supported_scenarios},
             'trader_provisional': _trader(trader), 'conditions': condition_rows,
@@ -178,7 +180,7 @@ def render_decision_context(record: dict) -> str:
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
-             f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}; funding diagnostics {record['scenarios']['diagnostic_count']}.",
+             f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",
              f"**Trader provisional action**: {_display(record['trader_provisional'])}; this is not the canonical Portfolio Manager rating."]
     lines += ['Coverage limit: ' + _display(text) for text in coverage['limits']]
     lines += ['Target limitation: ' + _display(text) for text in record['target']['reasons']]

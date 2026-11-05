@@ -41,7 +41,7 @@ def test_ev_reverse_algebra_dates_and_conditional_label(monkeypatch):
     assert Decimal(row['implied_revenue']) == 700
     assert row['capital_date'] == '2026-06-30' and row['price_date'] == '2026-10-19'
     assert record['label'] == 'conditional sensitivity'
-    assert 'What the price implies' in render_valuation_comparison(record)
+    assert 'Conditional scenario comparison' in render_valuation_comparison(record)
 
 
 def test_forward_comparison_uses_own_capital_and_original_split_anchor(monkeypatch):
@@ -55,13 +55,11 @@ def test_forward_comparison_uses_own_capital_and_original_split_anchor(monkeypat
     assert bad['status'] == 'unavailable' and 'split' in bad['reason'].lower()
 
 
-def test_pe_has_no_invented_enterprise_value(monkeypatch):
+def test_historical_pe_without_capital_comparability_has_no_replayed_price_comparison(monkeypatch):
     record = compare(state(monkeypatch), pe_request())
-    assert record['status'] == 'available', record
-    row = record['rows'][0]
-    assert Decimal(row['implied_pe']) == 10
-    assert row['eps_basis'] == 'diluted'
-    assert 'implied_enterprise_value' not in row
+    assert record['status'] == 'unavailable', record
+    assert 'comparability_unestablished' in record['reason']
+    assert not record['rows']
 
 
 @pytest.mark.parametrize('mode', ['tamper', 'future', 'currency', 'coverage', 'split'])
@@ -152,7 +150,8 @@ def test_legacy_undated_multiples_cannot_supply_dated_comparison(monkeypatch):
     for raw in (ev_request(), pe_request()):
         record = compare_valuation(state(monkeypatch), validate_target(raw, evidence()), raw)
         assert record['status'] == 'unavailable'
-        assert 'undated' in record['reason'].lower()
+        assert ('undated' in record['reason'].lower()
+                or 'comparability_unestablished' in record['reason'])
 
 
 def test_incomplete_session_split_invalidates_prior_completed_close_basis(monkeypatch):

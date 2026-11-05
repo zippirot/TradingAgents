@@ -305,11 +305,45 @@ def get_prediction_markets(
     return route_to_vendor("get_prediction_markets", topic, limit, trade_date or None)
 
 
+
+def _retained_source_package(ticker, cutoff, state, field):
+    """A present acquisition record forbids fetching a replacement source vintage."""
+    if not state or "evidence_acquisition" not in state:
+        return None
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.symbols import normalize_symbol
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    record = state["evidence_acquisition"]
+    if (record.get("schema_version") != 1 or record.get("ticker") != normalize_symbol(ticker)
+            or record.get("as_of") != str(cutoff)):
+        raise VendorUnavailableError("Requested issuer or cutoff differs from retained source evidence; no newer source was fetched")
+    if record.get("status") != "ready":
+        raise VendorUnavailableError(record.get("reason") or "Retained source evidence unavailable")
+    if field == "filing_evidence" and record.get("disclosure_error"):
+        raise VendorUnavailableError(record["disclosure_error"])
+    if field == "financial_evidence" and not any(
+        check.get("code") == "source_integrity" and check.get("status") == "pass"
+        for check in record.get("source_checks", ())
+    ):
+        raise VendorUnavailableError("Retained financial source integrity is not established")
+    try:
+        model = EvidencePackage if field == "financial_evidence" else DisclosurePackage
+        package = model.model_validate(state.get(field))
+        raw_cik = (record.get("raw_financial_evidence") or {}).get("cik")
+        if str(package.as_of) != str(cutoff) or package.cik != raw_cik:
+            raise ValueError("Retained source package issuer/cutoff mismatch")
+        return package
+    except (ValueError, TypeError) as exc:
+        raise VendorUnavailableError("Retained source package unavailable or invalid; no replacement vintage fetched") from exc
+
+
 @tool
 def get_financial_evidence(
     ticker: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "Evidence cutoff date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_state: Annotated[dict, InjectedState] = None,
 ) -> str:
     """Exact dated SEC statement facts with source IDs, units and calculation lineage.
 
@@ -319,6 +353,11 @@ def get_financial_evidence(
     """
     cutoff = as_of(curr_date, trade_date)
     try:
+        retained = _retained_source_package(ticker, cutoff, run_state, "financial_evidence")
+        if retained is not None:
+            retained = retained.model_copy(update={"facts": tuple(sorted(
+                retained.facts, key=lambda fact: fact.metric != "Total Borrowings"))})
+            return bounded_evidence_view(retained).model_dump_json()
         package = build_financial_evidence(ticker, cutoff)
         try:
             from tradingagents.agents.evidence_validation import filing_accounting_evidence
@@ -348,6 +387,7 @@ def get_filing_evidence(
     ticker: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "Evidence cutoff date in yyyy-mm-dd format"],
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    run_state: Annotated[dict, InjectedState] = None,
 ) -> str:
     """Dated SEC filing and earnings-exhibit excerpts with source IDs and coverage gaps.
 
@@ -356,6 +396,9 @@ def get_filing_evidence(
     """
     cutoff = as_of(curr_date, trade_date)
     try:
+        retained = _retained_source_package(ticker, cutoff, run_state, "filing_evidence")
+        if retained is not None:
+            return retained.model_dump_json()
         return build_filing_evidence(ticker, cutoff).model_dump_json()
     except NoMarketDataError as exc:
         return no_data_available(exc)
