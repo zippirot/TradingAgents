@@ -146,3 +146,16 @@ class GuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_argument_validation_does_not_import_application_configuration():
+    import subprocess
+    import sys
+    script = (
+        "import sys; import live_cli; "
+        "sys.argv=['live_cli','--analysis-date','2026-11-04']; "
+        "live_cli.main(); "
+        "assert 'tradingagents.default_config' not in sys.modules"
+    )
+    subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).parent, check=True,
+                   capture_output=True, text=True)

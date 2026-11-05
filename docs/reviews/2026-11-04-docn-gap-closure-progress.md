@@ -671,3 +671,11 @@ The record remains labeled legacy with published_at=null. No paid calls occurred
 The sixth Shallow run is prepared with byte-identical live-05 publications and
 memory, fresh cache/checkpoints, and seed hashes; it has not started yet.
 Final C live acceptance and the connected exact-base/head audit remain outstanding.
+
+Final C independent evaluator review passed 48 focused checks with no material
+finding. Before live-06, the new date-validation helper imported DEFAULT_CONFIG
+before proof environment setup; verify_config rejected it before any paid
+request or attempt reservation. Date parsing now uses only stdlib until setup.
+The preserved preflight-import-order-failure.log documents the failure. Ten
+proof-runner tests pass including a subprocess import-order regression; no
+application behavior changed and the prior full suite remains applicable.

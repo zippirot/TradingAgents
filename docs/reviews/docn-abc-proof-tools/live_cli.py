@@ -305,8 +305,11 @@ def main() -> None:
     parser.add_argument("--run-name", default="live-01", help="Isolated result folder basename")
     parser.add_argument("--analysis-date", default=ANALYSIS_DATE, help="Actual requested as-of date, YYYY-MM-DD")
     args = parser.parse_args()
-    from tradingagents.graph.trading_graph import _validate_trade_date
-    ANALYSIS_DATE = _validate_trade_date(args.analysis_date)
+    # Do not import application modules until configure() sets the isolated env.
+    requested_date = datetime.strptime(args.analysis_date, "%Y-%m-%d").date()
+    if requested_date.isoformat() != args.analysis_date or requested_date > datetime.now().date():
+        raise ValueError("--analysis-date must be a canonical date no later than today")
+    ANALYSIS_DATE = args.analysis_date
     WORK = work_for_run(args.run_name)
     if not args.execute:
         print("Dry setup only. Paid calls require --execute.")
