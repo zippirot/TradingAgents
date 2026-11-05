@@ -231,7 +231,7 @@ def test_a_plan_pointed_at_another_endpoint_stops_before_the_run(monkeypatch, ca
 def test_a_remembered_openrouter_model_is_preselected(monkeypatch):
     monkeypatch.setattr(prompts, "_fetch_openrouter_models",
                         lambda: [("A", "openai/a"), ("B", "anthropic/b")])
-    shown, select = _menu([lambda cs: cs[1].value])
+    shown, select = _menu([lambda cs: next(c.value for c in cs if c.value == "anthropic/b")])
     with mock.patch("cli.prompts.questionary.select", select):
         assert prompts.select_openrouter_model("deep", default="anthropic/b") == "anthropic/b"
     assert shown[0][2] == "anthropic/b"
