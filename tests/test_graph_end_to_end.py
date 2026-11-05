@@ -418,3 +418,89 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
     assert saved["final_rating"] == "REVIEW"
     assert saved["fundamentals_report"]
     assert saved["investment_debate_state"]["history"] == ""
+
+
+def test_shared_scenarios_precede_debate_and_preserve_call_count(tmp_path, monkeypatch, offline):
+    from tests.test_shared_valuation import state as scenario_state
+    from tests.test_valuation import pe_request
+    from tradingagents.graph import setup
+
+    evidence = scenario_state([{"name": "Shared graph case", "request": pe_request()}])
+    seen = []
+    original_bull = setup.create_bull_researcher
+
+    def bull_factory(llm):
+        node = original_bull(llm)
+
+        def checked(state):
+            seen.append(copy.deepcopy(state["shared_valuation_scenarios"]))
+            return node(state)
+        return checked
+
+    monkeypatch.setattr(setup, "create_bull_researcher", bull_factory)
+    monkeypatch.setattr(setup, "create_evidence_gate", lambda selected: lambda state: {
+        key: value for key, value in evidence.items()
+        if key in {"financial_evidence", "financial_claim_validation", "evidence_quality"}
+    })
+    model = ScriptedModel(structured=True)
+    graph = _graph(tmp_path, monkeypatch, model)
+    final, _ = graph.propagate("DOCN", evidence["trade_date"])
+    assert seen and seen[0]["rows"][0]["result"]["target"] == "40"
+    assert all(record == seen[0] for record in seen)
+    assert final["shared_valuation_scenarios"]["rows"] == seen[0]["rows"]
+    assert final["target_validation"]["target"] is None
+    count = len(model.calls)
+
+    # Same graph/agents with no optional scenarios should make exactly as many calls.
+    evidence["financial_claim_validation"]["raw_report"] = "No scenario proposals"
+    seen.clear()
+    baseline_model = ScriptedModel(structured=True)
+    baseline = _graph(tmp_path / "without", monkeypatch, baseline_model)
+    missing, _ = baseline.propagate("DOCN", evidence["trade_date"])
+    assert missing["shared_valuation_scenarios"]["status"] == "unavailable"
+    assert len(baseline_model.calls) == count
+
+
+def test_shared_scenarios_survive_checkpoint_without_recalculation(tmp_path, monkeypatch, offline):
+    import json
+
+    from tests.test_shared_valuation import state as scenario_state
+    from tests.test_valuation import pe_request
+    from tradingagents.graph import setup
+    from tradingagents.graph.checkpointer import thread_id
+
+    evidence = scenario_state([{"name": "Recovered case", "request": pe_request()}])
+    original_bull = setup.create_bull_researcher
+    seen, gate_calls = [], []
+
+    def gate(state):
+        gate_calls.append(1)
+        return {key: value for key, value in evidence.items()
+                if key in {"financial_evidence", "financial_claim_validation", "evidence_quality"}}
+
+    def bull_factory(llm):
+        node = original_bull(llm)
+
+        def interrupted(state):
+            seen.append(copy.deepcopy(state["shared_valuation_scenarios"]))
+            if len(seen) == 1:
+                raise RuntimeError("controlled post-evidence interruption")
+            return node(state)
+        return interrupted
+
+    monkeypatch.setattr(setup, "create_evidence_gate", lambda selected: gate)
+    monkeypatch.setattr(setup, "create_bull_researcher", bull_factory)
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True), checkpoint_enabled=True)
+    signature = graph._run_signature("stock")
+    assert "shared_valuation=1" in signature
+    legacy = signature.replace("|shared_valuation=1", "")
+    assert legacy != signature
+    assert thread_id("DOCN", evidence["trade_date"], legacy) != thread_id("DOCN", evidence["trade_date"], signature)
+    with pytest.raises(RuntimeError, match="controlled post-evidence"):
+        graph.propagate("DOCN", evidence["trade_date"])
+    final, _ = graph.propagate("DOCN", evidence["trade_date"])
+    assert len(gate_calls) == 1
+    assert seen[0]["rows"] and all(record == seen[0] for record in seen)
+    assert final["shared_valuation_scenarios"] == seen[0]
+    path = next((tmp_path / "results/DOCN/TradingAgentsStrategy_logs").glob("full_states_log_*.json"))
+    assert json.loads(path.read_text())["shared_valuation_scenarios"] == seen[0]

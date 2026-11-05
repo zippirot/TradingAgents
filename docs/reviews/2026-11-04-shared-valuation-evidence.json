@@ -1,0 +1,74 @@
+{
+  "status": "offline_verified_live_pending",
+  "baseline": "b075166df6f1738ef691cee23d1473e5085e05a1",
+  "branch": "codex/shared-valuation-scenarios",
+  "worktree": "/Users/zipp/Developer/tradingagents-integrity/shared-valuation",
+  "recorded_at": "2026-11-05T00:19:07.955592+00:00",
+  "changes": [
+    "Optional fundamentals proposals evaluated at tail of existing Evidence Check with existing calculator and grounded outlooks",
+    "Identical shared context for debate and later agents; no added model calls or nodes",
+    "Publication replays saved requests; conditional tables and state exports; final PM target independent",
+    "Versioned checkpoint signature; same-version recovery retains table"
+  ],
+  "verification": {
+    "focused": "183 passed in 4.59s",
+    "full_offline": "1843 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 13.61s",
+    "skip": "optional langchain_aws unavailable",
+    "deselected": "existing default external-service exclusion",
+    "ruff": "passed",
+    "pip_check": "No broken requirements found",
+    "diff_check": "passed",
+    "visual": "Valid, partial and absent Markdown read; HTML screenshots inspected; no clipping of table or assumptions",
+    "complete_diff": "Tracked diff and new adapter/tests reviewed"
+  },
+  "test_limits": [
+    "Graph integration fixtures replace evidence-gate results with synthetic canonical evidence; live source/model proof remains mandatory",
+    "No remote CI claim; no paid calls yet"
+  ],
+  "live": {
+    "status": "pending_task_specific_budget",
+    "provider": "OpenRouter",
+    "model": "deepseek/deepseek-v4.1-flash-1017",
+    "provider_basis": "Existing Machine 1 verification configuration and credentials; no runtime CLI prefs found",
+    "runner": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli.py",
+    "request": "One isolated DOCN market/fundamentals smoke, 1 debate/risk round, 3 tool rounds, retries zero, max output 32768, empty isolated memory",
+    "conservative_reserve_usd": "8.4934656",
+    "requested_budget_usd": "10",
+    "acceptance": "Usable scenario rows in initial bull/bear prompts and actual argument engagement; all omitted is fallback only"
+  },
+  "deviations": [],
+  "deferred": [
+    "Additional methods, mid-debate calculation, probability calibration and investment-performance evaluation remain excluded"
+  ],
+  "source_sha256": {
+    "tests/test_graph_end_to_end.py": "92b5f10502527f8dbab7dbeb0eae7405214e95fe9b3224911640beac0e7a9a84",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "82440721fc4c350bc6d9466ffb7bfc7f646781dcd78943f714acdcdfdf829d59",
+    "tradingagents/agents/context.py": "2a5b6ced6a2222805c5ce211dec89756d3cbbf5a609da07e7db9cca7650c9d33",
+    "tradingagents/agents/managers/research_manager.py": "9215df518afa579c15afe1a787284767bb27b3f5591c8d2dd1242dbc762e13a0",
+    "tradingagents/agents/output_validation.py": "32b36b0aceb07c638827345df953dc0371a469cef638274a0fe19c7f749fdce2",
+    "tradingagents/agents/researchers/bear_researcher.py": "4f92414ae3cdef23d304a9bfbf45b52294c70db2359789d2f3a71292561bed6d",
+    "tradingagents/agents/researchers/bull_researcher.py": "b619de33fdaea412f9e5d570a9ef53a7ab41100c2fee1bb0c80f3b76b7fc11e0",
+    "tradingagents/agents/state.py": "c05b5b24280e2bc95525d45a336ee712c7d9892a4400d6c15e40cdb16f63f560",
+    "tradingagents/graph/setup.py": "ecd039ae6ef308d1514080cd0e954b2151570c1f3bf88b80d45b07f0c830058d",
+    "tradingagents/graph/trading_graph.py": "765ad38e7674b9ccda606b5949c8e76fa7b11e806ab0bbab51d82f2d7e1335f6",
+    "tradingagents/reporting.py": "0b8f7aa2ee2f8a6e86f0828b0a2d332f19723fa3d107a92c4e977d6a02afe1de",
+    "tradingagents/agents/shared_valuation.py": "a9806a3e3c70303b8ef6b466cbbc4eab1876304d6e53270a42cca6bee1bfa935",
+    "tests/test_shared_valuation.py": "36e8afa0e85bf35541e3655911ac8cff07ea4a84e89c775ee130055ad0e589f6"
+  },
+  "artifacts": {
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-focused.log": "5efa04543e55a7542969ab436c992224808df01c6f0c2cd5febc4475fb246b67",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full.log": "604691ed7a9c8f01bcd0bf907885162ab00c2f9855b9570e460736d0a05cd259",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-run-cli.py": "bbeebe9d9118056a89fa702081a5d2925a00d3a19f457bea657ea33e623b6029",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/complete_report.md": "9477aee7ad73a62ee2361790df72f37c35efbe8dabc5be9ec151f3675135532a",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/complete_report.html": "6116efbf81b87cd8569d3671f1a4a26acddeaad386540a02bf890f8d7039311a",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/report-scenarios.png": "387c91529d2db16e75fbc113d811b332a05dfce8d74b9ee53d1d3f2b76ccfe3b",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/partial/complete_report.md": "cdefe7a5dad02a067839d5894eea03f352b7371b050f610102da1e9d010b5955",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/partial/complete_report.html": "a1f244940f7c145feb468cc12c2d126796c6e7890157f3565cd6b5b9e4b47ca5",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/partial/report-scenarios.png": "b2dcc339260af4e81855efa5d98489308a7fdc44834aab1efa3cfe777d15e9c0",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/absent/complete_report.md": "c58ccd6b0d9fa258710aaaae4ef032eca9364099931dd6eaef920169c663700e",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/absent/complete_report.html": "cba0dc22a63e2358d868f10e7542af8d18f505d1f1450b8bd9a9906080b0ff0b",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-report/absent/report-scenarios.png": "caeb4a877c8ff974fe36d9e5d4d37f4c25bebfaade946fc8261fee189f7bf2f0"
+  },
+  "release": "No push, PR, merge, deployment, installed-app replacement or cleanup authorized",
+  "notifier": "Enabled; keep enabled until completion or abandonment"
+}

@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
+from tradingagents.agents.shared_valuation import prepare_shared_valuation
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
@@ -39,6 +40,8 @@ def enforce_publication(state: dict) -> dict:
     """
     review = enforce_evidence_review(state)
     if review:
+        if "shared_valuation_scenarios" in state:
+            review["shared_valuation_scenarios"] = prepare_shared_valuation({**state, **review}, [])
         return review
     if state.get("evidence_quality") is None:
         return {}
@@ -46,6 +49,10 @@ def enforce_publication(state: dict) -> dict:
 
     originals = dict(state.get("unvalidated_outputs") or {})
     updates = {}
+    if "shared_valuation_scenarios" in state:
+        saved = state["shared_valuation_scenarios"]
+        requests = saved.get("requests", []) if isinstance(saved, dict) else []
+        updates["shared_valuation_scenarios"] = prepare_shared_valuation(state, requests)
     for field in (
         "investment_plan", "trader_investment_plan", "final_trade_decision",
         "investment_debate_state", "risk_debate_state",

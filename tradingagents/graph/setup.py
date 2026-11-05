@@ -173,7 +173,16 @@ class GraphSetup:
             first_steps.append("Memory Log")
         for node in first_steps:
             workflow.add_edge(START, node)
-        workflow.add_node("Evidence Check", create_evidence_gate(selected_analysts))
+        evidence_gate = create_evidence_gate(selected_analysts)
+
+        def evidence_with_scenarios(state):
+            from tradingagents.agents.shared_valuation import prepare_shared_valuation
+
+            checked = evidence_gate(state)
+            scenarios = prepare_shared_valuation({**state, **checked})
+            return {**checked, "shared_valuation_scenarios": scenarios}
+
+        workflow.add_node("Evidence Check", evidence_with_scenarios)
         workflow.add_edge(first_steps, "Evidence Check")
         workflow.add_conditional_edges(
             "Evidence Check",

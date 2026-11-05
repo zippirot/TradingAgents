@@ -41,6 +41,8 @@ The debate always contains conflicting arguments; deciding which side is stronge
 
 ---
 
+Use the shared valuation scenarios, when available, to distinguish disputed assumptions from established inputs. Explain which assumptions the debate supports and what would change the case. Do not promote a scenario or an uncalculated debate alternative into a validated final target.
+
 **Debate History:**
 {history}
 

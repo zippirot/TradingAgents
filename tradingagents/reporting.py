@@ -175,6 +175,13 @@ def prepare_report_state(final_state: dict) -> dict:
                 key: research(value) if isinstance(value, str) and value else value
                 for key, value in original.items()
             }
+    scenarios = prepared.get("shared_valuation_scenarios")
+    if scenarios:
+        from tradingagents.agents.shared_valuation import render_shared_valuation
+
+        table = render_shared_valuation(scenarios)
+        if table:
+            prepared["fundamentals_report"] = (prepared.get("fundamentals_report") or "") + "\n\n" + table
     return prepared
 
 
@@ -198,6 +205,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "financial_calculations",
         "disclosure_evidence",
         "target_validation",
+        "shared_valuation_scenarios",
         "canonical_financial_context",
     )
     snapshot = {

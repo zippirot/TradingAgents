@@ -166,6 +166,7 @@ class TradingAgentsGraph:
             # publication projection. Different IDs leave historical files intact.
             "evidence=1",
             "publication=1",
+            "shared_valuation=1",
             f"settings={digest}",
         ])
 
@@ -475,7 +476,7 @@ class TradingAgentsGraph:
             "run_settings": self.run_settings(),
         }
 
-        for field in ("evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs"):
+        for field in ("evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

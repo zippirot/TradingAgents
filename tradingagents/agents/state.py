@@ -64,6 +64,8 @@ class AgentState(MessagesState):
     evidence_quality: Annotated[dict, "Authoritative evidence status and check-level reasons"]
     canonical_financial_context: Annotated[str, "Deterministic financial context for downstream agents"]
 
+    shared_valuation_scenarios: Annotated[dict, "Optional conditional pre-debate calculations; never the final target"]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"

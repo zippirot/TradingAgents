@@ -220,6 +220,13 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     canonical = state.get("canonical_financial_context")
     if isinstance(canonical, str) and canonical.strip():
         context += "\n\n" + canonical
+    scenarios = state.get("shared_valuation_scenarios")
+    if scenarios:
+        from tradingagents.agents.shared_valuation import render_shared_valuation
+
+        rendered = render_shared_valuation(scenarios)
+        if rendered:
+            context += "\n\n" + rendered
     return context
 
 
