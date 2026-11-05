@@ -299,3 +299,24 @@ external-service deselection, 20 warnings, 13.92 seconds. Log:
 `results/docn-abc/early-c/pytest-review-fixes.log`. Full Ruff and diff checks passed;
 pip check passed earlier with unchanged dependencies. No additional paid calls
 have run yet; live proof 2 is next within the approved budget.
+
+## Early C runtime acceptance
+
+Live proof 2 completed on `ea1caff` with 17 model requests and successful report
+saving. The actual CLI produced prospective Underweight publication
+`9b939daf-b362-49ce-a1f4-5312f0c15a80` at
+`2026-11-05T03:29:35.203435+00:00`. A fresh process constructed the real graph,
+blocked paid HTTP calls, loaded the immutable record/evidence, and exercised
+`settle_all_pending()`: no premature outcome or reflection, all 5/21/63-session
+endpoints pending, and memory unchanged. Decision ID/rating/time match the saved
+state, memory and Markdown/HTML; installed source fingerprints match the record.
+Actual HTML structure/text was inspected without claiming a browser screenshot.
+
+Together with the real legacy settlement/repeat proof, this accepts the early C
+slice. The immutable publication/outcome paths are operating; future performance
+remains pending. Exact source, artifact hashes, exclusions and evidence-reuse
+limits are in `2026-11-04-docn-early-c-evidence.json`. Two of seven live attempts
+are used. Cumulative maximum-rate usage is USD4.635765, not an independently
+retrieved provider bill. Original launcher preferences are unchanged. The USD30
+audit allocation remains untouched. Remaining A, B, final C and the final
+connected completed-build audit remain required.

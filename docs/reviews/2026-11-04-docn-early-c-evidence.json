@@ -1,0 +1,74 @@
+{
+  "scope": "Early C immutable publication and 5/21/63-session acceptance; full A/B/C remains incomplete",
+  "source_commit": "ea1caff5f12825e3a0b265638a3b45b6e3283950",
+  "live_proof": {
+    "attempt": 2,
+    "model_requests": 17,
+    "mode": "Shallow",
+    "checks": {
+      "fresh_process_real_graph": true,
+      "paid_calls_blocked": true,
+      "memory_unchanged": true,
+      "identity_rating_consistent": true,
+      "source_fingerprints_match": true,
+      "all_endpoints_pending": true,
+      "markdown_html_text_inspected": true,
+      "machine_evidence_matches": true
+    },
+    "decision_id": "9b939daf-b362-49ce-a1f4-5312f0c15a80",
+    "published_at": "2026-11-05T03:29:35.203435+00:00",
+    "original_preferences_unchanged": true
+  },
+  "legacy_proof": {
+    "publication_time": null,
+    "evaluation_mode": "legacy",
+    "five_sessions_resolved": true,
+    "longer_horizons_pending": true,
+    "repeat_unchanged": true,
+    "existing_reflection_preserved": true,
+    "model_calls": 0,
+    "source_limit": "Initial legacy run predates later mode/memory-projection corrections; those do not affect the already-resolved legacy memory path. Original receipts retained."
+  },
+  "verification": {
+    "full_tests": 1915,
+    "subtests": 100,
+    "optional_dependency_skipped": 1,
+    "external_service_deselected": 1,
+    "ruff": "passed",
+    "dependencies": "passed, unchanged",
+    "independent_review": "Two material findings fixed; targeted independent reproduction and53tests passed"
+  },
+  "budget": {
+    "approved_combined_usd": 100,
+    "live_cap_usd": 70,
+    "audit_cap_usd": 30,
+    "live_attempts_used": 2,
+    "cumulative_conservative_usage_usd": 4.635765,
+    "actual_provider_bill_independently_retrieved": false,
+    "audit_spend_usd": 0
+  },
+  "artifacts": {
+    "results/docn-abc/live-02/restart-acceptance.json": "4bb16ce6109147f186cab3ea64b10f3a63be1e4b473e11233613e6869f6a8c68",
+    "results/docn-abc/live-02/source_sha256.json": "acfc287e4b9d1d86f355280145f9656a538bdbe293bf756d64d84148c5b38152",
+    "results/docn-abc/live-02/pricing_snapshot.json": "9206616ae8a2e610d75af245890daa195c72deab899012d9d662c33173be2198",
+    "results/docn-abc/live-02/cli.stdout.log": "ac122ab1dc53de7642ef37a382a7d9fc6c700d7ab3013c883ccd44d48826ea60",
+    "results/docn-abc/early-c-settlement/prepare.json": "1cd7d81e8d1d93130b9bb773e023e0ed560a283251ca84389af4c8c6fb779106",
+    "results/docn-abc/early-c-settlement/settlement.json": "8bd97ae669e239429dfd9a94d0f64795af05b2991b39ee66bf940fcd897bc33c",
+    "results/docn-abc/early-c-settlement/settlement-repeat.json": "e35b4816ac4c12b2bcf5fb9ac5885313655370194336be24c50271d0ca595329",
+    "results/docn-abc/early-c/pytest-review-fixes.log": "5588f1afbc2dd792afb0e30fd19e40454af5e1c23c0547d01c887839fad86119"
+  },
+  "report_artifacts": {
+    "results/docn-abc/live-02/results/reports/DOCN_20261104_202935/complete_report.md": "cd52b589a73a8fec3f39befa18cead92d31cd46f8c2f7f580674e4cf34aff70f",
+    "results/docn-abc/live-02/results/reports/DOCN_20261104_202935/complete_report.html": "f2b83c2804e3ea5591ac40ec0ded02a141ad8e7d3247e15ddc16ad987e925a69",
+    "results/docn-abc/live-02/results/reports/DOCN_20261104_202935/evidence.json": "2f256928e89cdc34034a357426a03ed8727fbe2b7521e587b7bdbb55c647d453",
+    "results/docn-abc/live-02/results/reports/DOCN_20261104_202935/quality.json": "6b89973a710cbb98713da6d74029aba11be166d8893ee9b82aa56eb6609943d0",
+    "results/docn-abc/live-02/memory/trading_memory.md": "9cecf35578d332a5e790dc58ec76926c1aeb13deeaffd4c5a360540ed386b8e6"
+  },
+  "limits": [
+    "HTML inspected structurally/textually; no visual browser rendering",
+    "Future horizon evidence pending",
+    "No Build A guidance/cash or Build B valuation acceptance claimed",
+    "Thesis linkage, calendar-month endpoints and final evaluation/recovery acceptance remain for final C",
+    "Remaining Build A/B and final connected completed-build audit outstanding"
+  ]
+}
