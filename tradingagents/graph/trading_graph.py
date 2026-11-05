@@ -385,7 +385,8 @@ class TradingAgentsGraph:
         try:
             past_context = self.memory_log.get_past_context(
                 state["company_of_interest"], as_of=cutoff,
-                allow_unstamped_legacy=current_read, analysis_date=str(state["trade_date"]))
+                allow_unstamped_legacy=current_read, analysis_date=str(state["trade_date"]),
+                analysis_timezone=clock["analysis_timezone"])
         except Exception as exc:
             logger.warning("Reading the memory log failed: %s", exc)
             past_context = ""

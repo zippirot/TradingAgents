@@ -266,3 +266,42 @@ Draft PR1 is open. Initial remoteCI42054405210 passed on7e4014b, including3.11/3
 smoke and lint. Review of actual jobs revealed YAMLinclude had replaced3.12UTC
 withNewYork rather than adding a fifth job; explicitUTC axis fixes this and was
 parsed/verified locally. Final remoteCI on the reconciled commit remains required.
+
+
+## Connected audit and confirmed low-finding closure
+
+Audit bf49e073 stopped at16turns before a verdict, costing$0.3798405; it is
+INCOMPLETE, not a pass. After diagnosing the turn-limit setup, audit6574f71f
+completed24turns on eade6d9..5c03059 for$2.06436075: no critical/high/medium
+findings, five lows. Static frozen-diff scope did not execute tests or verify
+raw runtime artifacts; separate local reviewers performed those checks.
+
+Low1 confirmed: a first request already clipped at cutoff could hide its specific
+coverage reason. It now uses existing safe coverage-error handling; genuinely
+immature windows remain pending. Author151 and independent139 focused tests plus
+a publication-level integration probe passed. Low2 confirmed: local-day identity
+for unstamped lessons could become stale across midnight under a later explicit
+cutoff. Post-load actual local day and cutoff are now both required. Author148
+and independent124 tests plus a midnight-during-load probe passed.
+
+Low3 deferred: display_number's nonnumeric fallback is a latent reuse hazard;
+current callers supply validated Decimal inputs, with model text escaped through
+existing renderers. No speculative broad hardening added. Low4 deferred: duplicated
+Denver helper default is a maintenance observation; actual configured calls pass
+the chosen zone. Low5 is an evidence-scope limitation, not a defect: job-level TZ
+reaches both integration and exact-head steps; actual seven jobs inCI42055960589
+passed, including fourUTCversions andNewYork3.12, smoke andlint.
+
+Post-fix full suites:2292tests plus100subtests pass on3.12UTC/NY and3.14; optional
+AWSskip/integrationdeselection/20warnings unchanged. Ruff/diff pass. Current-code
+fresh graph readback of all three retained live runs passes with paid calls
+blocked; all original artifacts unchanged. Changed branches affect missing-data
+coverage errors and midnight unstamped-legacy reads, neither exercised by those
+completed same-day live runs. Their original source pin remains7e4014b; no new
+paid proof is implied. Targeted connected verification of the fixes remains next.
+
+Live10 raw CLI reports omitted the engineering-origin label. Independent review
+accepted explicitly labeled offline proof views underlive-10/engineering-proof-view
+for handoff, with raw bodies/hashes preserved. This is a proof-artifact correction,
+not a claim that the raw CLI emitted a notice or that the seed was a historical
+model opinion. The raw-label limitation remains disclosed.

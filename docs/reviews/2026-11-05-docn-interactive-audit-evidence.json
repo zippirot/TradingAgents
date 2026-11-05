@@ -387,7 +387,7 @@
     "new_paid_calls": 71,
     "live_attempts_used": 10,
     "live_usd": 31.2534275,
-    "audit_usd": 5.33832825,
+    "audit_usd": 7.782529500000001,
     "limits": [
       "Supported model-origin final target and forward-funding request remain unproved after three planned additional calls; reserve retry not justified by desired-output seeking",
       "Connected completed-build audit pending",
@@ -937,14 +937,319 @@
         "results/docn-abc/live-10/actual_run_config.json": "274526817f5d043d6bf8d23a69bffbe89fead9a105c97ad933e28620806d3b83"
       },
       "cost_usd": 2.7472125,
-      "engineering_seed_receipt": "results/docn-abc/live-10/engineering-seed.json"
+      "engineering_seed_receipt": "results/docn-abc/live-10/engineering-seed.json",
+      "proof_presentation": {
+        "raw_cli_origin_label": "missing; observed limitation retained",
+        "derived_view": "results/docn-abc/live-10/engineering-proof-view",
+        "scope": "offline annotation for proof/handoff only; not a new CLI emission or historical opinion",
+        "independent_targeted_verification": "Accepted; raw and derived hashes matched; original report body and immutable artifacts unchanged"
+      }
     },
     "remote_ci": {
       "draft_pr": "https://github.com/zippirot/TradingAgents/pull/1",
       "initial_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
       "run_id": 42054405210,
       "conclusion": "success",
-      "matrix_correction": "Explicit UTC axis added so New York3.12 is a fifth job; final run pending"
+      "matrix_correction": "Explicit UTC axis added so New York3.12 is a fifth job; final run pending",
+      "corrected_matrix": {
+        "head": "5c030594d7670c474d72677567455048211792b0",
+        "run_id": 42055960589,
+        "conclusion": "success",
+        "tests": [
+          "3.11 UTC",
+          "3.12 UTC",
+          "3.13 UTC",
+          "3.14 UTC",
+          "3.12 America/New_York"
+        ],
+        "smoke_and_lint": "success; integration and exact-PR-head steps all passed"
+      }
+    },
+    "connected_audits": [
+      {
+        "run_id": "bf49e073-dcd2-4897-bc18-13b232aa3de4",
+        "status": "incomplete",
+        "started_at": "2026-11-05T15:31:37.298Z",
+        "deadline_at": "2026-11-05T15:51:37.298Z",
+        "completed_at": "2026-11-05T15:33:24.450Z",
+        "report": {
+          "base_commit": "eade6d9a43737c4d82af31dc1be704ed9df1cdf4",
+          "head_commit": "5c030594d7670c474d72677567455048211792b0",
+          "requested_model": "~anthropic/claude-fable-latest",
+          "served_model": "~anthropic/claude-fable-latest",
+          "status": "incomplete",
+          "actual_turns": 17,
+          "reviewed_files": [
+            ".github/workflows/ci.yml",
+            "docs/reviews/2026-11-05-docn-interactive-audit-closure.md",
+            "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json",
+            "docs/reviews/docn-abc-proof-tools/README.md",
+            "docs/reviews/docn-abc-proof-tools/live_cli.py",
+            "docs/reviews/docn-abc-proof-tools/test_live_cli.py",
+            "docs/reviews/docn-abc-proof-tools/verify_build_c.py",
+            "docs/superpowers/plans/2026-11-05-docn-remaining-gap-closure.md",
+            "tests/test_analysis_cutoff.py",
+            "tests/test_evidence_reporting.py",
+            "tests/test_graph_end_to_end.py",
+            "tests/test_horizon_summary.py",
+            "tests/test_mature_session_settlement.py",
+            "tests/test_memory_log.py",
+            "tests/test_memory_pointintime.py",
+            "tests/test_publication_records.py",
+            "tests/test_report_presentation.py",
+            "tests/test_thesis_aliases.py",
+            "tests/test_verified_reexport.py",
+            "tradingagents/agents/decision_context.py",
+            "tradingagents/agents/output_validation.py",
+            "tradingagents/agents/schemas.py",
+            "tradingagents/agents/shared_valuation.py",
+            "tradingagents/agents/state.py",
+            "tradingagents/agents/valuation_comparison.py",
+            "tradingagents/dataflows/date_window.py",
+            "tradingagents/default_config.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/publication.py",
+            "tradingagents/memory/publication_outcomes.py",
+            "tradingagents/memory/settlement.py",
+            "tradingagents/memory/thesis.py",
+            "tradingagents/report_html.py",
+            "tradingagents/reporting.py"
+          ],
+          "summary": "",
+          "limitations": [
+            "Claude process did not complete successfully: error_max_turns: Reached maximum number of turns (16)"
+          ],
+          "findings": [],
+          "classification": {
+            "declared_build_size": "extra medium",
+            "effective_build_size": "extra medium",
+            "escalation_reasons": []
+          },
+          "progress": {
+            "observed_events": 118,
+            "last_activity_at": "2026-11-05T15:33:24.268Z",
+            "last_activity_kind": "stdout"
+          },
+          "ledger": {
+            "soft_budget_usd": 6,
+            "hard_budget_usd": 10,
+            "soft_turn_limit": 12,
+            "turn_limit": 16,
+            "wall_clock_limit_minutes": 20,
+            "actual_cost_usd": 0.3798405,
+            "actual_elapsed_ms": 106997,
+            "soft_limit_reached": true
+          },
+          "stop_reason": "turn_limit_reached"
+        },
+        "progress": {
+          "observed_events": 0,
+          "last_activity_at": null,
+          "last_activity_kind": null
+        }
+      },
+      {
+        "run_id": "6574f71f-e879-4709-ab09-021a650937c7",
+        "status": "completed",
+        "started_at": "2026-11-05T15:34:21.875Z",
+        "deadline_at": "2026-11-05T15:54:21.875Z",
+        "completed_at": "2026-11-05T15:42:29.835Z",
+        "report": {
+          "base_commit": "eade6d9a43737c4d82af31dc1be704ed9df1cdf4",
+          "head_commit": "5c030594d7670c474d72677567455048211792b0",
+          "requested_model": "~anthropic/claude-fable-latest",
+          "served_model": "~anthropic/claude-fable-latest",
+          "status": "completed",
+          "actual_turns": 24,
+          "reviewed_files": [
+            ".github/workflows/ci.yml",
+            "docs/reviews/2026-11-05-docn-interactive-audit-closure.md",
+            "docs/reviews/2026-11-05-docn-interactive-audit-evidence.json",
+            "docs/reviews/docn-abc-proof-tools/README.md",
+            "docs/reviews/docn-abc-proof-tools/live_cli.py",
+            "docs/reviews/docn-abc-proof-tools/test_live_cli.py",
+            "docs/reviews/docn-abc-proof-tools/verify_build_c.py",
+            "docs/superpowers/plans/2026-11-05-docn-remaining-gap-closure.md",
+            "tests/test_analysis_cutoff.py",
+            "tests/test_evidence_reporting.py",
+            "tests/test_graph_end_to_end.py",
+            "tests/test_horizon_summary.py",
+            "tests/test_mature_session_settlement.py",
+            "tests/test_memory_log.py",
+            "tests/test_memory_pointintime.py",
+            "tests/test_publication_records.py",
+            "tests/test_report_presentation.py",
+            "tests/test_thesis_aliases.py",
+            "tests/test_verified_reexport.py",
+            "tradingagents/agents/decision_context.py",
+            "tradingagents/agents/output_validation.py",
+            "tradingagents/agents/schemas.py",
+            "tradingagents/agents/shared_valuation.py",
+            "tradingagents/agents/state.py",
+            "tradingagents/agents/valuation_comparison.py",
+            "tradingagents/dataflows/date_window.py",
+            "tradingagents/default_config.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/publication.py",
+            "tradingagents/memory/publication_outcomes.py",
+            "tradingagents/memory/settlement.py",
+            "tradingagents/memory/thesis.py",
+            "tradingagents/report_html.py",
+            "tradingagents/reporting.py"
+          ],
+          "summary": "Audited frozen diff eade6d9..5c03059 (36 files) against the November 5 DOCN remaining-gap closure plan using only the specified frozen evidence JSON. The change set faithfully implements the plan's milestones: (M1) a single explicit analysis clock (resolve_analysis_cutoff) with America/Denver date-only day-end semantics, aware-UTC override, explicit UTC fallback for unknown zones, one cutoff reused across lessons/outcomes/thesis, real known_at stamps for new reflections, conservative handling of unstamped legacy entries (admitted only on the current analysis day before cutoff, with post-read time checks addressing the reviewer-found settlement-crossing defect), and no fields added to old immutable records; (M2) bounded settlement retrieval with at most two disjoint extensions reaching the completed-session cutoff, exclusion of incomplete current bars for both instrument and benchmark, a bounded SettlementCoverageError, legacy pending entries routed through the same completed-bar filter before any paid reflection, and an authentic SSE-closure holiday counterexample with explicitly synthetic prices; (M3) narrowly scoped condition-label aliases (case/whitespace, %\u2192percent, GAAP\u2192US-GAAP only within validated SEC US-GAAP scope) with original wording retained, saved IDs/aliases preserved, negative scope/basis/currency/period cases staying unknown, bounded display precision that never zeroes nonzero values while exact Decimals stay in evidence payloads, hash compaction confined to presentation, and a condition-disposition summary beside the rating; (M5/M6) a proof runner enforcing the approved 11-attempt/2-Deep/$68.410925 incremental authority against the retained ledger with directory-claim and executed-round observation safeguards, and CI gaining the explicit UTC matrix axis (fixing the include-replaced 3.12-UTC job) plus exact-PR-head checkout verification. Immutability and anti-forgery protections (verified_publication, mutated/forged/corrupt-record rejection) are well tested, and the closure record honestly keeps the model-origin final-target and forward-funding acceptance rows OPEN and final-head CI pending rather than manufacturing evidence. No critical or high defects were found; five low-severity edge cases/observations are recorded (a missing specific pending reason in one first-attempt cutoff-clipped settlement path, a contrived pre-settlement read-time window for unstamped legacy context under non-default explicit cutoffs, a latent unescaped passthrough in display_number, a duplicated hardcoded timezone default, and unverifiable TZ inheritance for the exact-head CI rerun).",
+          "limitations": [
+            "Static frozen-diff review only: no tests, builds, or runtime checks were executed; conclusions about behavior rest on reading the diff and its new/changed tests.",
+            "Unchanged base-file context (e.g., publication.publish existing-record comparison, _by_day, EvidencePackage scope semantics, CI job-level env wiring, prepare_decision_context internals) was not visible in the frozen diff and is assumed to behave as the diff's comments and tests describe.",
+            "Claims in the closure/evidence documents (live08/09/10 runs, costs, 2288+100-subtest local passes, independent reviewer hash checks, GitHub CI run 42054405210) were not independently verified; they were only checked for internal consistency and honest open-row reporting.",
+            "The ~890-line source_sha256 manifest in the evidence JSON was not re-verified against any files (out of scope for a frozen-manifest audit with no non-frozen evidence).",
+            "Predecessor requirement documents beyond the primary November 5 plan and November 4 A/B/C plan were only partially read due to size; the audit prioritized the governing remaining-gap plan's milestones 1\u20136.",
+            "No browser/HTML visual inspection was possible; the diff itself records that visual check as pending."
+          ],
+          "findings": [
+            {
+              "severity": "low",
+              "title": "Mature-but-incomplete settlement window clipped at cutoff on the first request returns pending without the plan-required specific coverage reason (SettlementCoverageError only raised on later extension attempts)",
+              "path": "tradingagents/memory/settlement.py"
+            },
+            {
+              "severity": "low",
+              "title": "Unstamped-legacy eligibility date component uses a read time captured before settle_all_pending; with an explicit cutoff configured later than the local day end, legacy context could be admitted after the analysis day changes (in-log recheck guards only the cutoff instant)",
+              "path": "tradingagents/graph/trading_graph.py"
+            },
+            {
+              "severity": "low",
+              "title": "display_number passes unparseable values through verbatim and several renderers insert its output into Markdown without escaping; safe for current validated Decimal inputs but a latent hazard if reused on model-origin text",
+              "path": "tradingagents/agents/valuation_comparison.py"
+            },
+            {
+              "severity": "low",
+              "title": "_summary_cutoff hardcodes an 'America/Denver' parameter default duplicating the config default, risking divergence if the configured analysis timezone default changes",
+              "path": "tradingagents/memory/publication_outcomes.py"
+            },
+            {
+              "severity": "low",
+              "title": "Exact-PR-head verification steps re-run inside the merge-ref jobs; the frozen diff does not show whether the TZ matrix environment applies to the rerun, so timezone coverage of the exact-head retest is unverifiable from this evidence",
+              "path": ".github/workflows/ci.yml"
+            }
+          ],
+          "classification": {
+            "declared_build_size": "extra medium",
+            "effective_build_size": "extra medium",
+            "escalation_reasons": []
+          },
+          "progress": {
+            "observed_events": 1230,
+            "last_activity_at": "2026-11-05T15:42:29.564Z",
+            "last_activity_kind": "stdout"
+          },
+          "ledger": {
+            "soft_budget_usd": 6,
+            "hard_budget_usd": 9.5,
+            "soft_turn_limit": 48,
+            "turn_limit": 64,
+            "wall_clock_limit_minutes": 20,
+            "actual_cost_usd": 2.06436075,
+            "actual_elapsed_ms": 487720,
+            "soft_limit_reached": false
+          },
+          "stop_reason": "reviewer_completed"
+        },
+        "progress": {
+          "observed_events": 0,
+          "last_activity_at": null,
+          "last_activity_kind": null
+        }
+      }
+    ],
+    "audit_low_dispositions": [
+      {
+        "finding": 1,
+        "status": "confirmed and corrected: terminal clipped span uses specific coverage error; genuinely immature remains pending;151 author and139 independent focused tests plus publication-level pending probe"
+      },
+      {
+        "finding": 2,
+        "status": "confirmed and corrected: post-load actual local day and cutoff both required for unstamped legacy;148 author and124 independent focused tests plus midnight-during-load probe"
+      },
+      {
+        "finding": 3,
+        "status": "deferred latent reuse hazard; current Decimal inputs validated and source paths escape model text; no speculative reuse hardening"
+      },
+      {
+        "finding": 4,
+        "status": "deferred future-maintenance duplication; configured call passes actual timezone and current defaults agree"
+      },
+      {
+        "finding": 5,
+        "status": "not a defect: current complete workflow job-level TZ env covers both initial and exact-head steps; seven successful jobs with all five explicit matrix combinations verified remotely"
+      }
+    ],
+    "post_audit_verification": {
+      "suites": {
+        "audit-fixes-py312-utc.log": {
+          "summary": "2292 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 17.40s",
+          "sha256": "4ba4a4899438ba3d3626b4e8c38b01528ab9bb72f60ab4826e0c3eba1dea9bde"
+        },
+        "audit-fixes-py312-new-york.log": {
+          "summary": "2292 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 17.40s",
+          "sha256": "4ba4a4899438ba3d3626b4e8c38b01528ab9bb72f60ab4826e0c3eba1dea9bde"
+        },
+        "audit-fixes-py314.log": {
+          "summary": "2292 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 18.06s",
+          "sha256": "a1fe64e3d3af7f8ea52a99a3d0b0eb9480c156b0089eef37c2758a857acc287d"
+        }
+      },
+      "source_sha256": {
+        "tradingagents/graph/trading_graph.py": "85977b432ee7b8c79b54befbc143b780d535bc0e8867c6261a4f166f0c272064",
+        "tradingagents/memory/log.py": "f6de16f80bcc2b42141c7d6fb3d3123cb7bdbea5fc5260470305b76d5b938d06",
+        "tradingagents/memory/settlement.py": "d18c5a3adb6eebc2c7f8852aef73962acc665cff6e66c4a49123bc2142c0a078",
+        "tests/test_analysis_cutoff.py": "e5476e1a518b94c52acaca3037f0483662c4e762cf8154e57eed0e325baac551",
+        "tests/test_settlement_coverage_reason.py": "c36be688f28d5f93a5c6fcac586df34bd4dfcf6260355b131d1f026bf7d8e489"
+      },
+      "retained_runtime_readback": [
+        {
+          "run": "live-08",
+          "original_live_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+          "changed_manifest_files": [
+            "tests/test_analysis_cutoff.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/settlement.py"
+          ],
+          "current_code_readback": "passed",
+          "original_artifacts_unchanged": true,
+          "paid_requests": 0
+        },
+        {
+          "run": "live-09",
+          "original_live_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+          "changed_manifest_files": [
+            "tests/test_analysis_cutoff.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/settlement.py"
+          ],
+          "current_code_readback": "passed",
+          "original_artifacts_unchanged": true,
+          "paid_requests": 0
+        },
+        {
+          "run": "live-10",
+          "original_live_head": "7e4014be5f55dd79cbfa781ff41c52a5c205b175",
+          "changed_manifest_files": [
+            "tests/test_analysis_cutoff.py",
+            "tradingagents/graph/trading_graph.py",
+            "tradingagents/memory/log.py",
+            "tradingagents/memory/settlement.py"
+          ],
+          "current_code_readback": "passed",
+          "original_artifacts_unchanged": true,
+          "paid_requests": 0
+        }
+      ],
+      "impact_analysis": "Only missing-coverage failure reporting and local-day-crossing unstamped-legacy eligibility changed. Original live08/09/10 had completed normal data and stayed within the same Denver day; source facts, calculations, role logic, model transport and report serialization unchanged. All three current-code graph readbacks pass with paid requests blocked; original live artifacts remain unchanged. Original paid proofs remain pinned to7e4014b, not relabeled as latest-source runs."
     }
   }
 }

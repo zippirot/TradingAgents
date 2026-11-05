@@ -5,6 +5,7 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from tradingagents.agents.evidence_presentation import compact_prior_decision
 from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
@@ -109,6 +110,7 @@ class TradingMemoryLog:
     def get_past_context(
         self, ticker: str, n_same: int = 5, n_cross: int = 3, as_of: str | None = None,
         *, allow_unstamped_legacy: bool = False, analysis_date: str | None = None,
+        analysis_timezone: str | None = None,
     ) -> str:
         """Return formatted past context string for agent prompt injection.
 
@@ -116,7 +118,8 @@ class TradingMemoryLog:
         timestamp requires the actual persistence time (``known_at:...``), so
         legacy date-only tags cannot become retrospective lessons by an assumed
         timezone. A caller may retain unstamped legacy entries only when the
-        actual read time has not passed the exact cutoff. ``as_of=None`` retains
+        actual read time is on the analysis date in its named timezone and has
+        not passed the exact cutoff. ``as_of=None`` retains
         unfiltered direct-call behavior.
         """
         entries = [e for e in self.load_entries() if not e.get("pending") and is_trading_entry(e)]
@@ -131,7 +134,12 @@ class TradingMemoryLog:
                 cutoff = datetime.fromisoformat(as_of.replace('Z', '+00:00'))
                 if cutoff.utcoffset() is None:
                     raise ValueError('Lesson cutoff timestamp must include a timezone')
-                legacy_available_now = allow_unstamped_legacy and datetime.now(UTC) <= cutoff
+                read_at = datetime.now(UTC)
+                legacy_available_now = bool(
+                    allow_unstamped_legacy and analysis_date and analysis_timezone
+                    and read_at <= cutoff
+                    and read_at.astimezone(ZoneInfo(analysis_timezone)).date().isoformat()
+                    == analysis_date)
                 eligible = []
                 for entry in entries:
                     if not entry.get('known_at'):

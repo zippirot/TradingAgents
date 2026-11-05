@@ -183,15 +183,13 @@ def fetch_outcome(
                         else stock.index[0] + timedelta(days=holding_days))
             if earliest >= before:
                 return None
-        if attempt == 2 or (attempt > 0 and end >= before):
+        if attempt == 2 or end >= before:
             reason = (f"Insufficient completed instrument sessions through {before.date()}: "
                       f"{len(stock)} observed after at most two extensions; "
                       "provider coverage, suspension or an immature window remains unresolved")
             if prices_before is not None:
                 raise SettlementCoverageError(reason)
             logger.warning("Settlement pending: %s", reason)
-            return None
-        if end >= before:
             return None
         chunk_start = end
         if attempt == 1:

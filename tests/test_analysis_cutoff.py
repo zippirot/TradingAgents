@@ -141,3 +141,46 @@ def test_legacy_thesis_loaded_after_cutoff_is_not_presented(tmp_path, monkeypatc
     state = {'company_of_interest': 'DOCN', 'trade_date': '2026-11-05',
              'analysis_clock': {'analysis_timezone': 'America/Denver', 'cutoff_utc': cutoff}}
     assert graph._memory_step(state)['thesis_context'] == ''
+
+
+def test_legacy_lesson_created_after_local_midnight_stays_out_of_prior_day(monkeypatch):
+    import tradingagents.graph.trading_graph as graph_module
+    import tradingagents.memory.log as log_module
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.memory import TradingMemoryLog
+
+    before = datetime(2026, 11, 6, 6, 59, 59, tzinfo=UTC)  # Nov 5 in Denver
+    after = datetime(2026, 11, 6, 7, 0, 1, tzinfo=UTC)     # Nov 6 in Denver
+    cutoff = datetime(2026, 11, 6, 7, 1, tzinfo=UTC).isoformat()
+
+    class Clock(datetime):
+        read_time = before
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.read_time.astimezone(tz)
+
+    monkeypatch.setattr(graph_module, 'datetime', Clock)
+    monkeypatch.setattr(log_module, 'datetime', Clock)
+    entries = []
+    log = TradingMemoryLog()
+    monkeypatch.setattr(log, 'load_entries', lambda: list(entries))
+
+    def settle(wait=False):
+        Clock.read_time = after
+        entries.append({'ticker': 'DOCN', 'date': '2026-11-05', 'rating': 'Buy',
+                        'pending': False, 'resolved': '2026-11-05', 'known_at': None,
+                        'raw': '+1%', 'alpha': '+1%', 'holding': '5d',
+                        'decision': 'legacy decision created after midnight',
+                        'reflection': 'new after local midnight'})
+        return SimpleNamespace(failed=[])
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {'analysis_timezone': 'America/Denver'}
+    graph.memory_log = log
+    graph.settle_all_pending = settle
+    state = {'company_of_interest': 'DOCN', 'trade_date': '2026-11-05',
+             'analysis_clock': {'analysis_timezone': 'America/Denver', 'cutoff_utc': cutoff}}
+    result = graph._memory_step(state)
+    assert result['past_context'] == ''
+    assert result['thesis_context'] == ''
