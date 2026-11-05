@@ -356,3 +356,42 @@ def test_attempt_timestamp_validation_and_mixed_offsets(tmp_path):
         report["attempts"]["errors"]
         and report["attempts"]["coverage_completeness"] == "partial_or_legacy_unknown"
     )
+
+
+@pytest.mark.parametrize(
+    "mode,unestablished", [("legacy", 1), ("historical", 1), ("prospective", 0)]
+)
+def test_protocol_presence_does_not_invent_prospective_predeclaration(
+    tmp_path, monkeypatch, mode, unestablished
+):
+    config = {"results_dir": str(tmp_path), "benchmark_ticker": "SPY"}
+    if mode == "legacy":
+        monkeypatch.setattr(
+            publication, "_utcnow", lambda: datetime.fromisoformat("2026-11-05T00:00:00+00:00")
+        )
+        record = publication.import_legacy_entry(
+            config,
+            {
+                "ticker": "DOCN",
+                "date": "2026-10-19",
+                "rating": "Buy",
+                "decision": "Recorded legacy opinion",
+            },
+            source_label="test legacy record",
+            source_sha256="a" * 64,
+        )
+    else:
+        record = publish(config, monkeypatch, day="2026-11-04", mode=mode)
+    paths = list(publication.record_root(config).rglob("*.json"))
+    original = {path: path.read_bytes() for path in paths}
+    report = backtest.evaluate_publications(config, "2026-11-06")
+    assert report["coverage"]["protocol_available"] == 1
+    assert report["coverage"]["without_predeclared_protocol"] == unestablished
+    assert report["publications"][0]["protocol_prospectively_predeclared"] is (
+        mode == "prospective"
+    )
+    assert bool(record["published_at"]) is (mode != "legacy")
+    text = backtest.render_publication_evaluation(report)
+    assert "prospective predeclaration unestablished: " + str(unestablished) in text
+    assert "applied at import/replay" in text
+    assert all(path.read_bytes() == content for path, content in original.items())

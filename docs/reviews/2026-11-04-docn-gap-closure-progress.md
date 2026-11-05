@@ -693,3 +693,45 @@ is retained separately and distinguished from external traffic; final proof
 had zero outbound attempts and model calls. The 108 current source hashes match
 live-06 source exactly. Evidence: 2026-11-04-docn-c-frozen-evidence.json and
 results/docn-abc/c-frozen-replay/.
+
+## Final C runtime acceptance — live-06
+
+Real CLI attempt six completed on source bed86a6070077113789db2532ef6f78129b9bc1f
+with 16 model requests. The conservative usage cost was $2.6379375, cumulative
+$15.5909375 across six of seven allowed Shallow attempts. Original preferences
+were unchanged. The report retained Underweight as a risk opinion with limited
+evidence, 15 deterministic qualified disclosures, and valid empty shared
+scenarios/no supported final target. The unchanged live-04 evidence continues
+to establish supported scenario and dated-price behavior; absence in this run
+is explicitly not treated as valuation proof.
+
+Publication 3b202bde-ff77-43b0-8124-705f279ab2bb was first saved at
+2026-11-05T05:39:47.881519+00:00, requested as-of November 4. Thesis
+38b11c83-89e8-5032-96ca-be13bc7181d9 retains the two original conditions,
+coalescing the earlier four semantic duplicates with aliases; both are unknown
+Q4 measurements, explicitly kept with reasons. Five endpoints remain pending.
+Fresh-process graph, report/evidence/state/thesis/outcome readback passed, source
+manifest hashes matched, memory stayed unchanged, and attempt evaluation showed
+one completed execution and no failures. HTML text/structure was inspected; no
+browser screenshot was obtained. Build-C receipt records artifact hashes.
+
+Parent inspection found a real reporting flaw: protocol presence was described
+as predeclaration for newly imported legacy decisions. The evaluator now
+separates protocol availability from prospective predeclaration, and explicitly
+labels legacy/historical protocols as applied at import/replay. Three regression
+cases passed red-to-green; 66 focused tests passed. Corrected legacy evaluation
+was saved separately, leaving all original proof and immutable record bytes
+unchanged. This evaluator-only change does not affect the accepted live
+publication/model/settlement proof; it requires updated offline evaluation checks
+and targeted review, not another paid research run. A final full suite is
+running on this correction before committing the audit candidate.
+
+Final C accepted: independent runtime verification confirmed artifact/source
+hashes, actual two-condition continuity, five pending live endpoints, legacy
+settlement arithmetic and repeat safety. Targeted protocol-label review passed
+36 checks plus exact recomputation of the corrected real legacy report; all
+three immutable files stayed unchanged. Final full suite passed 2207 tests and
+100 subtests, one optional AWS skip, one integration deselection, 20 warnings
+in 16.05 seconds. Changed-file Ruff/diff checks passed. The remaining mandatory
+step is the connected completed-build audit against the exact approved base
+and committed candidate, then closure/reverification of material findings.

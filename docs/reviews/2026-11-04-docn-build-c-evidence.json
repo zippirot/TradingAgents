@@ -1,0 +1,80 @@
+{
+  "source_head": "bed86a6070077113789db2532ef6f78129b9bc1f",
+  "source_manifest_sha256": "39d25ebe743b7d7d8c417c0b13a1598b9c9e7424bd52dbfac60727c8291df35c",
+  "decision_id": "3b202bde-ff77-43b0-8124-705f279ab2bb",
+  "published_at": "2026-11-05T05:39:47.881519+00:00",
+  "rating": "Underweight",
+  "thesis_version_id": "38b11c83-89e8-5032-96ca-be13bc7181d9",
+  "five_endpoints_pending": true,
+  "fresh_graph_readback": true,
+  "memory_unchanged": true,
+  "paid_calls": 0,
+  "evaluation_attempts": {
+    "status": "available",
+    "started": 1,
+    "completed": 1,
+    "failed": 0,
+    "in_progress": 0,
+    "errors": [],
+    "failure_rate": 0.0,
+    "failure_rate_denominator": "valid started attempts visible at cutoff",
+    "logs_without_markers": 0,
+    "coverage_completeness": "recorded_markers_only",
+    "coverage_start": "2026-11-05T05:34:49.877839+00:00",
+    "coverage_end": "2026-11-05T05:39:47.971820+00:00",
+    "note": "Attempt markers are execution coverage, not independent investment samples; older logs may lack failure history."
+  },
+  "artifact_sha256": {
+    "results/docn-abc/live-06/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "3d1a3cc48208f4e35f69de5d6fb010596d847f17984fed6a31bf55f344dcc395",
+    "results/docn-abc/live-06/results/reports/DOCN_20261104_223948/complete_report.md": "33e7daf99df47240515cd7a8e7f28d4950fcb2a5d81d19cd0e963975d7c98dc6",
+    "results/docn-abc/live-06/results/reports/DOCN_20261104_223948/complete_report.html": "c66ab860df7ccc3a49580abd84ed0d26db64e15f2f3c4214c11db5545208cf4c",
+    "results/docn-abc/live-06/results/reports/DOCN_20261104_223948/evidence.json": "fc41819966b8483db263ca631a4708a7622e3430eb8d2767b30606d393d6d0f6",
+    "results/docn-abc/live-06/memory/trading_memory.md": "095ad0ecace96c60dbadf922c4459f2647465ab11bba4a54361c7f0aaa52f4b5",
+    "results/docn-abc/final-c-settlement/prepare.json": "b2efaf401d9f03be7a64ac8e425aaf24743d9b70f387679eea7b909627f533aa",
+    "results/docn-abc/final-c-settlement/settlement.json": "c83c85141455f9d5e72bc4ffb10f50b1797cb4ba1497f36dd54ad1362c77092c",
+    "results/docn-abc/final-c-settlement/settlement-repeat.json": "a668750e53b25fb3ebdd1e36d2bac99e97d6d6643c814dd964cc4f9e75d6425d",
+    "results/docn-abc/final-c-settlement/evaluation.json": "318bed215e2a7844413b3d417fda3e2d9b736b5ad721679c05da0bb1d11883d1",
+    "results/docn-abc/live-06/seed-continuity.json": "368bda0e4ba5a61cf035aa530315dc46fc598797f7fd57b4b4499a29eab67e4e",
+    "results/docn-abc/live-06/evaluation.json": "1f67ef4dc80170107045cc87f0f2a3e13225a42a941601e2ff6ad01110085575",
+    "results/docn-abc/c-final-offline-pytest.log": "c713410dfed135270b014068bd570fb29a158763b67ec2e5b556293718032a71",
+    "results/docn-abc/final-c-settlement/evaluation-protocol-clarified.json": "90979e1c86a7e2996d8641d3fe6dd6ddffedc4055c4e3ec94b39625bc36220a0",
+    "results/docn-abc/final-c-settlement/evaluation-protocol-clarified.md": "c245862fc3ab87b1220b6f5ed85a33f6e236b22b4367e435fb5cad6105a762fe"
+  },
+  "status": "Build C accepted; connected final audit pending",
+  "live_attempt": 6,
+  "live_requests": 16,
+  "live_usage_cost_usd": 2.6379375,
+  "cumulative_live_usage_cost_usd": 15.5909375,
+  "cost_basis": "Conservative model rates times returned token usage; not a fetched billing invoice",
+  "checks": {
+    "full_offline": "2203 passed,100subtests,1optionalAWSskip,1integrationdeselection",
+    "runner": "10 passed",
+    "independent_endpoints": 61,
+    "independent_evaluation": 48,
+    "independent_attempts": 14,
+    "final_full_offline": "2207 passed,100subtests,1optionalAWSskip,1integrationdeselection,20warnings,16.05s",
+    "targeted_protocol_review": "36 independent tests and actual clarified legacy report recomputation passed",
+    "runtime_independent_review": "Live artifacts/source hashes/publication/thesis/endpoints/legacy arithmetic/repeat/costs independently verified; no material findings"
+  },
+  "legacy_settlement": {
+    "decision_id": "6baf6a6c-df44-528c-8a66-6106ab60833d",
+    "published_at": null,
+    "mode": "legacy",
+    "resolved": [
+      "5_sessions"
+    ],
+    "pending": [
+      "21_sessions",
+      "63_sessions",
+      "3_calendar_months",
+      "6_calendar_months"
+    ],
+    "repeat_unchanged": true
+  },
+  "live_limitations": [
+    "Risk-based Underweight, limited evidence; final numerical target unsupported and valid empty shared scenarios. Reuse live04 supported scenarios with unchanged valuation source.",
+    "Future performance pending; no recurring automation.",
+    "HTML text and structure verified; no browser screenshot.",
+    "Forward funding calculator covered by deterministic tests and independent review; no live model forward-funding request."
+  ]
+}

@@ -484,6 +484,7 @@ def evaluate_publications(config, known_at=None):
             "revisions": 0,
             "review_or_ineligible": 0,
             "without_predeclared_protocol": 0,
+            "protocol_available": 0,
         },
         "groups": [],
         "observations": [],
@@ -516,7 +517,15 @@ def evaluate_publications(config, known_at=None):
                 "primary" if primary else "revisions" if directional else "review_or_ineligible"
             ] += 1
             protocol = record.get("evaluation_protocol")
-            if not protocol:
+            protocol_present = isinstance(protocol, dict) and bool(protocol)
+            prospective_predeclaration = bool(
+                protocol_present
+                and record["evaluation_mode"] == "prospective"
+                and record.get("published_at")
+            )
+            if protocol_present:
+                coverage["protocol_available"] += 1
+            if not prospective_predeclaration:
                 coverage["without_predeclared_protocol"] += 1
             snapshot = publication.load_evidence(config, record)
             companion = load_outcomes(config, record)
@@ -530,6 +539,7 @@ def evaluate_publications(config, known_at=None):
                 "versions": record["versions"],
                 "frozen_input_sha256": _frozen_inputs(snapshot),
                 "protocol_version": protocol.get("version") if isinstance(protocol, dict) else None,
+                "protocol_prospectively_predeclared": prospective_predeclaration,
                 "canonical_rating": record["canonical_rating"],
                 "sequence": record["sequence"],
             }
@@ -806,7 +816,8 @@ def render_publication_evaluation(report):
     lines = [
         "Versioned publication evaluation (gross outcomes; not a portfolio simulator).",
         f"Known at {report['known_at']}; publications {coverage['publications']}, primary {coverage['primary']}, revisions {coverage['revisions']}, REVIEW/ineligible {coverage['review_or_ineligible']}.",
-        f"Integrity failures: {len(report['integrity_errors'])}; publications without a predeclared protocol: {coverage['without_predeclared_protocol']}.",
+        f"Integrity failures: {len(report['integrity_errors'])}; protocol available: {coverage.get('protocol_available', 'not recorded')}; prospective predeclaration unestablished: {coverage['without_predeclared_protocol']}.",
+        "Legacy/historical protocols are applied at import/replay; their presence does not establish predeclaration before the original decision or historical outcomes.",
     ]
     for group in report["groups"]:
         mean = group["distributions"]["excess"]["mean"]
