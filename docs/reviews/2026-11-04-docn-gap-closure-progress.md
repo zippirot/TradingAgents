@@ -187,3 +187,26 @@ This is groundwork, not early C acceptance: immutable record integration,
 independent endpoint persistence, publication/restart/real settlement proof and
 later final C requirements remain outstanding. No paid calls were made for this
 step; proof budget usage is unchanged.
+
+The immutable storage module is now implemented with hash-checked evidence
+snapshots, stable first-publication timestamps, linked revisions and one primary
+eligible observation per ticker/date. Tests cover concurrent writers, interrupted
+writes/retry, changed-content reuse of an ID, corruption, REVIEW exclusion and
+local-date/UTC rollover. It is not yet wired into the graph publication path.
+
+Settlement's structured price result now accepts actual publication time and
+uses the instrument's bar timezone to select the first close strictly after both
+the requested as-of and publication session. Missing timezone fails visibly;
+naive publication times are rejected. A reproduced infinite-price defect was
+fixed so nonfinite bars cannot create infinite returns. The latest combined
+publication/storage, checkpoint, graph, settlement, memory, backtest and report
+selection passed **200 tests**; changed-file Ruff and diff checks passed.
+
+A real, unpaid Yahoo retrieval confirms the legacy October 19 DOCN window is
+available: entry October 20 at 99.4800033569336, exit October 27 at
+106.38999938964844; raw return 0.06946115600661797 and SPY-relative return
+0.0686679886426693. Exact benchmark prices and retrieval time are retained in
+`results/docn-abc/early-c/legacy-price-availability.json`. The existing legacy
+memory records the same window rounded to +6.9%. Publication time remains
+unknown. This is price-availability evidence, not the still-required integrated
+publication/restart/settlement proof or prospective performance evidence.

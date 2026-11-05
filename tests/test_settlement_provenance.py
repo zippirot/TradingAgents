@@ -41,3 +41,25 @@ def test_invalid_horizon_is_rejected_before_fetch(monkeypatch, days):
     monkeypatch.setattr(settlement, 'get_closes', lambda *a: pytest.fail('must not fetch'))
     with pytest.raises(ValueError, match='positive integer'):
         settlement.fetch_outcome('DOCN', '2026-01-03', days)
+
+
+def test_nonfinite_prices_cannot_create_a_resolved_outcome(monkeypatch):
+    dates = pd.bdate_range('2026-01-05', periods=7)
+    stock = pd.Series([100., 101., 102., 103., 104., 105., float('inf')], index=dates)
+    bench = pd.Series([400.] * 7, index=dates)
+    monkeypatch.setattr(settlement, 'get_closes', lambda symbol, *a: stock if symbol == 'DOCN' else bench)
+    # The infinite endpoint is unavailable, not a 5-session return of infinity.
+    assert settlement.fetch_outcome('DOCN', '2026-01-05', 5) is None
+
+
+def test_live_entry_respects_actual_publication_in_instrument_timezone(monkeypatch):
+    idx = pd.bdate_range('2026-01-05', periods=15, tz='America/New_York')
+    stock = pd.Series([100. + i for i in range(15)], index=idx)
+    bench = pd.Series([400. + i for i in range(15)], index=idx)
+    monkeypatch.setattr(settlement, 'get_closes', lambda symbol, *a: stock if symbol == 'DOCN' else bench)
+    # Jan 8 UTC is still Jan 7 in New York: first eligible close is Jan 8.
+    outcome = settlement.fetch_outcome('DOCN', '2026-01-05', 5,
+                                       published_at='2026-01-08T02:00:00+00:00')
+    assert outcome['entry']['date'] == '2026-01-08'
+    assert outcome['cutoff_date'] == '2026-01-07'
+    assert outcome['publication_session_timezone'] == 'America/New_York'

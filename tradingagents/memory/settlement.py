@@ -2,6 +2,7 @@
 it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -44,7 +45,7 @@ def _by_day(closes):
     instants. A missing or non-positive close is no price at all, not a bar to
     score on.
     """
-    closes = closes[closes > 0]
+    closes = closes[(closes > 0) & closes.map(math.isfinite)]
     if getattr(closes.index, "tz", None) is not None:
         closes = closes.tz_localize(None)
     return closes
@@ -78,6 +79,7 @@ def fetch_returns(
 
 def fetch_outcome(
     ticker: str, trade_date: str, holding_days: int = 5, benchmark: str = "SPY",
+    *, published_at: str | None = None,
 ) -> dict | None:
     """Return a reconstructable daily-close outcome, or None while pending.
 
@@ -88,14 +90,32 @@ def fetch_outcome(
     if type(holding_days) is not int or holding_days < 1:
         raise ValueError("holding_days must be a positive integer")
     start = datetime.strptime(trade_date, "%Y-%m-%d")
+    publication = datetime.fromisoformat(published_at) if published_at else None
+    if publication is not None and publication.utcoffset() is None:
+        raise ValueError("published_at must have a timezone")
+    # Request enough history for either side of UTC midnight. The instrument's
+    # own bar timezone below determines the actual publication-session cutoff.
+    request_start = start
+    if publication is not None:
+        request_start = max(start, datetime.combine(publication.date(), datetime.min.time()) - timedelta(days=1))
     # holding_days counts trading days after the entry session, so ask for the
     # calendar span they occupy (about 7 for every 5) plus a week for holidays.
-    end = start + timedelta(days=round((holding_days + 1) * 7 / 5) + 7)
+    end = request_start + timedelta(days=round((holding_days + 1) * 7 / 5) + 9)
     end_str = end.strftime("%Y-%m-%d")
 
     # Closes for the instrument the analysis priced (XAUUSD -> GC=F, #984),
     # from the first session after the decision date.
-    stock = _by_day(get_closes(ticker, trade_date, end_str))
+    stock_prices = get_closes(ticker, request_start.strftime("%Y-%m-%d"), end_str)
+    publication_timezone = None
+    if publication is not None:
+        publication_timezone = getattr(stock_prices.index, "tz", None)
+        if stock_prices.empty:
+            return None
+        if publication_timezone is None:
+            raise ValueError("Instrument timezone unavailable for publication-session cutoff")
+        publication_day = publication.astimezone(publication_timezone).date()
+        start = max(start, datetime.combine(publication_day, datetime.min.time()))
+    stock = _by_day(stock_prices)
     stock = stock[stock.index > start]
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -125,7 +145,9 @@ def fetch_outcome(
         "raw_return": raw, "alpha_return": alpha, "benchmark_return": bench_ret,
         "holding_days": holding_days, "resolution_date": resolution_date,
         "ticker": normalize_symbol(ticker), "benchmark": normalize_symbol(benchmark),
-        "cutoff_date": trade_date,
+        "cutoff_date": start.strftime("%Y-%m-%d"),
+        "published_at": published_at,
+        "publication_session_timezone": str(publication_timezone) if publication_timezone else None,
         "entry": {"date": entry.strftime("%Y-%m-%d"), "price": float(stock.iloc[0])},
         "exit": {"date": resolution_date, "price": float(stock.iloc[holding_days])},
         "benchmark_entry": {
