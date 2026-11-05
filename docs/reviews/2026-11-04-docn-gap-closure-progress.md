@@ -528,3 +528,34 @@ usage $7.324695 of the $70 proof allocation; $30 audit allocation untouched.
 Build B is **not yet accepted**. Next: commit this candidate, run live-04 at the
 approved Shallow settings, inspect reports/state/memory and prove persisted thesis
 continuity in a second real process before moving to final C.
+
+### Build B first real CLI proof and fresh-process readback
+
+Paid attempt `live-04` completed on application commit
+`ee7174f091e858b9ca2ceca51bbc0f6977fb8591`: 17 model requests, unchanged saved CLI
+preferences, approved Shallow settings. Conservative cumulative token-rate usage
+is **$10.2494125** across four attempts; the separate audit allocation is untouched.
+The canonical rating is Underweight with limited evidence. Three early EV/revenue
+scenarios passed validation and all three have available dated price/reverse
+comparisons. The PM supplied no final structured valuation request, so final target
+omission remains explicit and does not erase the supported conditional table.
+
+Publication `54e3a2d3-4f5a-49e1-a999-461ad8970838` links thesis version
+`282f78f4-c085-5a2a-9e99-25d830044b77`. Two advisory conditions refer to Q4 2026:
+Gross Margin >=55.5% and Revenue >=348m USD. They remain unknown until compatible
+Q4 evidence exists; no current measurement or automatic trading rule is invented.
+The actual settled October 19 memory was copied unchanged into this isolated run,
+with its source hash recorded in `live-04/seed-memory.json`.
+
+`verify_build_b.py --run-name live-04` ran in a fresh process with paid HTTP blocked.
+It verified runtime source hashes, publication/evidence/report agreement, all three
+supported comparisons, condition/version persistence, current pending endpoints,
+and unchanged memory. The real graph's memory step retrieved the same thesis
+version and conditions. Markdown and parsed HTML contain the decision card,
+conditional comparison and continuity display. Receipt:
+`results/docn-abc/live-04/build-b-readback.json`; no browser screenshot was taken.
+
+B remains pending its next-CLI condition/disposition proof. For `live-05`, the exact
+immutable publication/evidence and memory were copied into a fresh isolated runtime,
+with no changed timestamps and no reused checkpoint. `seed-continuity.json` hashes
+all copied files. This is a real persisted prior decision, not a synthesized fixture.

@@ -1,5 +1,5 @@
 {
-  "milestone": "Build B reviewed offline candidate; live acceptance pending",
+  "milestone": "Build B first CLI and fresh-process readback passed; next CLI disposition proof pending",
   "full_suite": {
     "passed": 2170,
     "subtests": 100,
@@ -7,8 +7,8 @@
     "deselected": 1,
     "warnings": 20
   },
-  "paid_attempts": 3,
-  "conservative_proof_usage_usd": 7.324695,
+  "paid_attempts": 4,
+  "conservative_proof_usage_usd": 10.2494125,
   "independent_material_findings_open": [],
   "artifact_sha256": {
     "results/docn-abc/b-offline/pytest-candidate.log": "390b1805cf4806e89ab834189bec65dcf108e91d64983c020b667765022544a1",
@@ -16,13 +16,87 @@
     "results/docn-abc/b-offline/ruff-reviewed.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
     "results/docn-abc/b-offline/pip-reviewed.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
     "results/docn-abc/b-price-probe/price_observation.json": "377dd279ac6e3e1915ea9e49721fc8e13f2e5e305d8f22af1c2aa1e6ee6043dd",
-    "results/docn-abc/b-price-probe/event_comparison-bound.json": "9d6a43a8f7a5e683d90105969f401fd7f122cf8fe50c9657ef3a76a4b6a272b2"
+    "results/docn-abc/b-price-probe/event_comparison-bound.json": "9d6a43a8f7a5e683d90105969f401fd7f122cf8fe50c9657ef3a76a4b6a272b2",
+    "results/docn-abc/live-04/build-b-readback.json": "6df2bf874b401de0fecc8c151d2fafc36236ef1a380537c54bfa15922e0dba30"
   },
   "limits": [
-    "B live CLI and second-process continuity proof pending",
+    "Second real CLI condition/disposition proof pending",
     "Final C and connected final audit pending",
     "No typed timestamped consensus source",
     "Prior guidance comparison unavailable for real DOCN source probe",
     "Historical unknown publication metadata remains unknown"
-  ]
+  ],
+  "live04_readback": {
+    "source_head": "ee7174f091e858b9ca2ceca51bbc0f6977fb8591",
+    "decision_id": "54e3a2d3-4f5a-49e1-a999-461ad8970838",
+    "published_at": "2026-11-05T04:56:51.963986+00:00",
+    "rating": "Underweight",
+    "quality": "limited",
+    "thesis_version_id": "282f78f4-c085-5a2a-9e99-25d830044b77",
+    "conditions_count": 2,
+    "fresh_process_prior_readback": true,
+    "observations": [
+      {
+        "metric": "Gross Margin",
+        "metric_definition": "Gross Margin",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "55.5",
+        "unit": "percent",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "A return toward first-half gross margin would support a reassessment of capacity economics; it is not by itself an automatic buy signal.",
+        "condition_id": "condition-2d298068d37cb969f26abfea",
+        "status": "unknown",
+        "reason": "Gross Margin inputs missing or competing; observation unresolved",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      },
+      {
+        "metric": "Revenue",
+        "metric_definition": "Revenue",
+        "period_start": "2026-10-01",
+        "period_end": "2026-12-31",
+        "comparator": ">=",
+        "threshold": "348000000",
+        "unit": "USD",
+        "basis": "US-GAAP",
+        "expiry": "2027-05-01",
+        "rationale": "Compare Q4 delivery with the lower end of management's $348\u2013351 million revenue outlook; falling short warrants a review of capacity and demand, not an automatic trade.",
+        "condition_id": "condition-779e4273761b3e906a0e584c",
+        "status": "unknown",
+        "reason": "Compatible canonical evidence unavailable",
+        "observed_value": null,
+        "observed_date": null,
+        "fact_ids": [],
+        "source_ids": []
+      }
+    ],
+    "source_manifest_matches": true,
+    "supported_price_comparisons": 3,
+    "target_status": "unsupported",
+    "model_calls": 0,
+    "pending_endpoints": [
+      "21_sessions",
+      "5_sessions",
+      "63_sessions"
+    ],
+    "memory_unchanged": true,
+    "artifact_sha256": {
+      "results/docn-abc/live-04/results/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-04.json": "af28f9b0c3579b440d8a08b2dca7ec0b5770749a938efbec2a45866a00ff5757",
+      "results/docn-abc/live-04/results/reports/DOCN_20261104_215652/complete_report.md": "c098b52e969f9c12b8792b7e1e68596dd3b647a0396bf77606c0bc2d89931f92",
+      "results/docn-abc/live-04/results/reports/DOCN_20261104_215652/complete_report.html": "bd6fb56f7964af73d6ea5272b22a6cee847022b6dd61c847deddd8e92fedd8f3",
+      "results/docn-abc/live-04/results/reports/DOCN_20261104_215652/evidence.json": "44b854c526ce9f86d3e7945d112901a4a8f32d03b7fbf03e41da773576cd8d28",
+      "results/docn-abc/live-04/results/reports/DOCN_20261104_215652/quality.json": "84f68fe047ad249db34c2d005323abebb5e1e66a4e90e987768a3bcb3da61157",
+      "results/docn-abc/live-04/memory/trading_memory.md": "095ad0ecace96c60dbadf922c4459f2647465ab11bba4a54361c7f0aaa52f4b5"
+    },
+    "limits": [
+      "HTML structure/text inspected; no browser screenshot",
+      "Second CLI decision/disposition proof remains separately required",
+      "Future investment performance remains pending"
+    ]
+  }
 }
