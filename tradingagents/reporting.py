@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from tradingagents.agents.audit_pass import render_advisory_audit
 from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.evidence_presentation import (
     analyst_prose,
@@ -238,6 +239,11 @@ def evidence_snapshot(final_state: dict) -> dict:
     """Persist canonical source packages separately from raw model diagnostics."""
     names = (
         "thesis",
+        "advisory_audit",
+        "run_metrics",
+        "valuation_reference",
+        "valuation_reference_brief",
+        "vendor_expectations",
         "evidence_acquisition",
         "shared_source_brief",
         "price_observation",
@@ -331,6 +337,8 @@ def evidence_appendix(final_state: dict) -> str:
     references = evidence_references(canonical)
     if references:
         lines += ["", references]
+    if "advisory_audit" in final_state:
+        lines += ["", render_advisory_audit(final_state["advisory_audit"])]
     if final_state.get("outcome_summary"):
         lines += ["", final_state["outcome_summary"]]
     return "\n".join(lines).strip()

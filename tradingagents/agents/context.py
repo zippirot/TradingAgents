@@ -359,6 +359,12 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     brief = state.get("shared_source_brief")
     if isinstance(brief, str) and brief:
         context += "\n\n" + brief
+    reference = state.get("valuation_reference_brief")
+    if isinstance(reference, str) and reference:
+        context += "\n\n" + reference
+        context += ("\nUse the calculated figures above; cite their stated equity/enterprise, share and period bases. "
+                    "Do not calculate new debate figures or treat model-selected peers or vendor consensus as verified judgments. "
+                    "A figure absent from this bounded brief is unsupported here, not proven false.")
     # Before analysts, use only the retained bounded brief. Later research roles
     # also receive the final gate's canonical assessment and labeled narratives.
     canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None

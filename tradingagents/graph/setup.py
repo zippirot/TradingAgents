@@ -21,6 +21,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
+from tradingagents.agents.audit_pass import create_advisory_audit
 from tradingagents.agents.evidence_validation import create_evidence_gate, create_source_acquisition
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.state import AgentState
@@ -43,7 +44,7 @@ RISK_ANALYSIS_PATH_MAP = {
     "Aggressive Analyst": "Aggressive Analyst",
     "Conservative Analyst": "Conservative Analyst",
     "Neutral Analyst": "Neutral Analyst",
-    "Portfolio Manager": "Portfolio Manager",
+    "Portfolio Manager": "Advisory Audit",
 }
 
 
@@ -106,12 +107,18 @@ class GraphSetup:
         deep_thinking_llm: Any,
         conditional_logic: ConditionalLogic,
         max_tool_rounds: int,
+        quick_model_id: str = "unknown",
+        deep_model_id: str = "unknown",
+        metrics_observer=None,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.conditional_logic = conditional_logic
         self.max_tool_rounds = max_tool_rounds
+        self.quick_model_id = quick_model_id
+        self.deep_model_id = deep_model_id
+        self.metrics_observer = metrics_observer
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
@@ -165,6 +172,21 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        raw_audit = create_advisory_audit(
+            self.deep_thinking_llm, deep_model_id=self.deep_model_id,
+            quick_model_id=self.quick_model_id)
+
+        def audit_node(state):
+            result = raw_audit(state)
+            if self.metrics_observer:
+                result["run_metrics"] = self.metrics_observer({**state, **result})
+            return result
+
+        def metrics_node(state):
+            return {"run_metrics": self.metrics_observer(state)} if self.metrics_observer else {}
+
+        workflow.add_node("Advisory Audit", audit_node)
+        workflow.add_node("Run Metrics", metrics_node)
 
         # One retained source vintage precedes parallel analyst reasoning. The
         # memory log retains its independent start and joins every analyst before
@@ -191,7 +213,10 @@ class GraphSetup:
                 prior = {**state["prior_thesis"], "observations": observe_conditions(state["prior_thesis"], usable)}
                 checked.update(prior_thesis=prior, thesis_context=render_prior_thesis(prior))
             from tradingagents.agents.event_comparison import prepare_event_comparison
+            from tradingagents.agents.valuation_reference_flow import finalize_peer_reference
             from tradingagents.dataflows.config import get_config
+
+            checked.update(finalize_peer_reference({**state, **checked}, get_config()))
             event = prepare_event_comparison({**state, **checked}, get_config())
             scenarios = prepare_shared_valuation({**state, **checked})
             return {**checked, "shared_valuation_scenarios": scenarios, "event_comparison": event}
@@ -200,8 +225,8 @@ class GraphSetup:
         workflow.add_edge(first_steps, "Evidence Check")
         workflow.add_conditional_edges(
             "Evidence Check",
-            lambda state: END if state.get("evidence_quality", {}).get("status") == "insufficient" else "Bull Researcher",
-            {END: END, "Bull Researcher": "Bull Researcher"},
+            lambda state: "Run Metrics" if state.get("evidence_quality", {}).get("status") == "insufficient" else "Bull Researcher",
+            {"Run Metrics": "Run Metrics", "Bull Researcher": "Bull Researcher"},
         )
 
         # Both research-debate edges share the complete DEBATE_PATH_MAP (#1088).
@@ -221,6 +246,8 @@ class GraphSetup:
                 RISK_ANALYSIS_PATH_MAP,
             )
 
-        workflow.add_edge("Portfolio Manager", END)
+        workflow.add_edge("Advisory Audit", "Portfolio Manager")
+        workflow.add_edge("Portfolio Manager", "Run Metrics")
+        workflow.add_edge("Run Metrics", END)
 
         return workflow

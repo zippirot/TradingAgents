@@ -28,3 +28,18 @@ A1/A2 arithmetic and acquisition, A3 consensus integration, A4 context/reporting
 New $10 aggregate/two-CLI-attempt allowance shared by Part A and later authorized Part B, one attempt each; zero spent and zero attempts started at this milestone. Comparison has a separate unapproved budget. No retries, top-ups or extra reports authorized. Do not inherit prior task allowances.
 
 No push, PR, merge, installation, production action, worktree removal, scheduler or broker action authorized. Goal notifier enabled and privacy-minimal dry-run bodies verified; no incident alert has been required.
+
+
+## Product integration milestone
+
+A1–A6 are integrated for verification; this is not acceptance. Source Acquisition now retains own-history inputs, the prior/pinned default peer set, and typed vendor expectations. After the Fundamentals Analyst, the evidence step validates the proposed set before event comparison and debate. The final section replays saved source projections, keeps history and peer ranges separate, and reports unknown consensus dimensions. Optional pins use `valuation_peers_file` or `TRADINGAGENTS_PEERS_FILE`, mapping a ticker to up to five peer symbols (or ticker/reason objects); an empty list is authoritative. Content changes invalidate the checkpoint signature.
+
+One advisory audit runs after risk debate and before the Portfolio Manager. It audits the original Fundamentals Analyst prose retained by claim validation, discloses per-role model identity and bounded-input truncation, and cannot veto publication or change accepted evidence. Actual debate turns and callback-observed model starts are retained, with incomplete resume coverage labeled.
+
+Fresh combined integration evidence: 80 tests passed in reference-audit-integration.log. Product/CLI Ruff and changed product tests passed; pip check and git diff --check passed. This is focused combined evidence, not the final full suite. Existing component tests and the broader audit/recovery checks remain available; final coverage accounting is pending.
+
+The free Yahoo preflight (private/evidence/reference-source-check/summary.json) returned 658 daily bars and all five expectations sections. Eight usable retained DOCN history quarters replayed and matched independently computed arithmetic. It is source feasibility evidence, not a paid CLI proof. Yahoo fiscal dates and complete accounting bases remain unknown; a numeric guidance/consensus comparison is unavailable for those observations.
+
+Process adjustment: the initial history arithmetic component was written before its failing test was observed. That deviation was disclosed; focused arithmetic tests, independent component review and separate retained-data arithmetic checks were completed afterward. Integration behavior and later corrections used observed failing regression tests.
+
+A7 protocol and the real CLI/cost/source adapter remain under development. Final full offline coverage, rendered retained-input replay, independent code-and-artifact audit, gap closure and the single authorized Part A CLI proof remain required. No paid attempts or model calls have started; prior task ledgers remain untouched.

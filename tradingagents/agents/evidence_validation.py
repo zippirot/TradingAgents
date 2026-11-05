@@ -366,6 +366,9 @@ def create_source_acquisition(selected_analysts):
             update["price_observation"] = {"status": "unavailable",
                 "reason": "No supported dated-close provider is configured; no additional vendor was used"}
         update["evidence_acquisition"] = record
+        from tradingagents.agents.valuation_reference_flow import acquire_reference_inputs
+
+        update.update(acquire_reference_inputs({**state, **update}, config))
         from tradingagents.agents.context import build_shared_source_brief
 
         update["shared_source_brief"] = build_shared_source_brief({**state, **update})

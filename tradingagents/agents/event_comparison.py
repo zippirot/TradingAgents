@@ -19,11 +19,53 @@ from tradingagents.dataflows.vendors.yahoo.price_observation import (
     validate_price_observation,
 )
 
-# Chosen before prices are requested. This is a partial business comparison,
-# not a claim that leverage, margins or AI exposure are equivalent.
-_PEERS = {
-    "DOCN": ("AKAM", "Akamai offers cloud computing infrastructure; business mix and scale differ.")
-}
+# Peer selection is fixed by the validated final reference before reaction prices
+# are requested. Historical records can replay their recorded selection offline.
+MAX_REACTION_PEERS = 5
+
+
+def _selected_peers(state, ticker, saved_reaction=None):
+    from tradingagents.agents.valuation_reference_flow import replay_valuation_reference
+
+    reference = state.get("valuation_reference")
+    if isinstance(reference, dict) and reference.get("phase") == "final":
+        try:
+            checked = replay_valuation_reference(state, reference)
+            accepted = checked["peers"]["accepted"]
+            if not isinstance(accepted, list) or len(accepted) > MAX_REACTION_PEERS:
+                raise ValueError("Final peer set exceeds five issuers")
+            rows, seen = [], {ticker, "SPY"}
+            for item in accepted:
+                symbol = normalize_symbol(item["ticker"])
+                reason = item["reason"]
+                stats = item["statistics"]
+                if (symbol in seen or symbol != item["ticker"] or
+                    not isinstance(reason, str) or not reason.strip() or
+                    stats.get("status") != "available" or stats.get("ticker") != symbol):
+                    raise ValueError("Invalid validated final peer entry")
+                seen.add(symbol)
+                rows.append((symbol, reason.strip()))
+            return rows, "validated_final", False
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return [], "invalid_final", False
+    if saved_reaction is not None and "peer_selection_source" not in saved_reaction:
+        symbols = saved_reaction.get("symbols_selected_before_fetch")
+        if (isinstance(symbols, list) and 2 <= len(symbols) <= MAX_REACTION_PEERS + 2
+            and symbols[:2] == [ticker, "SPY"] and len(set(symbols)) == len(symbols)):
+            rows = []
+            observations = saved_reaction.get("price_observations") or {}
+            gaps = saved_reaction.get("coverage_gaps") or []
+            for symbol in symbols[2:]:
+                if not isinstance(symbol, str) or normalize_symbol(symbol) != symbol:
+                    return [], "invalid_legacy", True
+                if (symbol not in observations and
+                    not any(gap == f"{symbol}: price unavailable" for gap in gaps) and
+                    saved_reaction.get("reason") != "Configured dated-close provider unavailable"):
+                    return [], "invalid_legacy", True
+                rows.append((symbol, "Retained legacy peer selection; source validation unavailable"))
+            return rows, "retained_legacy", True
+        return [], "invalid_legacy", True
+    return [], "none", False
 
 
 def _empty(reason):
@@ -216,17 +258,24 @@ def _configured_yahoo(config):
     return "yfinance" in {name.strip() for name in str(chain).split(",")}
 
 
-def _reaction(ticker, as_of, event_day, config, saved_reaction=None):
-    peer = _PEERS.get(ticker)
-    symbols = list(dict.fromkeys([ticker, "SPY", *([peer[0]] if peer else [])]))
+def _reaction(ticker, as_of, event_day, config, saved_reaction=None, *, peers=(), peer_source="none", legacy_replay=False):
+    symbols = [ticker, "SPY", *(row[0] for row in peers)]
+    rationale = "; ".join(f"{symbol}: {reason}" for symbol, reason in peers)
+    if not rationale:
+        rationale = ("Final peer reference invalid; no peer reaction computed"
+                     if peer_source == "invalid_final" else "No validated final peer selected")
+    if legacy_replay and isinstance(saved_reaction, dict):
+        rationale = saved_reaction.get("peer_rationale", rationale)
     result = {
         "status": "unavailable",
         "returns": {},
         "symbols_selected_before_fetch": symbols,
-        "peer_rationale": peer[1] if peer else "No predetermined peer supported for this issuer",
+        "peer_rationale": rationale,
         "window_policy": "Last common completed close before filing date to latest common completed close on/before cutoff, at most14 calendar days after filing; intraday event time unknown",
         "reason": "Configured dated-close provider unavailable",
     }
+    if not legacy_replay:
+        result["peer_selection_source"] = peer_source
     if not _configured_yahoo(config):
         return result
     cutoff = min(as_of, event_day + timedelta(days=14))
@@ -339,12 +388,14 @@ def prepare_event_comparison(state, config, *, saved_record=None):
             event={**event, "date_basis": "SEC filing date; precise earnings-release time unknown"},
         )
         result["guidance"] = _guidance(state, package, disclosures, event_day)
+        if "vendor_expectations" in state:
+            from tradingagents.agents.valuation_reference_flow import validate_vendor_expectations
+            result["consensus"] = validate_vendor_expectations(state)
+        saved_reaction = None if saved_record is None else (saved_record.get("reaction") or {})
+        peers, peer_source, legacy_replay = _selected_peers(state, ticker, saved_reaction)
         result["reaction"] = _reaction(
-            ticker,
-            as_of,
-            event_day,
-            config,
-            None if saved_record is None else (saved_record.get("reaction") or {}),
+            ticker, as_of, event_day, config, saved_reaction,
+            peers=peers, peer_source=peer_source, legacy_replay=legacy_replay,
         )
     except (ValueError, TypeError, KeyError) as exc:
         return _empty(f"Event comparison unavailable ({type(exc).__name__})")
@@ -385,7 +436,20 @@ def render_event_comparison(record):
         )
     if not guidance["rows"]:
         lines.append("Prior guidance comparison unavailable: " + guidance["reason"] + ".")
-    lines.append("Consensus unavailable: " + record["consensus"]["reason"] + ".")
+    consensus = record["consensus"]
+    if consensus.get("status") in {"available", "partial"}:
+        lines.append("Current vendor consensus, unverified; retrieved " + str(consensus.get("retrieved_at")) +
+                     "; vendor as-of " + str(consensus.get("vendor_as_of") or "unknown") +
+                     ". Current retrieval is not evidence of pre-event expectations.")
+        for estimate in consensus.get("estimates", [])[:8]:
+            lines.append("- Vendor " + str(estimate["metric"]) + " " + str(estimate["period_code"]) +
+                         ": average " + str(estimate.get("average") or "unavailable") +
+                         ", low " + str(estimate.get("low") or "unavailable") +
+                         ", high " + str(estimate.get("high") or "unavailable") +
+                         ", analysts " + str(estimate.get("analyst_count") if estimate.get("analyst_count") is not None else "unknown") +
+                         "; period/basis as supplied by vendor. No pre-event beat/miss inferred.")
+    else:
+        lines.append("Consensus unavailable: " + str(consensus.get("reason") or "No retained vendor expectations") + ".")
     if reaction["status"] in {"available", "partial"}:
         lines.append(
             f"Observed price window {reaction['start_session']} to {reaction['end_session']} (completed common sessions; not causal attribution):"
@@ -397,5 +461,7 @@ def render_event_comparison(record):
     else:
         lines.append("Market-window comparison unavailable: " + reaction["reason"] + ".")
     lines.append("Peers selected before returns: " + reaction.get("peer_rationale", "unavailable"))
+    if "peer_selection_source" not in reaction:
+        lines.append("Retained legacy peer selection; current final peer validation unavailable.")
     lines.extend("Coverage: " + gap for gap in reaction.get("coverage_gaps", []))
     return "\n".join(lines)

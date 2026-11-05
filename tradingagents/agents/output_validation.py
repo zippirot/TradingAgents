@@ -168,7 +168,24 @@ def enforce_publication(state: dict) -> dict:
     updates["valuation_price_comparison"] = comparison
     independent = price_implied_valuation(state)
     updates["price_implied_valuation"] = independent
-    target_text = (render_price_implied_valuation(independent) + "\n\n"
+    reference_text = ""
+    if "valuation_reference" in state:
+        from tradingagents.agents.valuation_reference_flow import (
+            render_guidance_consensus,
+            render_valuation_reference,
+            replay_valuation_reference,
+            validate_vendor_expectations,
+        )
+        try:
+            reference = replay_valuation_reference(state, state["valuation_reference"])
+        except (ValueError, TypeError, KeyError):
+            originals.setdefault("valuation_reference", state["valuation_reference"])
+            reference = {"status": "unavailable", "reason": "Retained valuation reference could not be verified"}
+        updates["valuation_reference"] = reference
+        updates["vendor_expectations"] = validate_vendor_expectations(state)
+        reference_text = ("\n\n" + render_valuation_reference(reference) +
+                          "\n\n" + render_guidance_consensus({**state, **updates}))
+    target_text = (render_price_implied_valuation(independent) + reference_text + "\n\n"
                    + render_target_result(target) + "\n\n" + render_valuation_comparison(comparison))
     if "event_comparison" in state:
         from tradingagents.agents.event_comparison import (
@@ -187,8 +204,8 @@ def enforce_publication(state: dict) -> dict:
         f"**Rating**: {run_rating(state)}\n\n"
         "**Executive Summary**: Model recommendation; financial evidence and "
         "valuation coverage are shown below. This does not validate all model reasoning.\n\n"
-        f"**Investment Thesis — canonical evidence**:\n\n{context}\n\n"
         f"{target_text}\n\n"
+        f"**Investment Thesis — canonical evidence**:\n\n{context}\n\n"
         "Position sizing: qualitative only; no validated numerical allocation.\n\n"
         "Original model narrative is retained separately in evidence.json diagnostics."
     )
