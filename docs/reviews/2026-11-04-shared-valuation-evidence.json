@@ -12,7 +12,7 @@
   ],
   "verification": {
     "focused": "183 passed in 4.59s",
-    "full_offline": "1845 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 13.40s after explicit forecast/debt schema prompt correction",
+    "full_offline": "1845 passed, 1 skipped, 1 deselected, 20 warnings, 100 subtests passed in 13.47s after explicit JSON envelope prompt correction",
     "skip": "optional langchain_aws unavailable",
     "deselected": "existing default external-service exclusion",
     "ruff": "passed",
@@ -23,7 +23,8 @@
     "affected_reporting": "34 passed in 0.92s; new unclosed-fence test observed failing before fix",
     "annual_view_focused": "88 passed in 4.35s (financial evidence, SEC fact integrity, shared scenarios, checkpoints, full graph)",
     "annual_view_replay": "Saved live canonical package projects three annual baselines with exact IDs in 63878 characters; no network calls",
-    "prompt_contract_focused": "82 passed in 4.35s"
+    "prompt_contract_focused": "82 passed in 4.35s",
+    "json_shape_focused": "41 passed in 4.33s"
   },
   "test_limits": [
     "Graph integration uses synthetic canonical evidence; live run proved fallback only. Required usable-scenario/debate engagement proof is still missing.",
@@ -61,8 +62,8 @@
     "Additional methods, mid-debate calculation, probability calibration and investment-performance evaluation remain excluded"
   ],
   "source_sha256": {
-    "tests/test_graph_end_to_end.py": "ef208bab64d424b3b688db403a69001348b2dd9a5d36e0d843ee3af0ffe20dce",
-    "tradingagents/agents/analysts/fundamentals_analyst.py": "c3d500f5481891d6cc97f09433652a02a5f861accda58ce6e0d01b1328da5bbc",
+    "tests/test_graph_end_to_end.py": "5ea8ed71f76f1a3ad669719c93bf3f994d737800cff47d97054ce473313846d5",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "fc622e0d4a363bc32a6f7a4bad2f9a5a07dae7f888414ad3e274d364ab6ed3b1",
     "tradingagents/agents/context.py": "2a5b6ced6a2222805c5ce211dec89756d3cbbf5a609da07e7db9cca7650c9d33",
     "tradingagents/agents/managers/research_manager.py": "9215df518afa579c15afe1a787284767bb27b3f5591c8d2dd1242dbc762e13a0",
     "tradingagents/agents/output_validation.py": "32b36b0aceb07c638827345df953dc0371a469cef638274a0fe19c7f749fdce2",
@@ -70,7 +71,7 @@
     "tradingagents/agents/researchers/bull_researcher.py": "b619de33fdaea412f9e5d570a9ef53a7ab41100c2fee1bb0c80f3b76b7fc11e0",
     "tradingagents/agents/state.py": "c05b5b24280e2bc95525d45a336ee712c7d9892a4400d6c15e40cdb16f63f560",
     "tradingagents/graph/setup.py": "ecd039ae6ef308d1514080cd0e954b2151570c1f3bf88b80d45b07f0c830058d",
-    "tradingagents/graph/trading_graph.py": "5717a4fa315eec2bdbad5ffd041f66409c66375a7f06b9616df03529709cc813",
+    "tradingagents/graph/trading_graph.py": "cd8a27a29786c72e1098aef37ee7f59a6888233f633b986f2f8c5b5d4d41fd18",
     "tradingagents/reporting.py": "59e47b437776bf2c8cd6d0d33c47bcaeec25a8bb1a3f243c781b685964d26a18",
     "tradingagents/agents/shared_valuation.py": "a9806a3e3c70303b8ef6b466cbbc4eab1876304d6e53270a42cca6bee1bfa935",
     "tests/test_shared_valuation.py": "827b820b1409d39930252dde810466c5fbee42ad2ea950ae360e6582c7756c71",
@@ -108,7 +109,11 @@
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-capture-bounded.py": "e6eb2a66a2392aa1443eb851fd86a4c6f5451971af19f769a1e3894758c15bc3",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-03/manifest.json": "e9df8975c3bf5b2fedb476322ecc53418c4e99223dfdc2ec11b5ac23e8d58af9",
     "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-03/cli.log": "5381313f513487c451c89358646013a8bfc3730d494d89c3381f5b8a6ccc0141",
-    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-03/llm-diagnostics/a43adaa0-3942-4e6d-96b4-6f2ecf616ede.json": "bac06e29f2c97ebbb62b3b59ca26bfb5294fbdd32ecbc441cb05d0d35bfd4c49"
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-03/llm-diagnostics/a43adaa0-3942-4e6d-96b4-6f2ecf616ede.json": "bac06e29f2c97ebbb62b3b59ca26bfb5294fbdd32ecbc441cb05d0d35bfd4c49",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-full-json-shape.log": "41f7b5eac9fd4aa392e51c5b5dfa763dcb719dc768590fe72ead657195c9be39",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-04/manifest.json": "1afef2dc485cc1d4574a106b69609021d41ab90b7612253ee3b13618e56b13d8",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-04/cli.log": "eb45b9f1a8203e890dabc2270a304ef10d6008a397d2ffcfdf4061a04471d851",
+    "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-04/llm-diagnostics/38d8f06c-16aa-49e5-aa04-760e6b20aabc.json": "aa0b9d4367a16b68a044255b9e3dae5f906fb80647dec806487507945969908c"
   },
   "release": "No push, PR, merge, deployment, installed-app replacement or cleanup authorized",
   "notifier": "Enabled; keep enabled until completion or abandonment",
@@ -138,11 +143,21 @@
     "diagnostic_limits": "Manually corrected schema probe is diagnosis only, not live acceptance. All rows remain omitted in actual run."
   },
   "next_live_bound": {
-    "budget_usd": "9.00",
+    "budget_usd": "8.00",
     "reserve_usd": "7.471104",
     "calls": 19,
     "enforcement": "Existing diagnostic wrapper now prevents call 20 before provider. Offline mock test allowed 19 and rejected twentieth with zero network calls. Product call counts unchanged.",
-    "prior_late_billing_reserve_usd": "0.40",
+    "prior_late_billing_reserve_usd": "0.60",
     "authority": "User 24-hour diagnosed retry approval within original USD 10 total; no release authority."
+  },
+  "live_attempt_04": {
+    "status": "stopped_after_diagnosed_flattened_request_failure",
+    "commit": "1ae26bfc74b912e4f8eab951a034125ee7a9d683",
+    "run": "/Users/zipp/Developer/tradingagents-integrity/evidence/shared-valuation-live-04",
+    "observed_cost_usd": "0.021439957",
+    "exit_code": -15,
+    "cause": "Model flattened request fields beside name; emitted EV and PE mixed methods. Parser correctly rejected both.",
+    "fix": "Concrete nested JSON shape example, strict single-method collection, explicit unavailable-EV conditions and no debt relabeling; unchanged parser/calculator. Checkpoint marker 4.",
+    "offline_diagnosis": "Wrapping the saved rows only yields partial support: PE computes 54.00; EV still rejected for missing obligation category. Not a live proof or repaired publication."
   }
 }

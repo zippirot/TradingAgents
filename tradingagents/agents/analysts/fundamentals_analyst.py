@@ -138,7 +138,10 @@ FINANCIAL_CLAIM_EXTRACTION = (
 
 SHARED_VALUATION_INPUTS = (
     " Optionally propose up to three justified valuation scenarios in exactly one named fence:"
-    "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having name and request."
+    "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having exactly name and request."
+    ' Structure example only (replace placeholders with supported inputs): [{"name":"Case A","request":{"method":"pe","eps_fact_id":"<exact annual EPS fact ID>","eps_basis":"diluted","accounting_basis":"US-GAAP","multiple":"<justified positive decimal>","multiple_rationale":"<explanation>"}}].'
+    " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
+    " All entries MUST use the same method; do not mix EV/revenue and P/E even as a secondary check."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
     " These calculations do not require a current stock price or return-to-price comparison."
     " Inspect the annual Revenue, Basic EPS and Diluted EPS facts in the evidence tool before declaring baselines missing."
@@ -157,6 +160,8 @@ SHARED_VALUATION_INPUTS = (
     " Borrowings must reference a sourced Total Borrowings fact, OR Short-term Borrowings together with"
     " Long-term Borrowings (including current), OR Short-term Borrowings plus both Current and Noncurrent Long-term Borrowings."
     " A long-term borrowing fact alone is insufficient; missing short-term borrowings must not be assumed zero."
+    " Do not relabel Long-term Borrowings as Total Borrowings. An incomplete debt perimeter cannot be made valid by a caveat."
+    " If the tool has neither Total Borrowings nor Short-term Borrowings, EV/revenue is unavailable: choose suitable P/E or []."
     " If this bridge cannot be sourced completely, use justified P/E assumptions if suitable, or omit scenarios."
     " Obligation categories must be complete for the perimeter: borrowings; add finance_equipment or separate"
     " finance_leases and equipment when included; add operating_leases for all_leases. Reference exact source fact IDs."
