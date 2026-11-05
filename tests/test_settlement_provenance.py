@@ -63,3 +63,21 @@ def test_live_entry_respects_actual_publication_in_instrument_timezone(monkeypat
     assert outcome['entry']['date'] == '2026-01-08'
     assert outcome['cutoff_date'] == '2026-01-07'
     assert outcome['publication_session_timezone'] == 'America/New_York'
+
+
+def test_current_partial_session_cannot_resolve_endpoint(monkeypatch):
+    prices(monkeypatch)
+    assert settlement.fetch_outcome('BTC-USD', '2026-01-03', 5,
+                                    prices_before='2026-01-09') is None
+    outcome = settlement.fetch_outcome('BTC-USD', '2026-01-03', 5,
+                                       prices_before='2026-01-10')
+    assert outcome['resolution_date'] == '2026-01-09'
+    assert outcome['prices_before'] == '2026-01-10'
+
+
+def test_visibility_cutoff_cannot_admit_future_exchange_bars(monkeypatch):
+    idx = pd.bdate_range('2099-01-05', periods=8, tz='America/New_York')
+    series = pd.Series([100. + i for i in range(8)], index=idx)
+    monkeypatch.setattr(settlement, 'get_closes', lambda *a: series)
+    assert settlement.fetch_outcome('DOCN', '2099-01-05', 5,
+                                    prices_before='2100-01-01') is None

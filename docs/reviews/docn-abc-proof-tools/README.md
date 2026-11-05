@@ -1,6 +1,7 @@
 # DOCN bounded live CLI proof runner
 
-The first paid attempt has **not** been run. The runner stores each attempt's
+Live attempt `live-01` is complete; current acceptance and spending are recorded
+in `../2026-11-04-docn-gap-closure-progress.md`. The runner stores each attempt's
 output under `results/docn-abc/<run-name>` (default `live-01`). Its shared cost
 ledger and process lock are at `results/docn-abc/cost_ledger.jsonl` and
 `results/docn-abc/runner.lock`, so different run names cannot bypass the budget.

@@ -196,3 +196,21 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
             _write(snapshot_path, snapshot)
         _write(path, record)
         return record
+
+
+def runtime_versions() -> dict:
+    """Fingerprint installed source, including prompts, without storing local paths.
+
+    Unlike a Git HEAD alone this also describes an uncommitted candidate or an
+    installed package. Call at invocation start and preserve through checkpoints.
+    """
+    package = Path(__file__).resolve().parents[1]
+    code, prompts = hashlib.sha256(), hashlib.sha256()
+    for path in sorted(package.rglob('*.py')):
+        relative = path.relative_to(package).as_posix()
+        entry = relative.encode() + b'\0' + path.read_bytes() + b'\0'
+        code.update(entry)
+        if relative.startswith('agents/'):
+            prompts.update(entry)
+    return {'code': 'sha256:' + code.hexdigest(),
+            'prompt': 'sha256:' + prompts.hexdigest(), 'schema': _SCHEMA}

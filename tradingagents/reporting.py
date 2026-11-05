@@ -34,7 +34,12 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
         lines.append(f"- Rating: {run_rating(final_state)}")
     if not final_state.get("evidence_quality"):
         lines.append("- Evidence: Legacy export — financial evidence unvalidated")
-    lines.append(f"- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    publication = final_state.get("publication_record")
+    if publication:
+        lines.append(f"- Decision ID: {publication['decision_id']}")
+        lines.append(f"- First published: {publication['published_at']}")
+    label = "Export generated" if publication else "Generated"
+    lines.append(f"- {label}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if settings:
         s = settings.get
         deep_provider = s("deep_think_provider") or s("llm_provider", "?")

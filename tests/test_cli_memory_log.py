@@ -19,7 +19,8 @@ from tradingagents.memory import TradingMemoryLog
 def _bare_graph(tmp_path):
     """A graph without __init__ (no LLM clients), wired to a temp log."""
     graph = object.__new__(TradingAgentsGraph)
-    graph.config = {"memory_log_path": str(tmp_path / "trading_memory.md")}
+    graph.config = {"memory_log_path": str(tmp_path / "trading_memory.md"), "results_dir": str(tmp_path / "results")}
+    graph.selected_analysts = ()
     graph.memory_log = TradingMemoryLog(graph.config)
     graph._log_state = lambda *a: None   # these tests are about the memory log
     return graph

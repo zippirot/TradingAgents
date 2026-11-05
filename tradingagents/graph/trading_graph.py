@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
@@ -16,7 +17,7 @@ from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
-from tradingagents.memory import TradingMemoryLog, settlement
+from tradingagents.memory import TradingMemoryLog, publication, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
 
@@ -305,13 +306,17 @@ class TradingAgentsGraph:
         memory log's lessons are not here: the graph's Memory Log step settles
         and loads them alongside the analysts (see ``_memory_step``).
         """
-        return self.propagator.create_initial_state(
+        state = self.propagator.create_initial_state(
             company_name,
             trade_date,
             asset_type=asset_type,
             instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
+
+        state["run_settings"] = self.run_settings()
+        state["publication_versions"] = publication.runtime_versions()
+        return state
 
     def _memory_step(self, state):
         """The graph's Memory Log step, alongside the analysts (#1428): settle every
@@ -367,6 +372,16 @@ class TradingAgentsGraph:
         """Record a finished run: its state log, and its decision in the memory log
         for reflection on the next same-ticker run. propagate() and the CLI both end here."""
         final_state.update(enforce_publication(final_state))
+        # Older programmatic callers have no invocation ID. Assign one on first
+        # publication now; never imply this was published at its requested date.
+        final_state.setdefault("run_id", str(uuid4()))
+        final_state.setdefault("run_settings", self.run_settings())
+        if "publication_versions" not in final_state:
+            final_state["publication_versions"] = publication.runtime_versions()
+        record = publication.publish(self.config, final_state, company_name, trade_date)
+        final_state["publication_record"] = {
+            key: record[key] for key in ("decision_id", "published_at", "record_sha256")
+        }
         self._log_state(trade_date, final_state)
         if is_review(run_rating(final_state)):
             logger.info("Research REVIEW for %s on %s saved without trading-memory insertion", company_name, trade_date)
@@ -475,10 +490,10 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
             "final_rating": run_rating(final_state),
-            "run_settings": self.run_settings(),
+            "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

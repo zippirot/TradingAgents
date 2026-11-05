@@ -234,7 +234,14 @@ def _group(name: str, values_html: str) -> str:
 
 def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, str]]:
     """The run details as (label, value HTML); every value from the run is escaped."""
-    details = [("Generated", escape(datetime.now().strftime("%Y-%m-%d %H:%M")))]
+    publication = final_state.get("publication_record")
+    label = "Export generated" if publication else "Generated"
+    details = [(label, escape(datetime.now().strftime("%Y-%m-%d %H:%M")))]
+    if publication:
+        details.extend([
+            ("Decision ID", escape(publication["decision_id"])),
+            ("First published", escape(publication["published_at"])),
+        ])
     if settings:
         s = settings.get
         for tier in ("deep", "quick"):

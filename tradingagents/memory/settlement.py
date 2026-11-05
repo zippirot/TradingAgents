@@ -79,7 +79,7 @@ def fetch_returns(
 
 def fetch_outcome(
     ticker: str, trade_date: str, holding_days: int = 5, benchmark: str = "SPY",
-    *, published_at: str | None = None,
+    *, published_at: str | None = None, prices_before: str | None = None,
 ) -> dict | None:
     """Return a reconstructable daily-close outcome, or None while pending.
 
@@ -117,9 +117,24 @@ def fetch_outcome(
         start = max(start, datetime.combine(publication_day, datetime.min.time()))
     stock = _by_day(stock_prices)
     stock = stock[stock.index > start]
+    if prices_before is not None:
+        before = datetime.strptime(prices_before, "%Y-%m-%d")
+        stock_timezone = getattr(stock_prices.index, "tz", None)
+        if stock_timezone is not None:
+            exchange_today = datetime.now(stock_timezone).date()
+            before = min(before, datetime.combine(exchange_today, datetime.min.time()))
+        stock = stock[stock.index < before]
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
-    bench = _by_day(get_closes(benchmark, bench_start, end_str))
+    benchmark_prices = get_closes(benchmark, bench_start, end_str)
+    bench = _by_day(benchmark_prices)
+    if prices_before is not None:
+        benchmark_before = datetime.strptime(prices_before, "%Y-%m-%d")
+        benchmark_timezone = getattr(benchmark_prices.index, "tz", None)
+        if benchmark_timezone is not None:
+            benchmark_today = datetime.now(benchmark_timezone).date()
+            benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
+        bench = bench[bench.index < benchmark_before]
 
     # Require the full holding window to have traded. A rerun before it has
     # leaves the entry pending to retry next run, rather than settling on a
@@ -147,6 +162,7 @@ def fetch_outcome(
         "ticker": normalize_symbol(ticker), "benchmark": normalize_symbol(benchmark),
         "cutoff_date": start.strftime("%Y-%m-%d"),
         "published_at": published_at,
+        "prices_before": prices_before,
         "publication_session_timezone": str(publication_timezone) if publication_timezone else None,
         "entry": {"date": entry.strftime("%Y-%m-%d"), "price": float(stock.iloc[0])},
         "exit": {"date": resolution_date, "price": float(stock.iloc[holding_days])},
@@ -170,6 +186,7 @@ def fetch_outcome(
 class Settlement:
     """What a settlement pass did: the decisions it settled and those it could not."""
 
+    endpoint_settled: list[tuple[str, str]] = field(default_factory=list)  # (decision_id, endpoint)
     settled: list[tuple[str, str]] = field(default_factory=list)  # (ticker, date)
     failed: list[tuple[str, str, str]] = field(default_factory=list)  # (ticker, date, reason)
 
@@ -187,6 +204,11 @@ def settle_pending(
     With ``wait=False`` a pass already running elsewhere is left to do the work.
     """
     result = Settlement()
+    if config.get("results_dir"):
+        from tradingagents.memory.publication_outcomes import settle_publications
+        endpoints = settle_publications(config, ticker, wait=wait)
+        result.endpoint_settled.extend(endpoints["settled"])
+        result.failed.extend((ticker, decision_id, reason) for decision_id, reason in endpoints["failed"])
     with memory_log.settling(wait=wait) as held:
         if not held:
             return result
@@ -200,8 +222,8 @@ def settle_pending(
         benchmark = resolve_benchmark(ticker, config)
         for entry in pending:
             try:
-                raw, alpha, days, resolution_date = fetch_returns(
-                    ticker,
+                raw, alpha, days, resolution_date, used_benchmark = _returns_for_entry(
+                    config, ticker,
                     entry["date"],
                     config.get("holding_period_days", 5),
                     benchmark=benchmark,
@@ -219,7 +241,7 @@ def settle_pending(
                     final_decision=entry.get("decision", ""),
                     raw_return=raw,
                     alpha_return=alpha,
-                    benchmark_name=benchmark,
+                    benchmark_name=used_benchmark,
                     holding_days=days,
                 )
             except Exception as exc:
@@ -235,6 +257,30 @@ def settle_pending(
     return result
 
 
+def _returns_for_entry(config, ticker, trade_date, holding_days, benchmark):
+    """New publications use their declared window; old memory remains readable."""
+    if config.get("results_dir"):
+        from tradingagents.memory.publication import list_records
+        from tradingagents.memory.publication_outcomes import load_outcomes
+        primary = next((r for r in list_records(config, ticker)
+                        if r["requested_as_of"] == trade_date and r["eligibility"]["primary"]), None)
+        if primary:
+            endpoint = load_outcomes(config, primary)["endpoints"].get(f"{holding_days}_sessions")
+            if endpoint is not None:
+                if endpoint["status"] != "resolved":
+                    return None, None, None, None, primary["benchmark"]
+                outcome = endpoint["outcome"]
+            else:
+                from tradingagents.dataflows.date_window import get_current_date
+                outcome = fetch_outcome(ticker, trade_date, holding_days, primary["benchmark"],
+                    published_at=primary["published_at"] if primary["evaluation_mode"] == "prospective" else None,
+                    prices_before=get_current_date())
+                if outcome is None:
+                    return None, None, None, None, primary["benchmark"]
+            return outcome["raw_return"], outcome["alpha_return"], holding_days, outcome["resolution_date"], primary["benchmark"]
+    return (*fetch_returns(ticker, trade_date, holding_days, benchmark=benchmark), benchmark)
+
+
 def settle_all_pending(memory_log, reflector, config: dict, wait: bool = True) -> Settlement:
     """Settle every ticker's pending decisions whose holding window has traded (#1445).
 
@@ -242,10 +288,13 @@ def settle_all_pending(memory_log, reflector, config: dict, wait: bool = True) -
     keep its decisions pending, and their lessons out of later runs.
     """
     result = Settlement()
-    for ticker in dict.fromkeys(
-        e["ticker"] for e in memory_log.get_pending_entries() if is_trading_entry(e)
-    ):
+    tickers = [e["ticker"] for e in memory_log.get_pending_entries() if is_trading_entry(e)]
+    if config.get("results_dir"):
+        from tradingagents.memory.publication import list_records
+        tickers.extend(r["ticker"] for r in list_records(config))
+    for ticker in dict.fromkeys(tickers):
         done = settle_pending(ticker, memory_log, reflector, config, wait=wait)
+        result.endpoint_settled.extend(done.endpoint_settled)
         result.settled.extend(done.settled)
         result.failed.extend(done.failed)
     return result

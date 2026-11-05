@@ -32,8 +32,10 @@ def test_quality_overrides_both_typed_rating_and_fallback():
     assert run_rating(fallback) == "REVIEW"
 
 
-def test_record_boundary_saves_review_but_never_inserts_trading_memory():
+def test_record_boundary_saves_review_but_never_inserts_trading_memory(tmp_path):
     graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.selected_analysts = ()
     saved, memory = [], []
     graph._log_state = lambda date, final: saved.append(dict(final))
     graph.memory_log = SimpleNamespace(store_decision=lambda **kwargs: memory.append(kwargs))
@@ -46,8 +48,10 @@ def test_record_boundary_saves_review_but_never_inserts_trading_memory():
     assert saved[0]["unvalidated_outputs"]["final_trade_decision"].endswith("Target $96")
 
 
-def test_unparseable_legacy_style_review_is_not_a_trading_memory_entry():
+def test_unparseable_legacy_style_review_is_not_a_trading_memory_entry(tmp_path):
     graph = object.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path)}
+    graph.selected_analysts = ()
     graph._log_state = lambda *args: None
     memory = []
     graph.memory_log = SimpleNamespace(store_decision=lambda **kwargs: memory.append(kwargs))

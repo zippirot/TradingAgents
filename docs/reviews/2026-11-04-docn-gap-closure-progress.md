@@ -210,3 +210,41 @@ available: entry October 20 at 99.4800033569336, exit October 27 at
 memory records the same window rounded to +6.9%. Publication time remains
 unknown. This is price-availability evidence, not the still-required integrated
 publication/restart/settlement proof or prospective performance evidence.
+
+## Early C graph and settlement integration
+
+`record_decision` now writes the immutable record before state/memory projections;
+its state log retains the decision ID, first-publication timestamp and record
+hash. Invocation settings and installed source/prompt fingerprints are captured
+at initialization and retained across checkpoints. Programmatic legacy states
+receive an ID and publication time only when actually published now. Markdown
+and HTML distinguish first publication from export generation, and repeated
+exports preserve identity.
+
+The existing graph settlement entry points scan publication records independently
+of pending prompt memory. Each endpoint persists atomically in a separate,
+hash-checked companion linked to its publication and thesis version. Resolved
+endpoints are retained without fetching again; later horizons remain pending.
+No model calls are added for these outcomes. The existing single reflection
+uses a new publication's resolved window and predeclared benchmark, while old
+memory without a publication continues through the compatible legacy path.
+Current or future exchange daily bars are excluded when settling new records;
+the host-date cutoff cannot admit a still-open session in a behind-host exchange.
+
+Observed red tests covered missing durable publication after a projection failure,
+missing publication identity in exports, and unfinished/future price visibility.
+The endpoint module also tests concurrent writers, interrupted writes, per-window
+provider failures, corruption and settlement after prompt memory becomes empty.
+The first full suite exposed five bare-graph fixtures without results/config or
+selected analysts. Those fixtures now supply normal persistence prerequisites;
+all original authority and memory assertions remain. The corrected full offline
+suite passed **1,904 tests, 100 subtests**, with one optional `langchain_aws` skip
+and one external-service deselection (20 warnings), in 13.57 seconds. Logs:
+`results/docn-abc/early-c/pytest-integration.log` (initial failures) and
+`results/docn-abc/early-c/pytest-integration-corrected.log` (passing run).
+Full Ruff, pip dependency check and diff checks passed.
+
+Early C is not accepted yet. Visible horizon summaries, explicit legacy import
+without fabricated publication metadata, and the required real CLI publication /
+process restart / historical settlement proof remain. No additional paid calls
+were made; one of seven live attempts remains used.

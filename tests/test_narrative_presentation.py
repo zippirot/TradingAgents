@@ -98,6 +98,8 @@ def test_displayed_research_cannot_enter_memory_even_if_presentation_is_passed_b
     state = narrative_state()
     shown = prepare_report_state(state)
     graph = TradingAgentsGraph.__new__(TradingAgentsGraph)
+    graph.config = {"results_dir": str(tmp_path / "results")}
+    graph.selected_analysts = ()
     graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
     logged = []
     graph._log_state = lambda date, value: logged.append(deepcopy(value))
