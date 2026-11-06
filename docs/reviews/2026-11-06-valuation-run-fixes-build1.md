@@ -1,6 +1,6 @@
 # Valuation run fixes: Build 1 checkpoint
 
-Authority: user Goal on 2026-11-06 plus Amendment 1. Build 1 only; Build 2, the comparison, publication and installation remain held. No paid attempt has started at this checkpoint.
+Authority: user Goal on 2026-11-06 plus Amendment 1. Build 1 only; Build 2, the comparison, publication and installation remain held. Pre-live implementation checkpoint below is retained; the post-proof outcome is recorded at the end.
 
 ## Isolation and governing inputs
 
@@ -58,3 +58,18 @@ Requests reserve conservative served-route input/output/cache costs before trans
 Proof, final candidate hashes/cost review and live observations remain pending in this checkpoint. No release acceptance or exact-head GitHub CI is claimed; those require authorized publication.
 
 Pre-live setup correction: query1 returned HTTP429; the standard query2 endpoint returned actual current metadata. Independent review caught the guard allowing only query1. It now accepts exactly the two official DOCN chart URLs with the same path/query, preserving the true receipt URL and every hash/time/close check. Regression: query2 failed before correction; both exact endpoints pass and wrong host/ticker remain rejected. This affects proof receipt validation only, not application runtime/source inputs; B3/Build1/CLI guard checks were rerun. No attempt had started. The original frozen commit remains in branch history; a new candidate includes this correction.
+
+
+## Actual proof outcome — incomplete, review required
+
+Frozen paid source candidate: `493083c71c4f2c7d64c888955f962d9237f4d0fa` (core implementation `0db69f881161b74f36ea669f581db9c96199d704`). The candidate remained clean and unchanged throughout the attempt. A subsequent documentation-only checkpoint does not establish a new live proof.
+
+Exactly one authorized CLI attempt ran after the actual November 6 US close: start `2026-11-06T21:55:15.523997+00:00`, finish `2026-11-06T22:01:30.308350+00:00`, close `21:00 UTC`. All four analysts ran at depth 1 with the approved Opus quick/Terra Pro deep configuration; preferences and launcher were not changed. Its report is `private/run-fixes-build1-live-proof/results/reports/DOCN_20261106_150129`. The completed canonical close is `72.4800033569336 USD`, session `2026-11-06`, retrieved after close. This is a live observation, not a fixture.
+
+The run correctly ended in **REVIEW**. Fundamentals Claim 0 labeled TTM revenue `reported`; the canonical source fact is `derived` through `four_quarter_sum_v1`. All four quarters sum to `1,102,671,000 USD`; value and dates matched but origin did not. Independent review confirmed the rejection: 29 claims were accepted; correcting that label only in an explicitly diagnostic in-memory copy yielded 30 accepted. No saved live output was changed, and no validator relaxation or speculative prompt change was made. Audit and Portfolio Manager were correctly bypassed. Therefore live audit, horizon, Sell, PM dispositions and downstream publication observations remain missing. Offline checks do not replace them. The required positive proof is incomplete.
+
+The CLI saved the REVIEW/no-action report; the proof wrapper recorded failed status and wrote no success receipt. Ten requests were reserved; nine have settled charges totaling **$1.895472**. One HTTP 400 has an unknown reservation of **$1.486000**, retained unchanged: committed exposure **$3.381472**. One free post-run key-usage read matched the settled total exactly but is aggregate evidence, not an individual billing receipt. No cost was assumed zero. See `evidence/run-fixes-build1-cost-reconciliation.json`.
+
+The Build 1 attempt is consumed. Remaining dollar headroom does not authorize a rerun. The second attempt is reserved for separately authorized Build 2, which remains held. No additional paid call or CLI attempt will run without explicit new/reallocated authority. Build 2, comparison, publication, installation and all release actions remain held. Exact-head GitHub CI is pending authorized publication.
+
+Verification after the original offline inventory: the exact endpoint receipt guard regression failed before correction, then 95 focused guard/CLI/audit checks passed; full Ruff and diff checks passed. Other full-run results and the 65-case fixture correction are reused with the source/dependency/configuration/impact reasoning in `evidence/combined-verification.json`. This remains combined evidence, not one full passing run on this revision. Final live diagnosis/review/artifact records are private sidecars; source inputs and old ledgers remain preserved.
