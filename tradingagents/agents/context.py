@@ -256,6 +256,20 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             package = candidate
     except (ValueError, TypeError):
         pass
+    # Only the Source Acquisition record existed before analyst fan-out. Later
+    # gate/auditor context must never be presented as evidence analysts had.
+    comparison = None
+    if package is not None and acquisition.get("status") == "ready" and acquisition.get("rpo_comparison") is not None:
+        from tradingagents.agents.kpi_comparisons import replay_rpo_comparison
+
+        comparison = replay_rpo_comparison(acquisition["rpo_comparison"], cik=package.cik, as_of=package.as_of)
+    if comparison is not None and comparison["status"] == "pass":
+        lines.append(comparison["text"])
+        for role, source in comparison["sources"].items():
+            lines.append(f"{role.capitalize()} RPO source: {source['source_id']}; {source['fact']['locator']}; "
+                         f"filed {source['known_at']}; {source['url']}")
+    else:
+        lines.append("KPI comparison unavailable before analyst reasoning; missing comparisons are not zero.")
     if package is None:
         lines.append("Financial source facts unavailable or source integrity not established; do not infer missing values.")
     else:

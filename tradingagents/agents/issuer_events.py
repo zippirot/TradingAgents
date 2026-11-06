@@ -1,6 +1,8 @@
 """Bounded tool coverage and issuer-event metadata; no new retrieval or model calls."""
 import hashlib
-from datetime import date
+import re
+from datetime import date, datetime
+from decimal import Decimal
 from urllib.parse import urlsplit
 
 from langchain_core.messages import ToolMessage
@@ -36,11 +38,12 @@ def news_tool_coverage(messages) -> dict:
 def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted_source_ids=()) -> dict:
     """Describe eligible already-retrieved 8-K events separately from news.
 
-    Only filing metadata is described here. A document's retrieval never
-    validates its numeric claims or turns it into independent reporting.
+    Filing metadata and narrowly recognized authorization records are separate.
+    Retrieval alone never validates other claims or creates independent reporting.
     """
     coverage = {**news_tool_coverage([]), **coverage}
     events = []
+    financing = []
     cutoff = date.fromisoformat(str(as_of))
     if package is not None:
         package = DisclosurePackage.model_validate(package)
@@ -61,11 +64,13 @@ def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted
                     continue
                 if not document.blocks:
                     continue
+                financing.extend(_financing_records(document, cutoff))
                 events.append({'source_id': document.source_id, 'url': document.url,
                                'content_hash': document.content_hash, 'known_at': str(filing.filed_date),
                                'report_date': str(filing.report_date) if filing.report_date else None,
                                'form': filing.form, 'items': filing.items,
-                               'accepted_values_available': document.source_id in accepted_source_ids,
+                               'accepted_values_available': (document.source_id in accepted_source_ids
+                                   or any(r['source_id'] == document.source_id for r in financing)),
                                'coverage_gaps': list(document.gaps),
                                'truncated': any(block.truncated for block in document.blocks)})
     events = sorted(events, key=lambda e: (e['known_at'], e['url']))[-6:]
@@ -88,4 +93,58 @@ def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted
             lines.append('No eligible issuer-event document is available; no substitute figures inferred.')
         lines.append('Consensus: not retrieved. Optional macro: ' + coverage['optional_macro']['status'] + '.')
         text = '\n'.join(lines)
-    return {'coverage': coverage, 'events': events, 'text': text}
+    financing_text = '\n'.join(
+        f"- Financing authorization: at-the-market share-sale program; agreement date {r['event_date']}; "
+        f"up to {r['authorized_amount']} "
+        + (f"{r['currency']} (explicit source denomination). " if r['currency']
+           else "source $; denomination unknown. ")
+        + "Authorized capacity does not establish issuance; remaining capacity and actual issuance are unknown. "
+        f"Source: {r['url']}, {r['locator']}; filed {r['known_at']}; hash {r['content_hash']}. "
+        f"Complete source statement: {r['quote']}"
+        for r in financing
+    )
+    return {'coverage': coverage, 'events': events, 'text': text,
+            'financing_records': financing, 'financing_text': financing_text}
+
+
+def _financing_records(document, cutoff):
+    """Recognize only an explicit dated ATM authorization, never usage or dilution.
+
+    A dollar symbol alone does not establish denomination. Only an explicit
+    local agreement-currency statement can populate currency; retain its source.
+    No FX conversion or model interpretation enters the complete paragraph.
+    """
+    records = []
+    for block in document.blocks:
+        text = block.text
+        if block.truncated or not re.search(r'“?at-the-market”?[”"]? offering program', text, re.I):
+            continue
+        event = re.match(r'On ([A-Z][a-z]+ \d{1,2}, \d{4}), the Company entered into an equity distribution agreement\b', text)
+        amounts = list(re.finditer(r'aggregate offering price of up to \$(\d+(?:\.\d+)?) (million|billion)\b', text, re.I))
+        if not event or len(amounts) != 1 or not re.search(r'\bto sell shares of common stock\b', text, re.I):
+            continue
+        try:
+            day = datetime.strptime(event[1], '%B %d, %Y').date()
+        except ValueError:
+            continue
+        if day > cutoff or day > document.filing.filed_date:
+            continue
+        amount = Decimal(amounts[0][1]) * (Decimal(10) ** (9 if amounts[0][2].lower() == 'billion' else 6))
+        if amount <= 0:
+            continue
+        denominations = list(re.finditer(
+            r'All dollar amounts in this agreement are in (U\.S\. dollars|Canadian dollars|Australian dollars)\.', text))
+        currency, currency_source = None, None
+        if len(denominations) == 1:
+            denomination = denominations[0]
+            currency = {'U.S. dollars': 'USD', 'Canadian dollars': 'CAD',
+                        'Australian dollars': 'AUD'}[denomination[1]]
+            currency_source = {'source_id': document.source_id, 'locator': block.locator,
+                               'quote': denomination[0]}
+        records.append({'type': 'at_the_market_program', 'event_date': str(day),
+            'authorized_amount': str(amount), 'source_unit': '$', 'currency': currency,
+            'currency_source': currency_source, 'amount_comparator': 'up_to',
+            'issuance': None, 'remaining_capacity': None, 'source_id': document.source_id,
+            'url': document.url, 'content_hash': document.content_hash, 'locator': block.locator,
+            'known_at': str(document.filing.filed_date), 'quote': text})
+    return records

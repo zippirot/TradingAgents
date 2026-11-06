@@ -43,6 +43,10 @@ STRUCTURED = {
         overall_band=schemas.SentimentBand.NEUTRAL, overall_score=5.0, confidence="low", narrative="n"),
 }
 
+STRUCTURED[schemas.RequiredHorizonPortfolioDecision] = schemas.RequiredHorizonPortfolioDecision(
+    **{**STRUCTURED[schemas.PortfolioDecision].model_dump(), "time_horizon": "3–6 months"}
+)
+
 ARGS = {"symbol": "NVDA", "ticker": "NVDA", "curr_date": TRADE_DATE, "start_date": "2026-01-02",
         "end_date": TRADE_DATE, "indicator": "rsi", "topic": "Fed rate cut", "freq": "quarterly"}
 

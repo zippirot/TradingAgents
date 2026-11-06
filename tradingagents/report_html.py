@@ -19,6 +19,7 @@ from tradingagents.reporting import (
     analyst_names,
     evidence_appendix,
     prepare_report_state,
+    render_token_usage,
 )
 
 # Ratings by direction, so the page can show which way the call leans.
@@ -354,6 +355,7 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
 <main>
 {"".join(body)}
 </main>
+<p class="credit">{escape(render_token_usage(final_state.get("run_metrics")))}</p>
 <footer class="credit"><a href="{_PROJECT}" rel="noopener">TradingAgents</a> powered by <a class="brand" href="{_ORG}" rel="noopener">Tauric Research</a></footer>
 </div>
 <a class="to-top" href="#top">Top</a>

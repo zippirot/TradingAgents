@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from tradingagents.agents.audit_pass import render_advisory_audit
+from tradingagents.agents.audit_pass import prepare_audit_dispositions, render_advisory_audit
 from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.evidence_presentation import (
     analyst_prose,
@@ -22,6 +22,18 @@ from tradingagents.agents.rating import run_rating
 from tradingagents.agents.schemas import label_legacy_trader_price
 from tradingagents.agents.valuation_comparison import display_number
 from tradingagents.dataflows.files import replace_file
+
+
+def render_token_usage(metrics: dict | None) -> str:
+    """One bounded usage footer; counts are observations, never billing estimates."""
+    data = metrics if isinstance(metrics, dict) else {}
+    values = [data.get("input_tokens"), data.get("output_tokens")]
+    scope = data.get("token_usage_scope")
+    if scope not in {"complete_observed", "partial_observed"} or any(type(v) is not int or v < 0 for v in values):
+        return "Token usage: unavailable (usage was not recorded completely enough to total)."
+    label = "complete observed" if scope == "complete_observed" else "partial observed"
+    return (f"Token usage: {values[0]:,} input / {values[1]:,} output ({label}). "
+            "Provider-internal retries may not report usage; these counts are not a billing total.")
 
 
 def analyst_names(keys) -> list[str]:
@@ -304,6 +316,16 @@ def evidence_appendix(final_state: dict) -> str:
     ]
     if quality.get("scope") == "legacy export":
         lines += ["Legacy export — financial evidence unvalidated.", ""]
+    disclosure = final_state.get("disclosure_evidence")
+    counts = disclosure.get("submission_counts") if isinstance(disclosure, dict) else None
+    if isinstance(counts, dict):
+        def count(key):
+            value = counts.get(key)
+            return str(value) if type(value) is int and value >= 0 else "unavailable"
+        lines += ["#### Disclosure extraction",
+                  f"Model submissions: {count('model_accepted')} accepted, {count('model_rejected')} rejected.",
+                  f"Deterministic discovery: {count('deterministic_accepted')} accepted, {count('deterministic_rejected')} rejected.",
+                  "Accepted sets may overlap; raw rejected records and source locators remain in evidence.json.", ""]
     checks = quality.get("checks") or []
     if checks:
         lines += ["#### Evidence checks", "", "Check | Status | Finding", "--- | --- | ---"]
@@ -348,7 +370,8 @@ def evidence_appendix(final_state: dict) -> str:
     if references:
         lines += ["", references]
     if "advisory_audit" in final_state:
-        lines += ["", render_advisory_audit(final_state["advisory_audit"])]
+        lines += ["", render_advisory_audit(final_state["advisory_audit"],
+                                            dispositions=prepare_audit_dispositions(final_state))]
     if final_state.get("outcome_summary"):
         lines += ["", final_state["outcome_summary"]]
     return "\n".join(lines).strip()
@@ -435,7 +458,8 @@ def write_report_tree(
         sections.append(f"## {heading}\n\n{content}")
 
     (save_path / "complete_report.md").write_text(
-        _header(ticker, final_state, settings) + "\n\n".join(sections), encoding="utf-8"
+        _header(ticker, final_state, settings) + "\n\n".join(sections)
+        + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n", encoding="utf-8"
     )
     if html:
         from tradingagents.report_html import render_report

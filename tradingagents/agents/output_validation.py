@@ -4,7 +4,11 @@ from copy import deepcopy
 
 from pydantic import ValidationError
 
-from tradingagents.agents.decision_context import prepare_decision_context, render_decision_context
+from tradingagents.agents.decision_context import (
+    horizon_incomplete,
+    prepare_decision_context,
+    render_decision_context,
+)
 from tradingagents.agents.evidence_presentation import readable_evidence
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
@@ -164,6 +168,8 @@ def enforce_publication(state: dict) -> dict:
             status="unsupported",
             reasons=("Canonical financial evidence unavailable; target omitted.",),
         )
+    if horizon_incomplete(state):
+        target = TargetResult(status="unsupported", reasons=("Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.",))
     updates["target_validation"] = {**target.model_dump(mode="json"), "request": request}
     comparison = compare_valuation(state, target, request)
     updates["valuation_price_comparison"] = comparison

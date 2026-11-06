@@ -103,6 +103,9 @@ class TradingAgentsGraph:
         extra = {"callbacks": self.callbacks} if self.callbacks else {}
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
+        self.audit_llm = create_tier_client(
+            {**self.config, "llm_max_retries": 0}, "deep", **extra
+        ).get_llm()
 
         self.memory_log = TradingMemoryLog(self.config)
 
@@ -127,6 +130,8 @@ class TradingAgentsGraph:
             quick_model_id=str(self.config.get("quick_think_llm")),
             deep_model_id=str(self.config.get("deep_think_llm")),
             metrics_observer=self._observe_run_metrics,
+            audit_llm=self.audit_llm,
+            audit_sdk_retries_disabled=True,
         )
 
         self.propagator = Propagator(
@@ -151,14 +156,68 @@ class TradingAgentsGraph:
         except (AttributeError, TypeError, ValueError):
             return None
 
+    def _token_snapshot(self):
+        """Read observed usage only; missing callback metadata is not zero."""
+        try:
+            stats = self._metrics_callback.get_stats()
+        except (AttributeError, TypeError, ValueError):
+            return None
+        keys = ("tokens_in", "tokens_out", "token_usage_calls", "llm_calls")
+        if any(type(stats.get(key)) is not int or stats[key] < 0 for key in keys):
+            return None
+        return {key: stats[key] for key in keys}
+
+    def _observe_token_metrics(self, previous):
+        current = self._token_snapshot()
+        baseline = previous.get("token_callback_baseline")
+        same = previous.get("token_observer_id") == self._metrics_observer_id
+        if not same:
+            baseline = getattr(self, "_tokens_start", None)
+        empty = {"input_tokens": None, "output_tokens": None, "token_usage_scope": "unavailable"}
+        if current is None or not isinstance(baseline, dict):
+            return empty
+        if any(type(baseline.get(k)) is not int or current[k] < baseline[k] for k in current):
+            return empty
+        delta = {k: current[k] - baseline[k] for k in current}
+        fields = {"input_tokens": "tokens_in", "output_tokens": "tokens_out",
+                  "token_usage_observed_calls": "token_usage_calls",
+                  "token_usage_started_calls": "llm_calls"}
+        offset = previous.get("token_observer_offset", {}) if same else previous
+        offset = offset if isinstance(offset, dict) else {}
+        totals = {field: (offset.get(field) if type(offset.get(field)) is int and offset[field] >= 0 else 0) + delta[key]
+                  for field, key in fields.items()}
+        observed, started = totals["token_usage_observed_calls"], totals["token_usage_started_calls"]
+        partial = not same or previous.get("token_usage_scope") == "partial_observed" or observed != started
+        scope = "partial_observed" if partial else "complete_observed"
+        if not observed and started:
+            scope = "unavailable"
+            totals.update(input_tokens=None, output_tokens=None)
+        if not observed and not same and previous.get("token_usage_scope") in (None, "unavailable"):
+            scope = "unavailable"
+            totals.update(input_tokens=None, output_tokens=None)
+        new_offset = ({field: previous.get(field) for field in fields} if not same else offset)
+        return {**totals, "token_usage_scope": scope,
+                "token_observer_id": self._metrics_observer_id,
+                "token_observer_offset": new_offset,
+                "token_callback_baseline": baseline,
+                "token_usage_limits": ["Observed callback usage; provider-internal retry usage may be unreported."]}
+
     def _initial_run_metrics(self):
         self._metrics_start = self._callback_calls()
+        self._tokens_start = self._token_snapshot()
         return {
             "model_calls": 0 if self._metrics_start is not None else None,
             "model_call_scope": "complete_observed" if self._metrics_start is not None else "unavailable",
             "observer_id": self._metrics_observer_id,
             "observer_offset": 0,
             "callback_baseline": self._metrics_start,
+            "token_observer_id": self._metrics_observer_id,
+            "token_callback_baseline": self._tokens_start,
+            "token_observer_offset": {},
+            "input_tokens": 0 if self._tokens_start is not None else None,
+            "output_tokens": 0 if self._tokens_start is not None else None,
+            "token_usage_scope": "complete_observed" if self._tokens_start is not None else "unavailable",
+            "token_usage_observed_calls": 0, "token_usage_started_calls": 0,
             "research_rounds_completed": 0, "risk_rounds_completed": 0,
             "research_turns": 0, "risk_turns": 0,
             "research_debate_characters": 0, "risk_debate_characters": 0,
@@ -208,6 +267,7 @@ class TradingAgentsGraph:
                           model_call_scope="partial_observed", observer_id=self._metrics_observer_id,
                           observer_offset=prior if type(prior) is int else 0,
                           callback_baseline=self._metrics_start)
+        result.update(self._observe_token_metrics(previous))
         return result
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
@@ -270,11 +330,15 @@ class TradingAgentsGraph:
             "mechanical_valuation_grid=2",
             "mechanical_shared_context=1",
             f"peer_pins={peer_selection_fingerprint(self.config)}",
-            "decision_context=2",
+            "decision_context=3",
             "evidence_presentation=1",
             "publication_record=3",
             "analysis_cutoff=2",
-            "advisory_audit=3",
+            "advisory_audit=5",
+            "run_metrics=2",
+            "financing_evidence=1",
+            "shared_source_brief=2",
+            "audit_dispositions=1",
             f"settings={digest}",
         ])
 

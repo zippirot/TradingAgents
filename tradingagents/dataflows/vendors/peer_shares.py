@@ -83,7 +83,8 @@ def replay_peer_cover_shares(raw: dict, cik: str, as_of: str, completed_cutoff: 
                 raise ValueError("Peer cover class dimensions are ambiguous")
             value = unescape(members[0].split(">", 1)[1].rsplit("<", 1)[0]).strip()
             if value not in {"us-gaap:CommonClassAMember", "us-gaap:CommonClassBMember"}:
-                raise ValueError("Unsupported peer common-share class")
+                raise ValueError(f"Unsupported peer common-share class {value[:160]!r}; "
+                                 "complete class set and equivalent economic rights are not established")
             member = "A" if value.endswith("AMember") else "B"
         elif re.search(r"<(?:xbrli:(?:segment|scenario)|xbrldi:)", context):
             raise ValueError("Unsupported peer cover dimensional context")
