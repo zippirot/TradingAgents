@@ -84,6 +84,9 @@ def test_all_actual_analyst_factories_consume_identical_brief(monkeypatch, role)
     assert brief in system and "UNBOUNDED_CONTEXT" not in system
     assert state["evidence_acquisition"]["rpo_comparison"]["text"] in system
     assert "does not establish the cause of the change" in system
+    if role == "fundamentals":
+        assert "kind must exactly match the canonical fact's origin" in system
+        assert "four-quarter TTM sum" in system and "kind=derived" in system
     if role == "news":
         assert "issuer disclosure" in system and "independent news coverage" in system
     if role == "social":

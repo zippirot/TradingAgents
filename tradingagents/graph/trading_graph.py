@@ -338,6 +338,7 @@ class TradingAgentsGraph:
             "run_metrics=2",
             "financing_evidence=1",
             "shared_source_brief=2",
+            "financial_claim_prompt=1",
             "audit_dispositions=1",
             f"settings={digest}",
         ])

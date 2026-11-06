@@ -131,7 +131,9 @@ FINANCIAL_CLAIM_EXTRACTION = (
     ' Required block format (replace the placeholder with a JSON list of records):\n```financial_claims\n[...]\n```\n Use the named opening fence shown above, never a generic json fence; the named extraction blocks have different schemas.'
     " Include exactly one fenced financial_claims JSON list in your final report, at most 32 entries."
     " For each material statement-fact claim include kind (reported or derived), fact_id, metric, value (exact decimal string), unit, period_start (date or null), period_end."
-    " Copy these fields from get_financial_evidence; do not substitute labels, guessed amounts, periods or units."
+    " Copy these fields from the canonical fact records in the shared source brief or get_financial_evidence; do not substitute labels, guessed amounts, periods or units."
+    " The claim's kind must exactly match the canonical fact's origin: reported or derived."
+    " A four-quarter TTM sum whose origin is derived must use kind=derived, even when its quarter inputs are reported."
     " Include the core balance-sheet, equity movement, borrowing/lease/cash and cash-flow facts used in your conclusions."
     " A transaction explanation not established by those facts must be a separate object with kind=hypothesis and text; hypotheses are not verified evidence."
     " Never infer a transaction from a residual. If structured source evidence is unavailable, emit an empty list and explain the limitation."

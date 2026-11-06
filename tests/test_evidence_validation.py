@@ -105,6 +105,12 @@ def test_claim_prompt_requires_exact_source_references():
 
     for field in ("financial_claims", "fact_id", "period_start", "period_end", "hypothesis", "32"):
         assert field in FINANCIAL_CLAIM_EXTRACTION
+    # Canonical TTM facts can be in the shared brief rather than the raw tool.
+    # The claim schema calls source `origin` by a different field name, `kind`.
+    assert "kind must exactly match the canonical fact's origin" in FINANCIAL_CLAIM_EXTRACTION
+    assert "shared source brief" in FINANCIAL_CLAIM_EXTRACTION
+    assert "TTM" in FINANCIAL_CLAIM_EXTRACTION
+    assert "quarter inputs are reported" in FINANCIAL_CLAIM_EXTRACTION
 
 
 def test_derived_lineage_recomputes_value_and_rejects_cycles():
