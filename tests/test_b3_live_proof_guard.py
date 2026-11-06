@@ -363,4 +363,3 @@ def test_harness_failure_restores_full_environment_and_imported_defaults(tmp_pat
     assert dict(os.environ) == before_environment
     assert default_config.DEFAULT_CONFIG is before_defaults
     assert selections.DEFAULT_CONFIG is before_cli_defaults
-
