@@ -365,7 +365,7 @@ def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = 
     return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")
 
 
-def get_financial_evidence(ticker: str, as_of_date: str):
+def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definitions: bool = False):
     """Bounded exact SEC facts, retaining the source fragment for each value.
 
     This path never substitutes undated vendor snapshots for filed evidence.
@@ -378,6 +378,16 @@ def get_financial_evidence(ticker: str, as_of_date: str):
         add_period_calculations,
     )
 
+    # The broader reported-revenue definition is permitted only for peer
+    # diagnostics, where its tag and comparability limitation are displayed.
+    # Subject/history/target callers keep their existing definition contract.
+    statements = _STATEMENTS
+    if peer_revenue_definitions:
+        statements = {
+            kind: [(metric, tags + ("RevenueFromContractWithCustomerIncludingAssessedTax",)
+                    if metric == "Revenue" else tags) for metric, tags in rows]
+            for kind, rows in _STATEMENTS.items()
+        }
     cutoff = date.fromisoformat(as_of_date)
     cik = cik_for(ticker)
     if cik is None:
@@ -396,7 +406,7 @@ def get_financial_evidence(ticker: str, as_of_date: str):
     # outside this explicitly discarded history cannot invalidate current facts;
     # every selected period still goes through the same strict resolver.
     quarterly_ends, annual_ends = set(), set()
-    for rows in _STATEMENTS.values():
+    for rows in statements.values():
         for _, tags in rows:
             for tag in tags:
                 quarterly_ends.update(key[0] for key in _eligible_records(
@@ -406,7 +416,7 @@ def get_financial_evidence(ticker: str, as_of_date: str):
     allowed_quarters = set(sorted(quarterly_ends)[-12:])
     allowed_annual = set(sorted(annual_ends)[-5:])
     selected = {}
-    for rows in _STATEMENTS.values():
+    for rows in statements.values():
         for metric, tags in rows:
             quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
                                      allowed_ends=allowed_quarters)

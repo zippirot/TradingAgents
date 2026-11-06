@@ -45,6 +45,7 @@ def create_fundamentals_analyst(llm):
             + FINANCIAL_CLAIM_EXTRACTION
             + DISCLOSURE_EXTRACTION
             + SHARED_VALUATION_INPUTS
+            + PEER_PROPOSAL
             + EVIDENCE_DISCIPLINE
             + get_language_instruction()
         )
@@ -177,4 +178,17 @@ SHARED_VALUATION_INPUTS = (
     " Grounded management-outlook IDs are not available here: do not manufacture them or self-certify guidance."
     " Keep management statements distinct from your assumptions. Source facts, not these proposals, determine"
     " whether the calculator can produce a price. Do not put calculated prices into the request."
+)
+
+
+PEER_PROPOSAL = (
+    " Include exactly one named peers block with a JSON list of at most five objects having exactly ticker and reason. "
+    "Use a one-line reason (at most 300 characters) explaining the business comparison; [] is valid. "
+    "Example structure only: " + chr(96)*3 + "peers\n[]\n" + chr(96)*3 + ". "
+    "The shared valuation reference states the default set and any user-pinned override. User pins, including an empty set, are authoritative; do not replace them. "
+    "For an unpinned set, retain suitable default peers or propose justified changes. Do not select the subject itself or duplicates. "
+    "Only cite numerical peer statistics already in the shared default table. Newly proposed peers are fetched and validated after your report; they apply from the debate onward. "
+    "On a first run with no default peers, use own history and guidance for this report and disclose that new peers apply from the debate onward. "
+    "Peer selection reasons are model judgments; data checks do not establish business comparability. Do not invent peer values, fiscal periods, or consensus. "
+    "For nonstock or unavailable US financial evidence, emit [] and explain the scope limit. "
 )

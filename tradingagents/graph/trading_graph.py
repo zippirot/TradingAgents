@@ -90,6 +90,10 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self._metrics_observer_id = str(uuid4())
+        self._metrics_callback = next((item for item in self.callbacks
+                                       if callable(getattr(item, "get_stats", None))), None)
+        self._metrics_start = self._callback_calls()
 
         set_config(self.config)
 
@@ -106,8 +110,9 @@ class TradingAgentsGraph:
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
         )
-        # An analyst takes two graph steps per tool round, plus its first turn
-        # and its wrap-up; a limit past the recursion limit would end the run
+        # An analyst takes two steps per tool round, plus wrap-up and the
+        # retained-tool-input finish step; the recursion limit must exceed that.
+        # A tool budget past this boundary would end the run
         # there instead.
         max_tool_rounds, max_recur_limit = self.config["max_tool_rounds"], self.config["max_recur_limit"]
         if 2 * max_tool_rounds + 2 >= max_recur_limit:
@@ -119,6 +124,9 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.conditional_logic,
             max_tool_rounds,
+            quick_model_id=str(self.config.get("quick_think_llm")),
+            deep_model_id=str(self.config.get("deep_think_llm")),
+            metrics_observer=self._observe_run_metrics,
         )
 
         self.propagator = Propagator(
@@ -134,6 +142,73 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
+
+    def _callback_calls(self):
+        """Read model starts observed by the existing CLI callback, if present."""
+        try:
+            value = self._metrics_callback.get_stats().get("llm_calls")
+            return value if type(value) is int and value >= 0 else None
+        except (AttributeError, TypeError, ValueError):
+            return None
+
+    def _initial_run_metrics(self):
+        self._metrics_start = self._callback_calls()
+        return {
+            "model_calls": 0 if self._metrics_start is not None else None,
+            "model_call_scope": "complete_observed" if self._metrics_start is not None else "unavailable",
+            "observer_id": self._metrics_observer_id,
+            "observer_offset": 0,
+            "callback_baseline": self._metrics_start,
+            "research_rounds_completed": 0, "risk_rounds_completed": 0,
+            "research_turns": 0, "risk_turns": 0,
+            "research_debate_characters": 0, "risk_debate_characters": 0,
+        }
+
+    def _observe_run_metrics(self, state):
+        """Count completed debate turns and callback model starts across checkpoints.
+
+        A restarted process has a new callback; keep prior observed starts but
+        mark coverage partial if calls before the last checkpoint are unknown.
+        Provider-level retries are not visible in this callback count.
+        """
+        previous = dict(state.get("run_metrics") or {})
+        # Publication replaces debate prose with diagnostic placeholders. The
+        # original histories remain authoritative for measuring actual debate.
+        originals = state.get("unvalidated_outputs") or {}
+        originals = originals if isinstance(originals, dict) else {}
+        research = originals.get("investment_debate_state")
+        risk = originals.get("risk_debate_state")
+        research = research if isinstance(research, dict) else state.get("investment_debate_state") or {}
+        risk = risk if isinstance(risk, dict) else state.get("risk_debate_state") or {}
+        research_turns = max(0, research.get("count", 0)) if type(research.get("count")) is int else 0
+        risk_turns = max(0, risk.get("count", 0)) if type(risk.get("count")) is int else 0
+        result = {
+            **previous,
+            "research_turns": research_turns, "risk_turns": risk_turns,
+            "research_rounds_completed": research_turns // 2,
+            "risk_rounds_completed": risk_turns // 3,
+            "research_debate_characters": len(research.get("history") or ""),
+            "risk_debate_characters": len(risk.get("history") or ""),
+        }
+        current = self._callback_calls()
+        if current is None or self._metrics_start is None:
+            result.update(model_calls=None, model_call_scope="unavailable")
+        elif previous.get("observer_id") == self._metrics_observer_id:
+            baseline = previous.get("callback_baseline")
+            if type(baseline) is int and current >= baseline:
+                offset = previous.get("observer_offset", 0)
+                result.update(model_calls=offset + current-baseline,
+                              model_call_scope=("partial_observed" if previous.get("model_call_scope") == "partial_observed"
+                                                else "complete_observed"))
+            else:
+                result.update(model_calls=None, model_call_scope="unavailable")
+        else:
+            prior = previous.get("model_calls")
+            result.update(model_calls=(prior if type(prior) is int else 0) + max(0, current-self._metrics_start),
+                          model_call_scope="partial_observed", observer_id=self._metrics_observer_id,
+                          observer_offset=prior if type(prior) is int else 0,
+                          callback_baseline=self._metrics_start)
+        return result
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
                                    trade_date: str | None = None) -> str:
@@ -165,6 +240,8 @@ class TradingAgentsGraph:
         resume must not carry reports that other settings produced. Only where
         the run keeps its files and how it retries are left out.
         """
+        from tradingagents.agents.valuation_reference_flow import peer_selection_fingerprint
+
         settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
         digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
         return "|".join([
@@ -186,13 +263,16 @@ class TradingAgentsGraph:
             "publication=1",
             "shared_valuation=6",
             "advisory_thesis=2",
-            "price_observation=2",
-            "completed_market_inputs=1",
-            "event_comparison=1",
+            "price_observation=3",
+            "completed_market_inputs=2",
+            "event_comparison=2",
+            "valuation_reference=2",
+            f"peer_pins={peer_selection_fingerprint(self.config)}",
             "decision_context=1",
             "evidence_presentation=1",
             "publication_record=3",
             "analysis_cutoff=2",
+            "advisory_audit=2",
             f"settings={digest}",
         ])
 
@@ -347,6 +427,7 @@ class TradingAgentsGraph:
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
+        state["run_metrics"] = self._initial_run_metrics()
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
@@ -607,7 +688,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("analysis_clock", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

@@ -122,7 +122,7 @@ def compare_valuation(state: dict, result: TargetResult, request) -> dict:
                 'rerating_assumption': result.rerating_assumption, 'horizon_note': note,
                 'weight_rationale': result.weight_rationale,
                 'price': {k: quote[k] for k in ('close', 'currency', 'session_date', 'session_status',
-                                                'adjustment_basis', 'source_id', 'url', 'content_hash')},
+                                                'adjustment_basis', 'source_id', 'url', 'content_hash', 'price_fallback') if k in quote},
                 'assumptions': list(result.assumptions),
                 'limitations': ['Conditional price differences are not expected returns or calibrated probabilities.',
                                 'No discounting applied; future financial periods remain distinct from decision dates.']}
@@ -163,6 +163,11 @@ def render_valuation_comparison(record: dict) -> str:
               f"Decision date: {_cell(record.get('decision_date') or 'not specified')}; rerating assumption: {_cell(record.get('rerating_assumption') or 'not supplied')}.", '',
               'Scenario | Financial period | Capital date | Multiple assumption date | Conditional price | Conditional difference % | Price implies',
               '--- | --- | --- | --- | ---: | ---: | ---']
+    if record.get('price', {}).get('price_fallback'):
+        fallback = record['price']['price_fallback']
+        lines.insert(2, "Price fallback: " + _cell(fallback['reason']) + "; latest completed session " +
+                     _cell(fallback['latest_completed_session_date']) + "; selected " +
+                     _cell(fallback['selected_session_date']) + ".")
     for row in record['rows']:
         implied = (f"EV/revenue {_number(row['implied_multiple'])}×; revenue {_number(row['implied_revenue'])} at {_number(row['assumed_multiple'])}×"
                    if row['method'] == 'ev_revenue' else f"P/E {_number(row['implied_pe'])}× ({row['eps_basis']}, {row['accounting_basis']})")
@@ -394,7 +399,7 @@ def price_implied_valuation(state: dict) -> dict:
             rows.append(row)
         return {'status': 'available', 'reason': None, 'price': {k: quote[k] for k in
                     ('close', 'currency', 'session_date', 'session_status', 'exchange_timezone',
-                     'retrieved_at', 'adjustment_basis', 'source_id', 'url', 'content_hash')},
+                     'retrieved_at', 'adjustment_basis', 'source_id', 'url', 'content_hash', 'price_fallback') if k in quote},
                 'shares': {'value': str(shares.value), 'date': str(shares.period_end), 'fact_id': shares.fact_id,
                            'source_ids': list(shares.source_ids)} if shares else None,
                 'capital_basis_date': str(capital_date),
@@ -446,8 +451,13 @@ def render_price_implied_valuation(record: dict) -> str:
                  if record['shares'] else 'reported outstanding shares unavailable on the compatible capital date.'),
               f"Dated equity value (price × shares): {_number(record['equity_value_usd'])} USD. "
               'This is not an executable current market capitalization.', '',
-              f'Obligation perimeter | Components and cash (USD) | Price-implied numerator USD | Trailing revenue | {_cell(guidance_period)} management guidance | {_cell(growth_period)} growth floor, conditional upper',
+              f'Obligation perimeter (enterprise value / revenue) | Components and cash (USD) | Enterprise value numerator USD | Trailing revenue | {_cell(guidance_period)} management guidance | {_cell(growth_period)} growth floor, conditional upper',
               '--- | --- | ---: | ---: | ---: | ---:']
+    if record.get('price', {}).get('price_fallback'):
+        fallback = record['price']['price_fallback']
+        lines.insert(2, "Price fallback: " + _cell(fallback['reason']) + "; latest completed session " +
+                     _cell(fallback['latest_completed_session_date']) + "; selected " +
+                     _cell(fallback['selected_session_date']) + ".")
     for row in record['rows']:
         ratios = row.get('ratios') or {}
         label = _cell(labels.get(row['perimeter'], row['perimeter']))
@@ -484,7 +494,7 @@ def render_price_implied_valuation(record: dict) -> str:
         ref = record['disclosure_references']['guided_shares']
         lines += ['', f"Guided diluted weighted-average shares ({_cell(share_period)}): {_number(low)}–{_number(high)}; conditional sensitivity, not current shares outstanding. Source: {_cell(ref['source_id'])}, {_cell(ref['locator'])}.",
                   'Its numerator and multiple ranges use the low share count with the high revenue and the high share count with the low revenue.', '',
-                  f'Perimeter | Guided-share numerator USD | Trailing revenue | {_cell(guidance_period)} guidance | Conditional {_cell(growth_period)} upper',
+                  f'Perimeter (enterprise value / revenue) | Guided-share enterprise value numerator USD | Trailing revenue | {_cell(guidance_period)} guidance | Conditional {_cell(growth_period)} upper',
                   '--- | ---: | ---: | ---: | ---:']
         for row in record['rows']:
             sensitivity = row.get('guided_diluted_weighted_average_share_sensitivity')

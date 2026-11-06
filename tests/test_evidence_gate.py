@@ -100,6 +100,9 @@ def test_graph_routes_missing_evidence_to_end_before_debate(monkeypatch):
     assert result["fundamentals_report"] == "Saved research"
     assert result["investment_plan"] == ""
     assert result["evidence_quality"]["status"] == "insufficient"
+    assert result["advisory_audit"]["status"] == "unavailable"
+    assert "not run" in result["advisory_audit"]["error"]
+    assert result["advisory_audit"]["submitted_count"] == 0
 
 
 def test_filing_equity_bridge_uses_verified_cells_and_rejects_omitted_movement():

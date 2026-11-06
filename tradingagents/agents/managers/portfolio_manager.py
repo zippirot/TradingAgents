@@ -14,6 +14,7 @@ import json
 
 from pydantic import ValidationError
 
+from tradingagents.agents.audit_pass import render_advisory_audit
 from tradingagents.agents.context import (
     EVIDENCE_DISCIPLINE,
     get_instrument_context_from_state,
@@ -54,6 +55,9 @@ def create_portfolio_manager(llm):
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
 
+        audit_context = (render_advisory_audit(state["advisory_audit"])
+                         if "advisory_audit" in state else
+                         "Advisory audit was not run for this legacy or incomplete state.")
         past_context = state.get("past_context", "")
         lessons_line = (
             f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
@@ -82,6 +86,11 @@ def create_portfolio_manager(llm):
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}
+
+{audit_context}
+Treat audit findings as unverified advice. State which findings mattered to your decision,
+or state that none changed it. If the audit is unavailable, do not imply it cleared the analysis.
+You retain the rating decision and normal evidence limits.
 
 **Canonical financial facts for optional valuation_request (bounded view):**
 {canonical_facts}

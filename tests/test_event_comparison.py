@@ -2,6 +2,7 @@
 
 import hashlib
 from copy import deepcopy
+from datetime import UTC
 
 import pytest
 
@@ -159,10 +160,10 @@ def test_beat_guidance_can_coexist_with_negative_observed_window(monkeypatch):
         result["reaction"]["start_session"] == "2026-11-02"
         and result["reaction"]["end_session"] == "2026-11-04"
     )
-    assert calls == ["DOCN", "SPY", "AKAM"]
+    assert calls == ["DOCN", "SPY"]
     assert result["consensus"]["status"] == "unavailable"
     text = events.render_event_comparison(result)
-    assert "not causal attribution" in text and "AKAM" in text
+    assert "not causal attribution" in text and "AKAM" not in text
 
 
 @pytest.mark.parametrize(
@@ -341,3 +342,108 @@ def test_missing_legacy_identity_is_unavailable_and_replays_offline(monkeypatch)
         events, "get_price_observation", lambda *a: pytest.fail("network during replay")
     )
     assert events.replay_event_comparison(s, record) == record
+
+
+def test_final_validated_peers_are_selected_before_reaction_fetch(monkeypatch):
+    from tradingagents.agents import valuation_reference_flow as flow
+
+    calls = install(monkeypatch)
+    s = state()
+    s["valuation_reference"] = {
+        "phase": "final", "peers": {"accepted": [
+            {"ticker": "AKAM", "reason": "Cloud infrastructure comparison",
+             "statistics": {"status": "available", "ticker": "AKAM"}}
+        ]}
+    }
+    monkeypatch.setattr(flow, "replay_valuation_reference", lambda state, record: record)
+    result = events.prepare_event_comparison(s, CONFIG)
+    assert result["reaction"]["symbols_selected_before_fetch"] == ["DOCN", "SPY", "AKAM"]
+    assert calls == ["DOCN", "SPY", "AKAM"]
+    assert "Cloud infrastructure comparison" in result["reaction"]["peer_rationale"]
+    monkeypatch.setattr(events, "get_price_observation", lambda *a: pytest.fail("network during replay"))
+    assert events.replay_event_comparison(s, result) == result
+
+
+def test_invalid_final_reference_does_not_select_unvalidated_peer(monkeypatch):
+    calls = install(monkeypatch)
+    s = state()
+    s["valuation_reference"] = {"phase": "final", "peers": {"accepted": [
+        {"ticker": "AKAM", "reason": "Unvalidated", "statistics": {"status": "available"}}
+    ]}}
+    result = events.prepare_event_comparison(s, CONFIG)
+    assert calls == ["DOCN", "SPY"]
+    assert result["reaction"]["symbols_selected_before_fetch"] == ["DOCN", "SPY"]
+
+
+def test_retained_vendor_consensus_is_labeled_and_never_a_pre_event_surprise(monkeypatch):
+    from datetime import datetime
+
+    from tradingagents.dataflows.vendors.yahoo.expectations import (
+        Estimate,
+        VendorExpectations,
+        _hash,
+    )
+
+    install(monkeypatch)
+    s = state()
+    vendor = VendorExpectations(
+        status="available", ticker="DOCN", requested_as_of="2026-11-04",
+        retrieved_at=datetime(2026, 11, 4, 22, tzinfo=UTC),
+        estimates=[Estimate(metric="revenue", period_code="0q", currency="USD",
+                            unit="USD", average="95000000")],
+    )
+    vendor.snapshot_hash = _hash(vendor)
+    s["vendor_expectations"] = vendor.model_dump(mode="json")
+    result = events.prepare_event_comparison(s, CONFIG)
+    assert result["consensus"]["status"] == "available"
+    assert result["consensus"]["label"] == "vendor consensus, unverified"
+    text = events.render_event_comparison(result)
+    assert "vendor consensus, unverified" in text
+    assert "pre-event" in text
+    assert "beat consensus" not in text.lower()
+    monkeypatch.setattr(events, "get_price_observation", lambda *a: pytest.fail("network during replay"))
+    assert events.replay_event_comparison(s, result) == result
+
+
+def test_tampered_vendor_consensus_is_unavailable_and_replay_rejects_saved_change(monkeypatch):
+    from datetime import datetime
+
+    from tradingagents.dataflows.vendors.yahoo.expectations import (
+        Estimate,
+        VendorExpectations,
+        _hash,
+    )
+
+    install(monkeypatch)
+    s = state()
+    vendor = VendorExpectations(
+        status="available", ticker="DOCN", requested_as_of="2026-11-04",
+        retrieved_at=datetime(2026, 11, 4, 22, tzinfo=UTC),
+        estimates=[Estimate(metric="revenue", period_code="0q", average="95000000")],
+    )
+    vendor.snapshot_hash = _hash(vendor)
+    s["vendor_expectations"] = vendor.model_dump(mode="json")
+    record = events.prepare_event_comparison(s, CONFIG)
+    s["vendor_expectations"]["estimates"][0]["average"] = "950000000"
+    with pytest.raises(ValueError):
+        events.replay_event_comparison(s, record)
+    fresh = events.prepare_event_comparison(s, CONFIG)
+    assert fresh["consensus"]["status"] == "unavailable"
+
+
+def test_legacy_reaction_peer_replays_without_becoming_new_default(monkeypatch):
+    calls = install(monkeypatch)
+    s = state()
+    record = events.prepare_event_comparison(s, CONFIG)
+    assert calls == ["DOCN", "SPY"]
+    reaction = record["reaction"]
+    reaction.pop("peer_selection_source")
+    reaction["symbols_selected_before_fetch"].append("AKAM")
+    reaction["peer_rationale"] = "Older published comparison rationale"
+    reaction["price_observations"]["AKAM"] = price("AKAM", after="101")
+    reaction["returns"]["AKAM"] = {
+        "percent": "1.00", "start_close": "100", "end_close": "101"
+    }
+    monkeypatch.setattr(events, "get_price_observation", lambda *a: pytest.fail("network during replay"))
+    assert events.replay_event_comparison(s, record) == record
+    assert "Retained legacy peer selection" in events.render_event_comparison(record)

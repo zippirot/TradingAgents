@@ -192,6 +192,7 @@ def select_research_depth(default=None) -> int:
 
     DEPTH_OPTIONS = [
         ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
+        ("Two rounds - Two research and risk debate rounds", 2),
         ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
         ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
     ]

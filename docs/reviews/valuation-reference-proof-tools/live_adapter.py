@@ -1,0 +1,981 @@
+"""Real CLI boundary for the November 5 proof and A7 pilot.
+
+No credentials, approval, prices or network calls are embedded here. Calling
+code must supply fresh route rates and task-specific budget authority.
+"""
+from __future__ import annotations
+
+import base64
+import hashlib
+import json
+import os
+import re
+import runpy
+import socket
+import sys
+import threading
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from unittest.mock import patch
+
+from pilot import (
+    B_DEEP,
+    B_QUICK,
+    DOMAINS,
+    SLOTS,
+    A,
+    Approval,
+    BudgetGuard,
+    FrozenSourceGateway,
+    PilotLedger,
+    manifest_hash,
+)
+
+EXTRA_A_PIN_REASON = (
+    "User-approved temporary peer pin for accepted-row live proof; "
+    "business comparability is not established."
+)
+
+
+def _rate(value: str) -> Decimal:
+    rate = Decimal(str(value))
+    if not rate.is_finite() or rate < 0:
+        raise ValueError("Route price must be a finite nonnegative decimal")
+    return rate
+
+
+def source_request_hash(name: str, args: tuple, kwargs: dict) -> str:
+    """Canonicalize dated vendor arguments without changing their meaning."""
+    def encode(value):
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+        if isinstance(value, Decimal):
+            return str(value)
+        raise TypeError(f"Unsupported frozen source argument: {type(value).__name__}")
+    payload = json.dumps({"name": name, "args": args, "kwargs": kwargs},
+                         sort_keys=True, separators=(",", ":"), default=encode)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def conservative_route_rates(metadata: dict, model_ids: set[str]) -> dict:
+    """Cover every listed endpoint and long-context/cache override."""
+    results = metadata.get("results") if isinstance(metadata, dict) else None
+    if not isinstance(results, dict):
+        raise ValueError("Provider metadata is missing model results")
+    output = {}
+    for model in model_ids:
+        entry = results.get(model)
+        endpoints = entry.get("endpoints") if isinstance(entry, dict) else None
+        if not isinstance(endpoints, list) or not endpoints:
+            raise ValueError("Approved model has no served endpoint metadata")
+        maxima = {key: Decimal(0) for key in ("prompt", "completion", "input_cache_read",
+                                                 "input_cache_write", "input_cache_write_1h")}
+        for endpoint in endpoints:
+            pricing = endpoint.get("pricing") if isinstance(endpoint, dict) else None
+            if not isinstance(pricing, dict):
+                raise ValueError("Endpoint pricing unavailable")
+            tiers = [pricing, *(pricing.get("overrides") or [])]
+            for tier in tiers:
+                if not isinstance(tier, dict) or "prompt" not in tier or "completion" not in tier:
+                    raise ValueError("Endpoint pricing tier incomplete")
+                for key in maxima:
+                    if key in tier:
+                        maxima[key] = max(maxima[key], _rate(tier[key]))
+        output[model] = {"input_per_token": str(maxima["prompt"]),
+                         "output_per_token": str(maxima["completion"]),
+                         "cache_read_per_token": str(maxima["input_cache_read"]),
+                         "cache_write_per_token": str(max(maxima["input_cache_write"],
+                                                          maxima["input_cache_write_1h"]))}
+    return output
+
+
+def resolved_model_ids(metadata: dict, model_ids: set[str]) -> dict[str, set[str]]:
+    """Enumerate only exact model IDs and dated aliases in retained metadata."""
+    results = metadata.get("results") if isinstance(metadata, dict) else None
+    if not isinstance(results, dict):
+        raise ValueError("Provider metadata is missing model results")
+    output = {}
+    for model in model_ids:
+        entry = results.get(model)
+        endpoints = entry.get("endpoints") if isinstance(entry, dict) else None
+        if not isinstance(endpoints, list) or not endpoints:
+            raise ValueError("Approved model has no served endpoint metadata")
+        aliases = {model}
+        for endpoint in endpoints:
+            name = endpoint.get("name") if isinstance(endpoint, dict) else None
+            candidate = str(name).split(" | ")[-1]
+            if candidate.startswith(model + "-") and candidate[len(model) + 1:].isdigit():
+                aliases.add(candidate)
+        output[model] = aliases
+    return output
+
+
+class OpenRouterWireGuard:
+    """Intercept serialized HTTP requests before transmission, without retries."""
+    def __init__(self, budget: BudgetGuard, route_rates: dict, *, max_output_tokens: int, kind: str,
+                 network_gate: NetworkGate | None = None, allow_unfrozen_sources: bool = False,
+                 allowed_resolved_models: dict[str, set[str]] | None = None,
+                 context_cap: int | None = None):
+        if kind not in {"run", "review"} or type(max_output_tokens) is not int or max_output_tokens <= 0:
+            raise ValueError("Invalid request scope")
+        self.budget, self.max_output_tokens, self.kind = budget, max_output_tokens, kind
+        self.network_gate = network_gate
+        self.allow_unfrozen_sources = allow_unfrozen_sources
+        if context_cap is not None and (type(context_cap) is not int or context_cap <= max_output_tokens):
+            raise ValueError("Declared context cap must exceed output cap")
+        self.context_cap = context_cap
+        self.rates = {}
+        for model, rates in route_rates.items():
+            required = {"input_per_token", "output_per_token", "cache_read_per_token", "cache_write_per_token"}
+            if not isinstance(rates, dict) or set(rates) != required:
+                raise ValueError("Route rates must name input, output and cache prices")
+            self.rates[model] = (max(_rate(rates[key]) for key in
+                                     ("input_per_token", "cache_read_per_token", "cache_write_per_token")),
+                                 _rate(rates["output_per_token"]))
+        if not self.rates or set(self.rates) != budget.allowed_models:
+            raise ValueError("Fresh route rates must cover exactly the approved models")
+        self.allowed_resolved_models = allowed_resolved_models
+        if (not isinstance(allowed_resolved_models, dict) or set(allowed_resolved_models) != set(self.rates)
+                or any(not isinstance(ids, set) or model not in ids for model, ids in allowed_resolved_models.items())):
+            raise ValueError("Exact verified resolved model IDs are required")
+        self.request_count = 0
+
+    def before(self, request):
+        if request.url.host != "openrouter.ai":
+            if self.network_gate is not None and self.network_gate.peer_capture_allowed():
+                return None
+            if request.headers.get("authorization"):
+                if self.network_gate is not None:
+                    self.network_gate.record_violation("authenticated_non_openrouter_http")
+                raise RuntimeError("Authenticated non-OpenRouter HTTP request blocked")
+            if self.allow_unfrozen_sources:
+                return None
+            if self.network_gate is not None:
+                self.network_gate.record_violation("unfrozen_http_source")
+            raise RuntimeError("Unfrozen HTTP source request blocked")
+        if (request.url.scheme != "https" or request.url.path != "/api/v1/chat/completions"
+                or request.method != "POST"):
+            raise RuntimeError("Unexpected OpenRouter route")
+        body = request.content
+        if not isinstance(body, bytes):
+            raise ValueError("Serialized request bytes unavailable")
+        payload = json.loads(body)
+        model = payload.get("model")
+        if model not in self.rates:
+            raise RuntimeError("Unapproved serialized model")
+        if payload.get("plugins") or payload.get("web_search_options") or payload.get("provider"):
+            raise RuntimeError("Unbudgeted request add-on or route override")
+        caps = [payload[key] for key in ("max_tokens", "max_completion_tokens") if key in payload]
+        if not caps or any(type(cap) is not int or cap != self.max_output_tokens for cap in caps):
+            raise RuntimeError("Serialized output cap differs from approved cap")
+        if payload.get("stream"):
+            raise RuntimeError("Streaming usage cannot be settled here")
+        messages, tools = payload.get("messages"), payload.get("tools", [])
+        if not isinstance(messages, list) or not isinstance(tools, list):
+            raise RuntimeError("Serialized messages/tools are invalid")
+        # One UTF-8 byte per possible input token plus conservative framing.
+        input_bound = len(body) + 1024 + 64 * len(messages) + 256 * len(tools)
+        if self.context_cap is not None and input_bound + self.max_output_tokens > self.context_cap:
+            raise RuntimeError("Serialized request exceeds declared context cap")
+        input_rate, output_rate = self.rates[model]
+        upper = input_bound * input_rate + self.max_output_tokens * output_rate
+        ticket = self.budget.reserve(model, str(upper), kind=self.kind)
+        self.request_count += 1
+        self.budget.ledger.append({"type": "request_meta", "ticket": ticket, "model": model,
+                                   "body_sha256": hashlib.sha256(body).hexdigest(),
+                                   "body_bytes": len(body), "input_bound_tokens": input_bound,
+                                   "max_output_tokens": self.max_output_tokens})
+        return ticket
+
+    def after(self, ticket, response):
+        if ticket is None:
+            return
+        if response.status_code >= 400 or not response.is_closed:
+            self.budget.ledger.append({"type": "unknown", "ticket": ticket,
+                                       "status": response.status_code})
+            return
+        try:
+            data = response.json()
+            reservation = next(e for e in self.budget.ledger.events()
+                               if e.get("ticket") == ticket and e["type"] == "reserve")
+            if data.get("model") not in self.allowed_resolved_models[reservation["model"]]:
+                raise ValueError("Resolved model differs")
+            usage = data["usage"]
+            prompt, completion = usage["prompt_tokens"], usage["completion_tokens"]
+            if (type(prompt) is not int or type(completion) is not int or prompt < 0 or completion < 0
+                    or completion > self.max_output_tokens):
+                raise ValueError("Usage invalid or beyond cap")
+            cost = Decimal(str(usage["cost"]))
+            if not cost.is_finite() or cost < 0 or cost > Decimal(reservation["usd"]):
+                raise ValueError("Billed cost unknown or beyond reservation")
+            self.budget.settle(ticket, str(cost))
+            self.budget.ledger.append({"type": "response_meta", "ticket": ticket,
+                                       "model": data["model"], "provider": data.get("provider"),
+                                       "finish_reasons": [choice.get("finish_reason") for choice in data.get("choices", [])
+                                                          if isinstance(choice, dict)],
+                                       "prompt_tokens": prompt, "completion_tokens": completion,
+                                       "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+                                       "cache_read_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"),
+                                       "cost_usd": str(cost)})
+        except (KeyError, TypeError, ValueError, InvalidOperation, StopIteration, json.JSONDecodeError) as exc:
+            self.budget.ledger.append({"type": "unknown", "ticket": ticket,
+                                       "status": response.status_code, "reason": type(exc).__name__})
+
+    def failed(self, ticket, error: BaseException):
+        if ticket is not None:
+            self.budget.ledger.append({"type": "unknown", "ticket": ticket,
+                                       "reason": type(error).__name__})
+
+
+@contextmanager
+def installed_http_guard(wire: OpenRouterWireGuard):
+    """Patch both client generations used by this repository's OpenRouter SDK."""
+    with ExitStack() as stack:
+        for module_name in ("httpx", "httpx2"):
+            module = __import__(module_name)
+            sync = module.Client.send
+            async_send = module.AsyncClient.send
+
+            def guarded_sync(client, request, *args, _send=sync, **kwargs):
+                ticket = wire.before(request)
+                try:
+                    if wire.network_gate is None:
+                        response = _send(client, request, *args, **kwargs)
+                    else:
+                        with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                            response = _send(client, request, *args, **kwargs)
+                except BaseException as exc:
+                    wire.failed(ticket, exc)
+                    raise
+                wire.after(ticket, response)
+                return response
+
+            async def guarded_async(client, request, *args, _send=async_send, **kwargs):
+                ticket = wire.before(request)
+                try:
+                    if wire.network_gate is None:
+                        response = await _send(client, request, *args, **kwargs)
+                    else:
+                        with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                            response = await _send(client, request, *args, **kwargs)
+                except BaseException as exc:
+                    wire.failed(ticket, exc)
+                    raise
+                wire.after(ticket, response)
+                return response
+
+            stack.enter_context(patch.object(module.Client, "send", guarded_sync))
+            stack.enter_context(patch.object(module.AsyncClient, "send", guarded_async))
+        yield
+
+
+def review_saved_output(payload: dict, budget: BudgetGuard, *, wire: OpenRouterWireGuard,
+                        api_key: str, reviewer_model: str, settings: dict, client=None) -> dict:
+    """One guarded, nonstream blind review with a fixed JSON scoring contract."""
+    if (wire.budget is not budget or wire.kind != "review" or set(wire.rates) != {reviewer_model}
+            or settings != {"temperature": 0, "max_tokens": 4096}
+            or wire.max_output_tokens != 4096 or budget.allowed_kinds != {"review"}
+            or budget.allowed_models != {reviewer_model} or budget.scope != "reviews"
+            or not api_key):
+        raise ValueError("Reviewer request differs from fixed approved settings")
+    if (not isinstance(payload, dict) or not all(key in payload for key in
+            ("opaque_id", "evidence", "analysis", "debates", "rubric"))):
+        raise ValueError("Blind reviewer payload is incomplete")
+    import httpx2
+    own_client = client is None
+    if own_client:
+        client = httpx2.Client(timeout=120)
+    body = {"model": reviewer_model, "temperature": 0, "max_tokens": 4096,
+            "stream": False, "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": (
+                    "You are a blind evidence reviewer. Score 0 to 5 using only the supplied "
+                    "rubric and retained evidence. Corroborate substantive claims with specific "
+                    "source labels, check calculations and contradictions. Do not use stock outcome, "
+                    "writing style, or any run audit verdict. Return only JSON with integer score "
+                    "and a list of concise findings.")},
+                {"role": "user", "content": json.dumps(payload, sort_keys=True)},
+            ]}
+    before = wire.request_count
+    try:
+        with installed_http_guard(wire):
+            response = client.post("https://openrouter.ai/api/v1/chat/completions",
+                                   headers={"Authorization": f"Bearer {api_key}"}, json=body)
+        response.raise_for_status()
+        if wire.request_count != before + 1 or budget.outstanding:
+            raise RuntimeError("Reviewer call count or provider settlement unverified")
+        data = response.json()
+        parsed = json.loads(data["choices"][0]["message"]["content"])
+        score, findings = parsed["score"], parsed["findings"]
+        if (type(score) is not int or not 0 <= score <= 5 or not isinstance(findings, list)
+                or len(findings) > 20 or any(not isinstance(item, str) or not item.strip()
+                                              or len(item) > 1000 for item in findings)):
+            raise ValueError("Reviewer score or findings invalid")
+        settled = [event for event in budget.ledger.events()
+                   if event.get("type") == "response_meta" and event.get("model") in
+                   wire.allowed_resolved_models[reviewer_model]]
+        if not settled:
+            raise RuntimeError("Reviewer provider cost missing")
+        return {"model_id": reviewer_model, "settings": dict(settings), "score": score,
+                "findings": findings, "cost_usd": settled[-1]["cost_usd"]}
+    finally:
+        if own_client:
+            client.close()
+
+
+class NetworkGate:
+    """Deny unexpected direct network traffic during a frozen CLI run."""
+    def __init__(self):
+        self.local = threading.local()
+        self.violations: list[str] = []
+
+    def record_violation(self, reason: str):
+        self.violations.append(reason)
+
+    def peer_capture_allowed(self) -> bool:
+        return getattr(self.local, "mode", None) == "peer"
+
+    @contextmanager
+    def _allow(self, mode):
+        previous = getattr(self.local, "mode", None)
+        self.local.mode = mode
+        try:
+            yield
+        finally:
+            self.local.mode = previous
+
+    def peer_capture(self):
+        return self._allow("peer")
+
+    def model_request(self):
+        return self._allow("model")
+
+
+@contextmanager
+def installed_network_gate(gate: NetworkGate):
+    original_connect = socket.socket.connect
+    original_connect_ex = socket.socket.connect_ex
+    def checked_connect(sock, address):
+        if getattr(gate.local, "mode", None) not in {"model", "peer"}:
+            gate.record_violation("unrouted_socket")
+            raise RuntimeError("Uncaptured network connection blocked")
+        return original_connect(sock, address)
+    def checked_connect_ex(sock, address):
+        if getattr(gate.local, "mode", None) not in {"model", "peer"}:
+            gate.record_violation("unrouted_socket")
+            raise RuntimeError("Uncaptured network connection blocked")
+        return original_connect_ex(sock, address)
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(socket.socket, "connect", checked_connect))
+        stack.enter_context(patch.object(socket.socket, "connect_ex", checked_connect_ex))
+        try:
+            import curl_cffi.requests as curl_requests
+        except ImportError:
+            curl_requests = None
+        if curl_requests is not None:
+            original_curl = curl_requests.Session.request
+            def checked_curl(session, *args, **kwargs):
+                if not gate.peer_capture_allowed():
+                    gate.record_violation("unrouted_curl")
+                    raise RuntimeError("Uncaptured curl source request blocked")
+                return original_curl(session, *args, **kwargs)
+            stack.enter_context(patch.object(curl_requests.Session, "request", checked_curl))
+        yield
+
+
+class ProofAttemptLedger:
+    """New Part A/B proof authority; never reads the historical DOCN ledger."""
+    def __init__(self, ledger: PilotLedger, *, ceiling_usd: str, max_attempts: int):
+        ceiling = Decimal(ceiling_usd)
+        if not ceiling.is_finite() or ceiling <= 0 or ceiling > Decimal("10") or max_attempts != 2:
+            raise ValueError("The proof ceiling and two-attempt authority must be explicit")
+        self.ledger, self.ceiling = ledger, ceiling
+
+    def claim(self, phase: str, *, part_b_go_ahead: bool = False,
+              phase_ceiling_usd: str | None = None):
+        if phase not in {"A", "B"}:
+            raise ValueError("Unknown proof phase")
+        if phase == "B" and not part_b_go_ahead:
+            raise RuntimeError("Part B requires its later explicit go-ahead")
+        phase_ceiling = Decimal(phase_ceiling_usd) if phase_ceiling_usd is not None else self.ceiling
+        if not phase_ceiling.is_finite() or phase_ceiling <= 0 or phase_ceiling > self.ceiling:
+            raise ValueError("Invalid proof phase budget")
+        with self.ledger.budget_lock():
+            events = self.ledger.events()
+            claims = [e for e in events if e["type"] == "attempt_claim"]
+            if any(e["phase"] == phase for e in claims):
+                raise RuntimeError("Proof phase already claimed; failed attempts count")
+            if (sum(e["phase"] in {"A", "B"} for e in claims) >= 2
+                    or (phase == "B" and not any(e["phase"] == "A" for e in claims))):
+                raise RuntimeError("Proof attempt sequence or cap reached")
+            if self.ledger.committed_usd() >= self.ceiling:
+                raise RuntimeError("Proof spending ceiling reached")
+            self.ledger.append({"type": "attempt_claim", "phase": phase,
+                                "ceiling_usd": str(self.ceiling),
+                                "phase_ceiling_usd": str(phase_ceiling)})
+
+    def claim_extra_a(self, approval_record: dict) -> str:
+        """Consume the one explicitly approved extra Part A attempt."""
+        required = {"approval_id", "approved_at_recorded", "user_response",
+                    "prior_decision_fingerprint", "phase", "additional_attempts",
+                    "phase_ceiling_usd", "aggregate_ceiling_usd", "temporary_peers",
+                    "scope", "part_b_authorized", "comparison_authorized"}
+        if not isinstance(approval_record, dict) or set(approval_record) != required:
+            raise ValueError("Extra A approval record is incomplete")
+        try:
+            approved_at = datetime.fromisoformat(approval_record["approved_at_recorded"])
+            valid = (isinstance(approval_record["approval_id"], str)
+                     and bool(approval_record["approval_id"].strip())
+                     and approved_at.tzinfo is not None
+                     and isinstance(approval_record["scope"], str)
+                     and bool(approval_record["scope"].strip())
+                     and re.fullmatch(r"[0-9a-f]{64}", approval_record["prior_decision_fingerprint"])
+                     and approval_record["user_response"] == "Approved"
+                     and approval_record["phase"] == "A-extra"
+                     and type(approval_record["additional_attempts"]) is int
+                     and approval_record["additional_attempts"] == 1
+                     and Decimal(approval_record["phase_ceiling_usd"]) == Decimal("3.85")
+                     and Decimal(approval_record["aggregate_ceiling_usd"]) == self.ceiling == Decimal("10")
+                     and approval_record["temporary_peers"] == ["MSFT", "ORCL"]
+                     and approval_record["part_b_authorized"] is False
+                     and approval_record["comparison_authorized"] is False)
+        except (ValueError, TypeError, KeyError, InvalidOperation):
+            valid = False
+        if not valid:
+            raise ValueError("Extra A approval record differs from explicit user approval")
+        digest = manifest_hash(approval_record)
+        with self.ledger.budget_lock():
+            events = self.ledger.events()
+            if not any(e["type"] == "attempt_claim" and e.get("phase") == "A" for e in events) or not any(
+                e["type"] == "execution_start" and e.get("kind") == "proof" and e.get("name") == "A"
+                for e in events
+            ):
+                raise RuntimeError("Extra A requires the original A proof execution")
+            if any(e["type"] == "attempt_claim" and e.get("phase") == "A2" for e in events):
+                raise RuntimeError("Extra A already claimed; failed attempts count")
+            if self.ledger.committed_usd() + Decimal("3.85") > self.ceiling:
+                raise RuntimeError("Original proof aggregate budget has insufficient headroom")
+            self.ledger.append({"type": "attempt_claim", "phase": "A2",
+                                "ceiling_usd": str(self.ceiling), "phase_ceiling_usd": "3.85",
+                                "approval_sha256": digest,
+                                "approval_id": approval_record["approval_id"],
+                                "approved_pins": ["MSFT", "ORCL"]})
+        return digest
+
+
+@dataclass(frozen=True)
+class ExecutionClaim:
+    kind: str
+    name: str
+    approval_sha256: str | None = None
+
+
+def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
+    events = ledger.events()
+    if claim.kind == "proof":
+        entry = next((e for e in events if e["type"] == "attempt_claim"
+                      and e.get("phase") == claim.name), None)
+        if (claim.name not in {"A", "A2", "B"} or entry is None or spec.depth != 1
+                or (claim.name == "A2" and (
+                    claim.approval_sha256 != entry.get("approval_sha256")
+                    or spec.extra_peer_pins != tuple(entry.get("approved_pins", []))
+                    or spec.ticker != "DOCN" or spec.analysis_date != "2026-11-05"
+                    or spec.analysis_cutoff_utc is not None
+                    or spec.market_observation_cutoff is not None))
+                or (claim.name != "A2" and (claim.approval_sha256 is not None
+                    or spec.extra_peer_pins is not None))):
+            raise RuntimeError("Separate proof attempt claim is missing or mismatched")
+    elif claim.kind == "comparison":
+        slot = next((slot for slot in SLOTS if slot.name == claim.name), None)
+        if (slot is None or not any(e["type"] == "slot_claim" and e.get("slot") == claim.name for e in events)
+                or (spec.quick_model, spec.deep_model, spec.depth) !=
+                (slot.quick_model, slot.deep_model, slot.depth)):
+            raise RuntimeError("Approved A7 slot claim is missing or mismatched")
+    else:
+        raise RuntimeError("Unknown execution claim")
+
+
+def verify_budget_binding(claim: ExecutionClaim, budget: BudgetGuard,
+                          spec: CliSpec, approval: Approval | None):
+    """Tie the wire guard to the exact prior claim, not a caller-made cap."""
+    verify_execution_claim(claim, budget.ledger, spec)
+    if budget.allowed_models != {spec.quick_model, spec.deep_model} or budget.allowed_kinds != {"run"}:
+        raise RuntimeError("Wire budget model or kind differs from claimed CLI scope")
+    events = budget.ledger.events()
+    if claim.kind == "proof":
+        entry = next(e for e in events if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
+        if (approval is not None or budget.scope != f"proof:{claim.name}"
+                or budget.ceiling != Decimal(entry["ceiling_usd"])
+                or budget.scope_ceiling != Decimal(entry["phase_ceiling_usd"])
+                or budget.max_calls > 64):
+            raise RuntimeError("Proof wire budget exceeds or differs from claimed authority")
+    else:
+        entry = next(e for e in events if e["type"] == "slot_claim" and e.get("slot") == claim.name)
+        if (approval is None or entry.get("manifest_hash") != approval.approved_manifest_sha256
+                or budget.scope != claim.name or budget.ceiling != Decimal(approval.ceiling_usd)
+                or budget.scope_ceiling is not None or budget.max_calls > 64):
+            raise RuntimeError("A7 wire budget differs from approved slot and ceiling")
+
+
+def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
+    """Consume a claim exactly once before any CLI work, including failed starts."""
+    with ledger.budget_lock():
+        verify_execution_claim(claim, ledger, spec)
+        if any(e["type"] == "execution_start" and e.get("kind") == claim.kind
+               and e.get("name") == claim.name for e in ledger.events()):
+            raise RuntimeError("Execution claim already started; no duplicate CLI launch")
+        ledger.append({"type": "execution_start", "kind": claim.kind,
+                       "name": claim.name, "ticker": spec.ticker,
+                       "analysis_date": spec.analysis_date, "depth": spec.depth,
+                       "approval_sha256": claim.approval_sha256})
+
+
+@dataclass(frozen=True)
+class CliSpec:
+    ticker: str
+    analysis_date: str
+    quick_model: str
+    deep_model: str
+    depth: int
+    max_output_tokens: int
+    max_tool_rounds: int = 4
+    analysis_timezone: str = "America/Denver"
+    analysis_cutoff_utc: str | None = None
+    market_observation_cutoff: str | None = None
+    context_cap: int | None = None
+    extra_peer_pins: tuple[str, str] | None = None
+
+    def validate(self):
+        if (not self.ticker or not self.ticker.isupper() or self.depth not in (1, 2)
+                or self.max_output_tokens <= 0 or self.max_tool_rounds <= 0):
+            raise ValueError("Invalid fixed CLI scope")
+        date.fromisoformat(self.analysis_date)
+        for cutoff in (self.analysis_cutoff_utc, self.market_observation_cutoff):
+            if cutoff is not None and datetime.fromisoformat(cutoff).tzinfo is None:
+                raise ValueError("CLI cutoff must include timezone")
+        if self.depth == 2 and (self.analysis_cutoff_utc is None or self.market_observation_cutoff is None):
+            raise ValueError("A7 requires frozen analysis and market cutoffs")
+        if self.depth == 2 and (type(self.context_cap) is not int or self.context_cap <= self.max_output_tokens):
+            raise ValueError("A7 requires a declared context cap above the output cap")
+        if self.market_observation_cutoff is not None and datetime.fromisoformat(
+            self.market_observation_cutoff
+        ).astimezone(UTC) > datetime.now(UTC):
+            raise ValueError("Frozen market observation cutoff cannot be in the future")
+        if self.depth == 1 and (self.quick_model, self.deep_model) != (A, A):
+            raise ValueError("Part A proof must use Terra Pro in both tiers")
+        if self.extra_peer_pins is not None and (
+            self.depth != 1 or self.ticker != "DOCN" or self.extra_peer_pins != ("MSFT", "ORCL")
+        ):
+            raise ValueError("Extra A pins must be exactly MSFT and ORCL for DOCN")
+        if self.depth == 2 and (self.quick_model, self.deep_model) not in {(A, A), (B_QUICK, B_DEEP)}:
+            raise ValueError("A7 CLI models must match setup A or B exactly")
+
+
+def verify_cli_config(config: dict, spec: CliSpec):
+    spec.validate()
+    expected = {"llm_provider": "openrouter", "quick_think_llm": spec.quick_model,
+                "deep_think_llm": spec.deep_model, "backend_url": "https://openrouter.ai/api/v1",
+                "max_debate_rounds": spec.depth, "max_risk_discuss_rounds": spec.depth,
+                "max_tool_rounds": spec.max_tool_rounds, "max_tokens": spec.max_output_tokens,
+                "llm_max_retries": 0, "analysis_timezone": spec.analysis_timezone}
+    if spec.analysis_cutoff_utc is not None:
+        expected["analysis_cutoff_utc"] = spec.analysis_cutoff_utc
+    for key, value in expected.items():
+        actual = config.get(key)
+        if str(actual).lower() != str(value).lower():
+            raise RuntimeError(f"Actual CLI {key} differs from fixed proof scope")
+    if any(config.get(f"{tier}_think_provider") not in (None, "openrouter") for tier in ("quick", "deep")):
+        raise RuntimeError("CLI tier provider override differs from OpenRouter")
+    if any(config.get(f"{tier}_think_backend_url") for tier in ("quick", "deep")):
+        raise RuntimeError("CLI tier backend override differs from fixed route")
+
+
+def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, sec_user_agent: str,
+                           claim: ExecutionClaim | None = None, ledger: PilotLedger | None = None):
+    """Set the actual CLI env without reading user preferences or mutating them."""
+    spec.validate()
+    if not openrouter_key or not sec_user_agent or work.is_symlink():
+        raise ValueError("Proof workdir or required credentials invalid")
+    if spec.extra_peer_pins is not None:
+        if claim is None or ledger is None:
+            raise ValueError("Extra A pins require the approved A2 execution claim")
+        verify_execution_claim(claim, ledger, spec)
+    for name in list(os.environ):
+        if name.startswith("TRADINGAGENTS_") or name.endswith("_API_KEY"):
+            del os.environ[name]
+    values = {
+        "PYTHON_DOTENV_DISABLED": "1",
+        "OPENROUTER_API_KEY": openrouter_key, "SEC_EDGAR_USER_AGENT": sec_user_agent,
+        "TRADINGAGENTS_RESULTS_DIR": str(work / "results"),
+        "TRADINGAGENTS_CACHE_DIR": str(work / "cache"),
+        "TRADINGAGENTS_MEMORY_LOG_PATH": str(work / "memory/trading_memory.md"),
+        "TRADINGAGENTS_PREFS_PATH": str(work / "cli_prefs.json"),
+        "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
+        "TRADINGAGENTS_QUICK_THINK_LLM": spec.quick_model,
+        "TRADINGAGENTS_DEEP_THINK_LLM": spec.deep_model,
+        "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1",
+        "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
+        "TRADINGAGENTS_MAX_DEBATE_ROUNDS": str(spec.depth),
+        "TRADINGAGENTS_MAX_RISK_ROUNDS": str(spec.depth),
+        "TRADINGAGENTS_MAX_TOOL_ROUNDS": str(spec.max_tool_rounds),
+        "TRADINGAGENTS_MAX_TOKENS": str(spec.max_output_tokens),
+        "TRADINGAGENTS_LLM_MAX_RETRIES": "0",
+        "TRADINGAGENTS_ANALYSIS_TIMEZONE": spec.analysis_timezone,
+        "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
+    }
+    if spec.analysis_cutoff_utc is not None:
+        values["TRADINGAGENTS_ANALYSIS_CUTOFF_UTC"] = spec.analysis_cutoff_utc
+    os.environ.update(values)
+    for path in (work / "results", work / "cache", work / "memory"):
+        path.mkdir(parents=True, exist_ok=True)
+    if spec.extra_peer_pins is not None:
+        pins_path = work / "approved-peer-pins.json"
+        rows = [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
+                for ticker in spec.extra_peer_pins]
+        with pins_path.open("x") as handle:
+            json.dump({spec.ticker: rows}, handle, sort_keys=True)
+        os.environ["TRADINGAGENTS_PEERS_FILE"] = str(pins_path)
+    import yfinance as yf
+    tz_cache = work / "cache/yfinance"
+    tz_cache.mkdir(parents=True, exist_ok=True)
+    yf.set_tz_cache_location(str(tz_cache))
+
+
+def fresh_default_config() -> dict:
+    """Rebuild imported config references after isolation env is installed."""
+    from tradingagents import default_config
+    rebuilt = default_config.build_default_config()
+    default_config.DEFAULT_CONFIG = rebuilt
+    for name in ("cli.run", "cli.selections", "cli.main", "tradingagents.graph.trading_graph"):
+        module = sys.modules.get(name)
+        if module is not None and hasattr(module, "DEFAULT_CONFIG"):
+            module.DEFAULT_CONFIG = rebuilt
+    return rebuilt
+
+
+def install_starting_snapshot(gateway: FrozenSourceGateway, work: Path):
+    """Copy the same retained memory/publication tree into each fresh workdir."""
+    memory = gateway.common("memory")
+    memory_path = work / "memory/trading_memory.md"
+    memory_path.parent.mkdir(parents=True, exist_ok=True)
+    with memory_path.open("xb") as handle:
+        handle.write(memory)
+    publications = json.loads(gateway.common("prior_publication"))
+    if not isinstance(publications, dict) or set(publications) != {"files"} or not isinstance(publications["files"], dict):
+        raise ValueError("Prior-publication snapshot shape invalid")
+    root = work / "results/publications"
+    root.mkdir(parents=True, exist_ok=True)
+    for relative, encoded in publications["files"].items():
+        if not isinstance(relative, str) or not isinstance(encoded, str):
+            raise ValueError("Invalid publication seed entry")
+        destination = root / relative
+        if not destination.resolve().is_relative_to(root.resolve()) or destination.is_symlink():
+            raise ValueError("Unsafe publication seed path")
+        content = base64.b64decode(encoded, validate=True)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open("xb") as handle:
+            handle.write(content)
+
+
+class FrozenVendorReplay:
+    """Strict request-keyed replay for every non-model CLI source entrypoint."""
+    def __init__(self, gateway: FrozenSourceGateway):
+        self.gateway = gateway
+        self.calls: list[dict] = []
+        self.violations: list[dict] = []
+
+    def lookup(self, domain: str, name: str, args: tuple, kwargs: dict):
+        try:
+            key = source_request_hash(name, args, kwargs)
+            content = json.loads(self.gateway.common(domain))
+        except Exception as exc:
+            self.violations.append({"domain": domain, "name": name, "reason": type(exc).__name__})
+            raise
+        if not isinstance(content, dict) or key not in content:
+            self.violations.append({"domain": domain, "name": name, "request_hash": key})
+            raise RuntimeError(f"Uncaptured frozen source request: {domain}/{name}/{key}")
+        self.calls.append({"domain": domain, "name": name, "request_hash": key,
+                           "response_sha256": manifest_hash(content[key])})
+        value = content[key]
+        if isinstance(value, dict) and set(value) == {"__error__", "message"}:
+            from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
+            if value["__error__"] == "VendorUnavailableError":
+                raise VendorUnavailableError(str(value["message"]))
+            if value["__error__"] == "NoMarketDataError":
+                raise NoMarketDataError(str(args[0]), detail=str(value["message"]))
+            raise ValueError("Unrecognized frozen vendor error")
+        return value
+
+    @contextmanager
+    def installed(self):
+        from tradingagents.agents import context, event_comparison, tools, valuation_reference_flow
+        from tradingagents.agents.analysts import sentiment_analyst
+        from tradingagents.dataflows.financial_evidence import EvidencePackage
+        from tradingagents.dataflows.vendors import sec_documents, sec_edgar
+        from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+        from tradingagents.dataflows.vendors.yahoo import (
+            expectations,
+            price_observation,
+            reference_history,
+        )
+        from tradingagents.graph import trading_graph
+
+        def replay(domain, name, restore=lambda value: value):
+            return lambda *args, **kwargs: restore(self.lookup(domain, name, args, kwargs))
+
+        def route(name, *args, **kwargs):
+            domain = ("prices_indicators" if name in {"get_stock_data", "get_indicators"}
+                      else "sec_facts" if name in {"get_fundamentals", "get_balance_sheet",
+                                                  "get_cashflow", "get_income_statement"}
+                      else "news_social")
+            return self.lookup(domain, "route_to_vendor:" + name, args, kwargs)
+
+        def peer(ticker, state):
+            cutoff = valuation_reference_flow._scope(state)["observation_cutoff"]
+            try:
+                data = self.gateway.peer(ticker, cutoff)
+            except Exception as exc:
+                self.violations.append({"domain": "peer", "name": str(ticker),
+                                        "reason": type(exc).__name__})
+                raise
+            value = json.loads(data)
+            if not isinstance(value, dict) or value.get("status") not in {"available", "unavailable"}:
+                raise ValueError("Retained peer response shape invalid")
+            return value
+
+        def default_selection(state, config):
+            scope = valuation_reference_flow._scope(state)
+            return self.lookup("default_peers", "default_peer_selection",
+                               (scope["ticker"], scope["as_of"], scope["observation_cutoff"]), {})
+
+        with ExitStack() as stack:
+            bindings = [
+                (tools, "route_to_vendor", route),
+                (tools, "build_verified_market_snapshot", replay("prices_indicators", "build_verified_market_snapshot")),
+                (sentiment_analyst, "fetch_stocktwits_messages", replay("news_social", "fetch_stocktwits_messages")),
+                (sentiment_analyst, "fetch_reddit_posts", replay("news_social", "fetch_reddit_posts")),
+                (tools, "build_financial_evidence", replay("sec_facts", "get_financial_evidence", EvidencePackage.model_validate)),
+                (tools, "build_filing_evidence", replay("sec_filings", "get_filing_evidence", DisclosurePackage.model_validate)),
+                (context, "resolve_instrument_identity", replay("prices_indicators", "resolve_instrument_identity")),
+                (trading_graph, "resolve_instrument_identity", replay("prices_indicators", "resolve_instrument_identity")),
+                (sec_edgar, "cik_for", replay("sec_facts", "cik_for")),
+                (sec_edgar, "get_financial_evidence", replay("sec_facts", "get_financial_evidence", EvidencePackage.model_validate)),
+                (sec_documents, "get_filing_evidence", replay("sec_filings", "get_filing_evidence", DisclosurePackage.model_validate)),
+                (sec_documents, "get_current_quarter_rpo_evidence",
+                 replay("sec_filings", "get_current_quarter_rpo_evidence", DisclosurePackage.model_validate)),
+                (sec_documents, "get_prior_quarter_evidence",
+                 replay("sec_filings", "get_prior_quarter_evidence", DisclosurePackage.model_validate)),
+                (price_observation, "get_price_observation", replay("prices_indicators", "get_price_observation")),
+                (event_comparison, "get_price_observation", replay("prices_indicators", "get_price_observation")),
+                (reference_history, "get_reference_history", replay("prices_indicators", "get_reference_history")),
+                (expectations, "get_vendor_expectations", replay("consensus", "get_vendor_expectations", expectations.VendorExpectations.model_validate)),
+                (valuation_reference_flow, "_fetch_peer", peer),
+                (valuation_reference_flow, "default_peer_selection", default_selection),
+            ]
+            for module, attr, replacement in bindings:
+                stack.enter_context(patch.object(module, attr, replacement))
+            yield
+
+
+class FrozenSourceCapture:
+    """Build request-keyed common source files before model runs."""
+    def __init__(self, root: Path):
+        self.root = root
+        self.entries = {domain: {} for domain in DOMAINS
+                        if domain not in {"memory", "prior_publication"}}
+
+    def record(self, domain: str, name: str, args: tuple, kwargs: dict, value):
+        if domain not in self.entries:
+            raise ValueError("Unknown capturable source domain")
+        key = source_request_hash(name, args, kwargs)
+        if hasattr(value, "model_dump"):
+            value = value.model_dump(mode="json")
+        normalized = json.loads(json.dumps(value, sort_keys=True, default=str))
+        if key in self.entries[domain] and self.entries[domain][key] != normalized:
+            raise ValueError("Repeated capture request produced different source data")
+        self.entries[domain][key] = normalized
+        return value
+
+    def call(self, domain: str, name: str, args: tuple, kwargs: dict, producer):
+        return self.record(domain, name, args, kwargs, producer(*args, **kwargs))
+
+    def write(self, *, memory: bytes, prior_publication: dict) -> dict:
+        if not isinstance(memory, bytes) or not isinstance(prior_publication, dict):
+            raise ValueError("Starting memory and publication snapshots are required")
+        self.root.mkdir(parents=True, exist_ok=True)
+        values = {domain: json.dumps(self.entries[domain], sort_keys=True, separators=(",", ":")).encode()
+                  for domain in self.entries}
+        values["memory"] = memory
+        values["prior_publication"] = json.dumps(prior_publication, sort_keys=True,
+                                                  separators=(",", ":")).encode()
+        files = {}
+        for domain, data in values.items():
+            path = self.root / f"{domain}.json"
+            with path.open("xb") as handle:
+                handle.write(data)
+            files[domain] = {"path": path.name, "sha256": hashlib.sha256(data).hexdigest()}
+        return files
+
+
+@contextmanager
+def checked_cli_config(spec: CliSpec):
+    import cli.run
+    original = cli.run._build_run_config
+    def checked(*args, **kwargs):
+        config = original(*args, **kwargs)
+        verify_cli_config(config, spec)
+        return config
+    with patch.object(cli.run, "_build_run_config", checked):
+        yield
+
+
+@contextmanager
+def frozen_market_cutoff(spec: CliSpec):
+    if spec.market_observation_cutoff is None:
+        yield
+        return
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    original = TradingAgentsGraph.create_run_state
+    expected = datetime.fromisoformat(spec.market_observation_cutoff).astimezone(UTC).isoformat()
+    def fixed(graph, *args, **kwargs):
+        state = original(graph, *args, **kwargs)
+        if state.get("trade_date") != spec.analysis_date or state.get("company_of_interest") != spec.ticker:
+            raise RuntimeError("Graph starting state differs from frozen comparison scope")
+        state["market_observation_cutoff"] = expected
+        return state
+    with patch.object(TradingAgentsGraph, "create_run_state", fixed):
+        yield
+
+
+def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
+                source_replay: FrozenVendorReplay | None, *, openrouter_key: str,
+                sec_user_agent: str, claim: ExecutionClaim,
+                approval: Approval | None = None):
+    """Run the real CLI under exact source, HTTP, config and isolated-path hooks."""
+    if wire.max_output_tokens != spec.max_output_tokens or set(wire.rates) != {spec.quick_model, spec.deep_model}:
+        raise ValueError("Wire guard differs from actual CLI model/cap scope")
+    if wire.context_cap != spec.context_cap:
+        raise ValueError("Wire context cap differs from declared CLI scope")
+    if claim.kind == "comparison" and (source_replay is None or wire.allow_unfrozen_sources):
+        raise ValueError("A7 requires frozen sources and no unfrozen source allowance")
+    if claim.kind == "proof" and (source_replay is not None or not wire.allow_unfrozen_sources):
+        raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
+    verify_budget_binding(claim, wire.budget, spec, approval)
+    start_execution(claim, wire.budget.ledger, spec)
+    configure_isolated_env(spec, work, openrouter_key=openrouter_key,
+                           sec_user_agent=sec_user_agent, claim=claim, ledger=wire.budget.ledger)
+    if source_replay is not None:
+        install_starting_snapshot(source_replay.gateway, work)
+    DEFAULT_CONFIG = fresh_default_config()
+    verify_cli_config(DEFAULT_CONFIG, spec)
+    argv = ["cli.main", "--ticker", spec.ticker, "--date", spec.analysis_date,
+            "--analysts", "market,social,news,fundamentals", "--save", "--html", "--show", "--checkpoint"]
+    old_argv, old_cwd = sys.argv, Path.cwd()
+    gate = NetworkGate() if source_replay is not None else None
+    wire.network_gate = gate
+    original_peer_fetch = source_replay.gateway.fetch_peer if source_replay is not None else None
+    if original_peer_fetch is not None:
+        def scoped_peer_capture(request):
+            with gate.peer_capture():
+                return original_peer_fetch(request)
+        source_replay.gateway.fetch_peer = scoped_peer_capture
+    try:
+        sys.argv = argv
+        os.chdir(work)
+        with ExitStack() as stack:
+            stack.enter_context(checked_cli_config(spec))
+            stack.enter_context(frozen_market_cutoff(spec))
+            if source_replay is not None:
+                stack.enter_context(source_replay.installed())
+                stack.enter_context(installed_network_gate(gate))
+            stack.enter_context(installed_http_guard(wire))
+            try:
+                runpy.run_module("cli.main", run_name="__main__")
+            except SystemExit as exc:
+                if exc.code not in (None, 0):
+                    raise
+        if source_replay is not None and (source_replay.violations or gate.violations):
+            raise RuntimeError("Uncaptured frozen source access occurred during CLI run")
+        state_path = (work / "results" / spec.ticker / "TradingAgentsStrategy_logs" /
+                      f"full_states_log_{spec.analysis_date}.json")
+        state = json.loads(state_path.read_text())
+        if state.get("company_of_interest") != spec.ticker or state.get("trade_date") != spec.analysis_date:
+            raise RuntimeError("Actual saved CLI state differs from fixed run scope")
+        if spec.market_observation_cutoff is not None and state.get("market_observation_cutoff") != datetime.fromisoformat(
+            spec.market_observation_cutoff
+        ).astimezone(UTC).isoformat():
+            raise RuntimeError("Saved market observation cutoff differs from frozen comparison input")
+        if spec.analysis_cutoff_utc is not None and (state.get("analysis_clock") or {}).get("cutoff_utc") != spec.analysis_cutoff_utc:
+            raise RuntimeError("Saved analysis cutoff differs from frozen comparison input")
+        metrics = state.get("run_metrics") or {}
+        if (metrics.get("research_rounds_completed") != spec.depth
+                or metrics.get("risk_rounds_completed") != spec.depth
+                or metrics.get("model_calls") != wire.request_count):
+            raise RuntimeError("Actual CLI rounds/model-call count differs from wire evidence")
+        if not all(state.get(key) for key in ("market_report", "sentiment_report", "news_report",
+                                                 "fundamentals_report", "advisory_audit")):
+            raise RuntimeError("Saved CLI output is missing an analyst or audit pass")
+        if spec.extra_peer_pins is not None:
+            peers = ((state.get("valuation_reference") or {}).get("peers") or {})
+            requested = peers.get("requested") or []
+            if (peers.get("kind") != "user-pinned" or
+                    requested != [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
+                                  for ticker in spec.extra_peer_pins]):
+                raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
+        return {"state": state, "model_calls": wire.request_count,
+                "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
+                                    if spec.extra_peer_pins is not None else None),
+                "reasoning_settings": {key: DEFAULT_CONFIG.get(key) for key in
+                                       ("openai_reasoning_effort", "anthropic_effort")},
+                "source_calls": source_replay.calls if source_replay is not None else [],
+                "request_hashes": source_replay.gateway.request_hashes if source_replay is not None else {}}
+    finally:
+        if source_replay is not None:
+            source_replay.gateway.fetch_peer = original_peer_fetch
+        sys.argv = old_argv
+        os.chdir(old_cwd)
+
+
+def build_pilot_receipt(manifest: dict, spec: CliSpec, slot_name: str,
+                        cli_result: dict, ledger: PilotLedger) -> dict:
+    """Derive the A7 callback receipt from actual saved CLI and wire records."""
+    slot = next((slot for slot in SLOTS if slot.name == slot_name), None)
+    if slot is None or (spec.quick_model, spec.deep_model, spec.depth) != (
+        slot.quick_model, slot.deep_model, slot.depth
+    ):
+        raise ValueError("CLI spec differs from claimed A7 slot")
+    if manifest.get("cutoff_utc") != spec.market_observation_cutoff:
+        raise ValueError("CLI market cutoff differs from frozen A7 manifest")
+    if manifest.get("context_cap") != spec.context_cap:
+        raise ValueError("CLI context cap differs from frozen A7 manifest")
+    state = cli_result["state"]
+    events = ledger.events()
+    tickets = {e["ticket"] for e in events if e["type"] == "reserve" and e.get("scope") == slot_name}
+    cost = (sum((Decimal(e["usd"]) for e in events if e["type"] in {"reserve", "settle"}
+                 and e.get("ticket") in tickets), Decimal(0))
+            - sum((Decimal(e["usd"]) for e in events if e["type"] == "release"
+                   and e.get("ticket") in tickets), Decimal(0)))
+    if len(tickets) != cli_result["model_calls"]:
+        raise ValueError("Saved model calls differ from paid request records")
+    source_calls = cli_result["source_calls"]
+    if not isinstance(source_calls, list) or not source_calls:
+        raise ValueError("Frozen source calls are not recorded")
+    return {"state": state, "common_hash": manifest_hash(manifest),
+            "memory_hash": manifest["files"]["memory"]["sha256"],
+            "prior_publication_hash": manifest["files"]["prior_publication"]["sha256"],
+            "request_hashes": cli_result["request_hashes"],
+            "source_call_hashes": source_calls,
+            "reasoning_settings": cli_result.get("reasoning_settings"),
+            "response_routes": [e for e in events if e["type"] == "response_meta"
+                                and e.get("ticket") in tickets],
+            "scope": {"ticker": spec.ticker, "analysis_date": spec.analysis_date,
+                      "depth": spec.depth, "analysts": manifest["analysts"],
+                      "tool_limit": spec.max_tool_rounds, "context_cap": spec.context_cap,
+                      "quick_model": spec.quick_model, "deep_model": spec.deep_model,
+                      "llm_max_retries": 0},
+            "model_calls": cli_result["model_calls"], "cost_usd": str(cost), "completed": True}

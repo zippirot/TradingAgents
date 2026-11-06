@@ -191,3 +191,59 @@ def test_installed_yfinance_lazy_mapping_preserves_session_metadata(monkeypatch,
     assert result.attrs["market_provenance"]["regular_end"] == "2026-11-05T21:00:00+00:00"
     assert result["Close"].iloc[-1] == expected
 
+
+@pytest.mark.parametrize("missing_count", [1, 2])
+def test_missing_completed_close_reason_reaches_stock_snapshot_and_indicator(monkeypatch, tmp_path, missing_count):
+    _, _, frame = install(monkeypatch, tmp_path, now="2026-11-05T22:00:00+00:00")
+    frame.loc[frame.index[-missing_count:], "Close"] = float("nan")
+    selected = "2026-11-04" if missing_count == 1 else "2026-11-03"
+    data = ohlcv.load_ohlcv("DOCN", "2026-11-05")
+    fallback = data.attrs["market_provenance"]["price_fallback"]
+    assert fallback["latest_completed_session_date"] == "2026-11-05"
+    assert fallback["selected_session_date"] == selected
+    assert len(fallback["missing_completed_session_dates"]) == missing_count
+    stock = market.get_YFin_data_online("DOCN", "2026-11-03", "2026-11-05")
+    report = snapshot.build_verified_market_snapshot("DOCN", "2026-11-05")
+    indicators = market.get_stock_stats_indicators_window("DOCN", "close_50_sma", "2026-11-05", 2)
+    for text in (stock, report, indicators):
+        assert fallback["reason"] in text
+        assert "latest completed session 2026-11-05" in text
+        assert "selected session " + selected in text
+    assert "2026-11-05: N/A: No completed bar" in indicators
+    assert "74.24" not in stock + report + indicators
+
+
+def test_partial_missing_close_does_not_claim_completed_fallback(monkeypatch, tmp_path):
+    _, _, frame = install(monkeypatch, tmp_path)
+    frame.loc[frame.index[-1], "Close"] = float("nan")
+    data = ohlcv.load_ohlcv("DOCN", "2026-11-05")
+    assert data.attrs["market_provenance"]["session_date"] == "2026-11-04"
+    assert "price_fallback" not in data.attrs["market_provenance"]
+    assert "Latest completed session has no close" not in "\n".join(ohlcv.market_provenance_lines(data))
+
+
+@pytest.mark.parametrize("invalid", ["broken", "NaN", float("inf"), -1, 0, True])
+def test_invalid_nonempty_completed_close_is_not_empty_fallback(monkeypatch, tmp_path, invalid):
+    from tradingagents.dataflows.errors import NoMarketDataError
+    _, _, frame = install(monkeypatch, tmp_path, now="2026-11-05T22:00:00+00:00")
+    frame["Close"] = frame["Close"].astype(object)
+    frame.loc[frame.index[-1], "Close"] = invalid
+    with pytest.raises(NoMarketDataError, match="invalid nonempty closing price"):
+        ohlcv.load_ohlcv("DOCN", "2026-11-05")
+
+@pytest.mark.parametrize("empty", [None, "", "   "])
+def test_empty_provider_closes_get_labeled_fallback(monkeypatch, tmp_path, empty):
+    _, _, frame = install(monkeypatch, tmp_path, now="2026-11-05T22:00:00+00:00")
+    frame["Close"] = frame["Close"].astype(object)
+    frame.loc[frame.index[-1], "Close"] = empty
+    data = ohlcv.load_ohlcv("DOCN", "2026-11-05")
+    assert data.attrs["market_provenance"]["price_fallback"]["selected_session_date"] == "2026-11-04"
+    assert data["Close"].iloc[-1] == 84.02
+
+
+def test_indicator_reason_does_not_fetch_a_second_series(monkeypatch, tmp_path):
+    _, calls, frame = install(monkeypatch, tmp_path, now="2026-11-05T22:00:00+00:00")
+    frame.loc[frame.index[-1], "Close"] = float("nan")
+    report = market.get_stock_stats_indicators_window("DOCN", "close_50_sma", "2026-11-05", 2)
+    assert "Latest completed session has no close" in report
+    assert len(calls) == 1

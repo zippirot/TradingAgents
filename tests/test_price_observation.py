@@ -189,3 +189,76 @@ def test_historical_verification_beyond_bound_is_unavailable(monkeypatch):
     result = prices.get_price_observation("DOCN", "2024-01-02")
     assert result["status"] == "unavailable"
     assert "400" in result["reason"]
+
+
+@pytest.mark.parametrize("missing", [None, float("nan"), "", "  ", pd.NA])
+def test_missing_completed_close_falls_back_with_dated_reason(monkeypatch, missing):
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00", closes=(84, missing))
+    record = prices.get_price_observation("DOCN", "2026-11-04")
+    assert record["status"] == "available", record
+    assert record["close"] == "84" and record["session_date"] == "2026-11-03"
+    fallback = record["price_fallback"]
+    assert fallback["latest_completed_session_date"] == "2026-11-04"
+    assert fallback["selected_session_date"] == "2026-11-03"
+    assert fallback["missing_completed_session_dates"] == ["2026-11-04"]
+    assert "no close" in fallback["reason"]
+    assert record["raw_source"]["bars"][-1]["close"] is None
+    assert prices.validate_price_observation(record, "DOCN", "2026-11-04") == record
+
+
+def test_multiple_missing_completed_closes_and_retained_splits(monkeypatch):
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00",
+            dates=("2026-11-02", "2026-11-03", "2026-11-04"),
+            closes=(84, None, float("nan")), splits=(0, 2, 0))
+    record = prices.get_price_observation("DOCN", "2026-11-04")
+    assert record["status"] == "available", record
+    assert record["session_date"] == "2026-11-02"
+    assert record["price_fallback"]["missing_completed_session_dates"] == [
+        "2026-11-03", "2026-11-04"]
+    assert record["splits"] == [{"session_date": "2026-11-03", "ratio": "2"}]
+    for mutate in ("projection", "source"):
+        changed = deepcopy(record)
+        if mutate == "projection":
+            changed["price_fallback"]["missing_completed_session_dates"] = []
+        else:
+            changed["raw_source"]["bars"][-1]["close"] = "85"
+        with pytest.raises(ValueError):
+            prices.validate_price_observation(changed, "DOCN", "2026-11-04")
+
+
+def test_partial_or_cutoff_excluded_missing_close_does_not_trigger_fallback(monkeypatch):
+    install(monkeypatch, closes=(84, float("nan")))
+    record = prices.get_price_observation("DOCN", "2026-11-04")
+    assert record["status"] == "available", record
+    assert record["session_date"] == "2026-11-03"
+    assert "price_fallback" not in record
+    with prices.completed_price_scope({"market_observation_cutoff": "2026-11-04T20:00:00+00:00"}):
+        install(monkeypatch, now="2026-11-04T22:00:00+00:00", closes=(84, None))
+        record = prices.get_price_observation("DOCN", "2026-11-04")
+    assert record["session_date"] == "2026-11-03"
+    assert "price_fallback" not in record
+
+
+@pytest.mark.parametrize("value", [0, -1, float("inf"), -float("inf"), "broken", "nan", True])
+def test_invalid_nonempty_latest_close_does_not_fall_back(monkeypatch, value):
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00", closes=("84", value))
+    assert prices.get_price_observation("DOCN", "2026-11-04")["status"] == "unavailable"
+
+
+def test_missing_fallback_preserves_identity_currency_and_action_guards(monkeypatch):
+    for metadata, splits in [
+        ({"symbol": "MSFT"}, (0, 0)), ({"currency": None}, (0, 0)),
+        ({}, (0, float("nan"))),
+    ]:
+        install(monkeypatch, now="2026-11-04T22:00:00+00:00", closes=(84, None),
+                metadata=metadata, splits=splits)
+        assert prices.get_price_observation("DOCN", "2026-11-04")["status"] == "unavailable"
+
+
+def test_missing_close_cannot_bypass_staleness_or_future_session(monkeypatch):
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00",
+            dates=("2026-10-26", "2026-11-04"), closes=(84, None))
+    assert prices.get_price_observation("DOCN", "2026-11-04")["status"] == "unavailable"
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00",
+            dates=("2026-11-03", "2026-11-05"), closes=(84, None))
+    assert prices.get_price_observation("DOCN", "2026-11-04")["status"] == "unavailable"

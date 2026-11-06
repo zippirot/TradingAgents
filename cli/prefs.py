@@ -70,7 +70,7 @@ def sanitize(prefs: dict, asset_type) -> dict:
     kept: dict = {}
     if isinstance(prefs.get("output_language"), str):
         kept["output_language"] = prefs["output_language"]
-    if prefs.get("research_depth") in (1, 3, 5):
+    if prefs.get("research_depth") in (1, 2, 3, 5):
         kept["research_depth"] = prefs["research_depth"]
 
     known = {a.value for a in AnalystType}

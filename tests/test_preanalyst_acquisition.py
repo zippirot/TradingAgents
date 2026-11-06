@@ -192,3 +192,21 @@ def test_preacquisition_checkpoint_can_resume_and_old_signature_is_untouched(sou
     assert state.values["evidence_acquisition"]["status"] == "not_applicable"
     assert sources[2] == ["price"]
     assert paused.get_state(old_config) == old_snapshot
+
+
+def test_reference_sources_are_acquired_before_shared_analyst_context(sources, monkeypatch):
+    from tradingagents.agents import valuation_reference_flow
+    from tradingagents.agents.context import get_instrument_context_from_state
+
+    seen = []
+    def reference(state, config):
+        assert state["evidence_acquisition"]["status"] == "ready"
+        assert state["financial_evidence"] and state["price_observation"]
+        seen.append("reference")
+        return {"valuation_reference": {"status": "fixture"},
+                "valuation_reference_brief": "Reference fixture: default peers before analysts"}
+    monkeypatch.setattr(valuation_reference_flow, "acquire_reference_inputs", reference)
+    state = initial()
+    prepared = acquire(state)
+    assert seen == ["reference"]
+    assert "default peers before analysts" in get_instrument_context_from_state({**state, **prepared})

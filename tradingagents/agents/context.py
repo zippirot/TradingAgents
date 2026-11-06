@@ -232,6 +232,10 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             f"timezone {quote['exchange_timezone']}; basis {quote['adjustment_basis']}; "
             f"source_id {quote['source_id']}. Dated completed close, not an executable or intraday quote."
         )
+        if quote.get("price_fallback"):
+            fallback = quote["price_fallback"]
+            lines.append(f"Price fallback: {fallback['reason']}; latest completed session "
+                         f"{fallback['latest_completed_session_date']}; selected {quote['session_date']}.")
     except (ValueError, TypeError, KeyError):
         reason = (state.get("price_observation") or {}).get("reason", "No verifiable completed price retained")
         lines.append("Canonical completed price unavailable: " + str(reason)[:500])
@@ -359,6 +363,12 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
     brief = state.get("shared_source_brief")
     if isinstance(brief, str) and brief:
         context += "\n\n" + brief
+    reference = state.get("valuation_reference_brief")
+    if isinstance(reference, str) and reference:
+        context += "\n\n" + reference
+        context += ("\nUse the calculated figures above; cite their stated equity/enterprise, share and period bases. "
+                    "Do not calculate new debate figures or treat model-selected peers or vendor consensus as verified judgments. "
+                    "A figure absent from this bounded brief is unsupported here, not proven false.")
     # Before analysts, use only the retained bounded brief. Later research roles
     # also receive the final gate's canonical assessment and labeled narratives.
     canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None
@@ -403,6 +413,9 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
             context += (f"\n\nProvider price observation: {quote['close']} {quote['currency']} on "
                         f"{quote['session_date']} (completed session). {quote['adjustment_basis']}. "
                         "This is not a fair value or expected return; comparisons require compatible share bases.")
+            if quote.get("price_fallback"):
+                context += "\nPrice fallback: " + str(quote["price_fallback"]["reason"]) + (
+                    "; latest completed session " + quote["price_fallback"]["latest_completed_session_date"] + ".")
         except (ValueError, TypeError, KeyError):
             context += "\n\nProvider price observation unavailable or not verifiable; do not infer a current price."
     scenarios = state.get("shared_valuation_scenarios")

@@ -87,6 +87,9 @@ class AgentState(MessagesState):
     evidence_quality: Annotated[dict, "Authoritative evidence status and check-level reasons"]
     canonical_financial_context: Annotated[str, "Deterministic financial context for downstream agents"]
 
+    valuation_reference: Annotated[dict, "Deterministic dated valuation reference points, not fair value"]
+    valuation_reference_brief: Annotated[str, "Bounded shared valuation reference context"]
+    vendor_expectations: Annotated[dict, "Dated provider guidance and consensus observation"]
     shared_valuation_scenarios: Annotated[dict, "Optional conditional pre-debate calculations; never the final target"]
 
     # researcher team discussion step
@@ -101,6 +104,12 @@ class AgentState(MessagesState):
     risk_debate_state: Annotated[
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
+    audit_market_tool_evidence: Annotated[dict, "Bounded actual market tool outputs for advisory review, unverified"]
+    audit_social_tool_evidence: Annotated[dict, "Bounded actual sentiment inputs for advisory review, unverified"]
+    audit_news_tool_evidence: Annotated[dict, "Bounded actual news tool outputs for advisory review, unverified"]
+    audit_fundamentals_tool_evidence: Annotated[dict, "Bounded actual fundamentals tool outputs for advisory review, unverified"]
+    advisory_audit: Annotated[dict, "Bounded advisory review before the Portfolio Manager; no rating or evidence authority"]
+    run_metrics: Annotated[dict, "Observed model calls and debate length with completeness scope"]
     final_trade_decision: Annotated[str, "Final decision from the Portfolio Manager"]
     unvalidated_outputs: Annotated[dict, "Original model outputs retained for diagnosis, not verified publication"]
     target_validation: Annotated[dict, "Deterministic valuation result and omission reasons"]

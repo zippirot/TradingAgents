@@ -16,6 +16,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import yfinance as yf
+from pandas import isna
 
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import yf_retry
@@ -224,7 +225,7 @@ def _project(raw):
     bars = raw["bars"]
     if not isinstance(bars, list) or not 1 <= len(bars) <= 401:
         raise ValueError("Missing or oversized daily history")
-    sessions, completed = set(), []
+    sessions, completed, missing_completed = set(), [], []
     splits = []
     for bar in bars:
         timestamp = _timestamp(bar["timestamp"])
@@ -234,7 +235,7 @@ def _project(raw):
         sessions.add(session)
         if not start <= session <= as_of:
             raise ValueError("Price row outside requested window")
-        close = _number(bar["close"], positive=True)
+        close = None if bar["close"] is None else _number(bar["close"], positive=True)
         split = _number(bar["stock_splits"])
         if session > today:
             raise ValueError("Future price session")
@@ -242,7 +243,10 @@ def _project(raw):
             session, retrieved, str(zone), metadata["regular_end"], raw.get("observation_cutoff")
         )
         if is_complete:
-            completed.append((session, close))
+            if close is None:
+                missing_completed.append(session)
+            else:
+                completed.append((session, close))
         if Decimal(split) != 0:
             splits.append({"session_date": str(session), "ratio": split})
     if not completed:
@@ -256,7 +260,7 @@ def _project(raw):
         if raw["capital_snapshot_date"]
         else requested
     )
-    return {
+    result = {
         "status": "available",
         "ticker": ticker,
         "as_of": str(as_of),
@@ -280,6 +284,23 @@ def _project(raw):
         "content_hash": _hash(raw),
         "raw_source": raw,
     }
+    missing_later = sorted(day for day in missing_completed if day > session)
+    if missing_later:
+        result["price_fallback"] = {
+            "reason": "Latest completed session has no close; using last valid completed session",
+            "latest_completed_session_date": str(missing_later[-1]),
+            "selected_session_date": str(session),
+            "missing_completed_session_dates": [str(day) for day in missing_later],
+        }
+    return result
+
+
+def _source_close(value):
+    # Normalize missing provider cells only. Nonempty malformed/nonfinite values
+    # must still reach the strict numeric validator rather than trigger fallback.
+    if value is None or (isinstance(value, str) and not value.strip()) or isna(value):
+        return None
+    return str(value)
 
 
 def validate_price_observation(record, ticker, as_of):
@@ -344,7 +365,7 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
             "bars": [
                 {
                     "timestamp": index.isoformat(),
-                    "close": str(row["Close"]),
+                    "close": _source_close(row["Close"]),
                     "stock_splits": str(row["Stock Splits"]),
                 }
                 for index, row in history.iterrows()

@@ -10,7 +10,7 @@ _REFERENCE_BLOCK = re.compile(re.escape(REFERENCE_START) + r"(.*?)" + re.escape(
 def analyst_prose(text: str) -> str:
     """Keep research prose; structured extraction stays in raw diagnostics."""
     return re.sub(
-        r"```(?:financial_claims|disclosures|valuation_scenarios)\b[^\n]*\n.*?(?:```|\Z)",
+        r"```(?:financial_claims|disclosures|valuation_scenarios|peers)\b[^\n]*\n.*?(?:```|\Z)",
         "", text, flags=re.S,
     ).strip()
 
