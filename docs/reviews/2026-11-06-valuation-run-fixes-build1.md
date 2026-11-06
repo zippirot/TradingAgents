@@ -1,6 +1,6 @@
 # Valuation run fixes: Build 1 checkpoint
 
-Authority: user Goal on 2026-11-06 plus Amendment 1. Build 1 only; Build 2, the comparison, publication and installation remain held. Pre-live implementation checkpoint below is retained; the post-proof outcome is recorded at the end.
+Authority: user Goal on 2026-11-06 plus Amendment 1 and explicit third-proof approval. **Current status: Build 1-specific acceptance met by the third run; case generation and Build 2 are unproved and held.** Earlier chronological checkpoints below retain their original outcomes; the latest outcome and scope rationale are at the end. Publication, comparison and installation remain held.
 
 ## Isolation and governing inputs
 
@@ -90,3 +90,36 @@ The prompt contract regression failed before correction. After correction, **109
 Final spending for this fresh allowance: **$3.880792 settled**, **$2.972000 unknown reservations retained**, **$6.852792 committed exposure**. Each one-free-GET post-run account delta exactly matched its settled charges, but neither provided per-ticket proof to release the two HTTP 400 reservations. There were **two CLI attempts, two starts, 21 reservations; zero attempts remain**. Unspent dollars are not attempt authority. Build 2 now needs fresh proof authority as well as its separately required implementation approval.
 
 **Build 1 remains incomplete:** required positive live audit/PM/horizon/Sell/A2 observations and proof of the prompt correction are missing. No third attempt, publication, comparison, installation, merge, push, cleanup, scheduler or broker action is authorized. The corrected source and synchronized review checkpoint are ready for the user's review; exact-head GitHub CI still awaits separately authorized publication.
+
+
+## Third proof — Build 1-specific acceptance met
+
+The user separately approved one third Build 1 attempt capped at $12 within the unchanged $24 aggregate, on corrected source `433fc966c2c432716c3779e7339086cf0482b954`. This increased attempt authority to three; it did not stack a budget or authorize a fourth, Build 2, comparison or release. The inherited adapter's `attempts=2` marker is the original per-ledger schema, explicitly distinguished from current total-three authority in the third link/job. Fourteen network-blocked private guard tests, Ruff/compile and independent binding review passed. Both original ledgers/runtimes/jobs were immutable; all previous unknown exposure was retained.
+
+The third actual CLI application ran `2026-11-06T22:40:26.491545+00:00`–`2026-11-06T22:52:25.806151+00:00`, after the actual November 6 close at `21:00 UTC`, with all four analysts, depth 1, Opus 5.5 quick/Terra Pro deep, no peer pins or saved-preference changes. Fresh free usage/rates/session receipts were retained; rates were unchanged. The report is `private/run-fixes-build1-attempt3-live-proof/results/reports/DOCN_20261106_155224`, with an actual `cli-receipt.json`.
+
+Observed Build 1 outcomes:
+
+- The original TTM revenue claim now explicitly has `kind=derived`, matching its canonical fact. All **31 structured financial claims passed** the unchanged validator; lineage revalidation had no errors. This one run demonstrates correct labeling, not a guarantee of future model compliance or proof of causality.
+- Every initial analyst request contains the exact sourced deterministic RPO comparison and caveat; no A1 model call was added. The canonical completed November 6 close is `72.4800033569336 USD`, consistently sourced and retrieved after close.
+- Source coverage remains **limited: 20 checks passed, zero failed, six unavailable**, including source-precision limitations; passing structured claims do not validate every narrative judgment.
+- The advisory audit completed in one call with **seven findings**: two contradictions, four numerical inconsistencies, one unsupported claim; all seven passed quote/source-label validation, none were rejected. These remain advisory model judgments. Request size: **193,954 characters / 194,507 UTF8 bytes**; finish `tool_calls`, no error, no retry. The report honestly states the auditor differs from analyst models, shares the Research/Portfolio Manager model, and does not audit the PM's own text.
+- The PM answered **all seven findings**, accepting each with a reason; zero unanswered or invalid responses. The canonical rating remains the PM's **Underweight**, with an explicit **six-month** horizon and risk-assessment basis. A2 added no model call or gate.
+- The natural Trader action was Sell. Its 88.00 level is labeled advisory thesis invalidation/reassessment, explicitly not an execution stop or short instruction. No supported final target or allocation is promoted to trading authority.
+- One research round and one risk round completed. Token coverage is honestly partial: **1,081,421 observed input / 68,257 output tokens, 18 usage receipts for 20 calls**. Sentiment and Trader used their existing free-text fallbacks after HTTP 400; those unreceipted costs remain reserved. The live CLI token footer was not observed, while saved Markdown/HTML retain the metrics.
+
+The normal application completed without an exception and saved its receipt. The outer proof wrapper nevertheless marks `failed` solely because it conservatively flags **two unknown-cost reservations**. That safety flag is preserved, not relabeled as a passing wrapper. It does not erase the independently inspected positive application evidence; retaining unknown reservations is an explicit Goal requirement, not an instruction to infer zero cost. No rerun follows that flag.
+
+### Scope and remaining observations
+
+Fundamentals hit the fixed **16,384-token output cap** and ended during its disclosure JSON, before the `valuation_scenarios` fence. Thus **no structured case proposal was observed** in this run; the card correctly publishes no supported valuation. This is truncation, not a reasoned empty-case choice. Existing `analyst_prose` strips even a truncated recognized structured block, so it does not swallow later report sections. No fourth run or output-cap increase is authorized.
+
+The mixed plan's general actual-case-proposal observation remains unproved. It is not claimed satisfied merely by choosing Opus. For this **Build 1-only Goal**, the explicit independently releasable Build 1 boundary and instruction not to hold it for Build 2 control: all eight fixes and A1/A2 now have their applicable offline and live evidence. Case creation, capital assumptions, pricing/ranges, A3 and their case-feature proof remain with unstarted Build 2. Independent completion review records this scope interpretation while preserving the literal general-proof limitation. Natural Sell/nonzero findings happened here; they were not invented additional live gates. Forced retry, missing/malformed dispositions and legacy edge cases retain their offline evidence rather than being claimed observed live.
+
+Final fresh-allowance totals across **three attempts**: **$7.87506405 settled**, **$6.587296 unknown reservations retained**, **$14.46236005 committed exposure**, below $24. The third alone settled $3.99427205 and retains $3.615296 unknown exposure, totaling $7.60956805 below its $12 cap. Each one-GET account reconciliation matches settled charges, but does not establish individual HTTP 400 billing. All ledgers remain unchanged; zero paid attempts remain. The app, launcher `e482070`, pins, credentials, original inputs/reports/history and other worktrees were preserved.
+
+Source is unchanged from `433fc966` except this final documentation checkpoint. Existing passing full inventory, 65-case fixture correction, 95-case receipt checks, 109 affected prompt/recovery checks and 25 final caller/checkpoint checks are reused with recorded source/dependency/configuration/impact justification. Full Ruff, dependency and diff checks passed. This remains **combined verification evidence, not one complete full-suite run on the final revision**. Independent code/actual-artifact review found no unresolved material Build 1 defect. Live audit retry, provider-internal usage and case generation retain their stated limits.
+
+**Delivery boundary:** Build 1 is ready for review. No push, PR, merge, installation, production change, worktree removal, scheduler or broker action occurred. Exact-head GitHub CI and release acceptance await separately authorized publication. Build 2 and the comparison remain held.
+
+Final actual-artifact inspection passed 26 checks. Full HTML had 733 cells without overflow; downstream headings and all seven audit responses remained outside code blocks despite the truncated original disclosure block. Root visually inspected the hash-verified actual audit/PM excerpt; source quotes retain minor literal HTML-entity artifacts, a cosmetic deferred limitation. Final code-and-artifact reviews found no unresolved material Build 1 issue.
