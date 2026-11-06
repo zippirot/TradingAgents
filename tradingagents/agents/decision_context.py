@@ -141,7 +141,11 @@ def prepare_decision_context(state: dict) -> dict:
         if _text(debate.get(key)):
             excerpts.append({'role': role, 'diagnostic_reference': f'{debate_path}.{key}'})
     trader = originals.get('trader_investment_plan', state.get('trader_investment_plan'))
+    from tradingagents.agents.mechanical_context import mechanical_position_from_state
+    mechanical_position = (mechanical_position_from_state(state) if eligible else
+                           {'status': 'unavailable', 'rows': [], 'reason': 'Current decision is not evidence-eligible'})
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
+            'mechanical_position': mechanical_position,
             'horizon': horizon, 'coverage': coverage,
             'target': {'status': target.status, 'decision_use': target.decision_use.model_dump(mode='json'),
                        'reasons': [_text(r) for r in (*target.reasons, *target.decision_use.reasons)[:3]]},
@@ -158,7 +162,7 @@ def _display(value):
     return re.sub(r'([\\`*_\[\]()#!|])', r'\\\1', text)
 
 
-def render_condition_summary(record: dict) -> str:
+def render_condition_summary(record: dict, *, include_mechanical: bool = True) -> str:
     """Compact advisory outcomes beside the rating, retaining uncertainty and reasons."""
     rows = record.get('conditions') or []
     lines = ['**Advisory conditions at a glance** (not automatic rating rules):']
@@ -168,15 +172,19 @@ def render_condition_summary(record: dict) -> str:
         lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
                      f"{_display(row.get('status_label') or condition_status_label(row))}; "
                      f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+    if include_mechanical and record.get('mechanical_position', {}).get('status') == 'available':
+        from tradingagents.agents.mechanical_valuation import render_history_median_position
+        lines += ['', '**Completed-price position — advisory decision-card context**',
+                  render_history_median_position(record['mechanical_position'])]
     return '\n'.join(lines)
 
 
-def render_decision_context(record: dict) -> str:
+def render_decision_context(record: dict, *, include_mechanical: bool = True) -> str:
     """Render a freshly prepared card; all model text stays escaped and labeled."""
     title = 'Legacy reported rating' if record['status'] == 'legacy' else 'Canonical Portfolio Manager rating'
     coverage = record['coverage']
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
-             render_condition_summary(record),
+             render_condition_summary(record, include_mechanical=include_mechanical),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',

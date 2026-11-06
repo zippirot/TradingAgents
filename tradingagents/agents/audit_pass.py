@@ -105,6 +105,8 @@ def _retained_kpi_context(state):
 
 def _contexts(state):
     source = {key: str(state.get(key) or "")[:18000] for key in SOURCES}
+    from tradingagents.agents.mechanical_context import mechanical_role_context
+    source["shared_mechanical_sensitivities"] = mechanical_role_context(state)
     source["retained_kpi_comparisons"] = _retained_kpi_context(state)
     source["analyst_tool_outputs"] = render_tool_evidence(state)
     source["tool_evidence_authority"] = "Recorded tool output, unverified; not accepted financial evidence."
@@ -198,7 +200,7 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
     def node(state):
         source, roles = _contexts(state)
         labels = _known_labels({key: text for key, text in source.items()
-                                if key != "analyst_tool_outputs"}) | known_tool_labels(state)
+                                if key not in {"analyst_tool_outputs", "shared_mechanical_sensitivities"}}) | known_tool_labels(state)
         record = {
             "status": "unavailable", "findings": [],
             "counts_by_type": dict.fromkeys(TYPES, 0),

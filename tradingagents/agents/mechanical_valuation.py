@@ -260,70 +260,220 @@ def _cell(value):
     return escape(" ".join(str(value).split())).replace("|", "&#124;")
 
 
-def render_mechanical_valuation_grid(record):
-    """Render only a freshly calculated/revalidated canonical projection."""
-    from tradingagents.agents.valuation_comparison import display_number
 
-    if not record or record.get("status") == "not_applicable":
+def _view_identity(outlook):
+    if outlook["kind"] == "vendor":
+        return "vendor-" + outlook["period_code"]
+    return ("management-growth-floor" if outlook["label"] == "at the guidance floor"
+            else "management-guidance")
+
+
+def _interval(values):
+    values = list(values)
+    return [_text(min(values)), _text(max(values))] if values else None
+
+
+def _compact_basis(rows):
+    if not rows:
+        return None
+    prices = [_decimal(row["conditional_price"]) for row in rows]
+    returns = [Decimal(row["price_change_percent"]) for row in rows]
+    median = [row for row in rows if row["reference"]["group"] == "own_history"
+              and row["reference"]["name"] == "median"]
+    share = rows[0]["shares"]
+    return {
+        "kind": share["kind"], "shares_range": _interval(_decimal(row["shares"]["value"]) for row in rows),
+        "date": share["date"], "period": share["period"],
+        "price_range": _interval(prices), "return_range": _interval(returns),
+        "median_price_range": _interval(_decimal(row["conditional_price"]) for row in median),
+        "median_return_range": _interval(Decimal(row["price_change_percent"]) for row in median),
+        "source_shares": sorted({str(row["shares"]): deepcopy(row["shares"]) for row in rows}.values(),
+                                key=lambda source: (source.get("point", ""), source["value"])),
+        "comparability_reasons": sorted({reason for row in rows for reason in row["comparability_reasons"]}),
+        "decision_comparable": all(row["decision_comparable"] for row in rows),
+    }
+
+
+def compact_mechanical_valuation_grid(record):
+    """Pure UI projection; original schema-one cells and validation are unchanged.
+
+    Intervals are envelopes of retained calculated cells, not pooled horizons or
+    fair-value estimates. Source endpoints are never replaced by a midpoint.
+    """
+    if not record:
+        return {"schema_version": 1, "status": "unavailable", "reason": "No mechanical source projection",
+                "label": LABEL, "price": None, "blocks": {}}
+    compact = {"schema_version": 1, "status": record["status"], "reason": record.get("reason"),
+               "label": record.get("label", LABEL), "price": deepcopy(record.get("price")), "blocks": {}}
+    for key, block in record.get("blocks", {}).items():
+        result = {"label": block["label"], "status": block["status"],
+                  "reason": block.get("reason"), "reference_groups": []}
+        groups = {}
+        for row in block["rows"]:
+            reference = row["reference"]
+            individual = reference["group"] == "peers" and reference["name"] not in {"low", "median", "high"}
+            identity = (reference["group"], reference["name"] if individual else "range")
+            groups.setdefault(identity, []).append(row)
+        for group, name in sorted(groups, key=lambda key: (key[0] != "own_history", key[1])):
+            rows = groups[(group, name)]
+            grouped = {"group": group, "name": name, "basis": BASIS,
+                       "label": ("Own-history reference sensitivities" if group == "own_history"
+                                 else "Peer reference sensitivities" + (f" — {name} individually" if name != "range" else "")),
+                       "reference_multiple_range": _interval(_decimal(row["reference"]["multiple"]) for row in rows),
+                       "rows": []}
+            views = {}
+            for row in rows:
+                views.setdefault(_view_identity(row["outlook"]), []).append(row)
+            order = {"management-guidance": 0, "management-growth-floor": 1, "vendor-0y": 2, "vendor-+1y": 3}
+            for identity in sorted(views, key=lambda key: (order.get(key, 4), key)):
+                values = views[identity]
+                outlooks = sorted({str(row["outlook"]): row["outlook"] for row in values}.values(),
+                                  key=lambda outlook: (outlook["label"], outlook["revenue"]))
+                first = outlooks[0]
+                sources = list({str(source): deepcopy(source) for outlook in outlooks
+                                for source in outlook["source_references"]}.values())
+                view = {
+                    "view_id": identity, "label": ("management guidance range" if identity == "management-guidance"
+                            else "at the guidance floor" if identity == "management-growth-floor"
+                            else "vendor revenue range"),
+                    "revenue_range": _interval(_decimal(outlook["revenue"]) for outlook in outlooks),
+                    "revenue_average": next((outlook["revenue"] for outlook in outlooks if outlook["label"] == "vendor average"), None),
+                    "period": first["period"], "horizon": first["horizon"],
+                    "period_start": first["period_start"], "period_end": first["period_end"],
+                    "accounting_basis": first["accounting_basis"], "source_references": sources,
+                    "source_outlooks": deepcopy(outlooks),
+                    "qualifications": sorted({outlook["qualification"] for outlook in outlooks}),
+                    "reported_shares": _compact_basis([row for row in values if row["shares"]["kind"] == "outstanding"]),
+                    "guided_shares": _compact_basis([row for row in values if row["shares"]["kind"] == "guided diluted weighted average"]),
+                }
+                grouped["rows"].append(view)
+            result["reference_groups"].append(grouped)
+        compact["blocks"][key] = result
+    return compact
+
+
+def history_median_position(record):
+    """Compare completed price with exact history-median sensitivities only.
+
+    A numerical position does not establish source-period comparability or
+    decision authority. Vendor and management views remain distinct.
+    """
+    compact = compact_mechanical_valuation_grid(record)
+    result = {"schema_version": 1, "status": compact["status"], "price": deepcopy(compact["price"]),
+              "rows": [], "reason": compact.get("reason"),
+              "qualification": "Conditional arithmetic only; not a forecast, target or recommendation. Unknown fiscal/accounting comparability remains unknown."}
+    if not compact.get("price") or compact["status"] == "not_applicable":
+        return result
+    observed = _decimal(compact["price"]["close"])
+    for block_key, block in compact["blocks"].items():
+        for group in block["reference_groups"]:
+            if group["group"] != "own_history":
+                continue
+            for view in group["rows"]:
+                for field in ("reported_shares", "guided_shares"):
+                    basis = view[field]
+                    if not basis or not basis["median_price_range"]:
+                        continue
+                    low, high = map(_decimal, basis["median_price_range"])
+                    position = ("equal" if low == high == observed else "below" if observed < low
+                                else "above" if observed > high else "within")
+                    result["rows"].append({
+                        "view_id": view["view_id"], "label": view["label"], "source_block": block_key,
+                        "share_basis": basis["kind"], "share_date": basis["date"], "share_period": basis["period"],
+                        "shares_range": deepcopy(basis["shares_range"]),
+                        "price_interval": deepcopy(basis["median_price_range"]), "position": position,
+                        "period": view["period"], "horizon": view["horizon"],
+                        "source_references": deepcopy(view["source_references"]),
+                        "decision_comparable": basis["decision_comparable"],
+                        "comparability_reasons": deepcopy(basis["comparability_reasons"]),
+                        "qualifications": deepcopy(view["qualifications"]),
+                    })
+    if not result["rows"]:
+        result.update(status="unavailable", reason="Own-history median sensitivity unavailable; no position inferred.")
+    else:
+        result["status"], result["reason"] = "available", None
+    return result
+
+
+def _display_interval(values):
+    from tradingagents.agents.valuation_comparison import display_number
+    if not values:
+        return "unavailable"
+    low, high = values
+    return display_number(low) if Decimal(low) == Decimal(high) else f"{display_number(low)}–{display_number(high)}"
+
+
+def render_history_median_position(summary):
+    """Short code-computed summary; stable view IDs are references, not evidence verdicts."""
+    if not summary or summary.get("status") == "not_applicable":
+        return ""
+    if summary.get("status") != "available":
+        return "History-median position unavailable: " + str(summary.get("reason") or "No canonical summary")
+    lines = ["History-median sensitivity position — conditional arithmetic, not a forecast or recommendation.",
+             f"Completed close {_display_interval([summary['price']['close']] * 2)} {summary['price']['currency']}, {summary['price']['session_date']}."]
+    for row in summary["rows"]:
+        if row["source_block"] == "vendor":
+            label = "Vendor consensus, unverified; " + row["horizon"].removeprefix("vendor ")
+        elif row["view_id"] == "management-growth-floor":
+            label = "At the guidance floor, " + row["horizon"]
+        else:
+            label = "Management guidance, " + row["horizon"]
+        share = ("reported shares as of " + row["share_date"] if row["share_basis"] == "outstanding"
+                 else "guided diluted weighted-average shares for " + str(row["share_period"]))
+        lines.append(f"- {label}; {share}: the close is {row['position']} the history-median sensitivity of {_display_interval(row['price_interval'])} USD.")
+    lines += ["Intervals hold the historical median multiple and stated share basis fixed; undiscounted, price-only changes. Fiscal/accounting comparability may be unknown; guided weighted averages are not year-end shares. Vendor rows are unverified and separate. Full exact cells, dates and sources: evidence.json."]
+    return "\n".join(lines)
+
+
+def _compact_cell_text(cell, *, history):
+    if not cell:
+        return "Unavailable — no source-grounded share basis"
+    text = _display_interval(cell["price_range"]) + " USD / " + _display_interval(cell["return_range"]) + "%"
+    if history and cell["median_price_range"]:
+        text += "; **history median " + _display_interval(cell["median_price_range"]) + " USD**"
+    label = ("outstanding, measured " + cell["date"] if cell["kind"] == "outstanding"
+             else "guided weighted average, " + str(cell["period"]))
+    return text + "; shares " + _display_interval(cell["shares_range"]) + " (" + _cell(label) + ")"
+
+
+def render_mechanical_valuation_grid(record):
+    """Compact report projection; complete exact cells and lineage stay in evidence."""
+    compact = compact_mechanical_valuation_grid(record)
+    if compact["status"] == "not_applicable":
         return ""
     lines = ["### " + LABEL, "",
              "Separate reference groups and revenue horizons; no pooled price range. Returns are price changes against the completed close, not annualized or dividend-inclusive returns. Future values are undiscounted.", ""]
-    if record.get("price"):
-        price = record["price"]
-        lines += [f"Completed close: {display_number(price['close'])} {_cell(price['currency'])} on {_cell(price['session_date'])}.", ""]
-    if record.get("reason"):
-        lines += ["Unavailable: " + _cell(record["reason"]), ""]
-    for name, reference in record.get("reference_blocks", {}).items():
-        if reference.get("reason"):
-            lines += [_cell(name) + ": " + _cell(reference["reason"]), ""]
-    for block in record.get("blocks", {}).values():
+    if compact["price"]:
+        price = compact["price"]
+        lines += [f"Completed close: {_display_interval([price['close']] * 2)} {_cell(price['currency'])} on {_cell(price['session_date'])}.", ""]
+    if compact["reason"]:
+        lines += ["Unavailable: " + _cell(compact["reason"]), ""]
+    for block in compact["blocks"].values():
         lines += ["#### " + _cell(block["label"]), ""]
-        if not block["rows"]:
-            lines += ["Unavailable: " + _cell(block.get("reason")), ""]
-            continue
-        for group, heading in (("own_history", "Own-history reference sensitivities"),
-                               ("peers", "Peer reference sensitivities")):
-            rows = [row for row in block["rows"] if row["reference"]["group"] == group]
-            lines += ["##### " + heading, ""]
-            if not rows:
-                lines += ["Unavailable: " + _cell(record["reference_blocks"][group].get("reason")), ""]
-                continue
-            references = {row["reference"]["name"]: row["reference"] for row in rows}
-            columns = list(references)
-            headers = ["Revenue / period / horizon", "Shares / date or period"]
-            headers += [f"{name}: {display_number(references[name]['multiple'])}× {BASIS}" for name in columns]
-            lines += [" | ".join(_cell(value) for value in headers),
-                      " | ".join(["---", "---"] + ["---:"] * len(columns))]
-            groups = {}
-            for row in rows:
-                out, share = row["outlook"], row["shares"]
-                identity = (out["label"], out["period"], share["kind"],
-                            share.get("point"), share["value"])
-                groups.setdefault(identity, []).append(row)
-            for group_rows in groups.values():
-                first = group_rows[0]
-                out, share = first["outlook"], first["shares"]
-                labels = [
-                    f"{out['label']}: {display_number(out['revenue'])} USD; {out['period']}; horizon {out['horizon']}",
-                    f"{share['kind']} {share.get('point', '')}: {display_number(share['value'])}; {share['date'] or share['period']}",
-                ]
-                by_name = {row["reference"]["name"]: row for row in group_rows}
-                for name in columns:
-                    row = by_name[name]
-                    labels.append(f"{display_number(row['conditional_price'])} USD / {display_number(row['price_change_percent'])}%")
-                lines.append(" | ".join(_cell(value) for value in labels))
+        if not block["reference_groups"]:
+            lines += ["Unavailable: " + _cell(block["reason"]), ""]
+        for group in block["reference_groups"]:
+            lines += ["##### " + _cell(group["label"]), "",
+                      f"{BASIS}; reference multiple {_display_interval(group['reference_multiple_range'])}×.", "",
+                      "Revenue view / period / horizon | Reported outstanding shares | Guided diluted weighted-average shares",
+                      "--- | --- | ---"]
+            for view in group["rows"]:
+                label = f"{view['label']}: {_display_interval(view['revenue_range'])} USD; {view['period']}; horizon {view['horizon']}"
+                if view["revenue_average"]:
+                    label += "; vendor average " + _display_interval([view["revenue_average"]] * 2) + " USD"
+                lines.append(_cell(label) + " | " + _compact_cell_text(view["reported_shares"], history=group["group"] == "own_history")
+                             + " | " + _compact_cell_text(view["guided_shares"], history=group["group"] == "own_history"))
             lines.append("")
-        lines += ["", "Held fixed: reference multiples and share basis; no obligation deduction, future capital changes or distributions. Business comparability and future rerating are unverified.",
-                  "Guided diluted shares are period-weighted sensitivities, not a forecast year-end count.", ""]
-        for outlook in block["outlooks"]:
-            lines += ["- " + _cell(outlook["label"] + ": " + outlook["qualification"])]
-            if "base_revenue" in outlook:
-                lines.append("- " + _cell(f"Base revenue {outlook['base_revenue']} USD, {outlook['base_period']}; growth floor {outlook['growth_floor_percent']}%; base guidance low held fixed."))
-            lines.append("- Source: " + _cell(outlook["source_references"]))
-        share_sources = {str(row["shares"]): row["shares"] for row in block["rows"]}
-        lines.extend("- Shares source / dated basis: " + _cell(share) for share in share_sources.values())
-        reasons = sorted({reason for row in block["rows"] for reason in row["comparability_reasons"]})
-        lines.extend("- Comparability: " + _cell(reason) for reason in reasons)
-        lines.append("")
+        # Show each source view's conditions once, regardless of reference groups.
+        views = {view["view_id"]: view for group in block["reference_groups"] for view in group["rows"]}
+        for view in views.values():
+            if view["view_id"] == "management-growth-floor":
+                outlook = view["source_outlooks"][0]
+                lines += ["At the guidance floor: base revenue " + _display_interval([outlook["base_revenue"]] * 2)
+                          + " USD, " + _cell(outlook["base_period"]) + "; growth floor "
+                          + _cell(outlook["growth_floor_percent"]) + "%; base guidance low held fixed, not a lower bound on future share price."]
+        lines += [""]
+    lines += ["Held fixed: reference multiples and stated share bases; equity revenue × multiple ÷ shares, with no obligation deduction. No future capital changes or distributions are assumed. Guided diluted weighted averages are not a forecast year-end count.",
+              "Conditional arithmetic only. Fiscal dates, accounting definitions, business comparability and future rerating may be unknown; no decision range is inferred. Vendor estimates remain unverified.",
+              "Full exact cells, source_id references, share dates, periods, definitions and assumptions remain in evidence.json."]
     return "\n".join(lines)
-

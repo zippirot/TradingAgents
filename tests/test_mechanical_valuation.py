@@ -228,19 +228,15 @@ def test_duplicated_vendor_period_withholds_vendor_only(monkeypatch):
 
 
 
-def test_renderer_retains_each_numeric_cell_with_consistent_reference_columns(monkeypatch):
-    from tradingagents.agents.valuation_comparison import display_number
-
+def test_compact_renderer_preserves_full_evidence_cells_and_consistent_columns(monkeypatch):
     state, _ = prepared(monkeypatch)
     result = grid.mechanical_valuation_grid(state)
+    before = deepcopy(result)
     text = grid.render_mechanical_valuation_grid(result)
-    rows = result["blocks"]["management"]["rows"]
-    assert text.count(" USD / ") == len(rows)
-    for row in rows:
-        cell = f"{display_number(row['conditional_price'])} USD / {display_number(row['price_change_percent'])}%"
-        assert cell in text
-    assert f"low: {display_number(2)}× equity value / revenue" in text
-    assert f"AKAM: {display_number(3)}× equity value / revenue" in text
+    assert result == before
+    assert len(result["blocks"]["management"]["rows"]) == 36
+    assert "history median" in text
+    assert "Full exact cells" in text and "evidence.json" in text
     expected_columns = None
     for line in text.splitlines():
         if " | " not in line:
@@ -249,6 +245,6 @@ def test_renderer_retains_each_numeric_cell_with_consistent_reference_columns(mo
         count = len(line.split(" | "))
         if expected_columns is None:
             expected_columns = count
-        assert count == expected_columns
+        assert count == expected_columns == 3
     data_lines = [line for line in text.splitlines() if " USD / " in line]
-    assert len(data_lines) == 18  # nine outlook/share bases per independent group
+    assert len(data_lines) == 4  # two revenue views per independent reference group

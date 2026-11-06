@@ -267,13 +267,14 @@ class TradingAgentsGraph:
             "completed_market_inputs=2",
             "event_comparison=2",
             "valuation_reference=3",
-            "mechanical_valuation_grid=1",
+            "mechanical_valuation_grid=2",
+            "mechanical_shared_context=1",
             f"peer_pins={peer_selection_fingerprint(self.config)}",
-            "decision_context=1",
+            "decision_context=2",
             "evidence_presentation=1",
             "publication_record=3",
             "analysis_cutoff=2",
-            "advisory_audit=2",
+            "advisory_audit=3",
             f"settings={digest}",
         ])
 
