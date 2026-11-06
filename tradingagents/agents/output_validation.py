@@ -101,7 +101,7 @@ def enforce_publication(state: dict) -> dict:
             review["final_trade_decision"] += "\n\n" + render_thesis(continuity["thesis"])
         card = prepare_decision_context({**state, **review})
         review["decision_context"] = card
-        review["final_trade_decision"] += "\n\n" + render_decision_context(card)
+        review["final_trade_decision"] += "\n\n" + render_decision_context(card, include_mechanical=False)
         review["final_trade_decision"] += "\n\n" + render_price_implied_valuation(review["price_implied_valuation"])
         return review
     if state.get("evidence_quality") is None:
@@ -225,5 +225,5 @@ def enforce_publication(state: dict) -> dict:
     card = prepare_decision_context({**state, **updates})
     updates["decision_context"] = card
     updates["final_trade_decision"] = updates["final_trade_decision"].replace(
-        "**Executive Summary**:", render_decision_context(card) + "\n\n**Executive Summary**:", 1)
+        "**Executive Summary**:", render_decision_context(card, include_mechanical=False) + "\n\n**Executive Summary**:", 1)
     return updates

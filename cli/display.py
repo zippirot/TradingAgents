@@ -443,6 +443,13 @@ def display_complete_report(final_state):
             console.print(Panel(Markdown(grid_text), title="Mechanical sensitivity",
                                 border_style="blue", padding=(1, 2)))
 
+    card = final_state.get("decision_context") or {}
+    if card.get("mechanical_position", {}).get("status") == "available":
+        from tradingagents.agents.mechanical_valuation import render_history_median_position
+        console.print(Panel(Markdown(render_history_median_position(card["mechanical_position"])),
+                            title="Decision card: completed-price position (conditional)",
+                            border_style="green", padding=(1, 2)))
+
     # V. Portfolio Manager Decision
     if final_state.get("final_trade_decision"):
         console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))

@@ -345,7 +345,7 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
     return "\n".join(result)
 
 
-def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
+def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mechanical: bool = False) -> str:
     """Return the instrument context for the current run.
 
     Prefers the identity-resolved context computed once at run start and
@@ -369,6 +369,11 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
         context += ("\nUse the calculated figures above; cite their stated equity/enterprise, share and period bases. "
                     "Do not calculate new debate figures or treat model-selected peers or vendor consensus as verified judgments. "
                     "A figure absent from this bounded brief is unsupported here, not proven false.")
+    if include_mechanical:
+        from tradingagents.agents.mechanical_context import mechanical_role_context
+        shared_mechanical = mechanical_role_context(state)
+        if shared_mechanical:
+            context += "\n\n" + shared_mechanical
     # Before analysts, use only the retained bounded brief. Later research roles
     # also receive the final gate's canonical assessment and labeled narratives.
     canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None

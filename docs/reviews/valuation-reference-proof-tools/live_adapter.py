@@ -5,6 +5,7 @@ code must supply fresh route rates and task-specific budget authority.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -12,9 +13,10 @@ import os
 import re
 import runpy
 import socket
+import subprocess
 import sys
 import threading
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -120,7 +122,7 @@ class OpenRouterWireGuard:
     def __init__(self, budget: BudgetGuard, route_rates: dict, *, max_output_tokens: int, kind: str,
                  network_gate: NetworkGate | None = None, allow_unfrozen_sources: bool = False,
                  allowed_resolved_models: dict[str, set[str]] | None = None,
-                 context_cap: int | None = None):
+                 context_cap: int | None = None, serialize_paid_requests: bool = False):
         if kind not in {"run", "review"} or type(max_output_tokens) is not int or max_output_tokens <= 0:
             raise ValueError("Invalid request scope")
         self.budget, self.max_output_tokens, self.kind = budget, max_output_tokens, kind
@@ -144,6 +146,36 @@ class OpenRouterWireGuard:
                 or any(not isinstance(ids, set) or model not in ids for model, ids in allowed_resolved_models.items())):
             raise ValueError("Exact verified resolved model IDs are required")
         self.request_count = 0
+        if type(serialize_paid_requests) is not bool or (serialize_paid_requests and (
+                kind != "run" or budget.scope != "proof:B3")):
+            raise ValueError("Paid-request serialization is only approved for the B3 proof")
+        self.serialize_paid_requests = serialize_paid_requests
+        self._paid_turn_lock = threading.Lock()
+
+    @contextmanager
+    def paid_turn(self, request):
+        locked = self.serialize_paid_requests and request.url.host == "openrouter.ai"
+        if locked:
+            self._paid_turn_lock.acquire()
+        try:
+            yield
+        finally:
+            if locked:
+                self._paid_turn_lock.release()
+
+    @asynccontextmanager
+    async def async_paid_turn(self, request):
+        locked = self.serialize_paid_requests and request.url.host == "openrouter.ai"
+        if locked:
+            # A nonblocking acquire keeps both HTTPX generations on one permit.
+            # Cancellation while waiting cannot acquire later and leak the lock.
+            while not self._paid_turn_lock.acquire(blocking=False):
+                await asyncio.sleep(0.01)
+        try:
+            yield
+        finally:
+            if locked:
+                self._paid_turn_lock.release()
 
     def before(self, request):
         if request.url.host != "openrouter.ai":
@@ -242,32 +274,38 @@ def installed_http_guard(wire: OpenRouterWireGuard):
             async_send = module.AsyncClient.send
 
             def guarded_sync(client, request, *args, _send=sync, **kwargs):
-                ticket = wire.before(request)
-                try:
-                    if wire.network_gate is None:
-                        response = _send(client, request, *args, **kwargs)
-                    else:
-                        with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                with wire.paid_turn(request):
+                    ticket = wire.before(request)
+                    try:
+                        if wire.network_gate is None:
                             response = _send(client, request, *args, **kwargs)
-                except BaseException as exc:
-                    wire.failed(ticket, exc)
-                    raise
-                wire.after(ticket, response)
-                return response
+                        else:
+                            with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                                response = _send(client, request, *args, **kwargs)
+                        if wire.serialize_paid_requests and ticket is not None and not response.is_closed:
+                            response.read()
+                        wire.after(ticket, response)
+                        return response
+                    except BaseException as exc:
+                        wire.failed(ticket, exc)
+                        raise
 
             async def guarded_async(client, request, *args, _send=async_send, **kwargs):
-                ticket = wire.before(request)
-                try:
-                    if wire.network_gate is None:
-                        response = await _send(client, request, *args, **kwargs)
-                    else:
-                        with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                async with wire.async_paid_turn(request):
+                    ticket = wire.before(request)
+                    try:
+                        if wire.network_gate is None:
                             response = await _send(client, request, *args, **kwargs)
-                except BaseException as exc:
-                    wire.failed(ticket, exc)
-                    raise
-                wire.after(ticket, response)
-                return response
+                        else:
+                            with wire.network_gate.model_request() if ticket is not None else wire.network_gate.peer_capture():
+                                response = await _send(client, request, *args, **kwargs)
+                        if wire.serialize_paid_requests and ticket is not None and not response.is_closed:
+                            await response.aread()
+                        wire.after(ticket, response)
+                        return response
+                    except BaseException as exc:
+                        wire.failed(ticket, exc)
+                        raise
 
             stack.enter_context(patch.object(module.Client, "send", guarded_sync))
             stack.enter_context(patch.object(module.AsyncClient, "send", guarded_async))
@@ -468,6 +506,115 @@ class ProofAttemptLedger:
         return digest
 
 
+
+def _b3_aware_time(value, now):
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None or parsed.astimezone(UTC) > now:
+        raise ValueError("B3 proof needs observed, aware timestamps no later than now")
+    return parsed.astimezone(UTC)
+
+
+def _validate_b3_approval(record):
+    """Validate the new authority and retained close receipt; never fetch."""
+    from zoneinfo import ZoneInfo
+
+    required = {"approval_id", "approved_at_recorded", "user_instruction", "phase",
+                "attempts", "ceiling_usd", "ticker", "analysis_date", "quick_model",
+                "deep_model", "depth", "max_output_tokens", "max_tool_rounds",
+                "candidate_head", "worktree_root", "session"}
+    if not isinstance(record, dict) or set(record) != required:
+        raise ValueError("B3 approval record is incomplete")
+    now = datetime.now(UTC)
+    _b3_aware_time(record["approved_at_recorded"], now)
+    if (not isinstance(record["approval_id"], str) or not record["approval_id"].strip()
+            or not isinstance(record["user_instruction"], str) or not record["user_instruction"].strip()
+            or record["phase"] != "B3" or type(record["attempts"]) is not int or record["attempts"] != 1
+            or Decimal(record["ceiling_usd"]) != Decimal("3")
+            or record["ticker"] != "DOCN" or record["quick_model"] != A or record["deep_model"] != A
+            or type(record["depth"]) is not int or record["depth"] != 1
+            or type(record["max_output_tokens"]) is not int or not 1 <= record["max_output_tokens"] <= 16384
+            or type(record["max_tool_rounds"]) is not int or not 1 <= record["max_tool_rounds"] <= 4
+            or not isinstance(record["candidate_head"], str)
+            or not re.fullmatch(r"[0-9a-f]{40}", record["candidate_head"])):
+        raise ValueError("B3 approval differs from the one-attempt three-dollar DOCN authority")
+    worktree = Path(record["worktree_root"])
+    if not worktree.is_absolute() or worktree.is_symlink() or not worktree.is_dir():
+        raise ValueError("B3 proof needs its explicit existing worktree root")
+    analysis_date = date.fromisoformat(record["analysis_date"])
+    if now.astimezone(ZoneInfo("America/New_York")).date() != analysis_date:
+        raise ValueError("B3 proof must use the current New York session date")
+    session = record["session"]
+    if not isinstance(session, dict) or session.get("session_date") != str(analysis_date):
+        raise ValueError("B3 session date differs from the approved analysis date")
+    _b3_aware_time(session["observed_at"], now)
+    close = _b3_aware_time(session["regular_close_utc"], now)
+    if close.astimezone(ZoneInfo("America/New_York")).date() != analysis_date or now <= close:
+        raise ValueError("B3 proof must start after the observed regular close")
+    retained = {}
+    for name, url in (
+        ("nyse-calendar", "https://www.nyse.com/trade/hours-calendars"),
+        ("docn-chart", "https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d"),
+    ):
+        source = session[name]
+        if (not isinstance(source, dict) or source.get("url") != url
+                or type(source.get("http_status")) is not int or source["http_status"] != 200):
+            raise ValueError("B3 requires successful retained official calendar and source metadata")
+        observed = _b3_aware_time(source["retrieved_at"], now)
+        if observed < close or observed.astimezone(ZoneInfo("America/New_York")).date() != analysis_date:
+            raise ValueError("B3 close metadata must be observed after this session's close")
+        path = Path(source["path"])
+        if (not path.is_absolute() or path.is_symlink() or not path.is_file()
+                or not 1 <= path.stat().st_size <= 2_000_000):
+            raise ValueError("B3 source receipt path is missing or unsafe")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != source["sha256"]:
+            raise ValueError("B3 retained close source hash differs")
+        retained[name] = payload
+    meta = json.loads(retained["docn-chart"])["chart"]["result"][0]["meta"]
+    regular = meta["currentTradingPeriod"]["regular"]
+    if (meta.get("symbol") != "DOCN" or meta.get("currency") != "USD"
+            or meta.get("exchangeTimezoneName") != "America/New_York"
+            or type(regular.get("start")) is not int or type(regular.get("end")) is not int
+            or not 0 < regular["end"] - regular["start"] <= 8 * 3600
+            or datetime.fromtimestamp(regular["end"], UTC) != close
+            or datetime.fromtimestamp(regular["start"], UTC).astimezone(
+                ZoneInfo("America/New_York")).date() != analysis_date):
+        raise ValueError("B3 retained provider regular session differs from the close receipt")
+    return record
+
+
+def claim_b3_proof(ledger: PilotLedger, approval_record: dict) -> str:
+    """Claim the separately authorized one-shot B3 proof on a new empty ledger."""
+    _validate_b3_approval(approval_record)
+    digest = manifest_hash(approval_record)
+    with ledger.budget_lock():
+        if ledger.events():
+            raise RuntimeError("B3 requires a fresh empty ledger; no retry or historical authority reuse")
+        ledger.append({"type": "attempt_claim", "phase": "B3", "ceiling_usd": "3",
+                       "phase_ceiling_usd": "3", "approval_sha256": digest,
+                       "approval_record": approval_record})
+    return digest
+
+
+def _verify_b3_execution(claim, entry, spec):
+    try:
+        record = _validate_b3_approval(entry["approval_record"])
+        expected = ("DOCN", record["analysis_date"], A, A, 1,
+                    record["max_output_tokens"], record["max_tool_rounds"])
+        actual = (spec.ticker, spec.analysis_date, spec.quick_model, spec.deep_model,
+                  spec.depth, spec.max_output_tokens, spec.max_tool_rounds)
+        if (claim.approval_sha256 != entry.get("approval_sha256")
+                or manifest_hash(record) != entry["approval_sha256"] or actual != expected
+                or spec.extra_peer_pins is not None
+                or spec.analysis_cutoff_utc is not None or spec.market_observation_cutoff is not None
+                or spec.context_cap is not None or spec.analysis_timezone != "America/Denver"
+                or entry.get("ceiling_usd") != "3" or entry.get("phase_ceiling_usd") != "3"):
+            raise ValueError("B3 execution differs from its approved scope")
+        spec.validate()
+    except (KeyError, TypeError, ValueError, InvalidOperation, OSError, IndexError) as exc:
+        raise RuntimeError("B3 proof approval, close receipt or execution scope is invalid") from exc
+
+
 @dataclass(frozen=True)
 class ExecutionClaim:
     kind: str
@@ -480,6 +627,11 @@ def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: Cli
     if claim.kind == "proof":
         entry = next((e for e in events if e["type"] == "attempt_claim"
                       and e.get("phase") == claim.name), None)
+        if claim.name == "B3":
+            if entry is None:
+                raise RuntimeError("Separate B3 proof attempt claim is missing")
+            _verify_b3_execution(claim, entry, spec)
+            return
         if (claim.name not in {"A", "A2", "B"} or entry is None or spec.depth != 1
                 or (claim.name == "A2" and (
                     claim.approval_sha256 != entry.get("approval_sha256")
@@ -529,10 +681,26 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
         if any(e["type"] == "execution_start" and e.get("kind") == claim.kind
                and e.get("name") == claim.name for e in ledger.events()):
             raise RuntimeError("Execution claim already started; no duplicate CLI launch")
-        ledger.append({"type": "execution_start", "kind": claim.kind,
-                       "name": claim.name, "ticker": spec.ticker,
-                       "analysis_date": spec.analysis_date, "depth": spec.depth,
-                       "approval_sha256": claim.approval_sha256})
+        event = {"type": "execution_start", "kind": claim.kind,
+                 "name": claim.name, "ticker": spec.ticker,
+                 "analysis_date": spec.analysis_date, "depth": spec.depth,
+                 "approval_sha256": claim.approval_sha256}
+        if claim.kind == "proof" and claim.name == "B3":
+            entry = next(e for e in ledger.events() if e["type"] == "attempt_claim" and e.get("phase") == "B3")
+            record = entry["approval_record"]
+            worktree = Path(record["worktree_root"])
+            event.update(worktree_root=str(worktree), approved_candidate_head=record["candidate_head"])
+            # A legitimate start consumes the attempt even if its candidate
+            # subsequently fails the final check. No CLI/paid call precedes it.
+            ledger.append(event)
+            head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=worktree, text=True).strip()
+            dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=worktree, text=True)
+            if head != record["candidate_head"] or dirty:
+                raise RuntimeError("B3 proof worktree must be clean at the approved candidate HEAD")
+            ledger.append({"type": "candidate_verified", "kind": "proof", "name": "B3",
+                           "worktree_root": str(worktree), "head": head, "clean": True})
+            return
+        ledger.append(event)
 
 
 @dataclass(frozen=True)
@@ -865,6 +1033,8 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         raise ValueError("A7 requires frozen sources and no unfrozen source allowance")
     if claim.kind == "proof" and (source_replay is not None or not wire.allow_unfrozen_sources):
         raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
+    if claim.kind == "proof" and claim.name == "B3" and not wire.serialize_paid_requests:
+        raise ValueError("B3 proof requires serialized paid requests at its unchanged output cap")
     verify_budget_binding(claim, wire.budget, spec, approval)
     start_execution(claim, wire.budget.ledger, spec)
     configure_isolated_env(spec, work, openrouter_key=openrouter_key,
