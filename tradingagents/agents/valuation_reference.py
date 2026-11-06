@@ -374,6 +374,8 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
             "revenue_fact": _lineage(package, ttm), "equity_value": _number(equity),
             "multiple": _number(multiple), "equity_value_unit": currency, "trailing_revenue_growth": growth, "gross_margin": margin,
         }
+        if quote.get("price_fallback"):
+            result["price_fallback"] = quote["price_fallback"]
         if not include_quality and cover is None:
             for field in ("share_quality", "conditional_assumptions", "revenue_definition"):
                 result.pop(field, None)

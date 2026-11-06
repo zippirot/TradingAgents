@@ -232,6 +232,10 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             f"timezone {quote['exchange_timezone']}; basis {quote['adjustment_basis']}; "
             f"source_id {quote['source_id']}. Dated completed close, not an executable or intraday quote."
         )
+        if quote.get("price_fallback"):
+            fallback = quote["price_fallback"]
+            lines.append(f"Price fallback: {fallback['reason']}; latest completed session "
+                         f"{fallback['latest_completed_session_date']}; selected {quote['session_date']}.")
     except (ValueError, TypeError, KeyError):
         reason = (state.get("price_observation") or {}).get("reason", "No verifiable completed price retained")
         lines.append("Canonical completed price unavailable: " + str(reason)[:500])
@@ -409,6 +413,9 @@ def get_instrument_context_from_state(state: Mapping[str, Any]) -> str:
             context += (f"\n\nProvider price observation: {quote['close']} {quote['currency']} on "
                         f"{quote['session_date']} (completed session). {quote['adjustment_basis']}. "
                         "This is not a fair value or expected return; comparisons require compatible share bases.")
+            if quote.get("price_fallback"):
+                context += "\nPrice fallback: " + str(quote["price_fallback"]["reason"]) + (
+                    "; latest completed session " + quote["price_fallback"]["latest_completed_session_date"] + ".")
         except (ValueError, TypeError, KeyError):
             context += "\n\nProvider price observation unavailable or not verifiable; do not infer a current price."
     scenarios = state.get("shared_valuation_scenarios")

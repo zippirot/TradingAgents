@@ -74,6 +74,10 @@ def market_provenance_lines(data):
         f"- Exchange timezone: {source.get('exchange_timezone') or 'unknown'}",
         f"- Currency: {source.get('currency') or 'unknown'}",
         *timing,
+        *([f"- Price fallback: {source['price_fallback']['reason']}; "
+           f"latest completed session {source['price_fallback']['latest_completed_session_date']}; "
+           f"selected session {source['price_fallback']['selected_session_date']}."]
+          if source.get("price_fallback") else []),
         f"- Adjustment basis: {source['adjustment_basis']}",
         f"- Source: {source['source_id']}",
         "- A completed close is a dated observation, not an executable quote.",
@@ -133,6 +137,19 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
     data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
     return data
+
+
+def _validate_close_values(data, symbol, canonical):
+    """Do not reinterpret corrupt nonempty closes as missing-price fallbacks."""
+    raw = data["Close"]
+    missing = raw.map(lambda value: pd.isna(value) or isinstance(value, str) and not value.strip())
+    numeric = pd.to_numeric(raw, errors="coerce")
+    invalid = ~missing & (
+        numeric.isna() | numeric.le(0) | numeric.isin([float("inf"), float("-inf")])
+        | raw.map(lambda value: isinstance(value, bool))
+    )
+    if invalid.any():
+        raise NoMarketDataError(symbol, canonical, "invalid nonempty closing price in source data")
 
 
 def _fill_price_gaps(data: pd.DataFrame) -> pd.DataFrame:
@@ -291,10 +308,12 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise_for_empty(symbol, canonical, "price rows")
+        _validate_close_values(downloaded, symbol, canonical)
         cached = downloaded.assign(**{_SOURCE_COLUMN: json.dumps(source_metadata, sort_keys=True)})
         replace_file(data_file, lambda temp: cached.to_csv(temp, index=False, encoding="utf-8"))
         data = downloaded
 
+    _validate_close_values(data, symbol, canonical)
     data = _clean_dataframe(data)
 
     # Filter to as_of_date to prevent look-ahead bias in backtesting.
@@ -308,6 +327,11 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     if data.empty:
         raise NoMarketDataError(symbol, canonical, "no completed price rows at the observation cutoff")
 
+    # Select actual completed sessions; never carry a prior close under an empty
+    # latest session's date. Sorting also makes the retained explanation stable.
+    data = data.sort_values("Date")
+    price_fallback = None
+
     # A closeless newest bar is an unsettled session, not a symbol without data.
     # _fill_price_gaps below drops it, here and mid-series alike, so the frame
     # ends at the last settled bar; only a range with no close anywhere is no
@@ -318,6 +342,14 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
             raise NoMarketDataError(
                 symbol, canonical, "no bar in range has a closing price"
             )
+        price_fallback = {
+            "reason": "Latest completed session has no close; using last valid completed session",
+            "latest_completed_session_date": str(data["Date"].iloc[-1].date()),
+            "selected_session_date": str(data["Date"].iloc[settled[-1]].date()),
+            "missing_completed_session_dates": [
+                str(day.date()) for day in data["Date"].iloc[settled[-1] + 1:]
+            ],
+        }
         logger.warning(
             "%s: %d trailing bar(s) through %s have no closing price; using %s "
             "as the latest close.", canonical, len(data) - settled[-1] - 1,
@@ -336,6 +368,7 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         **source_metadata, "observation_cutoff": cutoff, "analysis_date": str(as_of_dt.date()),
         "session_date": str(data["Date"].max().date()) if not data.empty else None,
         "session_status": "completed",
+        **({"price_fallback": price_fallback} if price_fallback else {}),
     }
     return data
 

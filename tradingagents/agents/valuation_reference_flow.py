@@ -263,6 +263,7 @@ def _peer_set(selection, state, sources, *, include_quality=False):
     from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
 
     accepted, rejected, incomplete = [], list(selection.get("rejected") or []), []
+    dated_price_diagnostics = []
     for row in _peer_rows(selection.get("peers", []), state["company_of_interest"]):
         ticker, raw = row["ticker"], sources.get(row["ticker"]) or {}
         try:
@@ -274,6 +275,16 @@ def _peer_set(selection, state, sources, *, include_quality=False):
             quote = validate_price_observation(raw["price_observation"], ticker, state["trade_date"])
             if quote["currency"] != subject["currency"]:
                 raise ValueError("Peer currency differs from the subject completed price currency")
+            if (include_quality and quote.get("price_fallback")
+                    and quote["session_date"] < subject["session_date"]):
+                diagnostic = calculate_peer_statistics(
+                    raw["package"], raw["issuer_identity"], quote, ticker=ticker,
+                    completed_cutoff=quote["session_date"], peer_cover_shares=raw.get("peer_cover_shares"),
+                    include_quality=True)
+                if diagnostic["status"] != "available":
+                    raise ValueError(diagnostic["reason"])
+                dated_price_diagnostics.append({**row, "statistics": diagnostic})
+                continue
             statistics = calculate_peer_statistics(raw["package"], raw["issuer_identity"], quote,
                                                     ticker=ticker, completed_cutoff=subject["session_date"],
                                                     peer_cover_shares=raw.get("peer_cover_shares"), include_quality=include_quality)
@@ -306,6 +317,8 @@ def _peer_set(selection, state, sources, *, include_quality=False):
             "qualification": "Data checks do not establish business comparability; selection reasons are unverified"}
     if include_quality:
         result["incomplete"] = incomplete
+    if dated_price_diagnostics:
+        result["dated_price_diagnostics"] = dated_price_diagnostics
     return result
 
 
@@ -499,12 +512,31 @@ def render_valuation_reference(record):
                            else "statement shares dated differently from the revenue-period end")
             lines.append("  Lower-quality conditional row: " + share_label + ", not same-date capitalization. " +
                          _cell("; ".join(stats["conditional_assumptions"])))
+        if stats.get("price_fallback"):
+            fallback = stats["price_fallback"]
+            lines.append("  Price fallback: " + _cell(fallback["reason"]) + "; latest completed session " +
+                         _cell(fallback["latest_completed_session_date"]) + ".")
         for cell in (growth, margin):
             if cell["status"] != "available":
                 lines.append("  Unavailable: " + _cell(cell["reason"]))
         sources = {s["source_id"]: s for key in ("share_fact", "revenue_fact") for s in stats[key]["sources"]}
         lines.extend("  source_id " + _cell(s["source_id"]) + "; filed " + _cell(s["filed_date"]) + "; " + _cell(s["url"])
                      for s in sources.values())
+    for row in peers.get("dated_price_diagnostics", []):
+        stats = row["statistics"]
+        fallback = stats["price_fallback"]
+        lines.append(f"- {_cell(row['ticker'])}: dated price diagnostic; {_cell(row['reason'])}. "
+                     f"Equity value / trailing revenue {_number(stats['multiple'])}×; completed close "
+                     f"{_cell(stats['price_session'])}; shares measured {_cell(stats['share_date'])}; "
+                     f"revenue {_cell(stats['revenue_fact']['period_start'])} to {_cell(stats['revenue_fact']['period_end'])}. "
+                     "Different price session; excluded from the same-session peer range.")
+        lines.append("  Revenue definition: " + _cell(stats["revenue_definition"]) + ".")
+        lines.append("  Price fallback: " + _cell(fallback["reason"]) + "; latest completed session " +
+                     _cell(fallback["latest_completed_session_date"]) + ".")
+        lines.append("  " + _cell("; ".join(stats.get("conditional_assumptions", []))))
+        sources = {s["source_id"]: s for key in ("share_fact", "revenue_fact") for s in stats[key]["sources"]}
+        lines.extend("  source_id " + _cell(s["source_id"]) + "; filed " + _cell(s["filed_date"]) +
+                     "; " + _cell(s["url"]) for s in sources.values())
     for row in peers.get("incomplete", []):
         stats = row["statistics"]
         lines.append(f"- {_cell(row['ticker'])}: lower-quality incomplete peer row. " +

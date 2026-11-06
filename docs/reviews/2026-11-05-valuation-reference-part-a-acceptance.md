@@ -167,3 +167,8 @@ Stop here before Part B. The user will review real Part A reports before a separ
 ## Subsequent peer/audit repairs
 
 The user requested two pre-publication repairs after the development checkpoint above. Their verified changes, evidence, preserved legacy behavior and remaining NET quote/live-audit limitations are recorded in [the peer/audit repair review](2026-11-05-peer-audit-gap-repairs.md). Comparison, Part B, publishing and installation remain on hold. No new paid run was made.
+
+
+## Latest authorized publication follow-up
+
+See [completed-price fallback and publication boundary](2026-11-05-completed-price-fallback.md). The user authorized the narrow reader correction and Part A push/PR for CI, followed by separate B1-only implementation. Merge, installation, B2 and comparison remain on hold.

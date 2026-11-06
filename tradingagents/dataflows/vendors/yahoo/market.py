@@ -145,8 +145,9 @@ def get_stock_stats_indicators_window(
     before = as_of_dt - relativedelta(days=look_back_days)
 
     # Optimized: Get stock data once and calculate indicators for all dates
+    provenance = {}
     try:
-        indicator_data = _get_stock_stats_bulk(symbol, indicator, as_of_date)
+        indicator_data = _get_stock_stats_bulk(symbol, indicator, as_of_date, provenance=provenance)
 
         # Generate the date range we need
         current_dt = as_of_dt
@@ -182,8 +183,12 @@ def get_stock_stats_indicators_window(
             ind_string += f"{as_of_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
             as_of_dt = as_of_dt - relativedelta(days=1)
 
+    provenance_frame = pd.DataFrame()
+    provenance_frame.attrs["market_provenance"] = provenance
     result_str = (
         f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
+        + ("\n".join(market_provenance_lines(provenance_frame)) + "\n\n"
+           if provenance else "")
         + ind_string
         + "\n\n"
         + best_ind_params.get(indicator, "No description available.")
@@ -195,7 +200,9 @@ def get_stock_stats_indicators_window(
 def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
-    as_of_date: Annotated[str, "current date for reference"]
+    as_of_date: Annotated[str, "current date for reference"],
+    *,
+    provenance: dict | None = None,
 ) -> dict:
     """
     Optimized bulk calculation of stock stats indicators.
@@ -205,6 +212,8 @@ def _get_stock_stats_bulk(
     from stockstats import wrap
 
     data = load_ohlcv(symbol, as_of_date)
+    if provenance is not None:
+        provenance.update(data.attrs.get("market_provenance") or {})
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
 
