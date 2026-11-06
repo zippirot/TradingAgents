@@ -450,6 +450,7 @@ def render_event_comparison(record):
                          "; period/basis as supplied by vendor. No pre-event beat/miss inferred.")
     else:
         lines.append("Consensus unavailable: " + str(consensus.get("reason") or "No retained vendor expectations") + ".")
+    lines.append("")
     if reaction["status"] in {"available", "partial"}:
         lines.append(
             f"Observed price window {reaction['start_session']} to {reaction['end_session']} (completed common sessions; not causal attribution):"
@@ -460,6 +461,7 @@ def render_event_comparison(record):
         )
     else:
         lines.append("Market-window comparison unavailable: " + reaction["reason"] + ".")
+    lines.append("")
     lines.append("Peers selected before returns: " + reaction.get("peer_rationale", "unavailable"))
     if "peer_selection_source" not in reaction:
         lines.append("Retained legacy peer selection; current final peer validation unavailable.")

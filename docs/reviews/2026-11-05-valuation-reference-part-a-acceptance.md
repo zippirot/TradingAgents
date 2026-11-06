@@ -1,6 +1,6 @@
 # Part A valuation reference acceptance
 
-Status: implementation and offline corrections verified; Part A remains incomplete because live consensus, accepted-peer and event observations are missing. Additional proof requires approval.
+Status: Part A development and approved combined proof complete. Paid comparison, Part B and release acceptance remain pending separate authorization.
 
 ## Authorized scope and baseline
 
@@ -21,7 +21,7 @@ External task evidence root: /Users/zipp/Developer/tradingagents-valuation-refer
 
 ## Work remaining
 
-The approved Part A attempt is complete but acceptance is unmet. Implementation, independent review, affected recovery, artifact corrections and the A7 tooling/budget proposal are complete. A further live proof needs explicit approval; see the current decision below. Exact-head publication CI and all release actions still await separate authority.
+Part A implementation, independent review, recovery, artifacts and the approved combined proof are complete. Paid A7 comparison, Part B, exact-head publication CI and all release actions remain pending separate authority. Historical milestones and the final evidence map below preserve the adjustments and limitations.
 
 ## Spending and release boundaries
 
@@ -119,3 +119,46 @@ Authority is exactly one additional after-close DOCN all-four-analyst shallow at
 Temporary MSFT/ORCL pins are authorized only for this isolated proof, with the explicit reason that business comparability is not established. The approved evidence combines the original live model proposals/rejections with an accepted-user-pin path; successful live model-selected acceptance remains unobserved and will not be claimed. Free current-session prerequisites passed for both pins using November 5 completed prices (MSFT 11.4891x, ORCL 4.8517x). These later source acquisitions are feasibility evidence, not part of the original live proof.
 
 The normal application analysis-day clock replaces the first harness's too-early exact cutoff. Completed prices retain the separate normal market-observation clock. The additional attempt is not yet started at this preparation milestone. Its claim, exact approval hash, pins, phase cap and aggregate cap must pass offline qualification and independent review before launch.
+
+## Final Part A development result
+
+Part A implementation and its explicitly approved combined proof are complete. This is local development acceptance; exact-head GitHub CI and release/installation acceptance remain pending separate publication authority. Part B and all paid A7 comparison calls remain outside this delivery.
+
+The approved A2 run used clean source 561e50e66fb1ec5ea6c12704a44b0165842dedb1, starting 2026-11-06T00:26:04.273980Z and finishing 00:30:48.497781Z (November 5 after-close in New York). Its normal analysis-day cutoff was 2026-11-06T06:59:59.999999Z; its separate actual market cutoff was 00:26:06.281257Z. The canonical completed November 5 close remained $70.69999694824219. Consensus was retrieved at 00:26:15.865378Z and retained as vendor data, unverified.
+
+A2 observed two accepted user-pinned peers with no rejections: MSFT 11.4891311914x equity/revenue, shares measured September 30; ORCL 4.8517470927x, shares August 31. Both prices are the November 5 completed session and both currencies USD. The separate peer range is 4.8517x / 8.1704x / 11.4891x. ORCL gross margin is unavailable independently. Business comparability is not established. The original run proves real model proposals, post-analyst acquisition and rejection behavior; A2 proves accepted user pins available before analysts. Successful live model-selected acceptance remains unobserved under the approved combined-evidence adjustment.
+
+A2 retains eight unverified consensus estimates, vendor targets/surprises/revisions, the source-only management guidance, and an available event comparison. Missing explicit fiscal dates/accounting bases prevent a numeric guidance/consensus difference; current consensus is not pre-event expectations. Event reaction uses DOCN/SPY/MSFT/ORCL completed common sessions and is labeled noncausal. No fair-value target was forced.
+
+The advisory audit completed with 20 quote-attributed findings, zero rejected. All were unsupported-by-supplied-material findings; error-detection accuracy, contradictions and numerical inconsistencies were not established. The Portfolio Manager explicitly discussed findings that mattered. Same-model review is disclosed for every role. A2 observed 17 model calls, one research/risk round, 11,077 research characters and 7,295 risk characters measured from original prose. The common valuation brief is bounded at 11,084 characters. Checkpoint cleanup left zero checkpoint rows.
+
+### Completion evidence map
+
+| Requirement | Authoritative evidence and result |
+| --- | --- |
+| M1 identity, verified staging/isolation, input handoff | setup.json and input-handoff.json; M1 Pro/16 GB; base ac661ca291599a8e3e9701bed73f60d979d38a01; isolated codex branch; exact plan/input/publication hash checks; launcher and private inputs preserved |
+| A1 dated own-history/share/split/period rules | Eight retained DOCN quarters independently recomputed; live eight-row history; test_valuation_reference.py and test_reference_history.py cover split reconciliation, missing quarter shares, fewer than four, future cutoffs and tampering |
+| A2 authoritative pins, sequencing, peer validation/stability | test_valuation_reference_flow.py; real MSFT/ORCL source arithmetic; original live proposals/rejections plus approved A2 accepted pins; both source vintages retained, no hardcoded DOCN peer |
+| A3 vendor data and historical/comparability boundaries | test_vendor_expectations.py and flow/event replay tests; actual eight-row timestamped snapshot; strict historical/cutoff tests; unknown dimensions remain unavailable |
+| A4 shared bounded valuation/reporting | Actual 11,084-character section, current completed close, independently available history/peers/consensus; full retained-source replay and Markdown/HTML/Rich CLI/PDF inspection |
+| A5 bounded advisory audit and authority | Audit unit/integration/recovery tests; actual 20/20 quote attribution and same-model disclosure; PM response retained; no audit veto or accepted-evidence mutation |
+| A6 depth/preferences/metrics | Depth 1/2/3/5 and saved-preference checks; actual one-round run and corrected original-prose metrics; callback/resume scope tests |
+| A7 tooling | Final 38 focused checks include source-frozen actual CLI fixtures, models/depth, missing-source rejection, money/one-shot controls, blind metrics and concrete reviewer callback; six paid runs/reviews remain unapproved |
+| Offline inventory and required static gates | Combined passing evidence for 2,510 tests; one optional Bedrock SDK skip, one live DeepSeek integration deselection; full Ruff/pip/diff passed |
+| Recovery/REVIEW/assets/memory/publication | Broad inventory plus 275 affected checks; new audit before/after checkpoint tests, publication retry/legacy/scope tests; A2 real checkpoint cleanup and isolated publication verified |
+| Independent audit and gap closure | part-a-independent-audit-prelive.md, part-a-independent-audit-live.md and part-a-independent-audit-extra-live.md; confirmed material source findings closed |
+| Preservation/release boundaries | Original and A2 live report/state/receipt/publication/pin hashes stable; no release, installation, worktree removal, scheduler or broker action |
+
+Evidence reuse remains source/dependency/configuration/impact based. The complete product inventory at 0f2b784 supplied 2,461 passes plus 100 subtests; the two setup-fixture failures and affected behavior were corrected/rerun. Six later product regressions, three post-live regressions, final 38 harness checks, 275 affected checks and final 80 rendering/source checks complete current coverage. Counts overlap and are not summed as suite runs. Full Ruff passed after the final formatting changes; pip check passed and all 90 noneditable dependency pins are unchanged. The live DeepSeek test is outside the chosen provider and paid authority; the absent optional Bedrock SDK is not required by this runtime. This is combined evidence across revisions, not one full passing run on the final commit.
+
+Two small display corrections followed A2: unavailable percentages no longer receive a percent sign, and paragraph boundaries separate peer/event notes from list items. They do not change sources, arithmetic, claim validation, model output or authority. The final 80 affected tests and full Ruff passed. The live evidence is reused with this narrow impact justification; the labeled offline formatting derivative verifies the final rendering. A minor doubled period after a peer reason is cosmetic and deferred.
+
+The original A2 report is ../private/part-a-extra-live-proof/results/reports/DOCN_20261105_173046. Its Markdown SHA is 225c92d8a4dc3be563f48753be805d7bb475ff9a03d7df2907d0e1cad5745769; HTML 2f1294c809582f3c9c3cad636e75e3365ba204fa463ad698d3c607502195fece; CLI receipt 95e6b7d40e37427ceb9b006d7716cd6ecd6a3ac18e9df2296c4abc5ab888e142. Final offline formatting derivative: ../private/evidence/extra-proof-format-correction-v2. Its Markdown SHA is 7d02c894a54c5f9fc256588d74e0c8182a830d10c9f7bbf87be54a98fdc723b9; HTML ba0ad7ce9313ff66920f180776405db81e2fa1b7d59a9c0c70a52ab6250c1245; replay record a7c8ec71275c90717db6b6dbb7c97dc0d7011f45d75a9eb378002bd585e02e3f. Primary and independent visual checks confirmed corrected layout. No derivative made model/source calls or publication/memory writes. Transient yfinance SQLite cache/WAL files may change on process shutdown; durable evidence hashes, not cache journals, establish preservation.
+
+### Final spend and pending work
+
+Original A: $1.14128440. Approved A2: $1.18980370. Aggregate: $2.33108810 for 34 settled requests across two CLI attempts, zero unknown reservations. Remaining original aggregate ceiling: $7.66891190. Both authorized Part A attempts are consumed; no further attempt or report is authorized. B remains a separate explicit start decision, irrespective of remaining money.
+
+The A7 proposal remains $65, unapproved. The final estimate uses per-field maxima across both real shallow runs, plus five extra debate turns at the largest observed input/output: 2,508,130 projected input and 129,269 output tokens per two-round run. Pricing A at standard uncached Terra and every B call at standard uncached Opus, plus six budgeted review calls, gives $53.808645; 20% planning margin gives $64.570374. Reviewer/settings and route-price uncertainty remain as recorded above. Details: ../private/evidence/comparison-budget-proposal-final.json. Cost guards always reserve at freshly verified conservative route rates; the $65 proposal does not guarantee every run will finish. No comparison call, retry, top-up or scheduling is authorized.
+
+Stop here before Part B. The user will review real Part A reports before a separate go-ahead. Exact-head GitHub CI is pending authorized publication; no local check establishes release acceptance. The goal notifier key is to be disabled only after native completion succeeds.

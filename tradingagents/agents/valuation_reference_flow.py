@@ -457,9 +457,11 @@ def render_valuation_reference(record):
     for row in peers["accepted"]:
         stats = row["statistics"]
         growth, margin = stats["trailing_revenue_growth"], stats["gross_margin"]
+        growth_text = _number(growth.get("percent")) + ("%" if growth.get("percent") is not None else "")
+        margin_text = _number(margin.get("percent")) + ("%" if margin.get("percent") is not None else "")
         lines.append(f"- {_cell(row['ticker'])}: {_cell(row['reason'])}. Equity value / trailing revenue "
-                     f"{_number(stats['multiple'])}×; growth {_number(growth.get('percent'))}%; "
-                     f"gross margin {_number(margin.get('percent'))}%; completed close {stats['price_session']}; "
+                     f"{_number(stats['multiple'])}×; growth {growth_text}; "
+                     f"gross margin {margin_text}; completed close {stats['price_session']}; "
                      f"share date {stats['share_date']}; revenue {stats['revenue_fact']['period_start']} to {stats['revenue_fact']['period_end']}.")
         for cell in (growth, margin):
             if cell["status"] != "available":
@@ -471,6 +473,7 @@ def render_valuation_reference(record):
         lines.append("Peer table unavailable: no peers passed the source checks.")
     for row in peers["rejected"]:
         lines.append("- Excluded " + _cell(row["ticker"]) + ": " + _cell(row["reason"]))
+    lines.append("")
     if peers["range"]["status"] == "available":
         stats = peers["range"]["statistics"]
         lines.append(f"Separate peer range: {_number(stats['low'])}× / {_number(stats['median'])}× / {_number(stats['high'])}× "
