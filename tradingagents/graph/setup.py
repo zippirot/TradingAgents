@@ -21,6 +21,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
+from tradingagents.agents.audit_evidence import AUDIT_TOOL_FIELDS, collect_tool_outputs
 from tradingagents.agents.audit_pass import create_advisory_audit
 from tradingagents.agents.evidence_validation import create_evidence_gate, create_source_acquisition
 from tradingagents.agents.output_validation import enforce_publication
@@ -62,7 +63,8 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     that turn ends it whatever it answers, so a model that keeps calling tools
     cannot run the graph into its recursion limit (#1420).
     """
-    output_fields = {spec.report_key: str}
+    evidence_field = AUDIT_TOOL_FIELDS[spec.key]
+    output_fields = {spec.report_key: str, evidence_field: dict}
     if spec.key == "fundamentals":
         output_fields["disclosure_evidence"] = dict
     if spec.key == "news":
@@ -71,8 +73,15 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     graph = StateGraph(AgentState, output_schema=output)
     graph.add_node("agent", agent)
     graph.add_edge(START, "agent")
+
+    def finish(state):
+        evidence = state.get(evidence_field) if spec.key == "social" else None
+        return {evidence_field: evidence or collect_tool_outputs(state, spec.key)}
+
+    graph.add_node("finish", finish)
+    graph.add_edge("finish", END)
     if not spec.tools:
-        graph.add_edge("agent", END)
+        graph.add_edge("agent", "finish")
         return graph.compile()
 
     def calls(messages):
@@ -92,9 +101,10 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
 
     graph.add_node("tools", ToolNode(list(spec.tools)))
     graph.add_node("wrap_up", wrap_up)
-    graph.add_conditional_edges("agent", _tools_or_done, ["tools", END])
+    graph.add_conditional_edges("agent", lambda state: "tools" if _tools_or_done(state) == "tools" else "finish",
+                                ["tools", "finish"])
     graph.add_conditional_edges("tools", more_or_wrap_up, ["agent", "wrap_up"])
-    graph.add_edge("wrap_up", END)
+    graph.add_edge("wrap_up", "finish")
     return graph.compile()
 
 

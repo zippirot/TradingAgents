@@ -162,3 +162,8 @@ Original A: $1.14128440. Approved A2: $1.18980370. Aggregate: $2.33108810 for 34
 The A7 proposal remains $65, unapproved. The final estimate uses per-field maxima across both real shallow runs, plus five extra debate turns at the largest observed input/output: 2,508,130 projected input and 129,269 output tokens per two-round run. Pricing A at standard uncached Terra and every B call at standard uncached Opus, plus six budgeted review calls, gives $53.808645; 20% planning margin gives $64.570374. Reviewer/settings and route-price uncertainty remain as recorded above. Details: ../private/evidence/comparison-budget-proposal-final.json. Cost guards always reserve at freshly verified conservative route rates; the $65 proposal does not guarantee every run will finish. No comparison call, retry, top-up or scheduling is authorized.
 
 Stop here before Part B. The user will review real Part A reports before a separate go-ahead. Exact-head GitHub CI is pending authorized publication; no local check establishes release acceptance. The goal notifier key is to be disabled only after native completion succeeds.
+
+
+## Subsequent peer/audit repairs
+
+The user requested two pre-publication repairs after the development checkpoint above. Their verified changes, evidence, preserved legacy behavior and remaining NET quote/live-audit limitations are recorded in [the peer/audit repair review](2026-11-05-peer-audit-gap-repairs.md). Comparison, Part B, publishing and installation remain on hold. No new paid run was made.

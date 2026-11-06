@@ -6,6 +6,12 @@ from collections.abc import Mapping
 
 from pydantic import BaseModel
 
+from tradingagents.agents.audit_evidence import (
+    known_tool_labels,
+    render_tool_evidence,
+    tool_evidence_coverage,
+)
+
 TYPES = ("unsupported_claim", "contradiction", "numerical_inconsistency")
 SOURCES = ("shared_source_brief", "canonical_financial_context", "valuation_reference_brief")
 ROLES = {
@@ -35,19 +41,84 @@ class AuditOutput(BaseModel):
 
 
 def _role_texts(state):
-    roles = {role: str(state.get(field) or "") for role, field in ROLES.items()}
+    originals = state.get("unvalidated_outputs")
+    originals = originals if isinstance(originals, Mapping) else {}
+    roles = {role: (originals[field] if isinstance(originals.get(field), str)
+                    else str(state.get(field) or "")) for role, field in ROLES.items()}
     validation = state.get("financial_claim_validation") or {}
     original = validation.get("raw_report") if isinstance(validation, Mapping) else None
     if isinstance(original, str):
         roles["fundamentals_analyst"] = original
     for role, (group, field) in DEBATES.items():
         debate = state.get(group)
-        roles[role] = str(debate.get(field) or "") if isinstance(debate, Mapping) else ""
+        saved = originals.get(group)
+        original = saved.get(field) if isinstance(saved, Mapping) else None
+        roles[role] = (original if isinstance(original, str) else
+                       str(debate.get(field) or "") if isinstance(debate, Mapping) else "")
     return roles
 
 
+
+def _retained_kpi_context(state):
+    """Replay the existing RPO calculation from scoped source packages, never fetch."""
+    from tradingagents.agents.kpi_comparisons import compare_rpo
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    disclosure = state.get("disclosure_evidence")
+    entries = disclosure.get("kpi_comparisons") if isinstance(disclosure, Mapping) else None
+    if not entries:
+        return ""
+    if not isinstance(entries, list):
+        return "Retained KPI comparison cannot be verified; review coverage limit, not a claim error."
+    lines = []
+    for entry in entries[:5]:
+        try:
+            identity = state.get("issuer_identity")
+            financial = state.get("financial_evidence")
+            if (not isinstance(identity, Mapping) or not isinstance(financial, Mapping)
+                    or identity.get("source") != "SEC issuer map"
+                    or identity.get("ticker") != state.get("company_of_interest")
+                    or identity.get("as_of") != state.get("trade_date")
+                    or identity.get("cik") != financial.get("cik")):
+                raise ValueError("KPI issuer scope unavailable")
+            if not isinstance(entry, Mapping) or entry.get("method") != "quarterly_rpo_change_v1":
+                raise ValueError("Unsupported retained KPI calculation")
+            packages = entry["source_packages"]
+            current = DisclosurePackage.model_validate(packages["current"])
+            prior = DisclosurePackage.model_validate(packages["prior"])
+            if (current.cik != identity["cik"] or prior.cik != identity["cik"]
+                    or str(current.as_of) != state.get("trade_date")
+                    or str(prior.as_of) != state.get("trade_date")):
+                raise ValueError("KPI issuer/date mismatch")
+            result = compare_rpo(current, prior)
+            if result["status"] != "pass":
+                raise ValueError("KPI calculation unavailable")
+            lines.append(result["text"][:2000])
+            for source in result["sources"].values():
+                lines.append("source_id " + source["source_id"] + "; filed " + source["known_at"]
+                             + "; " + source["url"][:500])
+        except (ValueError, TypeError, KeyError, ArithmeticError):
+            lines.append("Retained KPI comparison cannot be verified; review coverage limit, not a claim error.")
+    if len(entries) > 5:
+        lines.append("Additional retained KPI comparisons omitted at the five-record audit cap; no claim error inferred.")
+    return "\n".join(lines)[:14000]
+
 def _contexts(state):
     source = {key: str(state.get(key) or "")[:18000] for key in SOURCES}
+    source["retained_kpi_comparisons"] = _retained_kpi_context(state)
+    source["analyst_tool_outputs"] = render_tool_evidence(state)
+    source["tool_evidence_authority"] = "Recorded tool output, unverified; not accepted financial evidence."
+    if isinstance(state.get("event_comparison"), Mapping):
+        from tradingagents.agents.event_comparison import (
+            render_event_comparison,
+            replay_event_comparison,
+        )
+        try:
+            event = replay_event_comparison(state, state["event_comparison"])
+            source["event_comparison"] = render_event_comparison(event)[:18000]
+        except (ValueError, TypeError, KeyError, ArithmeticError):
+            source["event_comparison"] = ("Retained event comparison cannot be verified; "
+                                          "this is a review coverage limit, not a claim error.")
     roles = {role: text[:6000] for role, text in _role_texts(state).items()}
     return source, roles
 
@@ -56,8 +127,15 @@ def build_advisory_audit_prompt(state):
     """Render bounded source and role text as untrusted data."""
     source, roles = _contexts(state)
     return (
-        "Audit supplied material for unsupported claims, contradictions and numerical "
-        "inconsistencies. Return findings: 0 to 20 records with role, quoted_claim, "
+        "Prioritize contradictions and numerical inconsistencies: compare claims with actual "
+        "dated tool outputs, canonical figures, and each other, respecting units, periods, "
+        "adjustments and definitions. A claim accurately attributed to a recorded news/vendor "
+        "output is not unsupported merely because that output is unverified. "
+        "Inspect all supplied evidence before reporting gaps. Missing, omitted or truncated "
+        "material is an audit coverage limit, not a claim error; never fill slots with such gaps. "
+        "Report at most five material unsupported claims only when they could affect the "
+        "decision and are unsupported by all supplied sources. Put contradictions and numerical "
+        "inconsistencies first. Return findings: 0 to 20 records with role, quoted_claim, "
         "issue_type (unsupported_claim, contradiction, numerical_inconsistency), "
         "evidence_label (exact supplied label or null), and explanation. The label may be "
         "a short display ID or a fact_id/source_id literally supplied below. Quote an "
@@ -119,18 +197,21 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
 
     def node(state):
         source, roles = _contexts(state)
-        labels = _known_labels(source)
+        labels = _known_labels({key: text for key, text in source.items()
+                                if key != "analyst_tool_outputs"}) | known_tool_labels(state)
         record = {
             "status": "unavailable", "findings": [],
             "counts_by_type": dict.fromkeys(TYPES, 0),
             "submitted_count": 0, "accepted_count": 0, "rejected_count": 0,
-            "rejection_reasons": [],
+            "rejection_reasons": [], "priority_omitted_count": 0,
+            "priority_omission_reasons": [],
             "independence_by_role": {
                 role: "same model" if role == "research_manager" or deep_model_id == quick_model_id else "different model"
                 for role in roles
             },
             "auditor_model_id": deep_model_id, "quick_model_id": quick_model_id,
             "error": None,
+            "tool_evidence_coverage": tool_evidence_coverage(state),
             "input_truncation": {
                 **{key: len(str(state.get(key) or "")) > 18000 for key in SOURCES},
                 **{role: len(text) > 6000 for role, text in _role_texts(state).items()},
@@ -151,6 +232,7 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
             record["rejection_reasons"] = ["findings over limit"]
             record["error"] = "findings over limit"
             return {"advisory_audit": record}
+        valid_findings = []
         for index, item in enumerate(findings, 1):
             reason = None
             if not isinstance(item, Mapping):
@@ -171,11 +253,20 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
             if reason:
                 record["rejection_reasons"].append(f"finding {index}: {reason}")
                 continue
-            record["findings"].append({
+            valid_findings.append({
                 "role": role, "quoted_claim": quote, "issue_type": issue,
                 "evidence_label": label or None, "explanation": explanation[:500],
             })
+        order = {"contradiction": 0, "numerical_inconsistency": 1, "unsupported_claim": 2}
+        for item in sorted(valid_findings, key=lambda item: order[item["issue_type"]]):
+            issue = item["issue_type"]
+            if issue == "unsupported_claim" and record["counts_by_type"][issue] >= 5:
+                record["priority_omitted_count"] += 1
+                continue
+            record["findings"].append(item)
             record["counts_by_type"][issue] += 1
+        if record["priority_omitted_count"]:
+            record["priority_omission_reasons"] = ["Material support-gap findings capped at five; not invalid findings"]
         record["accepted_count"] = len(record["findings"])
         record["rejected_count"] = len(record["rejection_reasons"])
         if record["accepted_count"]:
@@ -205,6 +296,13 @@ def render_advisory_audit(record):
     truncation = record.get("input_truncation")
     truncated = [str(key).replace("_", " ") for key, value in truncation.items() if value is True] if isinstance(truncation, Mapping) else []
     lines.append("Review covers bounded supplied material." + (" Truncated inputs: " + _escape(", ".join(truncated)) + "." if truncated else ""))
+    coverage = record.get("tool_evidence_coverage")
+    if isinstance(coverage, Mapping):
+        descriptions = []
+        for role, item in list(coverage.items())[:4]:
+            if isinstance(item, Mapping):
+                descriptions.append(f"{role}: {item.get('records', 0)} recorded, {item.get('truncated', 0)} truncated, {item.get('omitted', 0)} omitted ({item.get('status', 'unknown')})")
+        lines.append("Recorded tool-input coverage: " + _escape("; ".join(descriptions), 1000) + ". Source availability is not a finding.")
     independence = record.get("independence_by_role")
     if isinstance(independence, Mapping) and independence:
         same = [_escape(role.replace("_", " "), 80) for role, value in list(independence.items())[:20] if value == "same model"]
@@ -222,6 +320,9 @@ def render_advisory_audit(record):
     rejected = record.get("rejected_count")
     if type(rejected) is int and 0 < rejected <= 10000:
         lines.append(f"{rejected} rejected finding(s); retained findings are partial.")
+    omitted = record.get("priority_omitted_count")
+    if type(omitted) is int and omitted > 0:
+        lines.append(f"{min(omitted, 20)} otherwise valid support-gap finding(s) omitted by the priority cap; not invalid rejections.")
     findings = record.get("findings")
     if not isinstance(findings, list):
         findings = []

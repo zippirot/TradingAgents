@@ -106,7 +106,7 @@ def flow_fixture(monkeypatch):
     peer_packages = {ticker: fixture(cik=cik, ticker=ticker)[0]
                      for ticker, cik in (("AKAM", "0001000001"), ("MSFT", "0001000002"))}
     monkeypatch.setattr(sec_edgar, "cik_for", lambda t: calls.append(("identity", t)) or peer_packages[t].cik)
-    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda t, d: calls.append(("facts", t)) or peer_packages[t])
+    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda t, d, **kwargs: calls.append(("facts", t)) or peer_packages[t])
     monkeypatch.setattr(price_observation, "get_price_observation", lambda t, *a: calls.append(("price", t)) or quotes[t])
     monkeypatch.setattr(expectations, "get_vendor_expectations", lambda t, d, **kw:
                         expectations.VendorExpectations(status="unavailable", reason="Fixture has no consensus",

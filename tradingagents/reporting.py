@@ -240,6 +240,10 @@ def evidence_snapshot(final_state: dict) -> dict:
     names = (
         "thesis",
         "advisory_audit",
+        "audit_market_tool_evidence",
+        "audit_social_tool_evidence",
+        "audit_news_tool_evidence",
+        "audit_fundamentals_tool_evidence",
         "run_metrics",
         "valuation_reference",
         "valuation_reference_brief",

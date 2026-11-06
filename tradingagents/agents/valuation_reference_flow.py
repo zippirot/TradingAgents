@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -234,28 +234,35 @@ def _fetch_peer(ticker, state):
             raise ValueError("Peer is not identified in the SEC issuer map")
         if cik == (state.get("issuer_identity") or {}).get("cik"):
             raise ValueError("Peer resolves to the subject issuer under another ticker")
-        package = add_period_calculations(sec_edgar.get_financial_evidence(ticker, scope["as_of"]))
+        package = add_period_calculations(sec_edgar.get_financial_evidence(ticker, scope["as_of"], peer_revenue_definitions=True))
         if package.cik != cik or str(package.as_of) != scope["as_of"]:
             raise ValueError("Peer financial issuer or cutoff mismatch")
         dates = [f.period_end for f in package.facts if f.metric == "Common Shares Outstanding"
                  and f.period_start is None and f.value is not None and f.value > 0
                  and str(f.period_end) <= subject["session_date"]]
+        cover = None
         if not dates:
-            raise ValueError("Peer outstanding shares unavailable by completed cutoff")
+            from tradingagents.dataflows.vendors.peer_shares import (
+                get_peer_cover_shares,
+                replay_peer_cover_shares,
+            )
+            cover = get_peer_cover_shares(cik, scope["as_of"], subject["session_date"])
+            selected = replay_peer_cover_shares(cover, cik, scope["as_of"], subject["session_date"])
+            dates = [date.fromisoformat(selected["share_date"])]
         with completed_price_scope(state):
             quote = get_price_observation(ticker, scope["as_of"], max(dates))
         return {"status": "available", "package": package.model_dump(mode="json"),
                 "issuer_identity": {"ticker": ticker, "cik": cik, "as_of": scope["as_of"], "source": "SEC issuer map"},
-                "price_observation": quote}
+                "price_observation": quote, "peer_cover_shares": cover}
     except (VendorError, ValueError, KeyError, TypeError) as exc:
         return _unavailable(exc)
 
 
-def _peer_set(selection, state, sources):
+def _peer_set(selection, state, sources, *, include_quality=False):
     from tradingagents.agents.valuation_reference import calculate_peer_statistics, peer_range
     from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
 
-    accepted, rejected = [], list(selection.get("rejected") or [])
+    accepted, rejected, incomplete = [], list(selection.get("rejected") or []), []
     for row in _peer_rows(selection.get("peers", []), state["company_of_interest"]):
         ticker, raw = row["ticker"], sources.get(row["ticker"]) or {}
         try:
@@ -268,17 +275,38 @@ def _peer_set(selection, state, sources):
             if quote["currency"] != subject["currency"]:
                 raise ValueError("Peer currency differs from the subject completed price currency")
             statistics = calculate_peer_statistics(raw["package"], raw["issuer_identity"], quote,
-                                                    ticker=ticker, completed_cutoff=subject["session_date"])
+                                                    ticker=ticker, completed_cutoff=subject["session_date"],
+                                                    peer_cover_shares=raw.get("peer_cover_shares"), include_quality=include_quality)
             if statistics["status"] != "available":
                 raise ValueError(statistics["reason"])
             accepted.append({**row, "statistics": statistics})
         except (ValueError, KeyError, TypeError) as exc:
+            failed_quote = raw.get("price_observation") or {}
+            if (include_quality and raw.get("status") == "available" and raw.get("peer_cover_shares")
+                    and failed_quote.get("status") == "unavailable"
+                    and failed_quote.get("ticker") == ticker and failed_quote.get("as_of") == state["trade_date"]):
+                from tradingagents.agents.valuation_reference import calculate_peer_share_diagnostic
+                try:
+                    subject = _canonical_quote(state)
+                    if raw["issuer_identity"].get("cik") == (state.get("issuer_identity") or {}).get("cik"):
+                        raise ValueError("Peer resolves to the subject issuer")
+                    diagnostic = calculate_peer_share_diagnostic(
+                        raw["package"], raw["issuer_identity"], raw["peer_cover_shares"], ticker=ticker,
+                        as_of=state["trade_date"], completed_cutoff=subject["session_date"],
+                        revenue_currency=subject["currency"], reason=failed_quote.get("reason") or str(exc))
+                    incomplete.append({**row, "statistics": diagnostic})
+                    continue
+                except (ValueError, KeyError, TypeError):
+                    pass
             rejected.append({**row, "reason": str(exc)[:400], "selection_reason": row["reason"]})
-    return {"kind": "user-pinned" if selection["kind"] == "user-pinned" else "model-selected",
+    result = {"kind": "user-pinned" if selection["kind"] == "user-pinned" else "model-selected",
             "status": selection["status"], "reason": selection.get("reason"),
             "requested": selection.get("peers", []), "accepted": accepted, "rejected": rejected,
-            "range": peer_range([row["statistics"] for row in accepted]),
+            "range": peer_range([row["statistics"] for row in accepted], include_quality=include_quality),
             "qualification": "Data checks do not establish business comparability; selection reasons are unverified"}
+    if include_quality:
+        result["incomplete"] = incomplete
+    return result
 
 
 def _history(state, raw, subject):
@@ -310,8 +338,10 @@ def _assemble(state, record):
         return result
     result["subject"] = _subject(state)
     result["own_history"] = _history(state, result["raw_sources"]["history"], result["subject"])
-    result["default_peers"] = _peer_set(result["default_selection"], state, result["raw_sources"]["peers"])
-    result["peers"] = _peer_set(result["selection"], state, result["raw_sources"]["peers"])
+    result["default_peers"] = _peer_set(result["default_selection"], state, result["raw_sources"]["peers"],
+                                        include_quality=result.get("schema_version", 1) >= 2)
+    result["peers"] = _peer_set(result["selection"], state, result["raw_sources"]["peers"],
+                                        include_quality=result.get("schema_version", 1) >= 2)
     old = [row["ticker"] for row in result["default_peers"]["requested"]]
     new = [row["ticker"] for row in result["peers"]["requested"]]
     result["changes"] = {"added": [t for t in new if t not in old], "removed": [t for t in old if t not in new]}
@@ -320,7 +350,7 @@ def _assemble(state, record):
 
 def replay_valuation_reference(state, record):
     """Reject altered scope, derived values or flattened historical projections."""
-    if not isinstance(record, dict) or record.get("schema_version") != 1 or record.get("scope") != _scope(state):
+    if not isinstance(record, dict) or record.get("schema_version") not in {1, 2} or record.get("scope") != _scope(state):
         raise ValueError("Retained valuation reference differs from run scope")
     try:
         replay = _assemble(state, record)
@@ -365,7 +395,7 @@ def acquire_reference_inputs(state, config):
                  config.get("analysis_timezone", "America/Denver")) if configured else
                  VendorExpectations(status="unavailable", ticker=scope["ticker"], requested_as_of=scope["as_of"],
                                     reason="Configured Yahoo expectations provider unavailable"))
-    record = {"schema_version": 1, "scope": scope, "status": "available", "phase": "preanalyst",
+    record = {"schema_version": 2, "scope": scope, "status": "available", "phase": "preanalyst",
               "default_selection": selection, "selection": selection, "configured_yahoo": configured,
               "raw_sources": {"history": history, "peers": sources}}
     record = _assemble(state, record)
@@ -463,12 +493,27 @@ def render_valuation_reference(record):
                      f"{_number(stats['multiple'])}×; growth {growth_text}; "
                      f"gross margin {margin_text}; completed close {stats['price_session']}; "
                      f"share date {stats['share_date']}; revenue {stats['revenue_fact']['period_start']} to {stats['revenue_fact']['period_end']}.")
+        lines.append("  Revenue definition: " + _cell(stats.get("revenue_definition", "See retained source tags")) + ".")
+        if stats.get("share_quality") in {"lower_quality_dated_cover", "lower_quality_dated_statement"}:
+            share_label = ("dated cover shares" if stats["share_quality"] == "lower_quality_dated_cover"
+                           else "statement shares dated differently from the revenue-period end")
+            lines.append("  Lower-quality conditional row: " + share_label + ", not same-date capitalization. " +
+                         _cell("; ".join(stats["conditional_assumptions"])))
         for cell in (growth, margin):
             if cell["status"] != "available":
                 lines.append("  Unavailable: " + _cell(cell["reason"]))
         sources = {s["source_id"]: s for key in ("share_fact", "revenue_fact") for s in stats[key]["sources"]}
         lines.extend("  source_id " + _cell(s["source_id"]) + "; filed " + _cell(s["filed_date"]) + "; " + _cell(s["url"])
                      for s in sources.values())
+    for row in peers.get("incomplete", []):
+        stats = row["statistics"]
+        lines.append(f"- {_cell(row['ticker'])}: lower-quality incomplete peer row. " +
+                     _cell(row["reason"]) + f". Shares {_number(stats['shares'])}, measured {stats['share_date']}; " +
+                     "A valid same-session completed price is unavailable. Multiple unavailable; excluded from the peer range.")
+        lines.append("  " + _cell("; ".join(stats["conditional_assumptions"])))
+        for source in stats["share_fact"]["sources"]:
+            lines.append("  source_id " + _cell(source["source_id"]) + "; filed " +
+                         _cell(source["filed_date"]) + "; " + _cell(source["url"]))
     if not peers["accepted"]:
         lines.append("Peer table unavailable: no peers passed the source checks.")
     for row in peers["rejected"]:
@@ -478,6 +523,7 @@ def render_valuation_reference(record):
         stats = peers["range"]["statistics"]
         lines.append(f"Separate peer range: {_number(stats['low'])}× / {_number(stats['median'])}× / {_number(stats['high'])}× "
                      f"(low / median / high; {stats['count']} peers; equity value / trailing revenue).")
+        lines.append(_cell(peers["range"].get("quality_label", "Retained reference range")) + ".")
     if record["changes"]["added"] or record["changes"]["removed"]:
         lines.append("Changes from default: added " + _cell(", ".join(record["changes"]["added"]) or "none") +
                      "; removed " + _cell(", ".join(record["changes"]["removed"]) or "none") + ". Earlier default statistics remain retained.")

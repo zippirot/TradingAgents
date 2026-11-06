@@ -172,6 +172,13 @@ def _lineage(package: EvidencePackage, fact: FinancialFact) -> dict:
     }
 
 
+
+def _revenue_tax_definitions(package, fact):
+    locators = [source.locator for source in package.sources if source.source_id in fact.source_ids]
+    return {kind for kind in ("IncludingAssessedTax", "ExcludingAssessedTax")
+            if any("RevenueFromContractWithCustomer" + kind in locator for locator in locators)}
+
+
 def _stats(values: list[Decimal]) -> dict:
     ordered = sorted(values)
     middle = len(ordered) // 2
@@ -272,7 +279,7 @@ def calculate_own_history(package, issuer_identity: dict, prices, split_history,
         return _unavailable(str(exc))
 
 
-def calculate_peer_statistics(package, issuer_identity: dict, price_observation, *, ticker: str, completed_cutoff: date) -> dict:
+def calculate_peer_statistics(package, issuer_identity: dict, price_observation, *, ticker: str, completed_cutoff: date, peer_cover_shares=None, include_quality=False) -> dict:
     """Current peer equity/revenue; growth and margin fail independently."""
     try:
         package = _validated_package(package)
@@ -287,22 +294,38 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
         if session != cutoff:
             raise ValueError("Peer session does not match subject canonical completed-session cutoff")
         shares = _latest_shares(package, session)
-        if shares is None:
+        cover = None
+        if shares is None and peer_cover_shares is not None:
+            from tradingagents.dataflows.vendors.peer_shares import replay_peer_cover_shares
+            cover = replay_peer_cover_shares(peer_cover_shares, package.cik, str(package.as_of), str(session))
+        if shares is None and cover is None:
             raise ValueError("Usable verified outstanding shares unavailable")
-        if (not quote["coverage_complete"] or date.fromisoformat(quote["coverage_start"]) > shares.period_end
+        share_date = shares.period_end if shares is not None else date.fromisoformat(cover["share_date"])
+        share_value = shares.value if shares is not None else Decimal(cover["shares"])
+        share_lineage = _lineage(package, shares) if shares is not None else {
+            "origin": "conditional_peer_calculation", "formula_id": "sum_disjoint_equivalent_cover_classes",
+            "fact_id": cover["source_id"], "period_start": None, "period_end": cover["share_date"],
+            "input_fact_ids": [row["locator"] for row in cover["components"]],
+            "source_ids": [cover["source_id"]], "sources": [cover["source"]],
+            "components": cover["components"], "rights_quote": cover["rights_quote"],
+        }
+        if (not quote["coverage_complete"] or date.fromisoformat(quote["coverage_start"]) > share_date
             or date.fromisoformat(quote["coverage_end"]) < session):
             raise ValueError("Split coverage does not span peer share date to price")
-        if any(shares.period_end < date.fromisoformat(item["session_date"]) <= package.as_of
+        if any(share_date < date.fromisoformat(item["session_date"]) <= package.as_of
                and Decimal(item["ratio"]) != 1 for item in quote["splits"]):
             raise ValueError("Peer share and price split bases incompatible")
         currency = quote["currency"]
         ttm = _latest_ttm(package, session, currency)
         if ttm is None:
             raise ValueError("Compatible verified TTM revenue unavailable")
+        revenue_tax_definitions = _revenue_tax_definitions(package, ttm)
+        if len(revenue_tax_definitions) > 1:
+            raise ValueError("Compatible revenue tax definitions unavailable across TTM quarters")
         with localcontext() as ctx:
             ctx.prec = 60
             close = Decimal(quote["close"])
-            equity = close * shares.value
+            equity = close * share_value
             multiple = equity / ttm.value
         # Fiscal quarter dates can vary around leap days. Use the fourth preceding
         # discrete quarter instead of a calendar-date guess.
@@ -310,10 +333,16 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
         previous = _ttm_at(package, ends[3], "Revenue", currency) if len(ends) >= 4 else None
         growth = {"status": "unavailable", "reason": "Prior compatible four-quarter revenue unavailable"}
         if previous and previous.value > 0:
-            with localcontext() as ctx:
-                ctx.prec = 60
-                growth = {"status": "available", "percent": _number(100 * (ttm.value / previous.value - 1)),
-                          "prior_revenue": _number(previous.value), "prior_revenue_fact": _lineage(package, previous)}
+            previous_tax_definitions = _revenue_tax_definitions(package, previous)
+            if (len(previous_tax_definitions) > 1 or
+                    (revenue_tax_definitions and previous_tax_definitions
+                     and revenue_tax_definitions != previous_tax_definitions)):
+                growth = {"status": "unavailable", "reason": "Prior/current revenue tax definitions differ"}
+            else:
+                with localcontext() as ctx:
+                    ctx.prec = 60
+                    growth = {"status": "available", "percent": _number(100 * (ttm.value / previous.value - 1)),
+                              "prior_revenue": _number(previous.value), "prior_revenue_fact": _lineage(package, previous)}
         gross = _ttm_at(package, ttm.period_end, "Gross Profit", currency, positive=False)
         margin = {"status": "unavailable", "reason": "Compatible same-period gross profit unavailable"}
         if gross and gross.period_start == ttm.period_start and gross.period_end == ttm.period_end:
@@ -321,21 +350,69 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
                 ctx.prec = 60
                 margin = {"status": "available", "percent": _number(100 * gross.value / ttm.value),
                           "gross_profit": _number(gross.value), "gross_profit_fact": _lineage(package, gross)}
-        return {
+        share_quality = cover["quality"] if cover else "reported_statement_date"
+        conditional_assumptions = cover["pricing_assumptions"] if cover else []
+        if include_quality and cover is None and share_date != ttm.period_end:
+            share_quality = "lower_quality_dated_statement"
+            conditional_assumptions = [
+                f"Reported shares measured {share_date} held constant through the {ttm.period_end} revenue-period end "
+                f"and {session} completed price; intervening capital changes are not resolved."
+            ]
+        result = {
             "status": "available", "reason": None, "ticker": ticker, "cik": package.cik,
             "as_of": str(package.as_of), "basis": "equity_value / trailing_revenue",
             "currency": currency, "price_session": str(session), "close": quote["close"], "price_unit": currency + "/share",
             "price_source_id": quote["source_id"], "price_source_hash": quote["content_hash"],
-            "share_date": str(shares.period_end), "shares": _number(shares.value), "share_unit": "shares",
-            "share_fact": _lineage(package, shares), "revenue": _number(ttm.value), "revenue_unit": currency,
+            "share_date": str(share_date), "shares": _number(share_value), "share_unit": "shares",
+            "share_quality": share_quality,
+            "conditional_assumptions": conditional_assumptions,
+            "share_fact": share_lineage, "revenue": _number(ttm.value), "revenue_unit": currency,
+            "revenue_definition": ("Reported revenue including assessed tax" if any(
+                "RevenueFromContractWithCustomerIncludingAssessedTax" in source.locator
+                for source in package.sources if source.source_id in ttm.source_ids
+            ) else "Reported revenue; retained source tags define the accounting basis"),
             "revenue_fact": _lineage(package, ttm), "equity_value": _number(equity),
             "multiple": _number(multiple), "equity_value_unit": currency, "trailing_revenue_growth": growth, "gross_margin": margin,
         }
+        if not include_quality and cover is None:
+            for field in ("share_quality", "conditional_assumptions", "revenue_definition"):
+                result.pop(field, None)
+        return result
     except (ValueError, TypeError, KeyError, ArithmeticError) as exc:
         return _unavailable(str(exc))
 
 
-def peer_range(peers: list[dict]) -> dict:
+
+def calculate_peer_share_diagnostic(package, issuer_identity, peer_cover_shares, *, ticker,
+                                    as_of, completed_cutoff, revenue_currency, reason):
+    """Retain usable dated source cells without manufacturing a missing quote."""
+    from tradingagents.dataflows.vendors.peer_shares import replay_peer_cover_shares
+
+    package = _validated_package(package)
+    ticker = _identity(package, issuer_identity, ticker)
+    if str(package.as_of) != as_of:
+        raise ValueError("Peer diagnostic financial cutoff mismatch")
+    cover = replay_peer_cover_shares(peer_cover_shares, package.cik, as_of, completed_cutoff)
+    ttm = _latest_ttm(package, date.fromisoformat(completed_cutoff), revenue_currency)
+    if ttm is None:
+        raise ValueError("Compatible verified TTM revenue unavailable")
+    if len(_revenue_tax_definitions(package, ttm)) > 1:
+        raise ValueError("Compatible revenue tax definitions unavailable across TTM quarters")
+    return {
+        "status": "incomplete", "ticker": ticker, "cik": package.cik,
+        "reason": "Completed same-session price unavailable: " + str(reason)[:300],
+        "basis": "Dated peer source diagnostic; no valuation multiple",
+        "share_quality": cover["quality"], "share_date": cover["share_date"],
+        "shares": cover["shares"], "share_unit": "shares",
+        "conditional_assumptions": cover["pricing_assumptions"],
+        "share_fact": {"source_ids": [cover["source_id"]], "sources": [cover["source"]],
+                       "components": cover["components"], "rights_quote": cover["rights_quote"]},
+        "revenue": _number(ttm.value), "revenue_unit": revenue_currency,
+        "revenue_fact": _lineage(package, ttm), "multiple": None, "price_session": None,
+    }
+
+
+def peer_range(peers: list[dict], *, include_quality=False) -> dict:
     """Separate reference distribution from a final validated peer snapshot."""
     if len(peers) > 5:
         return _unavailable("Peer reference exceeds five issuers")
@@ -345,7 +422,18 @@ def peer_range(peers: list[dict]) -> dict:
             raise ValueError("Invalid peer multiple")
     except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
         return _unavailable(str(exc))
-    return {"status": "available", "basis": "equity_value / trailing_revenue", "statistics": _stats(values)} if values else _unavailable("No usable peer multiples")
+    if not values:
+        return _unavailable("No usable peer multiples")
+    lower = [p["ticker"] for p in peers if p.get("status") == "available"
+             and p.get("share_quality") in {"lower_quality_dated_cover", "lower_quality_dated_statement"}]
+    result = {"status": "available", "basis": "equity_value / trailing_revenue", "statistics": _stats(values)}
+    if include_quality or lower:
+        result.update(lower_quality_tickers=lower,
+                      quality_label=("Reference range including conditional dated-share rows: " + ", ".join(lower)
+                                     if lower else "Reference range from reported statement-date shares"))
+    if include_quality and any("including assessed tax" in p.get("revenue_definition", "").lower() for p in peers):
+        result["quality_label"] += "; reported revenue tax/accounting comparability is not established"
+    return result
 
 
 def render_own_history(record: dict) -> str:

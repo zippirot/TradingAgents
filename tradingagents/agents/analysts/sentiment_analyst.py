@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.audit_evidence import retain_tool_outputs
 from tradingagents.agents.context import (
     EVIDENCE_DISCIPLINE,
     get_instrument_context_from_state,
@@ -127,6 +128,11 @@ def create_sentiment_analyst(llm):
         return {
             "messages": [AIMessage(content=report_text)],
             "sentiment_report": report_text,
+            "audit_social_tool_evidence": retain_tool_outputs("social", ticker, end_date, [
+                {"name": "prefetched_news", "arguments": {"ticker": ticker, "start_date": start_date, "end_date": end_date}, "content": news_block},
+                {"name": "prefetched_stocktwits", "arguments": {"ticker": ticker, "start_date": start_date, "end_date": end_date}, "content": stocktwits_block},
+                {"name": "prefetched_reddit", "arguments": {"ticker": ticker, "subreddits": subreddits, "start_date": start_date, "end_date": end_date}, "content": reddit_block},
+            ]),
         }
 
     return sentiment_analyst_node
