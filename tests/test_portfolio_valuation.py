@@ -50,6 +50,7 @@ def decision(**overrides):
         "executive_summary": "Qualitative summary.",
         "investment_thesis": "Qualitative thesis.",
         "price_target": 96,
+        "time_horizon": "6 months",
     }
     values.update(overrides)
     return PortfolioDecision(**values)

@@ -424,6 +424,10 @@ def assess_financial_package(
     state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None, source_only=False
 ) -> dict:
     """Assess available canonical evidence; unfinished critical bridges remain unavailable."""
+    if rpo_comparison is not None:
+        from tradingagents.agents.kpi_comparisons import replay_rpo_comparison
+
+        rpo_comparison = replay_rpo_comparison(rpo_comparison, cik=package.cik, as_of=package.as_of)
     calculations = []
     extraction = None
     source_errors = []
@@ -571,6 +575,7 @@ def assess_financial_package(
         discovered = discover_disclosures((disclosures,))
         grounded = discovered if source_only else parse_disclosure_report(
             state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
+        model_grounded = None if source_only else grounded
         # Deterministic proposals pass the same validator. Keep rejected model
         # submissions visible; accepted discovery never retroactively repairs them.
         accepted = {}
@@ -620,10 +625,14 @@ def assess_financial_package(
             notices.append(
                 "No operating KPI or guidance record extracted; do not invent undisclosed metrics or consensus."
             )
-        checks.extend(
-            {"code": f"optional_disclosure_{i}", "status": "unavailable", "message": notice}
-            for i, notice in enumerate(notices)
-        )
+        if notices:
+            # Keep the same optional-unavailable quality outcome without
+            # flooding decision/report coverage with per-record diagnostics.
+            # Full rejects and warnings remain in the extraction evidence.
+            checks.append({"code": "optional_disclosure_summary", "status": "unavailable",
+                "message": f"Disclosure extraction: {len(grounded.rejected)} validation rejection(s), "
+                           f"{len(grounded.warnings)} warning(s); raw details retained in disclosure evidence."
+                           + (" No supported operating KPI or guidance record extracted." if not grounded.claims else "")})
     if disclosures is not None:
         checks.extend(
             {"code": f"optional_source_scope_{i}", "status": "unavailable", "message": gap}
@@ -652,6 +661,14 @@ def assess_financial_package(
             "packages": [disclosures.model_dump(mode="json")],
             "extraction": grounded.model_dump(mode="json"),
             "coverage_gaps": list(disclosures.gaps),
+            "model_extraction": model_grounded.model_dump(mode="json") if model_grounded is not None else None,
+            "deterministic_extraction": discovered.model_dump(mode="json"),
+            "submission_counts": {
+                "model_accepted": len(model_grounded.claims) if model_grounded is not None else None,
+                "model_rejected": len(model_grounded.rejected) if model_grounded is not None else None,
+                "deterministic_accepted": len(discovered.claims),
+                "deterministic_rejected": len(discovered.rejected),
+            },
         }
     if rpo_comparison is not None and disclosures is not None:
         update["disclosure_evidence"]["kpi_comparisons"] = [rpo_comparison]
@@ -683,13 +700,6 @@ def assess_financial_package(
         )
     if disclosures is not None:
         update["filing_evidence"] = disclosures.model_dump(mode="json")
-    if source_only:
-        if extraction is not None:
-            update["filing_fact_extraction"] = extraction.model_dump(mode="json")
-        update["source_checks"] = [check for check in checks if check["code"] != "material_claims"]
-        update.pop("evidence_quality")
-        update.pop("financial_claim_validation")
-        return update
     from tradingagents.agents.issuer_events import issuer_supplement
     supplement = issuer_supplement(
         state.get("news_coverage", {}), disclosures, cik=package.cik, as_of=str(package.as_of),
@@ -699,8 +709,17 @@ def assess_financial_package(
     update["canonical_financial_context"] += "\n\nSource coverage: " + "; ".join(
         f"{name.replace('_', ' ')}: {item['status']}" for name, item in supplement["coverage"].items()
     )
+    if supplement["financing_text"]:
+        update["canonical_financial_context"] += "\n\n" + supplement["financing_text"]
     if supplement["text"]:
         update["canonical_financial_context"] += "\n\n" + supplement["text"]
+    if source_only:
+        if extraction is not None:
+            update["filing_fact_extraction"] = extraction.model_dump(mode="json")
+        update["source_checks"] = [check for check in checks if check["code"] != "material_claims"]
+        update.pop("evidence_quality")
+        update.pop("financial_claim_validation")
+        return update
     if extraction is not None:
         update["filing_fact_extraction"] = extraction.model_dump(mode="json")
     if quality["status"] == "insufficient":

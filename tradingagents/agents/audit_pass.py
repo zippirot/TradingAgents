@@ -1,4 +1,5 @@
-"""Bounded, one-call advisory audit. Findings have no rating or evidence authority."""
+"""Bounded advisory audit. Findings have no rating or evidence authority."""
+import hashlib
 import html
 import json
 import re
@@ -190,10 +191,119 @@ def _payload(value):
     return json.loads(content) if isinstance(content, str) else content
 
 
-def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
-    """Create a node that makes exactly one logical model invocation."""
+def _finish_status(raw):
+    metadata = getattr(raw, "response_metadata", None)
+    if not isinstance(metadata, Mapping):
+        return "unavailable"
+    value = metadata.get("finish_reason", metadata.get("stop_reason"))
+    # Never retain arbitrary provider text, response bodies or exception messages.
+    allowed = {"stop", "length", "max_tokens", "end_turn", "tool_calls", "tool_use",
+               "stop_sequence", "content_filter", "refusal", "pause_turn"}
+    return value if isinstance(value, str) and value in allowed else "unknown"
+
+
+def _error_category(exc):
+    names = {cls.__name__ for cls in type(exc).__mro__}
+    if "BudgetStoppedError" in names:
+        return "budget_stopped"
+    if names & {"TimeoutError", "APITimeoutError", "ReadTimeout", "ConnectTimeout"}:
+        return "timeout"
+    if names & {"AuthenticationError", "PermissionDeniedError"}:
+        return "authentication_or_permission"
+    if "RateLimitError" in names:
+        return "rate_limit"
+    if names & {"OutputParserException", "ValidationError", "JSONDecodeError"}:
+        return "response_parsing"
+    if names & {"BadRequestError", "UnprocessableEntityError"}:
+        return "invalid_request"
+    return "invocation"
+
+
+def _audit_scope(state):
+    # Run identity keeps responses scoped to one research invocation. Legacy
+    # records without run_id use the retained issuer/date, never list position.
+    return {key: str(state.get(key) or '')[:200] for key in ('company_of_interest', 'trade_date', 'run_id')}
+
+
+def _finding_id(finding, scope):
+    content = {key: finding.get(key) for key in ('role', 'quoted_claim', 'issue_type', 'evidence_label', 'explanation')}
+    payload = json.dumps({'scope': scope, 'finding': content}, sort_keys=True, ensure_ascii=False, default=str)
+    return 'AF-' + hashlib.sha256(payload.encode('utf-8')).hexdigest()[:24]
+
+
+def prepare_audit_dispositions(state):
+    """Validate advisory responses without changing evidence or decision authority.
+
+    IDs are recomputed from retained finding content and audit scope. Saved/model
+    IDs cannot replace this identity. Ambiguous duplicate responses answer none.
+    """
+    audit = state.get('advisory_audit')
+    audit = audit if isinstance(audit, Mapping) else {}
+    scope = audit.get('audit_scope')
+    scope = scope if isinstance(scope, Mapping) else _audit_scope(state)
+    findings = audit.get('findings')
+    findings = findings if isinstance(findings, list) else []
+    rows = [{**finding, 'finding_id': _finding_id(finding, scope),
+             'disposition': 'unanswered', 'disposition_reason': None}
+            for finding in findings[:20] if isinstance(finding, Mapping)]
+    by_id = {row['finding_id']: row for row in rows}
+    originals = state.get('unvalidated_outputs')
+    pm = originals.get('portfolio_manager') if isinstance(originals, Mapping) else None
+    structured = pm.get('structured') if isinstance(pm, Mapping) else None
+    submitted = structured.get('audit_dispositions') if isinstance(structured, Mapping) else None
+    rejected = []
+    if submitted is not None:
+        if audit.get('status') != 'completed with findings' or not rows:
+            rejected.append({'reason': 'audit unavailable or has no findings; responses not applicable'})
+        elif not isinstance(submitted, list):
+            rejected.append({'reason': 'responses must be a list'})
+        elif len(submitted) > 20:
+            rejected.append({'reason': 'responses over twenty-record limit; no responses applied'})
+        else:
+            counts = {}
+            for item in submitted:
+                identifier = item.get('finding_id') if isinstance(item, Mapping) else None
+                if isinstance(identifier, str):
+                    counts[identifier] = counts.get(identifier, 0) + 1
+            for index, item in enumerate(submitted, 1):
+                reason = None
+                identifier = item.get('finding_id') if isinstance(item, Mapping) else None
+                if not isinstance(item, Mapping):
+                    reason = 'malformed response'
+                elif not isinstance(identifier, str) or identifier not in by_id:
+                    reason = 'unknown finding identifier'
+                elif counts[identifier] != 1:
+                    reason = 'duplicate finding identifier; all responses for this finding rejected'
+                elif item.get('disposition') not in ('accepted', 'rejected'):
+                    reason = 'invalid disposition; expected accepted or rejected'
+                elif not isinstance(item.get('reason'), str) or not item['reason'].strip() or len(item['reason']) > 500:
+                    reason = 'missing or overlong reason'
+                elif set(item) != {'finding_id', 'disposition', 'reason'}:
+                    reason = 'unexpected response fields'
+                if reason:
+                    rejected.append({'response_index': index, 'reason': reason})
+                else:
+                    for row in rows:
+                        if row['finding_id'] == identifier:
+                            row['disposition'] = item['disposition']
+                            row['disposition_reason'] = ' '.join(item['reason'].split())
+    answered = sum(row['disposition'] != 'unanswered' for row in rows)
+    return {'findings': rows, 'answered_count': answered, 'unanswered_count': len(rows)-answered,
+            'rejected_responses': rejected}
+
+
+def create_advisory_audit(llm, *, deep_model_id, quick_model_id, sdk_retries_disabled=False):
+    """Retry once only with a dedicated SDK-no-retry client.
+
+    Both attempts use the original instrumented client, so normal usage/cost
+    callbacks and unknown-cost reservations apply independently to each request.
+    """
     try:
-        model = llm.with_structured_output(AuditOutput)
+        try:
+            model = llm.with_structured_output(AuditOutput, include_raw=True)
+        except TypeError:
+            # Compatibility with older adapters lacking raw-response support.
+            model = llm.with_structured_output(AuditOutput)
     except (AttributeError, NotImplementedError, ValueError, TypeError):
         model = llm
 
@@ -202,7 +312,7 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
         labels = _known_labels({key: text for key, text in source.items()
                                 if key not in {"analyst_tool_outputs", "shared_mechanical_sensitivities"}}) | known_tool_labels(state)
         record = {
-            "status": "unavailable", "findings": [],
+            "status": "unavailable", "findings": [], "audit_scope": _audit_scope(state),
             "counts_by_type": dict.fromkeys(TYPES, 0),
             "submitted_count": 0, "accepted_count": 0, "rejected_count": 0,
             "rejection_reasons": [], "priority_omitted_count": 0,
@@ -219,13 +329,40 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
                 **{role: len(text) > 6000 for role, text in _role_texts(state).items()},
             },
         }
-        try:
-            output = _payload(model.invoke(build_advisory_audit_prompt(state)))
-        except Exception:
-            record["error"] = "model invocation or response parsing failed"
-            return {"advisory_audit": record}
-        if not isinstance(output, Mapping) or not isinstance(output.get("findings"), list):
-            record["error"] = "malformed findings list"
+        prompt = build_advisory_audit_prompt(state)
+        record.update(request_size={"characters": len(prompt), "utf8_bytes": len(prompt.encode("utf-8"))},
+                      attempts=[], error_category=None,
+                      retry_policy="one application retry; SDK retries disabled" if sdk_retries_disabled
+                      else "application retry disabled; SDK retry bound unverified")
+        for _ in range(2 if sdk_retries_disabled else 1):
+            attempt = {"error_category": None, "finish_status": "unavailable"}
+            try:
+                response = model.invoke(prompt)
+                if isinstance(response, Mapping) and {"raw", "parsed", "parsing_error"} <= response.keys():
+                    attempt["finish_status"] = _finish_status(response["raw"])
+                    if response["parsing_error"] is not None:
+                        attempt["error_category"] = "response_parsing"
+                        output = None
+                    else:
+                        output = _payload(response["parsed"])
+                else:
+                    attempt["finish_status"] = _finish_status(response)
+                    output = _payload(response)
+            except Exception as exc:
+                attempt["error_category"] = _error_category(exc)
+                output = None
+            if attempt["error_category"] is None and (
+                not isinstance(output, Mapping) or not isinstance(output.get("findings"), list)
+            ):
+                attempt["error_category"] = "malformed_findings"
+            record["attempts"].append(attempt)
+            record["error_category"] = attempt["error_category"]
+            if attempt["error_category"] is None:
+                break
+            if attempt["error_category"] in {"authentication_or_permission", "invalid_request", "budget_stopped"}:
+                break
+        if record["error_category"] is not None:
+            record["error"] = "audit attempt failed: " + record["error_category"]
             return {"advisory_audit": record}
         findings = output["findings"]
         record["submitted_count"] = len(findings)
@@ -265,6 +402,7 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id):
             if issue == "unsupported_claim" and record["counts_by_type"][issue] >= 5:
                 record["priority_omitted_count"] += 1
                 continue
+            item["finding_id"] = _finding_id(item, record["audit_scope"])
             record["findings"].append(item)
             record["counts_by_type"][issue] += 1
         if record["priority_omitted_count"]:
@@ -286,7 +424,7 @@ def _escape(value, limit=500):
     return re.sub(r"([\\*_\[\]\x60#>|])", r"\\\1", value)
 
 
-def render_advisory_audit(record):
+def render_advisory_audit(record, *, dispositions=None):
     """Escape and bound model text; tolerate corrupt saved records."""
     if not isinstance(record, Mapping):
         record = {}
@@ -295,9 +433,19 @@ def render_advisory_audit(record):
         status = "unavailable"
     lines = ["### Advisory audit findings — model-generated, unverified", "",
              f"Status: **{status}**. The Portfolio Manager retains the decision; these findings are not a veto."]
+    lines.append("Known limit: the auditor shares the deep-slot model with the Research Manager and Portfolio Manager. The Portfolio Manager’s own text is not audited.")
     truncation = record.get("input_truncation")
     truncated = [str(key).replace("_", " ") for key, value in truncation.items() if value is True] if isinstance(truncation, Mapping) else []
     lines.append("Review covers bounded supplied material." + (" Truncated inputs: " + _escape(", ".join(truncated)) + "." if truncated else ""))
+    request_size = record.get("request_size")
+    if isinstance(request_size, Mapping):
+        chars, byte_count = request_size.get("characters"), request_size.get("utf8_bytes")
+        if type(chars) is int and type(byte_count) is int and 0 <= chars <= byte_count <= 1000000:
+            lines.append(f"Audit request: {chars} characters, {byte_count} UTF-8 bytes.")
+    attempts = record.get("attempts")
+    if isinstance(attempts, list) and attempts:
+        # The persisted record retains safe per-attempt categories and finish status.
+        lines.append(f"Audit invocation attempts: {min(len(attempts), 2)}.")
     coverage = record.get("tool_evidence_coverage")
     if isinstance(coverage, Mapping):
         descriptions = []
@@ -325,7 +473,8 @@ def render_advisory_audit(record):
     omitted = record.get("priority_omitted_count")
     if type(omitted) is int and omitted > 0:
         lines.append(f"{min(omitted, 20)} otherwise valid support-gap finding(s) omitted by the priority cap; not invalid rejections.")
-    findings = record.get("findings")
+    projection = dispositions if isinstance(dispositions, Mapping) else prepare_audit_dispositions({'advisory_audit': record})
+    findings = projection.get("findings", [])
     if not isinstance(findings, list):
         findings = []
     for finding in findings[:20]:
@@ -336,9 +485,21 @@ def render_advisory_audit(record):
         label = _escape(finding.get("evidence_label") or "support absent from supplied material", 80)
         quote = _escape(finding.get("quoted_claim", ""))
         explanation = _escape(finding.get("explanation", ""))
-        lines.append(f"- **{role} / {issue}** — “{quote}” (reference: {label}). {explanation}")
+        identifier = _escape(finding.get('finding_id', ''), 40)
+        disposition = finding.get('disposition', 'unanswered')
+        disposition = disposition if disposition in ('accepted', 'rejected') else 'unanswered'
+        reason = finding.get('disposition_reason')
+        response = f" PM disposition: **{disposition}**."
+        if disposition != 'unanswered' and isinstance(reason, str):
+            response += " Reason (unverified PM judgment): " + _escape(reason) + "."
+        lines.append(f"- **{role} / {issue}** [{identifier}] — “{quote}” (reference: {label}). {explanation}{response}")
+    for rejection in projection.get('rejected_responses', [])[:20]:
+        if isinstance(rejection, Mapping):
+            index = rejection.get('response_index')
+            label = f"Rejected advisory response {index}" if type(index) is int else "Rejected advisory response"
+            lines.append(label + ": " + _escape(rejection.get('reason', 'invalid response')) + ".")
     if status == "unavailable":
         lines.append("Audit unavailable or invalid; no clean review is implied.")
         if isinstance(record.get("error"), str):
             lines.append("Reason: " + _escape(record["error"]) + ".")
-    return "\n".join(lines)[:9500] + "\n"
+    return "\n".join(lines)[:36000] + "\n"

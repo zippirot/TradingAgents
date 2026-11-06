@@ -52,11 +52,13 @@ def test_all_actual_analyst_factories_consume_identical_brief(monkeypatch, role)
         news_analyst,
         sentiment_analyst,
     )
-    state = source_state(monkeypatch)
+    state = rpo_source_state(monkeypatch)
     brief = context.build_shared_source_brief(state)
     state["shared_source_brief"] = brief
     captured = []
+    calls = []
     def turn(prompt, llm, tools, messages):
+        calls.append("analyst")
         captured.extend(prompt.format_messages(messages=messages))
         return AIMessage(content="Research"), "Research"
     modules = {"market": market_analyst, "news": news_analyst, "fundamentals": fundamentals_analyst}
@@ -72,12 +74,19 @@ def test_all_actual_analyst_factories_consume_identical_brief(monkeypatch, role)
         monkeypatch.setattr(sentiment_analyst, "fetch_reddit_posts", lambda *a, **k: "Unavailable")
         monkeypatch.setattr(sentiment_analyst, "subreddits_for", lambda *args: ())
         def invoke(structured, llm, messages, *args):
+            calls.append("analyst")
             captured.extend(messages)
             return "Research"
         monkeypatch.setattr(sentiment_analyst, "invoke_structured_or_freetext", invoke)
         sentiment_analyst.create_sentiment_analyst(object())(deepcopy(state))
+    assert calls == ["analyst"]
     system = str(captured[0].content)
     assert brief in system and "UNBOUNDED_CONTEXT" not in system
+    assert state["evidence_acquisition"]["rpo_comparison"]["text"] in system
+    assert "does not establish the cause of the change" in system
+    if role == "fundamentals":
+        assert "kind must exactly match the canonical fact's origin" in system
+        assert "four-quarter TTM sum" in system and "kind=derived" in system
     if role == "news":
         assert "issuer disclosure" in system and "independent news coverage" in system
     if role == "social":
@@ -155,3 +164,78 @@ def test_bounded_brief_keeps_guidance_base_growth_shares_and_filing_reference(mo
     assert '"locator":"block-44"' in brief  # Conditional guided share range.
     assert document.url in brief
     assert len(brief) <= context.SHARED_SOURCE_BRIEF_MAX_CHARS
+
+
+def rpo_source_state(monkeypatch):
+    import json
+    from pathlib import Path
+
+    from tests.test_price_implied_guidance_ranges import source_state as guidance_state
+    from tradingagents.agents.kpi_comparisons import compare_rpo
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+    state = guidance_state(monkeypatch)
+    root = Path('tests/fixtures')
+    current = DisclosurePackage.model_validate(json.loads((root / 'docn_2026q3/rpo_context.json').read_text())['package'])
+    prior = DisclosurePackage.model_validate(json.loads((root / 'docn_2026q2/prior_quarter_rpo.json').read_text())['package'])
+    comparison = compare_rpo(current, prior)
+    state['evidence_acquisition'] = {'status': 'ready', 'ticker': 'DOCN', 'as_of': state['trade_date'],
+        'source_checks': [{'code': 'source_integrity', 'status': 'pass'}], 'rpo_comparison': comparison}
+    state['messages'] = []
+    state['canonical_financial_context'] = 'UNBOUNDED_CONTEXT' * 10000
+    return state
+
+
+def test_shared_brief_replays_only_preanalyst_rpo_sources(monkeypatch):
+    state = rpo_source_state(monkeypatch)
+    comparison = state['evidence_acquisition']['rpo_comparison']
+    expected = comparison['text']
+    comparison['text'] = 'MODEL_OR_AUDIT_ONLY_RPO_TEXT'
+    comparison['percentage_change'] = '999'
+    brief = context.build_shared_source_brief(state)
+    assert expected in brief
+    assert 'does not establish the cause of the change' in brief
+    assert 'MODEL_OR_AUDIT_ONLY_RPO_TEXT' not in brief and '999%' not in brief
+    for source in comparison['sources'].values():
+        assert source['url'] in brief and source['fact']['locator'] in brief
+
+
+def test_no_preanalyst_comparison_does_not_promote_later_context(monkeypatch):
+    state = rpo_source_state(monkeypatch)
+    later = state['evidence_acquisition'].pop('rpo_comparison')
+    state['disclosure_evidence']['kpi_comparisons'] = [later]
+    brief = context.build_shared_source_brief(state)
+    assert 'KPI comparison unavailable before analyst reasoning' in brief
+    assert later['text'] not in brief
+    assert 'Retained financial facts' in brief and 'Issuer disclosures' in brief
+
+
+@pytest.mark.parametrize('fault', ['issuer', 'cutoff', 'numeric_source'])
+def test_invalid_rpo_source_never_reaches_analyst_brief(monkeypatch, fault):
+    state = rpo_source_state(monkeypatch)
+    comparison = state['evidence_acquisition']['rpo_comparison']
+    current = comparison['source_packages']['current']
+    if fault == 'issuer':
+        current['cik'] = '0000320193'
+    elif fault == 'cutoff':
+        current['as_of'] = '2026-11-03'
+    else:
+        current['documents'][0]['rpo_facts'][0]['value'] = '1'
+    brief = context.build_shared_source_brief(state)
+    assert 'KPI comparison unavailable before analyst reasoning' in brief
+    assert comparison['text'] not in brief
+
+
+def test_canonical_context_and_analyst_brief_reuse_same_recomputed_text(monkeypatch):
+    from tradingagents.agents.evidence_validation import assess_financial_package
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+    state = rpo_source_state(monkeypatch)
+    comparison = state['evidence_acquisition']['rpo_comparison']
+    expected = comparison['text']
+    comparison['text'] = 'UNVERIFIED_SAVED_COMPARISON'
+    package = EvidencePackage.model_validate(state['financial_evidence'])
+    docs = DisclosurePackage.model_validate(state['disclosure_evidence']['packages'][0])
+    prepared = assess_financial_package(state, package, docs, rpo_comparison=comparison, source_only=True)
+    brief = context.build_shared_source_brief(state)
+    assert expected in brief and expected in prepared['canonical_financial_context']
+    assert 'UNVERIFIED_SAVED_COMPARISON' not in prepared['canonical_financial_context']

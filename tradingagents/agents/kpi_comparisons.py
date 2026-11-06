@@ -150,3 +150,17 @@ def retrieve_rpo_comparison(ticker: str, current: DisclosurePackage) -> dict:
         result.update(reason=f'RPO source acquisition unavailable ({type(exc).__name__})',
                       text=f'RPO comparison unavailable: source acquisition failed ({type(exc).__name__}); missing values are not zero.')
         return result
+
+
+def replay_rpo_comparison(record, *, cik, as_of):
+    """Recompute retained pre-analyst source packages, never accept saved prose."""
+    try:
+        sources = record['source_packages']
+        current = DisclosurePackage.model_validate(sources['current'])
+        prior = DisclosurePackage.model_validate(sources['prior'])
+        if current.cik != cik or str(current.as_of) != str(as_of):
+            raise ValueError('RPO comparison differs from source brief issuer or cutoff')
+        return compare_rpo(current, prior)
+    except (KeyError, TypeError, ValueError):
+        return {'status': 'unavailable', 'reason': 'Retained RPO source packages unavailable or scope invalid',
+                'sources': {}, 'text': 'RPO comparison unavailable: retained source packages unavailable or scope invalid. Missing comparisons are not zero.'}

@@ -120,6 +120,8 @@ class GraphSetup:
         quick_model_id: str = "unknown",
         deep_model_id: str = "unknown",
         metrics_observer=None,
+        audit_llm=None,
+        audit_sdk_retries_disabled=False,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -129,6 +131,8 @@ class GraphSetup:
         self.quick_model_id = quick_model_id
         self.deep_model_id = deep_model_id
         self.metrics_observer = metrics_observer
+        self.audit_llm = audit_llm if audit_llm is not None else deep_thinking_llm
+        self.audit_sdk_retries_disabled = audit_sdk_retries_disabled
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
@@ -183,8 +187,9 @@ class GraphSetup:
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
         raw_audit = create_advisory_audit(
-            self.deep_thinking_llm, deep_model_id=self.deep_model_id,
-            quick_model_id=self.quick_model_id)
+            self.audit_llm, deep_model_id=self.deep_model_id,
+            quick_model_id=self.quick_model_id,
+            sdk_retries_disabled=self.audit_sdk_retries_disabled)
 
         def audit_node(state):
             result = raw_audit(state)

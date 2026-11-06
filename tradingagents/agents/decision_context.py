@@ -45,6 +45,33 @@ def _plain_horizon(value):
     return None
 
 
+DECISION_HORIZON_CONTRACT = 'decision_horizon_v1'
+
+
+def decision_horizon(state: dict) -> dict:
+    """Only an explicit PM field establishes the fresh decision horizon."""
+    pm = _mapping(_mapping(state.get('unvalidated_outputs')).get('portfolio_manager'))
+    structured = _mapping(pm.get('structured'))
+    fresh = pm.get('contract_version') == DECISION_HORIZON_CONTRACT
+    plain = _plain_horizon(structured.get('time_horizon'))
+    if fresh and not structured:
+        fallback = pm.get('fallback')
+        labels = re.findall(r'(?im)^\s*(?:\*\*)?Time Horizon(?:\*\*)?:\s*([^\r\n]+)', fallback[:12000] if isinstance(fallback, str) else '')
+        if len(labels) == 1:
+            plain = _plain_horizon(labels[0])
+    if plain:
+        return {'text': plain, 'status': 'explicit', 'authority': 'Portfolio Manager stated horizon; unvalidated model text'}
+    if fresh:
+        return {'text': 'incomplete — explicit decision horizon required', 'status': 'incomplete',
+                'authority': 'no horizon inferred from forecast periods or valuation dates'}
+    return {'text': 'unknown (legacy decision)', 'status': 'legacy_unknown',
+            'authority': 'unstructured horizon retained in diagnostics; no horizon inferred' if structured.get('time_horizon') else 'no horizon inferred from forecast periods'}
+
+
+def horizon_incomplete(state: dict) -> bool:
+    return decision_horizon(state)['status'] == 'incomplete'
+
+
 def _trader(value):
     if not isinstance(value, str):
         return 'unavailable'
@@ -78,6 +105,8 @@ def prepare_decision_context(state: dict) -> dict:
             target = validate_target(request, package, grounded_outlooks(state))
         except (ValueError, TypeError):
             target = TargetResult(status='unsupported', reasons=('Canonical financial evidence unavailable.',))
+    if horizon_incomplete(state):
+        target = TargetResult(status='unsupported', reasons=('Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.',))
     scenarios = _mapping(state.get('shared_valuation_scenarios'))
     replayed = prepare_shared_valuation(state, scenarios.get('requests', [])) if eligible else {'status': 'unavailable', 'rows': []}
     supported_scenarios = sum((_mapping(row.get('result')).get('status') == 'supported'
@@ -90,15 +119,10 @@ def prepare_decision_context(state: dict) -> dict:
     else:
         basis, note = 'risk assessment', 'The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.'
     originals = _mapping(state.get('unvalidated_outputs'))
-    structured = _mapping(_mapping(originals.get('portfolio_manager')).get('structured'))
-    if target.decision_date is not None:
-        horizon = {'text': str(target.decision_date), 'authority': 'explicit conditional decision date; forecast period is separate'}
-    elif plain := _plain_horizon(structured.get('time_horizon')):
-        horizon = {'text': plain, 'authority': 'Portfolio Manager stated horizon; unvalidated model text'}
-    elif structured.get('time_horizon'):
-        horizon = {'text': 'not specified', 'authority': 'unstructured horizon retained in diagnostics; no horizon inferred'}
-    else:
-        horizon = {'text': 'not specified', 'authority': 'no horizon inferred from forecast periods'}
+    horizon = decision_horizon(state)
+    if (horizon['status'] != 'incomplete' and target.decision_date is not None
+            and _mapping(originals.get('portfolio_manager')).get('contract_version') != DECISION_HORIZON_CONTRACT):
+        horizon = {'text': str(target.decision_date), 'status': 'explicit', 'authority': 'explicit conditional decision date; forecast period is separate'}
     checks = quality.get('checks', [])
     checks = checks if isinstance(checks, list) else []
     counts = {kind: sum(isinstance(c, dict) and c.get('status') == kind for c in checks)

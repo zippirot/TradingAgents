@@ -304,3 +304,11 @@ def test_missing_quote_diagnostic_cannot_publish_mixed_tax_revenue():
             completed_cutoff="2026-10-19", revenue_currency="USD",
             reason="Missing same-session close",
         )
+
+
+def test_unsupported_cover_class_reports_exact_source_member_and_missing_basis():
+    raw = source(members=("A", "C"))
+    with pytest.raises(ValueError) as error:
+        replay_peer_cover_shares(raw, "0001477333", "2026-11-05", "2026-11-05")
+    assert 'us-gaap:CommonClassCMember' in str(error.value)
+    assert 'complete class set and equivalent economic rights' in str(error.value)

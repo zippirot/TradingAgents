@@ -117,6 +117,10 @@ def resolved_model_ids(metadata: dict, model_ids: set[str]) -> dict[str, set[str
     return output
 
 
+class BudgetStoppedError(RuntimeError):
+    """A stopped proof budget never authorizes another send."""
+
+
 class OpenRouterWireGuard:
     """Intercept serialized HTTP requests before transmission, without retries."""
     def __init__(self, budget: BudgetGuard, route_rates: dict, *, max_output_tokens: int, kind: str,
@@ -146,9 +150,10 @@ class OpenRouterWireGuard:
                 or any(not isinstance(ids, set) or model not in ids for model, ids in allowed_resolved_models.items())):
             raise ValueError("Exact verified resolved model IDs are required")
         self.request_count = 0
+        self.stopped = False
         if type(serialize_paid_requests) is not bool or (serialize_paid_requests and (
-                kind != "run" or budget.scope != "proof:B3")):
-            raise ValueError("Paid-request serialization is only approved for the B3 proof")
+                kind != "run" or budget.scope not in {"proof:B3", "proof:Build1"})):
+            raise ValueError("Paid-request serialization is only approved for B3 and Build1 proofs")
         self.serialize_paid_requests = serialize_paid_requests
         self._paid_turn_lock = threading.Lock()
 
@@ -193,6 +198,8 @@ class OpenRouterWireGuard:
         if (request.url.scheme != "https" or request.url.path != "/api/v1/chat/completions"
                 or request.method != "POST"):
             raise RuntimeError("Unexpected OpenRouter route")
+        if self.stopped:
+            raise BudgetStoppedError("Proof budget is stopped; no further send is authorized")
         body = request.content
         if not isinstance(body, bytes):
             raise ValueError("Serialized request bytes unavailable")
@@ -216,7 +223,12 @@ class OpenRouterWireGuard:
             raise RuntimeError("Serialized request exceeds declared context cap")
         input_rate, output_rate = self.rates[model]
         upper = input_bound * input_rate + self.max_output_tokens * output_rate
-        ticket = self.budget.reserve(model, str(upper), kind=self.kind)
+        try:
+            ticket = self.budget.reserve(model, str(upper), kind=self.kind)
+        except RuntimeError as exc:
+            self.stopped = True
+            self.budget.ledger.append({"type": "budget_stop", "scope": self.budget.scope})
+            raise BudgetStoppedError("Proof budget cap reached; no further send is authorized") from exc
         self.request_count += 1
         self.budget.ledger.append({"type": "request_meta", "ticket": ticket, "model": model,
                                    "body_sha256": hashlib.sha256(body).hexdigest(),
@@ -516,8 +528,6 @@ def _b3_aware_time(value, now):
 
 def _validate_b3_approval(record):
     """Validate the new authority and retained close receipt; never fetch."""
-    from zoneinfo import ZoneInfo
-
     required = {"approval_id", "approved_at_recorded", "user_instruction", "phase",
                 "attempts", "ceiling_usd", "ticker", "analysis_date", "quick_model",
                 "deep_model", "depth", "max_output_tokens", "max_tool_rounds",
@@ -540,6 +550,13 @@ def _validate_b3_approval(record):
     worktree = Path(record["worktree_root"])
     if not worktree.is_absolute() or worktree.is_symlink() or not worktree.is_dir():
         raise ValueError("B3 proof needs its explicit existing worktree root")
+    return _validate_after_close_receipt(record, now)
+
+
+def _validate_after_close_receipt(record, now):
+    """Validate retained close metadata against the actual clock; no fetch."""
+    from zoneinfo import ZoneInfo
+
     analysis_date = date.fromisoformat(record["analysis_date"])
     if now.astimezone(ZoneInfo("America/New_York")).date() != analysis_date:
         raise ValueError("B3 proof must use the current New York session date")
@@ -551,12 +568,15 @@ def _validate_b3_approval(record):
     if close.astimezone(ZoneInfo("America/New_York")).date() != analysis_date or now <= close:
         raise ValueError("B3 proof must start after the observed regular close")
     retained = {}
-    for name, url in (
-        ("nyse-calendar", "https://www.nyse.com/trade/hours-calendars"),
-        ("docn-chart", "https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d"),
+    for name, urls in (
+        ("nyse-calendar", {"https://www.nyse.com/trade/hours-calendars"}),
+        ("docn-chart", {
+            "https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d",
+            "https://query2.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d",
+        }),
     ):
         source = session[name]
-        if (not isinstance(source, dict) or source.get("url") != url
+        if (not isinstance(source, dict) or source.get("url") not in urls
                 or type(source.get("http_status")) is not int or source["http_status"] != 200):
             raise ValueError("B3 requires successful retained official calendar and source metadata")
         observed = _b3_aware_time(source["retrieved_at"], now)
@@ -581,6 +601,103 @@ def _validate_b3_approval(record):
                 ZoneInfo("America/New_York")).date() != analysis_date):
         raise ValueError("B3 retained provider regular session differs from the close receipt")
     return record
+
+
+def _verify_run_fixes_machine():
+    cpu = subprocess.check_output(["/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
+    ram = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.memsize"], text=True))
+    if (cpu, ram) != ("Apple M1 Pro", 17179869184):
+        raise RuntimeError("Build1 proof must execute on the approved Machine 1")
+
+
+def _validate_run_fixes_approval(record):
+    """Fresh $24 allowance, $12 Build1 only; old unused authority is superseded."""
+    required = {"approval_id", "approved_at_recorded", "user_instruction", "phase", "attempts",
+                "ceiling_usd", "phase_ceiling_usd", "ticker", "analysis_date", "quick_model",
+                "deep_model", "depth", "max_output_tokens", "max_tool_rounds", "candidate_head",
+                "worktree_root", "session", "old_ledgers", "authorized_builds", "analysts",
+                "llm_max_retries", "machine", "repository_origin", "supersedes_unused_authority"}
+    if not isinstance(record, dict) or set(record) != required:
+        raise ValueError("Run-fixes approval record is incomplete")
+    now = datetime.now(UTC)
+    _b3_aware_time(record["approved_at_recorded"], now)
+    if (not isinstance(record["approval_id"], str) or not record["approval_id"].strip()
+            or not isinstance(record["user_instruction"], str) or not record["user_instruction"].strip()
+            or record["phase"] != "Build1" or type(record["attempts"]) is not int or record["attempts"] != 2
+            or Decimal(record["ceiling_usd"]) != Decimal("24")
+            or Decimal(record["phase_ceiling_usd"]) != Decimal("12")
+            or record["authorized_builds"] != ["Build1"]
+            or record["supersedes_unused_authority"] is not True
+            or record["ticker"] != "DOCN" or record["quick_model"] != B_DEEP or record["deep_model"] != A
+            or type(record["depth"]) is not int or record["depth"] != 1
+            or type(record["max_output_tokens"]) is not int or record["max_output_tokens"] != 16384
+            or type(record["max_tool_rounds"]) is not int or record["max_tool_rounds"] != 4
+            or type(record["llm_max_retries"]) is not int or record["llm_max_retries"] != 0
+            or record["analysts"] != ["market", "social", "news", "fundamentals"]
+            or record["machine"] != {"cpu": "Apple M1 Pro", "ram_bytes": 17179869184}
+            or not isinstance(record["repository_origin"], str) or not record["repository_origin"]
+            or not isinstance(record["candidate_head"], str)
+            or not re.fullmatch(r"[0-9a-f]{40}", record["candidate_head"])):
+        raise ValueError("Run-fixes approval differs from the $24/two-attempt split-model authority")
+    worktree = Path(record["worktree_root"])
+    if not worktree.is_absolute() or worktree.is_symlink() or not worktree.is_dir():
+        raise ValueError("Run-fixes needs its explicit existing worktree root")
+    historical = record["old_ledgers"]
+    if not isinstance(historical, dict) or not historical:
+        raise ValueError("Historical authority hashes are required")
+    for name, digest in historical.items():
+        path = Path(name)
+        if (not path.is_absolute() or path.is_symlink() or not path.is_file()
+                or hashlib.sha256(path.read_bytes()).hexdigest() != digest):
+            raise ValueError("Historical authority ledger changed")
+    return _validate_after_close_receipt(record, now)
+
+
+def claim_run_fixes_proof(ledger: PilotLedger, approval_record: dict) -> str:
+    """One Build1 claim on the fresh allowance; Build2 requires later authority."""
+    _validate_run_fixes_approval(approval_record)
+    if str(ledger.path.resolve()) in approval_record["old_ledgers"]:
+        raise RuntimeError("Historical authority cannot be reused")
+    digest = manifest_hash(approval_record)
+    with ledger.budget_lock():
+        if ledger.events():
+            raise RuntimeError("Run-fixes needs a fresh ledger; failed attempts count")
+        ledger.append({"type": "allowance", "approval_sha256": digest,
+                       "aggregate_ceiling_usd": "24", "attempts": 2,
+                       "per_build_ceiling_usd": "12", "authorized_builds": ["Build1"],
+                       "supersedes_unused_authority": True,
+                       "old_ledgers": approval_record["old_ledgers"]})
+        ledger.append({"type": "attempt_claim", "phase": "Build1", "ceiling_usd": "24",
+                       "phase_ceiling_usd": "12", "approval_sha256": digest,
+                       "approval_record": approval_record})
+    return digest
+
+
+def _verify_run_fixes_execution(claim, entry, spec):
+    record = _validate_run_fixes_approval(entry["approval_record"])
+    expected = ("DOCN", record["analysis_date"], B_DEEP, A, 1, 16384, 4)
+    actual = (spec.ticker, spec.analysis_date, spec.quick_model, spec.deep_model,
+              spec.depth, spec.max_output_tokens, spec.max_tool_rounds)
+    if (claim.approval_sha256 != entry.get("approval_sha256")
+            or manifest_hash(record) != entry["approval_sha256"] or actual != expected
+            or spec.proof_scope != "run-fixes:Build1" or spec.extra_peer_pins is not None
+            or spec.analysis_cutoff_utc is not None or spec.market_observation_cutoff is not None
+            or spec.context_cap is not None or spec.analysis_timezone != "America/Denver"
+            or entry.get("ceiling_usd") != "24" or entry.get("phase_ceiling_usd") != "12"):
+        raise RuntimeError("Build1 proof execution differs from its fresh approved authority")
+    spec.validate()
+
+
+def verify_run_fixes_completed_state(state, spec, record):
+    """Recheck the canonical completed price from retained source, never fetch."""
+    from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
+
+    price = validate_price_observation(state.get("price_observation"), spec.ticker, spec.analysis_date)
+    close = datetime.fromisoformat(record["session"]["regular_close_utc"])
+    observed = datetime.fromisoformat(price["raw_source"]["observation_cutoff"])
+    if (price.get("status") != "available" or price.get("session_status") != "completed"
+            or price.get("session_date") != spec.analysis_date or observed < close):
+        raise RuntimeError("Build1 requires the actual analysis-date completed close")
 
 
 def claim_b3_proof(ledger: PilotLedger, approval_record: dict) -> str:
@@ -627,6 +744,15 @@ def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: Cli
     if claim.kind == "proof":
         entry = next((e for e in events if e["type"] == "attempt_claim"
                       and e.get("phase") == claim.name), None)
+        if claim.name == "Build1":
+            if entry is None:
+                raise RuntimeError("Fresh Build1 proof attempt claim is missing")
+            allowance = [e for e in events if e["type"] == "allowance"]
+            if (len(allowance) != 1 or allowance[0].get("approval_sha256") != claim.approval_sha256
+                    or sum(e["type"] == "attempt_claim" for e in events) != 1):
+                raise RuntimeError("Build1 allowance marker or attempt count differs")
+            _verify_run_fixes_execution(claim, entry, spec)
+            return
         if claim.name == "B3":
             if entry is None:
                 raise RuntimeError("Separate B3 proof attempt claim is missing")
@@ -685,19 +811,27 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
                  "name": claim.name, "ticker": spec.ticker,
                  "analysis_date": spec.analysis_date, "depth": spec.depth,
                  "approval_sha256": claim.approval_sha256}
-        if claim.kind == "proof" and claim.name == "B3":
-            entry = next(e for e in ledger.events() if e["type"] == "attempt_claim" and e.get("phase") == "B3")
+        if claim.kind == "proof" and claim.name in {"B3", "Build1"}:
+            entry = next(e for e in ledger.events() if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
             record = entry["approval_record"]
             worktree = Path(record["worktree_root"])
             event.update(worktree_root=str(worktree), approved_candidate_head=record["candidate_head"])
             # A legitimate start consumes the attempt even if its candidate
             # subsequently fails the final check. No CLI/paid call precedes it.
             ledger.append(event)
+            if claim.name == "Build1":
+                _verify_run_fixes_machine()
+                origin = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=worktree, text=True).strip()
+                if origin != record["repository_origin"]:
+                    raise RuntimeError("Build1 candidate repository origin differs")
+                top = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=worktree, text=True).strip()
+                if Path(top).resolve() != worktree.resolve():
+                    raise RuntimeError("Build1 candidate worktree root differs")
             head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=worktree, text=True).strip()
             dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=worktree, text=True)
             if head != record["candidate_head"] or dirty:
                 raise RuntimeError("B3 proof worktree must be clean at the approved candidate HEAD")
-            ledger.append({"type": "candidate_verified", "kind": "proof", "name": "B3",
+            ledger.append({"type": "candidate_verified", "kind": "proof", "name": claim.name,
                            "worktree_root": str(worktree), "head": head, "clean": True})
             return
         ledger.append(event)
@@ -717,6 +851,7 @@ class CliSpec:
     market_observation_cutoff: str | None = None
     context_cap: int | None = None
     extra_peer_pins: tuple[str, str] | None = None
+    proof_scope: str | None = None
 
     def validate(self):
         if (not self.ticker or not self.ticker.isupper() or self.depth not in (1, 2)
@@ -734,8 +869,11 @@ class CliSpec:
             self.market_observation_cutoff
         ).astimezone(UTC) > datetime.now(UTC):
             raise ValueError("Frozen market observation cutoff cannot be in the future")
-        if self.depth == 1 and (self.quick_model, self.deep_model) != (A, A):
-            raise ValueError("Part A proof must use Terra Pro in both tiers")
+        expected_models = (B_DEEP, A) if self.proof_scope == "run-fixes:Build1" else (A, A)
+        if self.proof_scope not in {None, "run-fixes:Build1"}:
+            raise ValueError("Unknown CLI proof scope")
+        if self.depth == 1 and (self.quick_model, self.deep_model) != expected_models:
+            raise ValueError("Proof model tiers differ from the declared authority")
         if self.extra_peer_pins is not None and (
             self.depth != 1 or self.ticker != "DOCN" or self.extra_peer_pins != ("MSFT", "ORCL")
         ):
@@ -1033,7 +1171,7 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         raise ValueError("A7 requires frozen sources and no unfrozen source allowance")
     if claim.kind == "proof" and (source_replay is not None or not wire.allow_unfrozen_sources):
         raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
-    if claim.kind == "proof" and claim.name == "B3" and not wire.serialize_paid_requests:
+    if claim.kind == "proof" and claim.name in {"B3", "Build1"} and not wire.serialize_paid_requests:
         raise ValueError("B3 proof requires serialized paid requests at its unchanged output cap")
     verify_budget_binding(claim, wire.budget, spec, approval)
     start_execution(claim, wire.budget.ledger, spec)
@@ -1097,6 +1235,10 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                     requested != [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
                                   for ticker in spec.extra_peer_pins]):
                 raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
+        if claim.kind == "proof" and claim.name == "Build1":
+            entry = next(e for e in wire.budget.ledger.events()
+                         if e["type"] == "attempt_claim" and e.get("phase") == "Build1")
+            verify_run_fixes_completed_state(state, spec, entry["approval_record"])
         return {"state": state, "model_calls": wire.request_count,
                 "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
                                     if spec.extra_peer_pins is not None else None),

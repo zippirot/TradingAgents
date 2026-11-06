@@ -14,15 +14,16 @@ import json
 
 from pydantic import ValidationError
 
-from tradingagents.agents.audit_pass import render_advisory_audit
+from tradingagents.agents.audit_pass import prepare_audit_dispositions, render_advisory_audit
 from tradingagents.agents.context import (
     EVIDENCE_DISCIPLINE,
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
 )
+from tradingagents.agents.decision_context import DECISION_HORIZON_CONTRACT, horizon_incomplete
 from tradingagents.agents.rating import parse_rating
-from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
+from tradingagents.agents.schemas import RequiredHorizonPortfolioDecision, render_pm_decision
 from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, invoke_structured
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
@@ -30,7 +31,7 @@ from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_
 
 
 def create_portfolio_manager(llm):
-    structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
+    structured_llm = bind_structured(llm, RequiredHorizonPortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state, include_mechanical=True)
@@ -55,9 +56,14 @@ def create_portfolio_manager(llm):
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
 
-        audit_context = (render_advisory_audit(state["advisory_audit"])
+        audit_context = (render_advisory_audit(state["advisory_audit"], dispositions=prepare_audit_dispositions(state))
                          if "advisory_audit" in state else
                          "Advisory audit was not run for this legacy or incomplete state.")
+        audit_projection = prepare_audit_dispositions(state)
+        if (isinstance(state.get("advisory_audit"), dict)
+                and state["advisory_audit"].get("status") == "completed with findings"
+                and audit_projection['findings']):
+            audit_context += "\nSupply one audit_dispositions response per finding in this call: exact finding_id, disposition accepted/rejected, and short reason. Missing responses stay unanswered; no rating or publication gate."
         past_context = state.get("past_context", "")
         lessons_line = (
             f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
@@ -73,11 +79,11 @@ def create_portfolio_manager(llm):
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
+**Rating Scale**:
+- **Buy**: Strong conviction to enter/add
+- **Overweight**: Favorable, gradually increase exposure
+- **Hold**: Maintain position
+- **Underweight**: Reduce exposure/partial profits
 - **Sell**: Exit position or avoid entry
 
 **Context:**
@@ -88,9 +94,7 @@ def create_portfolio_manager(llm):
 {history}
 
 {audit_context}
-Treat audit findings as unverified advice. State which findings mattered to your decision,
-or state that none changed it. If the audit is unavailable, do not imply it cleared the analysis.
-You retain the rating decision and normal evidence limits.
+Audit findings are unverified advice, never rating authority. An unavailable audit implies no clearance; normal evidence limits apply.
 
 **Canonical financial facts for optional valuation_request (bounded view):**
 {canonical_facts}
@@ -135,11 +139,12 @@ never choose the rating; unknown measurements stay unknown. Legacy rules, includ
 
 ## Output
 
-Write these sections, in this order, starting with the rating on its own line:
+Write in order, rating first:
 
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
-- **Executive Summary**: the call and how to act on it
-- **Investment Thesis**: the evidence that decided it, and what would change it
+- **Executive Summary**: call and action
+- **Investment Thesis**: decisive evidence and reconsideration conditions
+- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Never infer from forecasts or default to 3–6 months; unknown means incomplete, rating unchanged.
 
 {NO_EXTERNAL_TOOLS}{EVIDENCE_DISCIPLINE}{get_language_instruction()}"""
 
@@ -163,6 +168,7 @@ Write these sections, in this order, starting with the rating on its own line:
             # nonfinite raw numeric tokens are diagnostic strings, not JSON NaN.
             request = json.loads(json.dumps(request, default=str), parse_constant=str)
             original["portfolio_manager"] = {
+                "contract_version": DECISION_HORIZON_CONTRACT,
                 "structured": json.loads(
                     json.dumps(
                         {**decision.model_dump(mode="json"), "valuation_request": request},
@@ -181,19 +187,24 @@ Write these sections, in this order, starting with the rating on its own line:
                     reasons=("Canonical financial evidence unavailable; target omitted.",),
                 )
             )
+            if horizon_incomplete({"unvalidated_outputs": original}):
+                target = TargetResult(status="unsupported", reasons=("Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.",))
             final_trade_decision = render_pm_decision(decision, target)
             final_rating = decision.rating.value
         else:
             final_trade_decision = llm.invoke(prompt).content
             final_rating = parse_rating(final_trade_decision)
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
-            original["portfolio_manager"] = {"fallback": final_trade_decision}
+            original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT}
             target = TargetResult(
                 status="unsupported",
                 reasons=(
                     "Free-text fallback has no validated structured valuation bridge; target omitted.",
                 ),
             )
+
+        if horizon_incomplete({"unvalidated_outputs": original}):
+            final_trade_decision += "\n\nDecision incomplete: explicit decision horizon missing or invalid; no horizon inferred."
 
         new_risk_debate_state = {
             "history": risk_debate_state["history"],

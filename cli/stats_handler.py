@@ -16,6 +16,8 @@ class StatsCallbackHandler(BaseCallbackHandler):
         self.tool_calls = 0
         self.tokens_in = 0
         self.tokens_out = 0
+        self.token_usage_calls = 0
+        self.token_usage_missing = 0
 
     def on_llm_start(
         self,
@@ -50,10 +52,16 @@ class StatsCallbackHandler(BaseCallbackHandler):
             if isinstance(message, AIMessage) and hasattr(message, "usage_metadata"):
                 usage_metadata = message.usage_metadata
 
-        if usage_metadata:
-            with self._lock:
-                self.tokens_in += usage_metadata.get("input_tokens", 0)
-                self.tokens_out += usage_metadata.get("output_tokens", 0)
+        valid = (isinstance(usage_metadata, dict) and
+                 all(type(usage_metadata.get(key)) is int and usage_metadata[key] >= 0
+                     for key in ("input_tokens", "output_tokens")))
+        with self._lock:
+            if valid:
+                self.tokens_in += usage_metadata["input_tokens"]
+                self.tokens_out += usage_metadata["output_tokens"]
+                self.token_usage_calls += 1
+            else:
+                self.token_usage_missing += 1
 
     def on_tool_start(
         self,
@@ -73,4 +81,6 @@ class StatsCallbackHandler(BaseCallbackHandler):
                 "tool_calls": self.tool_calls,
                 "tokens_in": self.tokens_in,
                 "tokens_out": self.tokens_out,
+                "token_usage_calls": self.token_usage_calls,
+                "token_usage_missing": self.token_usage_missing,
             }

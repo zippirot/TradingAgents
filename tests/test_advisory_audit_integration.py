@@ -59,13 +59,14 @@ def test_portfolio_manager_receives_findings_without_rating_authority():
     output = create_portfolio_manager(llm)(inputs)
     prompt = str(llm.with_structured_output.return_value.invoke.call_args.args[0])
     assert "Buy at 120" in prompt
-    assert "which findings mattered" in prompt
+    assert "one audit_dispositions response per finding" in prompt
     assert output["final_rating"] == "Hold"
     assert "advisory_audit" not in output
 
 
 @pytest.mark.parametrize("pause_before", ["Advisory Audit", "Portfolio Manager"])
-def test_checkpoint_resume_does_not_duplicate_audit_or_pm_calls(pause_before):
+@pytest.mark.parametrize("retry", [False, True])
+def test_checkpoint_resume_does_not_duplicate_audit_or_pm_calls(pause_before, retry):
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.graph import END, START, StateGraph
 
@@ -80,6 +81,8 @@ def test_checkpoint_resume_does_not_duplicate_audit_or_pm_calls(pause_before):
 
         def invoke(self, prompt):
             self.calls += 1
+            if retry and self.calls == 1:
+                raise TimeoutError("offline forced first attempt failure")
             return {"findings": []}
 
     model = AuditModel()
@@ -91,7 +94,7 @@ def test_checkpoint_resume_does_not_duplicate_audit_or_pm_calls(pause_before):
 
     workflow = StateGraph(AgentState)
     workflow.add_node("Risk Debate", lambda state: {"risk_debate_state": {"count": 3, "history": "risk"}})
-    workflow.add_node("Advisory Audit", create_advisory_audit(model, deep_model_id="deep", quick_model_id="quick"))
+    workflow.add_node("Advisory Audit", create_advisory_audit(model, deep_model_id="deep", quick_model_id="quick", sdk_retries_disabled=True))
     workflow.add_node("Portfolio Manager", pm)
     workflow.add_edge(START, "Risk Debate")
     workflow.add_edge("Risk Debate", "Advisory Audit")
@@ -101,13 +104,13 @@ def test_checkpoint_resume_does_not_duplicate_audit_or_pm_calls(pause_before):
     config = {"configurable": {"thread_id": f"audit-{pause_before}"}}
     paused = workflow.compile(checkpointer=saver, interrupt_before=[pause_before])
     paused.invoke({"messages": [], "company_of_interest": "DOCN"}, config=config)
-    assert model.calls == (0 if pause_before == "Advisory Audit" else 1)
+    assert model.calls == (0 if pause_before == "Advisory Audit" else 1 + retry)
     assert not pm_calls
     complete = workflow.compile(checkpointer=saver)
     result = complete.invoke(None, config=config)
     assert result["advisory_audit"]["status"] == "completed with zero findings"
     assert result["final_rating"] == "Hold"
-    assert model.calls == 1
+    assert model.calls == 1 + retry
     assert pm_calls == ["completed with zero findings"]
 
 

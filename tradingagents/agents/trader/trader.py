@@ -58,6 +58,7 @@ def create_trader(llm):
                     # levels invites a percentage ("15%"), which is not a price
                     # and fails the structured parse (#1288).
                     + "For Buy, optionally state a purchase entry price; for Sell, optionally state an advisory reference sale level. "
+                    "A stop_loss is Buy-only. For Sell, optionally supply advisory_invalidation_level as a thesis reconsideration level; never an execution stop or short position proposal. "
                     "Never put a purchase entry on Sell or Hold. A sale reference is not an order, executable quote, "
                     "share quantity or instruction concerning unknown holdings. State price levels in quote currency "
                     "as absolute numbers, never percentages or ranges; omit unsupported levels. "
@@ -81,7 +82,7 @@ def create_trader(llm):
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
                     "sized by how strong the case is; conflict alone is not a Hold.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** and **Position Sizing** when supported; holdings may be unknown"
+                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** when supported; holdings may be unknown"
                 ),
             },
         ]

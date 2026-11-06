@@ -26,10 +26,10 @@ class ThesisModel(ScriptedModel):
     def with_structured_output(self, schema, **kwargs):
         def answer(prompt):
             self._count()
-            if schema is schemas.PortfolioDecision:
+            if schema in (schemas.PortfolioDecision, schemas.RequiredHorizonPortfolioDecision):
                 self.prompts.append(str(prompt))
-                return schemas.PortfolioDecision(
-                    rating='Overweight', executive_summary='Research decision',
+                return schema(
+                    rating='Overweight', executive_summary='Research decision', time_horizon='3–6 months',
                     investment_thesis='The forward hypothesis remains advisory.',
                     thesis_candidate={'conditions': None, 'dispositions': [{
                         'condition_id': self.condition_id, 'disposition': 'kept',

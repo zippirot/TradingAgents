@@ -167,6 +167,9 @@ def test_preacquisition_checkpoint_can_resume_and_old_signature_is_untouched(sou
     owner.selected_analysts = ["market"]
     owner.config = DEFAULT_CONFIG
     signature = owner._run_signature("stock")
+    assert "financial_claim_prompt=1" in signature
+    old_prompt_signature = signature.replace("|financial_claim_prompt=1", "")
+    assert thread_id("DOCN", "2026-10-19", old_prompt_signature) != thread_id("DOCN", "2026-10-19", signature)
     legacy = signature.replace("evidence=4", "evidence=3").replace("|source_acquisition=1", "")
     assert signature != legacy
     old_id, new_id = (thread_id("DOCN", "2026-10-19", s) for s in (legacy, signature))

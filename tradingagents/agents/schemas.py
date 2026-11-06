@@ -22,7 +22,7 @@ import re
 from copy import deepcopy
 from enum import StrEnum
 from html import escape
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -30,6 +30,7 @@ from pydantic import (
     PrivateAttr,
     TypeAdapter,
     ValidationError,
+    WithJsonSchema,
     field_validator,
     model_validator,
 )
@@ -181,17 +182,21 @@ class TraderProposal(BaseModel):
     stop_loss: float | None = Field(
         default=None,
         description=(
-            "Optional stop-loss as an absolute price in the instrument's quote "
+            "Optional Buy-only stop-loss as an absolute price in the instrument's quote "
             "currency (e.g. 172.0), never a percentage. Convert a percentage "
             "distance to the price level it implies, or omit it."
         ),
+    )
+    advisory_invalidation_level: float | None = Field(
+        default=None,
+        description="Optional Sell thesis reconsideration level only; never an execution stop or instruction to open a short. Omit unsupported levels.",
     )
     position_sizing: str | None = Field(
         default=None,
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
 
-    @field_validator("purchase_entry_price", "reference_sale_level", "stop_loss", mode="before")
+    @field_validator("purchase_entry_price", "reference_sale_level", "stop_loss", "advisory_invalidation_level", mode="before")
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
@@ -214,6 +219,12 @@ class TraderProposal(BaseModel):
             self.purchase_entry_price = None
         if self.action is not TraderAction.SELL:
             self.reference_sale_level = None
+        if self.action is TraderAction.SELL:
+            if self.advisory_invalidation_level is None:
+                self.advisory_invalidation_level = self.stop_loss
+            self.stop_loss = None
+        else:
+            self.advisory_invalidation_level = None
         return self
 
 
@@ -238,10 +249,12 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         ("Position Sizing", proposal.position_sizing),
     ):
         parts.extend(["", f"**{label}**: {value if value is not None and value != '' else 'not provided'}"])
+    if proposal.action is TraderAction.SELL:
+        parts.extend(["", f"**Advisory Thesis Invalidation Level**: {proposal.advisory_invalidation_level if proposal.advisory_invalidation_level is not None else 'not provided'}"])
     if proposal.entry_price is not None:
         parts.extend(["", f"**Legacy Price Level (meaning unverified)**: {proposal.entry_price}"])
     if proposal.action is TraderAction.SELL:
-        parts.extend(["", "Reference sale level is advisory; it is not an order, executable quote, share quantity, or instruction about unknown holdings."])
+        parts.extend(["", "Reference sale and thesis invalidation levels are advisory; neither is an execution stop, order, executable quote, share quantity, instruction about unknown holdings, or a short position proposal."])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
@@ -259,6 +272,14 @@ def label_legacy_trader_price(text: str) -> str:
     actions += re.findall(r"(?im)^FINAL TRANSACTION PROPOSAL:\s*\*\*(BUY|HOLD|SELL)\*\*", text)
     if actions and all(action.casefold() == "buy" for action in actions):
         return text
+
+    had_stop = bool(re.search(r"(?im)^\s*(?:\*\*)?Stop[ -]Loss", text))
+    text = re.sub(
+        r"(?im)^([ \t]*(?:[-*][ \t]+)?)(?:\*\*)?Stop[ -]Loss(?:\*\*)?:",
+        r"\1**Advisory Thesis Invalidation Level (unvalidated)**:", text,
+    )
+    if had_stop and actions and all(action.casefold() == "sell" for action in actions):
+        text += "\nThesis invalidation is advisory, not an execution stop or short position proposal; holdings may be unknown."
 
     def ambiguous_purchase(match):
         value = match.group(2)
@@ -395,6 +416,38 @@ class PortfolioDecision(BaseModel):
         return _coerce_optional_float(v)
 
 
+class RequiredHorizonPortfolioDecision(PortfolioDecision):
+    """Fresh-call contract; legacy records still use PortfolioDecision.
+
+    A provider omission remains diagnostic rather than causing another model call
+    or discarding its otherwise valid rating. Publication checks completeness.
+    """
+    audit_dispositions: Annotated[Any, WithJsonSchema({
+        "anyOf": [
+            {"type": "array", "items": {"type": "object", "properties": {
+                "finding_id": {"type": "string"},
+                "disposition": {"type": "string", "enum": ["accepted", "rejected"]},
+                "reason": {"type": "string"},
+            }, "required": ["finding_id", "disposition", "reason"], "additionalProperties": False}},
+            {"type": "null"},
+        ],
+    })] = Field(
+        default=None,
+        description="Only when the audit completed with findings: one advisory response per finding, a list of {finding_id, disposition (accepted or rejected), reason (short, at most 500 characters)}. Use exact supplied stable IDs. Otherwise omit/null. Never a rating/evidence authority or publication gate. Invalid responses are retained for separate advisory validation, not a retry.",
+    )
+
+    time_horizon: str | None = Field(
+        description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Separate from the forecast period; never assume 3-6 months. If unknown, return null and the decision is incomplete.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _retain_missing_horizon(cls, value):
+        if isinstance(value, dict) and "time_horizon" not in value:
+            return {**value, "time_horizon": None}
+        return value
+
+
 def render_pm_decision(decision: PortfolioDecision, target_result: TargetResult | dict | None = None) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
@@ -413,7 +466,7 @@ def render_pm_decision(decision: PortfolioDecision, target_result: TargetResult 
     # Named even when absent: a missing line reads as a field nobody asked for,
     # so a reader cannot tell "no target" from "target not reported".
     parts.extend(["", render_target_result(target_result)])
-    parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'not provided'}"])
+    parts.extend(["", f"**Time Horizon**: {decision.time_horizon or 'incomplete — explicit decision horizon required'}"])
     return "\n".join(parts)
 
 

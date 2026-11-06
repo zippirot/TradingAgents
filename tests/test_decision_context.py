@@ -65,7 +65,7 @@ def test_untrusted_excerpt_cannot_change_authority_or_render_instructions():
 
 def test_legacy_is_labeled_and_missing_horizon_not_invented():
     record = prepare_decision_context({'final_trade_decision': '**Rating**: Hold'})
-    assert record['status'] == 'legacy' and record['horizon']['text'] == 'not specified'
+    assert record['status'] == 'legacy' and record['horizon']['text'] == 'unknown (legacy decision)'
     assert 'Legacy reported rating' in render_decision_context(record)
     assert record['basis'] == 'insufficient evidence'
 
@@ -135,7 +135,7 @@ def test_unstructured_horizon_cannot_reintroduce_target_or_sizing_prose():
         value['unvalidated_outputs']['portfolio_manager']['structured']['time_horizon'] = horizon
         record = prepare_decision_context(value)
         text = render_decision_context(record)
-        assert record['horizon']['text'] == 'not specified'
+        assert record['horizon']['text'] == 'unknown (legacy decision)'
         assert 'unstructured horizon retained in diagnostics' in record['horizon']['authority']
         assert horizon not in text and '999' not in text and '80%' not in text
 
@@ -147,4 +147,4 @@ def test_plain_durations_ranges_and_real_iso_dates_are_recognized_without_infere
         assert prepare_decision_context(value)['horizon']['text'] == horizon
     for horizon in ('2027-02-30', 'zero months', '0 days', '6-3 months'):
         value['unvalidated_outputs']['portfolio_manager']['structured']['time_horizon'] = horizon
-        assert prepare_decision_context(value)['horizon']['text'] == 'not specified'
+        assert prepare_decision_context(value)['horizon']['text'] == 'unknown (legacy decision)'
