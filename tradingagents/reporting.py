@@ -133,6 +133,11 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
                 value = (value or {}).get(key)
             if value:
                 written.append((agent, filename, value))
+        if folder == "5_portfolio" and final_state.get("mechanical_valuation_grid"):
+            from tradingagents.agents.mechanical_valuation import render_mechanical_valuation_grid
+            grid_text = render_mechanical_valuation_grid(final_state["mechanical_valuation_grid"])
+            if grid_text:
+                written.insert(0, ("Mechanical sensitivity", "mechanical_grid.md", grid_text))
         if written:
             parts.append((heading, folder, written))
     return parts
@@ -253,6 +258,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "price_observation",
         "valuation_price_comparison",
         "price_implied_valuation",
+        "mechanical_valuation_grid",
         "decision_context",
         "event_comparison",
         "issuer_identity",

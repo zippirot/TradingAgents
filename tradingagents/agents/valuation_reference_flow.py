@@ -258,7 +258,7 @@ def _fetch_peer(ticker, state):
         return _unavailable(exc)
 
 
-def _peer_set(selection, state, sources, *, include_quality=False):
+def _peer_set(selection, state, sources, *, include_quality=False, minimum_range_peers=1):
     from tradingagents.agents.valuation_reference import calculate_peer_statistics, peer_range
     from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
 
@@ -315,6 +315,8 @@ def _peer_set(selection, state, sources, *, include_quality=False):
             "requested": selection.get("peers", []), "accepted": accepted, "rejected": rejected,
             "range": peer_range([row["statistics"] for row in accepted], include_quality=include_quality),
             "qualification": "Data checks do not establish business comparability; selection reasons are unverified"}
+    if minimum_range_peers > 1 and len(accepted) < minimum_range_peers:
+        result["range"] = _unavailable("Fewer than three accepted same-session peers; individual multiples only")
     if include_quality:
         result["incomplete"] = incomplete
     if dated_price_diagnostics:
@@ -352,9 +354,11 @@ def _assemble(state, record):
     result["subject"] = _subject(state)
     result["own_history"] = _history(state, result["raw_sources"]["history"], result["subject"])
     result["default_peers"] = _peer_set(result["default_selection"], state, result["raw_sources"]["peers"],
-                                        include_quality=result.get("schema_version", 1) >= 2)
+                                        include_quality=result.get("schema_version", 1) >= 2,
+                                        minimum_range_peers=3 if result.get("schema_version", 1) >= 3 else 1)
     result["peers"] = _peer_set(result["selection"], state, result["raw_sources"]["peers"],
-                                        include_quality=result.get("schema_version", 1) >= 2)
+                                        include_quality=result.get("schema_version", 1) >= 2,
+                                        minimum_range_peers=3 if result.get("schema_version", 1) >= 3 else 1)
     old = [row["ticker"] for row in result["default_peers"]["requested"]]
     new = [row["ticker"] for row in result["peers"]["requested"]]
     result["changes"] = {"added": [t for t in new if t not in old], "removed": [t for t in old if t not in new]}
@@ -363,7 +367,7 @@ def _assemble(state, record):
 
 def replay_valuation_reference(state, record):
     """Reject altered scope, derived values or flattened historical projections."""
-    if not isinstance(record, dict) or record.get("schema_version") not in {1, 2} or record.get("scope") != _scope(state):
+    if not isinstance(record, dict) or record.get("schema_version") not in {1, 2, 3} or record.get("scope") != _scope(state):
         raise ValueError("Retained valuation reference differs from run scope")
     try:
         replay = _assemble(state, record)
@@ -408,7 +412,7 @@ def acquire_reference_inputs(state, config):
                  config.get("analysis_timezone", "America/Denver")) if configured else
                  VendorExpectations(status="unavailable", ticker=scope["ticker"], requested_as_of=scope["as_of"],
                                     reason="Configured Yahoo expectations provider unavailable"))
-    record = {"schema_version": 2, "scope": scope, "status": "available", "phase": "preanalyst",
+    record = {"schema_version": 3, "scope": scope, "status": "available", "phase": "preanalyst",
               "default_selection": selection, "selection": selection, "configured_yahoo": configured,
               "raw_sources": {"history": history, "peers": sources}}
     record = _assemble(state, record)
@@ -556,6 +560,8 @@ def render_valuation_reference(record):
         lines.append(f"Separate peer range: {_number(stats['low'])}× / {_number(stats['median'])}× / {_number(stats['high'])}× "
                      f"(low / median / high; {stats['count']} peers; equity value / trailing revenue).")
         lines.append(_cell(peers["range"].get("quality_label", "Retained reference range")) + ".")
+    elif record.get("schema_version", 1) >= 3 and peers["accepted"]:
+        lines.append("Fewer than three accepted same-session peers; shown individually, without a pooled reference range.")
     if record["changes"]["added"] or record["changes"]["removed"]:
         lines.append("Changes from default: added " + _cell(", ".join(record["changes"]["added"]) or "none") +
                      "; removed " + _cell(", ".join(record["changes"]["removed"]) or "none") + ". Earlier default statistics remain retained.")
