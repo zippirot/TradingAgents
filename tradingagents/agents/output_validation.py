@@ -36,6 +36,7 @@ def enforce_evidence_review(state: dict) -> dict:
         "unvalidated_outputs": original,
         "valuation_price_comparison": {"status": "unavailable", "rows": [], "reason": "Research incomplete; comparison not published."},
         "price_implied_valuation": {"status": "unavailable", "rows": [], "reason": "Research evidence insufficient for a price-implied table."},
+        "mechanical_valuation_grid": {"status": "unavailable", "reason": "Research evidence insufficient; mechanical grid withheld."},
         "target_validation": TargetResult(
             status="unsupported", reasons=("Research incomplete; valuation not published.",),
         ).model_dump(mode="json"),
@@ -168,6 +169,10 @@ def enforce_publication(state: dict) -> dict:
     updates["valuation_price_comparison"] = comparison
     independent = price_implied_valuation(state)
     updates["price_implied_valuation"] = independent
+    from tradingagents.agents.mechanical_valuation import mechanical_valuation_grid
+    # Recompute every export from retained sources, never trust a saved grid.
+    grid = mechanical_valuation_grid(state)
+    updates["mechanical_valuation_grid"] = grid
     reference_text = ""
     if "valuation_reference" in state:
         from tradingagents.agents.valuation_reference_flow import (

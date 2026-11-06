@@ -225,7 +225,7 @@ def test_peer_fetch_and_replay_keep_cover_dates_conditional(monkeypatch, missing
     state["financial_claim_validation"] = {"raw_report": block('[{"ticker":"NET","reason":"Network infrastructure"}]')}
     updated = flow.finalize_peer_reference(state, config)
     record = updated["valuation_reference"]
-    assert record["schema_version"] == 2
+    assert record["schema_version"] == 3
     assert requested_dates == ["2026-10-15"]
     if missing_price:
         assert not record["peers"]["accepted"] and not record["peers"]["rejected"]
@@ -238,9 +238,18 @@ def test_peer_fetch_and_replay_keep_cover_dates_conditional(monkeypatch, missing
         assert "excluded from the peer range" in updated["valuation_reference_brief"]
     else:
         assert record["peers"]["accepted"][0]["statistics"]["share_quality"] == "lower_quality_dated_cover"
-        assert record["peers"]["range"]["lower_quality_tickers"] == ["NET"]
+        assert record["peers"]["range"]["status"] == "unavailable"
+        assert "Fewer than three" in record["peers"]["range"]["reason"]
         assert "Lower-quality conditional row" in updated["valuation_reference_brief"]
-        assert "including conditional dated-share rows" in updated["valuation_reference_brief"]
+        assert "shown individually, without a pooled reference range" in updated["valuation_reference_brief"]
+        # Preserve the earlier record's conditional range and exact replay.
+        from copy import deepcopy
+        legacy = deepcopy(record)
+        legacy["schema_version"] = 2
+        legacy = flow._assemble(state, legacy)
+        assert legacy["peers"]["range"]["lower_quality_tickers"] == ["NET"]
+        assert "including conditional dated-share rows" in flow.render_valuation_reference(legacy)
+        assert flow.replay_valuation_reference(state, legacy) == legacy
     monkeypatch.setattr(peer_shares, "get_peer_cover_shares", lambda *a: pytest.fail("replay cannot fetch"))
     assert flow.replay_valuation_reference(state, record) == record
     assert record["subject"]["shares"] == "10"

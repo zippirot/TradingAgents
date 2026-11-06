@@ -434,6 +434,15 @@ def display_complete_report(final_state):
             for title, content in risk_reports:
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
+    # The B1 diagnostic is presentation-only; keep it out of the canonical
+    # decision consumed by trading memory and settlement reflection.
+    if final_state.get("mechanical_valuation_grid"):
+        from tradingagents.agents.mechanical_valuation import render_mechanical_valuation_grid
+        grid_text = render_mechanical_valuation_grid(final_state["mechanical_valuation_grid"])
+        if grid_text:
+            console.print(Panel(Markdown(grid_text), title="Mechanical sensitivity",
+                                border_style="blue", padding=(1, 2)))
+
     # V. Portfolio Manager Decision
     if final_state.get("final_trade_decision"):
         console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
