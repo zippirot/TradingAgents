@@ -93,6 +93,111 @@ def test_proof_attempt_claim_is_separate_and_consumed_on_failure(tmp_path):
     assert [e["phase"] for e in ledger.events() if e["type"] == "attempt_claim"] == ["A", "B"]
 
 
+def extra_a_approval():
+    return {"approval_id": "user-approved-extra-part-a-20261105",
+            "approved_at_recorded": "2026-11-06T00:17:55+00:00",
+            "user_response": "Approved", "prior_decision_fingerprint": "a" * 64,
+            "phase": "A-extra", "additional_attempts": 1,
+            "phase_ceiling_usd": "3.85", "aggregate_ceiling_usd": "10",
+            "temporary_peers": ["MSFT", "ORCL"],
+            "scope": "Additional after-close DOCN proof with temporary pins",
+            "part_b_authorized": False, "comparison_authorized": False}
+
+
+@pytest.mark.unit
+def test_extra_a_claim_requires_explicit_approval_and_preserves_b(tmp_path):
+    ledger = pilot.PilotLedger(tmp_path / "shared-proof.jsonl")
+    proof = live_adapter.ProofAttemptLedger(ledger, ceiling_usd="10", max_attempts=2)
+    with pytest.raises(RuntimeError, match="original A"):
+        proof.claim_extra_a(extra_a_approval())
+    proof.claim("A", phase_ceiling_usd="5")
+    a_spec = live_adapter.CliSpec("DOCN", "2026-11-05", pilot.A, pilot.A, 1, 8192)
+    live_adapter.start_execution(live_adapter.ExecutionClaim("proof", "A"), ledger, a_spec)
+    first = pilot.BudgetGuard(ledger, pilot.Decimal("10"), allowed_models={pilot.A},
+                              max_calls=40, scope="proof:A", allowed_kinds={"run"},
+                              scope_ceiling=pilot.Decimal("5"))
+    ticket = first.reserve(pilot.A, "1.2", kind="run")
+    first.settle(ticket, "1.14")
+    bad = {**extra_a_approval(), "phase_ceiling_usd": "3.86"}
+    with pytest.raises(ValueError, match="approval"):
+        proof.claim_extra_a(bad)
+    approval_hash = proof.claim_extra_a(extra_a_approval())
+    assert approval_hash == pilot.manifest_hash(extra_a_approval())
+    with pytest.raises(RuntimeError, match="already claimed"):
+        proof.claim_extra_a(extra_a_approval())
+    spec = live_adapter.CliSpec("DOCN", "2026-11-05", pilot.A, pilot.A, 1, 8192,
+                                extra_peer_pins=("MSFT", "ORCL"))
+    claim = live_adapter.ExecutionClaim("proof", "A2", approval_sha256=approval_hash)
+    guard = pilot.BudgetGuard(ledger, pilot.Decimal("10"), allowed_models={pilot.A},
+                              max_calls=40, scope="proof:A2", allowed_kinds={"run"},
+                              scope_ceiling=pilot.Decimal("3.85"))
+    live_adapter.verify_budget_binding(claim, guard, spec, None)
+    wrong_day = live_adapter.CliSpec("DOCN", "2026-11-04", pilot.A, pilot.A, 1, 8192,
+                                     extra_peer_pins=("MSFT", "ORCL"))
+    with pytest.raises(RuntimeError, match="mismatched"):
+        live_adapter.verify_budget_binding(claim, guard, wrong_day, None)
+    wrong_clock = live_adapter.CliSpec("DOCN", "2026-11-05", pilot.A, pilot.A, 1, 8192,
+        analysis_cutoff_utc="2026-11-05T23:24:15+00:00", extra_peer_pins=("MSFT", "ORCL"))
+    with pytest.raises(RuntimeError, match="mismatched"):
+        live_adapter.verify_budget_binding(claim, guard, wrong_clock, None)
+    with pytest.raises(RuntimeError, match="mismatched"):
+        live_adapter.verify_budget_binding(live_adapter.ExecutionClaim("proof", "A2"), guard, spec, None)
+    with pytest.raises(RuntimeError, match="budget"):
+        broad = pilot.BudgetGuard(ledger, pilot.Decimal("10"), allowed_models={pilot.A},
+                                  max_calls=40, scope="proof:A2", allowed_kinds={"run"},
+                                  scope_ceiling=pilot.Decimal("4"))
+        live_adapter.verify_budget_binding(claim, broad, spec, None)
+    live_adapter.start_execution(claim, ledger, spec)
+    with pytest.raises(RuntimeError, match="already started"):
+        live_adapter.start_execution(claim, ledger, spec)
+    guard.reserve(pilot.A, "3.8", kind="run")  # unknown cost remains reserved
+    resumed = pilot.BudgetGuard(ledger, pilot.Decimal("10"), allowed_models={pilot.A},
+                                max_calls=40, scope="proof:A2", allowed_kinds={"run"},
+                                scope_ceiling=pilot.Decimal("3.85"))
+    with pytest.raises(RuntimeError, match="scope cap"):
+        resumed.reserve(pilot.A, "0.1", kind="run")
+    with pytest.raises(RuntimeError, match="go-ahead"):
+        proof.claim("B")
+    proof.claim("B", part_b_go_ahead=True)
+    assert [e["phase"] for e in ledger.events() if e["type"] == "attempt_claim"] == ["A", "A2", "B"]
+    b_guard = pilot.BudgetGuard(ledger, pilot.Decimal("10"), allowed_models={pilot.A},
+                                max_calls=40, scope="proof:B", allowed_kinds={"run"})
+    with pytest.raises(RuntimeError, match="budget cap"):
+        b_guard.reserve(pilot.A, "5.1", kind="run")
+    with pytest.raises(RuntimeError, match="already claimed"):
+        proof.claim("B", part_b_go_ahead=True)
+
+
+@pytest.mark.unit
+def test_extra_a_pins_are_isolated_and_exact(tmp_path, monkeypatch):
+    import yfinance as yf
+    monkeypatch.setattr(yf, "set_tz_cache_location", lambda value: None)
+    spec = live_adapter.CliSpec("DOCN", "2026-11-05", pilot.A, pilot.A, 1, 8192,
+                                extra_peer_pins=("MSFT", "ORCL"))
+    with pytest.raises(ValueError, match="approved A2"):
+        live_adapter.configure_isolated_env(spec, tmp_path, openrouter_key="offline-fake",
+                                            sec_user_agent="offline-agent")
+    ledger = pilot.PilotLedger(tmp_path / "pin-proof.jsonl")
+    ledger.append({"type": "attempt_claim", "phase": "A2", "ceiling_usd": "10",
+                   "phase_ceiling_usd": "3.85", "approval_sha256": "a" * 64,
+                   "approved_pins": ["MSFT", "ORCL"]})
+    live_adapter.configure_isolated_env(spec, tmp_path, openrouter_key="offline-fake",
+        sec_user_agent="offline-agent",
+        claim=live_adapter.ExecutionClaim("proof", "A2", approval_sha256="a" * 64), ledger=ledger)
+    pin_path = Path(live_adapter.os.environ["TRADINGAGENTS_PEERS_FILE"])
+    assert pin_path.is_relative_to(tmp_path)
+    approved_rows = [{"ticker": ticker, "reason": live_adapter.EXTRA_A_PIN_REASON}
+                     for ticker in ("MSFT", "ORCL")]
+    assert json.loads(pin_path.read_text())["DOCN"] == approved_rows
+    from tradingagents.agents.valuation_reference_flow import default_peer_selection
+    selected = default_peer_selection({"company_of_interest": "DOCN"}, {"results_dir": str(tmp_path)})
+    assert selected["kind"] == "user-pinned"
+    assert selected["peers"] == approved_rows
+    with pytest.raises(ValueError, match="pins"):
+        live_adapter.CliSpec("DOCN", "2026-11-05", pilot.A, pilot.A, 1, 8192,
+                             extra_peer_pins=("ORCL", "MSFT")).validate()
+
+
 @pytest.mark.unit
 def test_frozen_vendor_replay_requires_exact_request_and_seeds_clean_start(tmp_path):
     files = {}

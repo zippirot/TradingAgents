@@ -109,3 +109,13 @@ This is a planning estimate, not measured B behavior or a guarantee. Faster/long
 Currently authorized implementation and offline correction work is complete. A further paid Part A attempt requires approval because the goal allowed one, and failures/missing acceptance consume it.
 
 Recommended proof adjustment: one additional after-close DOCN attempt, capped at $3.85 within the existing $10 aggregate allowance, with temporary explicitly user-pinned MSFT/ORCL peers for this proof only. Their real source packages passed independent arithmetic checks; business comparability is not established. This combines the first run's live model proposal/rejection evidence with a live accepted-user-pin path, without claiming successful model-selected peer acceptance. It also exercises available consensus and event replay with corrected clock/record handling. Pins remain isolated from preferences and launcher settings. This proposal is unapproved; no extra attempt has started.
+
+## Approved additional proof amendment
+
+The user explicitly approved the extra proof and combined-evidence proposal after the decision above. Approval is retained at ../private/extra-proof-approval.json; the original notification/decision fingerprint is resolved in both stores. The native goal is active again.
+
+Authority is exactly one additional after-close DOCN all-four-analyst shallow attempt, capped at $3.85 inside the original $10 aggregate. The consumed original A attempt and its $1.14128440 cost remain in the same ledger. A2 failure consumes this extra attempt; there is no replacement or automatic retry. A later B attempt still requires its separate start authorization. Comparison, release and installation remain unapproved.
+
+Temporary MSFT/ORCL pins are authorized only for this isolated proof, with the explicit reason that business comparability is not established. The approved evidence combines the original live model proposals/rejections with an accepted-user-pin path; successful live model-selected acceptance remains unobserved and will not be claimed. Free current-session prerequisites passed for both pins using November 5 completed prices (MSFT 11.4891x, ORCL 4.8517x). These later source acquisitions are feasibility evidence, not part of the original live proof.
+
+The normal application analysis-day clock replaces the first harness's too-early exact cutoff. Completed prices retain the separate normal market-observation clock. The additional attempt is not yet started at this preparation milestone. Its claim, exact approval hash, pins, phase cap and aggregate cap must pass offline qualification and independent review before launch.

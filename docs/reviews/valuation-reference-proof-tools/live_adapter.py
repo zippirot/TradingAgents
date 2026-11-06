@@ -9,6 +9,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import runpy
 import socket
 import sys
@@ -31,6 +32,11 @@ from pilot import (
     FrozenSourceGateway,
     PilotLedger,
     manifest_hash,
+)
+
+EXTRA_A_PIN_REASON = (
+    "User-approved temporary peer pin for accepted-row live proof; "
+    "business comparability is not established."
 )
 
 
@@ -404,7 +410,8 @@ class ProofAttemptLedger:
             claims = [e for e in events if e["type"] == "attempt_claim"]
             if any(e["phase"] == phase for e in claims):
                 raise RuntimeError("Proof phase already claimed; failed attempts count")
-            if len(claims) >= 2 or (phase == "B" and not any(e["phase"] == "A" for e in claims)):
+            if (sum(e["phase"] in {"A", "B"} for e in claims) >= 2
+                    or (phase == "B" and not any(e["phase"] == "A" for e in claims))):
                 raise RuntimeError("Proof attempt sequence or cap reached")
             if self.ledger.committed_usd() >= self.ceiling:
                 raise RuntimeError("Proof spending ceiling reached")
@@ -412,19 +419,76 @@ class ProofAttemptLedger:
                                 "ceiling_usd": str(self.ceiling),
                                 "phase_ceiling_usd": str(phase_ceiling)})
 
+    def claim_extra_a(self, approval_record: dict) -> str:
+        """Consume the one explicitly approved extra Part A attempt."""
+        required = {"approval_id", "approved_at_recorded", "user_response",
+                    "prior_decision_fingerprint", "phase", "additional_attempts",
+                    "phase_ceiling_usd", "aggregate_ceiling_usd", "temporary_peers",
+                    "scope", "part_b_authorized", "comparison_authorized"}
+        if not isinstance(approval_record, dict) or set(approval_record) != required:
+            raise ValueError("Extra A approval record is incomplete")
+        try:
+            approved_at = datetime.fromisoformat(approval_record["approved_at_recorded"])
+            valid = (isinstance(approval_record["approval_id"], str)
+                     and bool(approval_record["approval_id"].strip())
+                     and approved_at.tzinfo is not None
+                     and isinstance(approval_record["scope"], str)
+                     and bool(approval_record["scope"].strip())
+                     and re.fullmatch(r"[0-9a-f]{64}", approval_record["prior_decision_fingerprint"])
+                     and approval_record["user_response"] == "Approved"
+                     and approval_record["phase"] == "A-extra"
+                     and type(approval_record["additional_attempts"]) is int
+                     and approval_record["additional_attempts"] == 1
+                     and Decimal(approval_record["phase_ceiling_usd"]) == Decimal("3.85")
+                     and Decimal(approval_record["aggregate_ceiling_usd"]) == self.ceiling == Decimal("10")
+                     and approval_record["temporary_peers"] == ["MSFT", "ORCL"]
+                     and approval_record["part_b_authorized"] is False
+                     and approval_record["comparison_authorized"] is False)
+        except (ValueError, TypeError, KeyError, InvalidOperation):
+            valid = False
+        if not valid:
+            raise ValueError("Extra A approval record differs from explicit user approval")
+        digest = manifest_hash(approval_record)
+        with self.ledger.budget_lock():
+            events = self.ledger.events()
+            if not any(e["type"] == "attempt_claim" and e.get("phase") == "A" for e in events) or not any(
+                e["type"] == "execution_start" and e.get("kind") == "proof" and e.get("name") == "A"
+                for e in events
+            ):
+                raise RuntimeError("Extra A requires the original A proof execution")
+            if any(e["type"] == "attempt_claim" and e.get("phase") == "A2" for e in events):
+                raise RuntimeError("Extra A already claimed; failed attempts count")
+            if self.ledger.committed_usd() + Decimal("3.85") > self.ceiling:
+                raise RuntimeError("Original proof aggregate budget has insufficient headroom")
+            self.ledger.append({"type": "attempt_claim", "phase": "A2",
+                                "ceiling_usd": str(self.ceiling), "phase_ceiling_usd": "3.85",
+                                "approval_sha256": digest,
+                                "approval_id": approval_record["approval_id"],
+                                "approved_pins": ["MSFT", "ORCL"]})
+        return digest
+
 
 @dataclass(frozen=True)
 class ExecutionClaim:
     kind: str
     name: str
+    approval_sha256: str | None = None
 
 
 def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
     events = ledger.events()
     if claim.kind == "proof":
-        if claim.name not in {"A", "B"} or not any(
-            e["type"] == "attempt_claim" and e.get("phase") == claim.name for e in events
-        ) or spec.depth != 1:
+        entry = next((e for e in events if e["type"] == "attempt_claim"
+                      and e.get("phase") == claim.name), None)
+        if (claim.name not in {"A", "A2", "B"} or entry is None or spec.depth != 1
+                or (claim.name == "A2" and (
+                    claim.approval_sha256 != entry.get("approval_sha256")
+                    or spec.extra_peer_pins != tuple(entry.get("approved_pins", []))
+                    or spec.ticker != "DOCN" or spec.analysis_date != "2026-11-05"
+                    or spec.analysis_cutoff_utc is not None
+                    or spec.market_observation_cutoff is not None))
+                or (claim.name != "A2" and (claim.approval_sha256 is not None
+                    or spec.extra_peer_pins is not None))):
             raise RuntimeError("Separate proof attempt claim is missing or mismatched")
     elif claim.kind == "comparison":
         slot = next((slot for slot in SLOTS if slot.name == claim.name), None)
@@ -467,7 +531,8 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
             raise RuntimeError("Execution claim already started; no duplicate CLI launch")
         ledger.append({"type": "execution_start", "kind": claim.kind,
                        "name": claim.name, "ticker": spec.ticker,
-                       "analysis_date": spec.analysis_date, "depth": spec.depth})
+                       "analysis_date": spec.analysis_date, "depth": spec.depth,
+                       "approval_sha256": claim.approval_sha256})
 
 
 @dataclass(frozen=True)
@@ -483,6 +548,7 @@ class CliSpec:
     analysis_cutoff_utc: str | None = None
     market_observation_cutoff: str | None = None
     context_cap: int | None = None
+    extra_peer_pins: tuple[str, str] | None = None
 
     def validate(self):
         if (not self.ticker or not self.ticker.isupper() or self.depth not in (1, 2)
@@ -502,6 +568,10 @@ class CliSpec:
             raise ValueError("Frozen market observation cutoff cannot be in the future")
         if self.depth == 1 and (self.quick_model, self.deep_model) != (A, A):
             raise ValueError("Part A proof must use Terra Pro in both tiers")
+        if self.extra_peer_pins is not None and (
+            self.depth != 1 or self.ticker != "DOCN" or self.extra_peer_pins != ("MSFT", "ORCL")
+        ):
+            raise ValueError("Extra A pins must be exactly MSFT and ORCL for DOCN")
         if self.depth == 2 and (self.quick_model, self.deep_model) not in {(A, A), (B_QUICK, B_DEEP)}:
             raise ValueError("A7 CLI models must match setup A or B exactly")
 
@@ -525,11 +595,16 @@ def verify_cli_config(config: dict, spec: CliSpec):
         raise RuntimeError("CLI tier backend override differs from fixed route")
 
 
-def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, sec_user_agent: str):
+def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, sec_user_agent: str,
+                           claim: ExecutionClaim | None = None, ledger: PilotLedger | None = None):
     """Set the actual CLI env without reading user preferences or mutating them."""
     spec.validate()
     if not openrouter_key or not sec_user_agent or work.is_symlink():
         raise ValueError("Proof workdir or required credentials invalid")
+    if spec.extra_peer_pins is not None:
+        if claim is None or ledger is None:
+            raise ValueError("Extra A pins require the approved A2 execution claim")
+        verify_execution_claim(claim, ledger, spec)
     for name in list(os.environ):
         if name.startswith("TRADINGAGENTS_") or name.endswith("_API_KEY"):
             del os.environ[name]
@@ -558,6 +633,13 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
     os.environ.update(values)
     for path in (work / "results", work / "cache", work / "memory"):
         path.mkdir(parents=True, exist_ok=True)
+    if spec.extra_peer_pins is not None:
+        pins_path = work / "approved-peer-pins.json"
+        rows = [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
+                for ticker in spec.extra_peer_pins]
+        with pins_path.open("x") as handle:
+            json.dump({spec.ticker: rows}, handle, sort_keys=True)
+        os.environ["TRADINGAGENTS_PEERS_FILE"] = str(pins_path)
     import yfinance as yf
     tz_cache = work / "cache/yfinance"
     tz_cache.mkdir(parents=True, exist_ok=True)
@@ -785,7 +867,8 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
     verify_budget_binding(claim, wire.budget, spec, approval)
     start_execution(claim, wire.budget.ledger, spec)
-    configure_isolated_env(spec, work, openrouter_key=openrouter_key, sec_user_agent=sec_user_agent)
+    configure_isolated_env(spec, work, openrouter_key=openrouter_key,
+                           sec_user_agent=sec_user_agent, claim=claim, ledger=wire.budget.ledger)
     if source_replay is not None:
         install_starting_snapshot(source_replay.gateway, work)
     DEFAULT_CONFIG = fresh_default_config()
@@ -837,7 +920,16 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         if not all(state.get(key) for key in ("market_report", "sentiment_report", "news_report",
                                                  "fundamentals_report", "advisory_audit")):
             raise RuntimeError("Saved CLI output is missing an analyst or audit pass")
+        if spec.extra_peer_pins is not None:
+            peers = ((state.get("valuation_reference") or {}).get("peers") or {})
+            requested = peers.get("requested") or []
+            if (peers.get("kind") != "user-pinned" or
+                    requested != [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
+                                  for ticker in spec.extra_peer_pins]):
+                raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
         return {"state": state, "model_calls": wire.request_count,
+                "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
+                                    if spec.extra_peer_pins is not None else None),
                 "reasoning_settings": {key: DEFAULT_CONFIG.get(key) for key in
                                        ("openai_reasoning_effort", "anthropic_effort")},
                 "source_calls": source_replay.calls if source_replay is not None else [],
