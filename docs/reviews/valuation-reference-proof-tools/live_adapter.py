@@ -568,12 +568,15 @@ def _validate_after_close_receipt(record, now):
     if close.astimezone(ZoneInfo("America/New_York")).date() != analysis_date or now <= close:
         raise ValueError("B3 proof must start after the observed regular close")
     retained = {}
-    for name, url in (
-        ("nyse-calendar", "https://www.nyse.com/trade/hours-calendars"),
-        ("docn-chart", "https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d"),
+    for name, urls in (
+        ("nyse-calendar", {"https://www.nyse.com/trade/hours-calendars"}),
+        ("docn-chart", {
+            "https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d",
+            "https://query2.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d",
+        }),
     ):
         source = session[name]
-        if (not isinstance(source, dict) or source.get("url") != url
+        if (not isinstance(source, dict) or source.get("url") not in urls
                 or type(source.get("http_status")) is not int or source["http_status"] != 200):
             raise ValueError("B3 requires successful retained official calendar and source metadata")
         observed = _b3_aware_time(source["retrieved_at"], now)

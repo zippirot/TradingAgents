@@ -204,3 +204,22 @@ def test_completed_price_must_be_revalidated_and_match_actual_session(tmp_path, 
     assert calls == [(price, "DOCN", spec.analysis_date)]
     with pytest.raises(RuntimeError):
         live_adapter.verify_run_fixes_completed_state({"price_observation": {**price, "session_date": "2026-11-04"}}, spec, r)
+
+
+@pytest.mark.parametrize("url,allowed", [
+    ("https://query1.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d", True),
+    ("https://query2.finance.yahoo.com/v8/finance/chart/DOCN?interval=1d&range=1d", True),
+    ("https://query2.finance.yahoo.com.evil.test/v8/finance/chart/DOCN?interval=1d&range=1d", False),
+    ("https://query2.finance.yahoo.com/v8/finance/chart/MSFT?interval=1d&range=1d", False),
+])
+def test_close_receipt_allows_only_exact_standard_docn_chart_endpoints(tmp_path, monkeypatch, url, allowed):
+    r = record(tmp_path, monkeypatch)
+    r["session"]["docn-chart"]["url"] = url
+    ledger = pilot.PilotLedger(tmp_path / "endpoint-fixture-ledger.jsonl")
+    if allowed:
+        live_adapter.claim_run_fixes_proof(ledger, r)
+        assert ledger.events()[1]["type"] == "attempt_claim"
+    else:
+        with pytest.raises(ValueError):
+            live_adapter.claim_run_fixes_proof(ledger, r)
+        assert not ledger.path.exists()
