@@ -1,0 +1,76 @@
+{
+  "run_id": "f1b8f3ba-5068-4b06-91d1-cb112a78a77c",
+  "status": "completed",
+  "started_at": "2026-11-07T17:43:56.464Z",
+  "deadline_at": "2026-11-07T19:13:56.464Z",
+  "completed_at": "2026-11-07T17:56:21.060Z",
+  "report": {
+    "base_commit": "49b67a309ec01df1900a87d049b8f1a55d917c58",
+    "head_commit": "889b18d1eb726ae509f75a7275572d5a24ccf8cc",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 36,
+    "reviewed_files": [
+      ".codex/skills/independent-build-audit/SKILL.md",
+      ".codex/skills/independent-build-audit/templates/findings-review.v1.md",
+      ".codex/skills/independent-build-audit/templates/handoff-preparation.v1.md",
+      ".codex/skills/independent-build-audit/templates/independent-audit.v1.md",
+      "docs/reviews/2026-11-07-report-copy-all-acceptance.md",
+      "docs/reviews/2026-11-07-report-copy-all-proof.json",
+      "docs/superpowers/plans/2026-11-07-report-copy-all.md",
+      "tests/test_report_html.py",
+      "tradingagents/report_html.py"
+    ],
+    "summary": "Audited frozen range 49b67a30\u2192889b18d1 (D1: Copy All on the local HTML report) strictly from the frozen manifest at executor-runs/f1b8f3ba. Scope: 9 changed paths (tradingagents/report_html.py, tests/test_report_html.py, plan, acceptance doc, proof JSON, audit skill + 3 templates), all accounted for in the frozen diff; the committed governing requirements match the plan's commit-on-branch mandate. Feature acceptance: SUPPORTED by frozen evidence. The implementation matches every material D1 requirement: CSP tightened to default-src 'none'; style-src 'unsafe-inline'; script-src '<sha256-hash>' with the hash derived from the exact _COPY_SCRIPT bytes; the Copy All button is the masthead's first child with the prescribed markup/styling (plus a benign aria-live addition) and is hidden in print; the payload is built from a rendered off-screen clone of #top with buttons, scripts, logo and 'Top' controls removed and duplicate ids stripped, preserving reading order from ticker/rating through the credit to the complete operational assessment; clipboard.writeText with a plain-text textarea/execCommand fallback never writes HTML, reports success only on an actual write, and shows a manual-copy message otherwise; repeat clicks are guarded. Replaced tests enforce exactly one fixed inline script, CSP hash recomputed from emitted bytes, no URLs/fetch/import in the script, and no external assets; hostile-content escaping tests are retained. The committed proof JSON and acceptance record both-browser (Safari 26.5, Chrome 156) file:// proofs: normal, denied, unavailable, final double-click (per-browser byte-identical text/plain payloads beginning 'DOCN / Underweight' and ending 'Full operational audit: ./operational_audit.md', controls excluded) and both-fail with no false 'Copied'. Full-suite (3101 passed/10 skipped) and Ruff results are builder-supplied receipts at e87843e4, consistent with the frozen source hashes recorded in the proof JSON. Merge-integrity verdict: coherent \u2014 diff, changed paths and manifest base/head agree. Full-suite-health verdict: green per builder receipts only, not independently executed. Remote-CI verdict: not applicable/unverified \u2014 local unpushed candidate with publication explicitly deferred per plan boundaries. No blocking (Critical/High/Medium) in-scope finding was identified; two low-severity non-blocking observations are recorded below.",
+    "limitations": [
+      "Frozen-evidence-only audit: no test execution, lint run, browser interaction, or repository/network access was performed; full-suite (3101 passed), red-test baseline, Ruff, and all browser-proof results are builder-supplied receipts recorded in the committed acceptance doc and proof JSON.",
+      "Could not independently recompute the proof JSON's core_script_sha256 (00e95af7\u2026) or the CSP base64 hash from the frozen _COPY_SCRIPT bytes because the sandbox rejected hashing/scripting pipelines; the binding check (CSP hash computed from actual emitted script bytes) is instead enforced by the committed test, whose logic was inspected and is correct by construction.",
+      "Denied/unavailable/both-fail clipboard cases were exercised in builder-modified proof-envelope HTML copies (core script bytes stated unchanged, per-envelope CSP hashes), not the exact shipped file; disclosed in the acceptance and mitigated by the final normal-path proof on original product bytes.",
+      "Safari clipboard paste was inspected via the Chrome-hosted inspector because Safari's local-file sandbox denied the scratch inspector (shared system clipboard; disclosed); no mobile or printed-output runtime proof is claimed.",
+      "The disclosed Safari navigation incident (prior clipboard content forming a Google search URL; whether a request reached Google is unverified) is a proof-operation event outside the product code path; it was accepted as disclosed, not re-investigated.",
+      "Intermediate-commit contents between base and head were not inspected beyond the aggregate frozen diff; the acceptance states post-e87843e4 commits are evidence-only, which was not independently verified.",
+      "Cross-engine clipboard payloads differ in rendered whitespace (294404 vs 294352 chars); no cross-engine byte identity was claimed or verified."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Clipboard behavioral paths (repeat clicks, denied/absent API, both-fail, control exclusion) have no automated regression; they rest solely on recorded manual browser proof",
+        "path": "tests/test_report_html.py"
+      },
+      {
+        "severity": "low",
+        "title": "New test test_copy_control_is_accessible_in_masthead_and_hidden_when_printing lacks the @pytest.mark.unit marker used by all sibling tests (still executes under default addopts)",
+        "path": "tests/test_report_html.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "small",
+      "effective_build_size": "medium",
+      "escalation_reasons": [
+        "Frozen scope changes more than 10 files or more than 500 lines."
+      ]
+    },
+    "progress": {
+      "observed_events": 1827,
+      "last_activity_at": "2026-11-07T17:56:20.694Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 2,
+      "hard_budget_usd": 4,
+      "soft_turn_limit": 25,
+      "turn_limit": 45,
+      "wall_clock_limit_minutes": 90,
+      "actual_cost_usd": 2.0878452499999995,
+      "actual_elapsed_ms": 744440,
+      "soft_limit_reached": true
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}
