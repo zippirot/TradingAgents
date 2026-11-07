@@ -1,0 +1,207 @@
+{
+  "source_state_sha256": "f1fe3b2a81131b1c6ded29e91e564494c1a646a1a0c104116b1cfac45b8a6809",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45",
+  "prior_decision_id": "ddb3c455-244c-4332-a607-b6e0bc5e7917",
+  "prior_as_of": "2026-11-06",
+  "comparison": {
+    "status": "available",
+    "prior_decision_id": "ddb3c455-244c-4332-a607-b6e0bc5e7917",
+    "prior_as_of": "2026-11-06",
+    "new_filings_between": false,
+    "rows": [
+      {
+        "scenario": "Capacity slip: FY2027 revenue 1.75B at 3.5x EV/revenue",
+        "field": "multiple",
+        "previous": "not present",
+        "current": "3.5"
+      },
+      {
+        "scenario": "Capacity slip: FY2027 revenue 1.75B at 3.5x EV/revenue",
+        "field": "forecast",
+        "previous": "not present",
+        "current": "1750000000 USD; US-GAAP; analyst_forecast"
+      },
+      {
+        "scenario": "Capacity slip: FY2027 revenue 1.75B at 3.5x EV/revenue",
+        "field": "period",
+        "previous": "not present",
+        "current": "2027-01-01 to 2027-12-31"
+      },
+      {
+        "scenario": "Capacity slip: FY2027 revenue 1.75B at 3.5x EV/revenue",
+        "field": "share_basis",
+        "previous": "not present",
+        "current": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d"
+      },
+      {
+        "scenario": "Capacity-delay case: 2027 revenue +40% on low FY26 guide",
+        "field": "multiple",
+        "previous": "3.5",
+        "current": "not present"
+      },
+      {
+        "scenario": "Capacity-delay case: 2027 revenue +40% on low FY26 guide",
+        "field": "forecast",
+        "previous": "1690000000 USD; US-GAAP; analyst_forecast",
+        "current": "not present"
+      },
+      {
+        "scenario": "Capacity-delay case: 2027 revenue +40% on low FY26 guide",
+        "field": "period",
+        "previous": "2027-01-01 to 2027-12-31",
+        "current": "not present"
+      },
+      {
+        "scenario": "Capacity-delay case: 2027 revenue +40% on low FY26 guide",
+        "field": "share_basis",
+        "previous": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d",
+        "current": "not present"
+      },
+      {
+        "scenario": "Guidance floor: FY2027 revenue 1.93B at 5.0x EV/revenue",
+        "field": "multiple",
+        "previous": "not present",
+        "current": "5"
+      },
+      {
+        "scenario": "Guidance floor: FY2027 revenue 1.93B at 5.0x EV/revenue",
+        "field": "forecast",
+        "previous": "not present",
+        "current": "1930000000 USD; US-GAAP; analyst_forecast"
+      },
+      {
+        "scenario": "Guidance floor: FY2027 revenue 1.93B at 5.0x EV/revenue",
+        "field": "period",
+        "previous": "not present",
+        "current": "2027-01-01 to 2027-12-31"
+      },
+      {
+        "scenario": "Guidance floor: FY2027 revenue 1.93B at 5.0x EV/revenue",
+        "field": "share_basis",
+        "previous": "not present",
+        "current": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d"
+      },
+      {
+        "scenario": "Guidance-floor case: 2027 revenue +60% on low FY26 guide",
+        "field": "multiple",
+        "previous": "4.5",
+        "current": "not present"
+      },
+      {
+        "scenario": "Guidance-floor case: 2027 revenue +60% on low FY26 guide",
+        "field": "forecast",
+        "previous": "1933000000 USD; US-GAAP; analyst_forecast",
+        "current": "not present"
+      },
+      {
+        "scenario": "Guidance-floor case: 2027 revenue +60% on low FY26 guide",
+        "field": "period",
+        "previous": "2027-01-01 to 2027-12-31",
+        "current": "not present"
+      },
+      {
+        "scenario": "Guidance-floor case: 2027 revenue +60% on low FY26 guide",
+        "field": "share_basis",
+        "previous": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d",
+        "current": "not present"
+      },
+      {
+        "scenario": "Upside case: 2027 revenue ~70% growth with rising ARR/MW",
+        "field": "multiple",
+        "previous": "6",
+        "current": "not present"
+      },
+      {
+        "scenario": "Upside case: 2027 revenue ~70% growth with rising ARR/MW",
+        "field": "forecast",
+        "previous": "2050000000 USD; US-GAAP; analyst_forecast",
+        "current": "not present"
+      },
+      {
+        "scenario": "Upside case: 2027 revenue ~70% growth with rising ARR/MW",
+        "field": "period",
+        "previous": "2027-01-01 to 2027-12-31",
+        "current": "not present"
+      },
+      {
+        "scenario": "Upside case: 2027 revenue ~70% growth with rising ARR/MW",
+        "field": "share_basis",
+        "previous": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d",
+        "current": "not present"
+      },
+      {
+        "scenario": "Upside: FY2027 revenue 2.05B at 7.0x EV/revenue",
+        "field": "multiple",
+        "previous": "not present",
+        "current": "7"
+      },
+      {
+        "scenario": "Upside: FY2027 revenue 2.05B at 7.0x EV/revenue",
+        "field": "forecast",
+        "previous": "not present",
+        "current": "2050000000 USD; US-GAAP; analyst_forecast"
+      },
+      {
+        "scenario": "Upside: FY2027 revenue 2.05B at 7.0x EV/revenue",
+        "field": "period",
+        "previous": "not present",
+        "current": "2027-01-01 to 2027-12-31"
+      },
+      {
+        "scenario": "Upside: FY2027 revenue 2.05B at 7.0x EV/revenue",
+        "field": "share_basis",
+        "previous": "not present",
+        "current": "45eb1a87ffb157bb3b41c004868fdf193328127e2e5c937f7df701c24b11b83d"
+      },
+      {
+        "scenario": "Decision",
+        "field": "horizon",
+        "previous": "6 months",
+        "current": "4 months"
+      }
+    ]
+  },
+  "a7": {
+    "parent_version": "797e69a4-c4b1-551a-a929-496d1349786f",
+    "child_version": "c808427e-086a-54ae-ba98-7a93d3de03bc",
+    "condition_ids": [
+      "condition-b4a06d3f2a2417465aea567d",
+      "condition-50d0200549bad7bc235725b8",
+      "condition-9bbf5f6fbb0cbb87e7c13893",
+      "condition-af8fefbc38ca248c57935577"
+    ],
+    "dispositions": [
+      "kept",
+      "kept",
+      "kept",
+      "kept"
+    ]
+  },
+  "source_only_guidance": {
+    "management_revenue_guidance_range_usd": [
+      "1208000000",
+      "1211000000"
+    ],
+    "management_revenue_guidance_period": "full year 2026"
+  },
+  "adapter_outlooks": {
+    "baseline": 0,
+    "candidate": 0
+  },
+  "a3": {
+    "documents": 4,
+    "characters": 120000,
+    "fetch_count": 5,
+    "guidance": [
+      {
+        "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+        "locator": "block-46",
+        "text": "\u2022Total revenue of $1.208 to $1.211 billion, up approximately 34% year-over-year."
+      }
+    ]
+  },
+  "exports": [
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45/second/complete_report.md",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45/second/complete_report.html"
+  ]
+}
