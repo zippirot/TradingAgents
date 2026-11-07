@@ -288,6 +288,20 @@ def _write(path: Path, companion: dict) -> None:
     replace_file(path, lambda temp: Path(temp).write_text(_json(payload) + '\n', encoding='utf-8'), strict=True)
 
 
+class _OutcomeWriteError(Exception):
+    def __init__(self, error_type):
+        self.error_type = error_type
+        super().__init__(error_type)
+
+
+def _persist(path, companion):
+    try:
+        _write(path, companion)
+    except Exception as exc:
+        # Do not let another sibling write commit this failed in-memory update.
+        raise _OutcomeWriteError(type(exc).__name__) from exc
+
+
 def _due(endpoint, now, pass_id):
     checks = endpoint.get('zero_checks', [])
     return not checks or (pass_id not in {c['pass_id'] for c in checks}
@@ -371,7 +385,7 @@ def _clear_observed_zero_checks(record, endpoint, prices, path, companion):
     if (endpoint.get('zero_checks') and cached is not None and not isinstance(cached, Exception)
             and not prices.instrument(record)[0].empty):
         endpoint['zero_checks'] = []
-        _write(path, companion)
+        _persist(path, companion)
 
 
 def settle_publications(config: dict, ticker: str | None = None, wait: bool = True, *, pass_id=None) -> dict:
@@ -442,14 +456,14 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
                                     if len(endpoint['zero_checks']) == 3:
                                         endpoint.update(status='unresolvable', terminal={
                                             'kind': 'zero_coverage', 'reason': ZERO_REASON, 'known_at': now.isoformat()})
-                                    _write(path, companion)
+                                    _persist(path, companion)
                                 if endpoint['status'] == 'unresolvable':
                                     result['terminal'].append((decision_id, name))
                                 else:
                                     result['failed'].append((decision_id, f'{name}: {reason}; retry scheduled'))
                             elif status == 'terminal':
                                 endpoint.update(status='unresolvable', terminal={**proof, 'reason': reason})
-                                _write(path, companion)
+                                _persist(path, companion)
                                 result['terminal'].append((decision_id, name))
                             elif status == 'immature':
                                 result['immature'].append((decision_id, name))
@@ -475,10 +489,14 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
                                       if saved['status'] == 'resolved' and _window_id(saved['outcome']) == outcome['observation_window_id']]
                         companion['endpoints'][name] = {**endpoint, 'status': 'resolved', 'outcome': outcome,
                                                        'resolved_at': now.isoformat(), 'coincident_with': coincident}
-                        _write(path, companion)
+                        _persist(path, companion)
                         result['settled'].append((decision_id, name))
+                    except _OutcomeWriteError:
+                        raise
                     except Exception as exc:
                         result['failed'].append((decision_id, f'{name}: outcome unavailable ({type(exc).__name__})'))
+        except _OutcomeWriteError as exc:
+            result['failed'].append((decision_id, f'Outcome persistence unavailable ({exc.error_type})'))
         except Exception as exc:
             result['failed'].append((decision_id, f'Outcome persistence unavailable ({type(exc).__name__})'))
     return result

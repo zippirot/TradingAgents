@@ -223,3 +223,29 @@ def test_corrupt_evidence_is_verified_only_once_without_committing_any_price(tmp
     assert done['settled'] == [] and done['failed']
     assert len(reads) == 1
     assert all(e['status'] == 'pending' for e in outcomes.load_outcomes(cfg, row)['endpoints'].values())
+
+
+def test_failed_endpoint_write_cannot_be_committed_by_a_later_sibling(tmp_path, monkeypatch):
+    cfg = {'results_dir': str(tmp_path)}
+    row = record(cfg, monkeypatch)
+    monkeypatch.setattr(outcomes, 'get_current_date', lambda: '2026-11-07')
+    dates = pd.bdate_range('2026-01-01', '2026-11-06')
+    provider(monkeypatch, {'DOCN': series(dates), 'SPY': series(dates, 400)})
+    write = outcomes._write
+    calls = []
+    def interrupt(path, companion):
+        calls.append(1)
+        if len(calls) == 2:
+            raise OSError('interrupted atomic replacement')
+        return write(path, companion)
+    monkeypatch.setattr(outcomes, '_write', interrupt)
+    first = outcomes.settle_publications(cfg)
+    assert first['failed']
+    saved = outcomes.load_outcomes(cfg, row)
+    assert saved['endpoints']['5_sessions']['status'] == 'resolved'
+    assert saved['endpoints']['21_sessions']['status'] == 'pending'
+    assert first['settled'] == [(row['decision_id'], '5_sessions')]
+    monkeypatch.setattr(outcomes, '_write', write)
+    retry = outcomes.settle_publications(cfg)
+    assert len(retry['settled']) == 4
+    assert (row['decision_id'], '5_sessions') not in retry['settled']
