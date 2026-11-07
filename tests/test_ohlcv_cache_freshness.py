@@ -41,7 +41,11 @@ def _write(tmp_path, name="AAPL-YFin-data.csv", age_seconds=0.0, last_date="2026
 def _load(tmp_path, monkeypatch, curr_date, download):
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: NOW))
-    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(history=download))
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
+        history=download,
+        get_history_metadata=lambda: {"exchangeTimezoneName": "UTC", "currency": "USD",
+                                      "currentTradingPeriod": {"regular": {
+                                          "end": pd.Timestamp("2026-07-18 22:00+00:00").timestamp()}}}))
     return ohlcv.load_ohlcv("AAPL", curr_date)
 
 
@@ -84,9 +88,11 @@ def test_load_ohlcv_refetches_stale_same_day_cache(tmp_path, monkeypatch):
     def _fake_download(*a, **k):
         calls.append(1)
         return pd.DataFrame(
-            {"Date": pd.to_datetime(["2026-07-17", "2026-07-18"]), "Close": [100.0, 222.0]}
+            {"Date": pd.to_datetime(["2026-07-17", "2026-07-18"]), "Close": [100.0, 222.0],
+             "Stock Splits": [0, 0]}
         ).set_index("Date")
 
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: pd.Timestamp("2026-07-18 23:00+00:00"))
     out = _load(tmp_path, monkeypatch, "2026-07-18", _fake_download)
     assert calls, "stale same-day cache must trigger a refetch"
     assert 222.0 in out["Close"].values, "refreshed close must reach the caller"
@@ -102,14 +108,17 @@ def test_load_ohlcv_reuses_fresh_same_day_cache(tmp_path, monkeypatch):
 def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
     """A later day's download replaces the symbol's file instead of adding one (#1330)."""
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-16", "2026-07-17"]), "Close": [1.0, 2.0]})
+    frame = pd.DataFrame({"Date": pd.to_datetime(["2026-07-16", "2026-07-17"]),
+                          "Close": [1.0, 2.0], "Stock Splits": [0, 0]})
     downloads = []
     monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
-        history=lambda *a, **k: downloads.append(1) or frame.set_index("Date")))
+        history=lambda *a, **k: downloads.append(1) or frame.set_index("Date"),
+        get_history_metadata=lambda: {"exchangeTimezoneName": "UTC", "currency": "USD"}))
 
     for day in ("2026-07-18 10:00", "2026-07-19 10:00", "2026-07-20 10:00"):
         now = pd.Timestamp(day)
         monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda now=now: now))
+        monkeypatch.setattr(ohlcv, "_retrieval_time", lambda now=now: now.tz_localize("UTC"))
         ohlcv.load_ohlcv("AAPL", "2026-07-17")
         written = list(tmp_path.glob("AAPL-*.csv"))
         _stamp(written[0], now)

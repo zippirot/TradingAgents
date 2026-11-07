@@ -48,7 +48,8 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
 
         response = llm.invoke(prompt)
 
-        argument = f"Aggressive Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Aggressive Analyst: {delivered_narrative(response.content, response)}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

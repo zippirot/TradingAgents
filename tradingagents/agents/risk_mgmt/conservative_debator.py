@@ -48,7 +48,8 @@ Engage by questioning their optimism and emphasizing the potential downsides the
 
         response = llm.invoke(prompt)
 
-        argument = f"Conservative Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Conservative Analyst: {delivered_narrative(response.content, response)}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

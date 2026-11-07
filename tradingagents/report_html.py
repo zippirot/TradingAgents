@@ -341,6 +341,13 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
                 )
             )
         details.append(("Version", escape(f"TradingAgents {s('version', '?')}")))
+        if s("source_hash"):
+            details.append(("Source hash", escape(str(s("source_hash")))))
+        for key, label in (("openai_reasoning_effort", "OpenAI/OpenRouter reasoning effort"),
+                           ("anthropic_effort", "Anthropic effort"),
+                           ("google_thinking_level", "Google thinking level")):
+            if s(key):
+                details.append((label, escape(str(s(key)))))
     if final_state.get("memory_note"):
         details.append(("Memory log", escape(final_state["memory_note"])))
     if not final_state.get("evidence_quality"):

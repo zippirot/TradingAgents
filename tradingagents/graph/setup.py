@@ -84,7 +84,26 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
 
     def finish(state):
         evidence = state.get(evidence_field) if spec.key == "social" else None
-        return {evidence_field: evidence or collect_tool_outputs(state, spec.key)}
+        evidence = dict(evidence or collect_tool_outputs(state, spec.key))
+        calls = {call.get("id") for message in state.get("messages", [])
+                 for call in (getattr(message, "tool_calls", None) or [])
+                 if isinstance(call, dict) and isinstance(call.get("id"), str)}
+        responses = [message for message in state.get("messages", [])
+                     if getattr(message, "tool_call_id", None) in calls]
+        failed = bool(calls) and not any(
+            getattr(message, "status", None) != "error"
+            and bool(str(message.content).strip())
+            and not str(message.content).lstrip().startswith(("DATA_UNAVAILABLE:", "NO_DATA_AVAILABLE:"))
+            for message in responses
+        )
+        evidence["all_tools_failed"] = failed
+        result = {evidence_field: evidence}
+        if failed:
+            warning = "Warning: requested tool calls supplied no support for this report."
+            if state.get("shared_source_brief") or state.get("disclosure_evidence"):
+                warning += " Separately supplied shared filing evidence may still be available."
+            result[spec.report_key] = warning + "\n\n" + (state.get(spec.report_key) or "")
+        return result
 
     graph.add_node("finish", finish)
     graph.add_edge("finish", END)
@@ -107,7 +126,10 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
                        spec.agent_node, max_tool_rounds, repeated)
         return agent({**state, "messages": [*state["messages"], HumanMessage(WRAP_UP)]})
 
-    graph.add_node("tools", ToolNode(list(spec.tools)))
+    graph.add_node("tools", ToolNode(
+        list(spec.tools),
+        handle_tool_errors=lambda exc: f"DATA_UNAVAILABLE: tool failed ({type(exc).__name__}); do not infer values.",
+    ))
     graph.add_node("wrap_up", wrap_up)
     graph.add_conditional_edges("agent", lambda state: "tools" if _tools_or_done(state) == "tools" else "finish",
                                 ["tools", "finish"])

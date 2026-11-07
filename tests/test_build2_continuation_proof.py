@@ -343,7 +343,7 @@ def private_drill(tmp):
         # every native checkpoint ID, pending-node and retained-input assertion
         # below remains live. This does not assert current B resume compatibility.
         return current_signature(graph, *args, **kwargs).replace(
-            "shared_source_brief=4", "shared_source_brief=3")
+            "shared_source_brief=4", "shared_source_brief=3").replace("|operational_delivery=1", "")
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))

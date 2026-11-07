@@ -1,8 +1,83 @@
 import unittest
 
+import pytest
+from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.tools import tool
+
 from tradingagents.graph.analyst_execution import (
+    AnalystNodeSpec,
     build_analyst_execution_plan,
 )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("outcomes,expected,shared", [
+    (["DATA_UNAVAILABLE: no source"], True, False),
+    (["NO_DATA_AVAILABLE: no rows", "usable data"], False, False),
+    ([], False, False),
+    (["NO_DATA_AVAILABLE: no rows"], True, True),
+    (["  \n  "], True, False),
+])
+def test_analyst_tool_support_warning_reaches_report_and_evidence(outcomes, expected, shared):
+    from tradingagents.graph.setup import _analyst_graph
+
+    @tool
+    def lookup(query: str) -> str:
+        """Read offline fixture."""
+        return outcomes.pop(0)
+
+    seen = []
+    def agent(state):
+        seen.append(state["messages"])
+        if len(seen) == 1 and outcomes:
+            return {"messages": [AIMessage(content="", tool_calls=[
+                {"name": "lookup", "args": {"query": "x"}, "id": f"call_{i}"}
+                for i in range(len(outcomes))])], "market_report": ""}
+        return {"messages": [AIMessage(content="Report")], "market_report": "Report"}
+
+    spec = AnalystNodeSpec("market", "Market Analyst", "market_report", (lookup,))
+    result = _analyst_graph(spec, agent, 2).invoke({"messages": [], "company_of_interest": "X", "trade_date": "2026-01-01",
+                                                  "shared_source_brief": "Independent filing" if shared else ""})
+    assert result["audit_market_tool_evidence"]["all_tools_failed"] is expected
+    assert result["market_report"].startswith("Warning: requested tool calls supplied no support") is expected
+    if expected:
+        assert any(isinstance(m, ToolMessage) for m in seen[-1])
+    assert ("Separately supplied shared filing evidence" in result["market_report"]) is shared
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("raised", [True, False])
+def test_vendor_secret_never_reaches_next_analyst_turn_or_evidence(raised, caplog, tmp_path):
+    from cli.run_logging import cleanup_run_logging, configure_run_logging
+    from tradingagents.graph.setup import _analyst_graph
+
+    secret = "dummy-secret-987"
+    @tool
+    def lookup(query: str) -> str:
+        """Read offline fixture."""
+        if raised:
+            raise RuntimeError(secret)
+        from tradingagents.dataflows.router import vendor_unavailable
+        return vendor_unavailable("lookup", RuntimeError(secret))
+
+    seen = []
+    def agent(state):
+        seen.append(state["messages"])
+        if len(seen) == 1:
+            return {"messages": [AIMessage(content="", tool_calls=[
+                {"name": "lookup", "args": {"query": "x"}, "id": "c1"}])], "market_report": ""}
+        return {"messages": [AIMessage(content="No data")], "market_report": "No data"}
+
+    spec = AnalystNodeSpec("market", "Market Analyst", "market_report", (lookup,))
+    log_path = configure_run_logging(tmp_path)
+    try:
+        result = _analyst_graph(spec, agent, 2).invoke({"messages": [], "company_of_interest": "X", "trade_date": "2026-01-01"})
+    finally:
+        cleanup_run_logging()
+    assert "DATA_UNAVAILABLE:" in str(seen[-1])
+    assert "Warning: requested tool calls supplied no support" in result["market_report"]
+    assert result["audit_market_tool_evidence"]["all_tools_failed"] is True
+    assert secret not in str(seen) + str(result) + caplog.text + log_path.read_text()
 
 
 class AnalystExecutionPlanTests(unittest.TestCase):

@@ -257,7 +257,7 @@ def get_stockstats_indicator(
         # reads as no value that day rather than a read that failed. Raise so the
         # router can try the next vendor or report the series unavailable.
         raise NoMarketDataError(
-            symbol, symbol, f"{indicator} could not be read for {as_of_date}: {e}"
+            symbol, symbol, f"{indicator} could not be read for {as_of_date}: {type(e).__name__}"
         ) from e
 
     return str(indicator_value)

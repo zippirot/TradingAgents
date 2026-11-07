@@ -81,8 +81,27 @@ class VendorRoutingTests(unittest.TestCase):
             result = router.route_to_vendor("get_stock_data", "AAPL", "2026-01-01", "2026-01-10")
         self.assertTrue(result.startswith("DATA_UNAVAILABLE"), result)
         joined = "\n".join(cm.output)
-        self.assertIn("boom", joined)            # the real error surfaced in logs
+        self.assertIn("ValueError", joined)
+        self.assertNotIn("boom", joined)
         self.assertIn("yfinance", joined)
+
+    def test_optional_outage_keeps_exception_text_out_of_sentinel_and_log(self):
+        set_config({"data_vendors": {"macro_data": "fred"}})
+        with self._route_method("get_macro_indicators", {"fred": _raises(ValueError("dummy-secret-987"))}), \
+                self.assertLogs("tradingagents.dataflows.router", level="WARNING") as cm:
+            result = router.route_to_vendor("get_macro_indicators", "cpi", "2026-01-01")
+        self.assertIn("DATA_UNAVAILABLE", result)
+        self.assertNotIn("dummy-secret-987", result + "\n".join(cm.output))
+
+    def test_locally_generated_historical_no_data_reason_survives_wrapped_failure(self):
+        error = NoMarketDataError("AAPL", detail="Historical adjustment basis verification unavailable")
+        error.__cause__ = ValueError("dummy-secret-987")
+        result = router.no_data_available(error)
+        self.assertIn("Historical adjustment basis verification unavailable", result)
+        self.assertNotIn("dummy-secret-987", result)
+        unsafe = NoMarketDataError("AAPL", detail="transport failed: dummy-secret-987")
+        unsafe.__cause__ = ValueError("dummy-secret-987")
+        self.assertNotIn("dummy-secret-987", router.no_data_available(unsafe))
 
     def test_unknown_configured_vendor_raises(self):
         set_config({"data_vendors": {"core_stock_apis": "bogus_vendor"}})

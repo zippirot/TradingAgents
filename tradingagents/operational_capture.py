@@ -1,4 +1,5 @@
 """Small execution observations scoped to one actual graph node invocation."""
+from collections.abc import Mapping
 from contextvars import ContextVar
 from threading import Lock
 
@@ -8,6 +9,30 @@ from langchain_core.runnables import RunnableLambda
 from tradingagents.operational_audit import observation
 
 _active = ContextVar('operational_node', default=None)
+_last_structured_raw = ContextVar('last_structured_raw', default=None)
+
+TRUNCATION_NOTE = "[Model output truncated by provider; this narrative may be incomplete.]"
+
+
+def output_was_truncated(raw):
+    """Use the bounded provider finish status while its raw response is available."""
+    metadata = getattr(raw, 'response_metadata', None)
+    info = getattr(raw, 'generation_info', None)
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    info = info if isinstance(info, Mapping) else {}
+    stop = metadata.get('finish_reason') or metadata.get('stop_reason') or info.get('finish_reason') or info.get('stop_reason')
+    return stop in {'length', 'max_tokens', 'MAX_TOKENS'}
+
+
+def delivered_narrative(text, raw=None):
+    """Label only the response actually presented to a later agent."""
+    if raw is None:
+        raw = _last_structured_raw.get()
+    return f"{text}\n\n{TRUNCATION_NOTE}" if output_was_truncated(raw) else text
+
+
+def remember_structured_raw(raw):
+    _last_structured_raw.set(raw)
 
 
 def record_operation(code, *, scope=None):
@@ -33,10 +58,16 @@ class _Outcomes(BaseCallbackHandler):
     def on_llm_end(self, response, **kwargs):
         for generations in response.generations:
             for generation in generations:
-                metadata = getattr(getattr(generation, 'message', None), 'response_metadata', {})
-                info = generation.generation_info or {}
-                stop = metadata.get('finish_reason') or metadata.get('stop_reason') or info.get('finish_reason')
-                if stop in {'length', 'max_tokens', 'MAX_TOKENS'}:
+                message = getattr(generation, 'message', None)
+                metadata = getattr(message, 'response_metadata', None)
+                info = getattr(generation, 'generation_info', None)
+                if (message is not None and isinstance(metadata, Mapping)
+                        and not (metadata.get('finish_reason') or metadata.get('stop_reason'))
+                        and isinstance(info, Mapping)):
+                    stop = info.get('finish_reason') or info.get('stop_reason')
+                    if stop in {'length', 'max_tokens', 'MAX_TOKENS'}:
+                        message.response_metadata = {**metadata, 'finish_reason': stop}
+                if output_was_truncated(message) or output_was_truncated(generation):
                     record_operation('model_output_truncated')
 
     def on_tool_error(self, error, **kwargs):

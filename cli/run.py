@@ -1,12 +1,14 @@
 """Running one analysis from the CLI: build the graph, stream it into the live view, save the report."""
 
+import logging
 import os
 import sys
 import time
 import webbrowser
+from datetime import date, datetime
 from functools import wraps
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import typer
 from rich.live import Live
@@ -23,8 +25,9 @@ from cli.display import (
     update_display,
     update_research_team_status,
 )
+from cli.run_logging import cleanup_run_logging, configure_run_logging
 from cli.selections import depth_from_env, get_user_selections, unattended_gaps
-from cli.stats_handler import StatsCallbackHandler
+from cli.stats_handler import StatsCallbackHandler, render_usage_cost
 from tradingagents.agents.rating import is_review, run_rating
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -33,14 +36,33 @@ from tradingagents.graph.analyst_execution import (
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph, record_attempt_event
 
+logger = logging.getLogger(__name__)
 
-def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
-    """Where this run writes, with the ticker validated as a path component.
 
-    Every other path that interpolates a ticker checks it first; a value of
-    ".." here would place the run outside the results directory.
-    """
-    return Path(config["results_dir"]) / safe_ticker_component(ticker) / trade_date
+def _configure_run_logging(results_dir: Path) -> Path:
+    return configure_run_logging(results_dir)
+
+
+def _run_directory(config: dict, ticker: str, trade_date: str, attempt_id: str | None = None) -> Path:
+    """One directory per invocation; checkpoint run identity stays independent."""
+    component = safe_ticker_component(ticker)
+    day = date.fromisoformat(trade_date).isoformat()
+    identity = str(UUID(attempt_id)) if attempt_id else str(uuid4())
+    return Path(config["results_dir"]) / component / day / (datetime.now().strftime("%H%M%S") + "-" + identity[:8])
+
+
+def _cleanup_run(function):
+    @wraps(function)
+    def invoke(*args, **kwargs):
+        methods = {name: getattr(message_buffer, name) for name in (
+            "add_message", "add_tool_call", "update_report_section")}
+        try:
+            return function(*args, **kwargs)
+        finally:
+            for name, method in methods.items():
+                setattr(message_buffer, name, method)
+            cleanup_run_logging()
+    return invoke
 
 
 def _announce_checkpoint_state(graph, ticker: str, trade_date: str) -> None:
@@ -97,6 +119,7 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
+@_cleanup_run
 def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     flags = flags or {}
     # With no terminal nothing can answer a prompt: name every question still
@@ -113,6 +136,14 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     config = _build_run_config(selections, checkpoint)
 
+    attempt_id = str(uuid4())
+    results_dir = _run_directory(config, selections["ticker"], selections["analysis_date"], attempt_id)
+    results_dir.mkdir(parents=True, exist_ok=True)
+    run_log = _configure_run_logging(results_dir)
+    report_dir = results_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    log_file = results_dir / "message_tool.log"
+    log_file.touch(exist_ok=True)
     stats_handler = StatsCallbackHandler()
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
@@ -132,13 +163,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     # Track start time for elapsed display
     start_time = time.time()
-
-    results_dir = _run_directory(config, selections["ticker"], selections["analysis_date"])
-    results_dir.mkdir(parents=True, exist_ok=True)
-    report_dir = results_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    log_file = results_dir / "message_tool.log"
-    log_file.touch(exist_ok=True)
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
@@ -238,7 +262,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         # interrupted run instead of re-appending the initial state (#1249); the
         # try/finally tears the checkpointer down even if the stream raises.
         trace = []
-        attempt_id = str(uuid4())
         record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], "started")
         try:
             for messages, chunk in graph.stream_run(graph.checkpoint_input(init_agent_state), **args):
@@ -357,8 +380,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             graph.clear_checkpoint_on_success(
                 selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
             )
-        except Exception as exc:
-            record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], "failed",
+        except BaseException as exc:
+            event = "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
+            record_attempt_event(config, attempt_id, selections["ticker"], selections["analysis_date"], event,
                                  error_type=type(exc).__name__)
             raise
         else:
@@ -388,6 +412,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
+    console.print(f"Run log: {run_log}", markup=False)
+    console.print(render_usage_cost(stats_handler.get_stats(), config), markup=False)
+
     # A decision nobody can read is not a position. Say so here rather than
     # leaving the run to look like a normal result.
     if is_review(run_rating(final_state)):
@@ -395,8 +422,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    _offer_reports(final_state, graph, selections["ticker"],
-                   save=flags.get("save"), show=flags.get("show"), html=flags.get("html"))
+    saved = _offer_reports(final_state, graph, selections["ticker"], results_dir=results_dir,
+                           save=flags.get("save"), show=flags.get("show"), html=flags.get("html"))
+    if saved is False:
+        raise typer.Exit(code=1)
 
 
 def _yes(question: str) -> bool:
@@ -433,45 +462,74 @@ def _open_page(page: Path) -> None:
         console.print(f"  [dim]Could not open a browser; the page is at:[/dim] {page}")
 
 
-def _offer_reports(final_state, graph, ticker, save=None, show=None, html=None):
-    """Save the report tree and show it; ``save``/``show``/``html`` answer the questions when given.
+def _resolve_save_path(answer: str, default: Path, results_dir: Path) -> Path:
+    cleaned = answer.strip()
+    if not cleaned:
+        return default
+    if cleaned.casefold() in {"y", "yes", "n", "no"} or len(cleaned) < 3:
+        raise ValueError("Enter a folder path, not a yes/no answer")
+    path = Path(cleaned).expanduser()
+    if not path.is_absolute():
+        base = (results_dir / "reports").resolve()
+        path = (base / path).resolve()
+        if not path.is_relative_to(base):
+            raise ValueError("Relative save path must remain under this run's reports folder")
+    return path
 
-    A saved report includes the HTML page unless ``html`` is False. Someone
-    answering the save question at the prompt is also asked about the page and
-    offered to open it; a run whose flags answer the save question asks neither.
-    """
+
+def _prompt_save_path(default, results_dir):
+    for _ in range(2):
+        answer = typer.prompt("Save path (press Enter for default)", default=str(default))
+        try:
+            return _resolve_save_path(answer, default, results_dir)
+        except ValueError as exc:
+            console.print(str(exc), style="yellow", markup=False)
+    console.print("Using the default report folder.")
+    return default
+
+
+def _offer_reports(final_state, graph, ticker, save=None, show=None, html=None, results_dir=None):
+    """Save once, with one interactive retry; unattended failures never prompt."""
     asked = save is None
     if asked:
-        save = typer.prompt("Save report?", default="Y").strip().upper() in ("Y", "YES", "")
+        save = _yes("Save report?")
+    succeeded = not save
     if save:
-        # Under results_dir, not the working directory: in Docker the working
-        # directory is inside the container and the report goes with it, while
-        # results_dir is the mounted volume the rest of the run already writes to.
-        save_path = graph.default_report_path(ticker)
-        if asked:   # someone at the prompt may pick another folder
-            save_path = Path(typer.prompt(
-                "Save path (press Enter for default)", default=str(save_path)
-            ).strip())
+        root = Path(results_dir) if results_dir is not None else Path(graph.config["results_dir"])
+        default = root / "reports" if results_dir is not None else graph.default_report_path(ticker)
+        save_path = _prompt_save_path(default, root) if asked else default
         if html is None:
             html = _yes("Also save it as an HTML page?") if asked else True
-        saved = False
-        try:
-            report_file = graph.save_reports(final_state, ticker, save_path, html=html)
-            saved = True
-            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
-            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
-        except Exception as e:
-            console.print(f"[red]Error saving report: {e}[/red]")
-        if saved and html:
+        for attempt in range(2 if asked else 1):
+            try:
+                report_file = graph.save_reports(final_state, ticker, save_path, html=html)
+                succeeded = True
+                console.print("\nReport saved to: " + str(save_path.resolve()), style="green", markup=False)
+                console.print("Complete report: " + report_file.name, markup=False)
+                break
+            except Exception as exc:
+                logger.warning("Report save failed", exc_info=True)
+                console.print(f"Report save failed ({type(exc).__name__}).", style="red", markup=False)
+                if attempt or not asked or not _yes("Retry saving to a new folder?"):
+                    break
+                failed_path = save_path.resolve()
+                retry_default = default.with_name(default.name + "-retry")
+                if retry_default.resolve() == failed_path:
+                    retry_default = default.with_name(default.name + "-retry-" + uuid4().hex[:8])
+                save_path = _prompt_save_path(retry_default, root)
+                if save_path.resolve() == failed_path:
+                    console.print("Using a different retry folder.")
+                    save_path = retry_default
+        if succeeded and html:
             page = (save_path / "complete_report.html").resolve()
-            console.print(f"  [dim]HTML report:[/dim] {page.name}")
+            console.print("HTML report: " + page.name, markup=False)
             if asked:
                 _open_page(page)
-
     if show is None:
-        show = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper() in ("Y", "YES", "")
+        show = _yes("\nDisplay full report on screen?")
     if show:
         display_complete_report(final_state)
+    return succeeded
 
 
 def _review_explanation(final_state: dict) -> str:

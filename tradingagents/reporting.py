@@ -77,6 +77,13 @@ def _header(ticker: str, final_state: dict, settings: dict | None, *, metadata_o
                 f"quick {quick_provider} {s('quick_think_llm', '?')}"
             )
         lines.append(f"- TradingAgents {_plain_markdown(s('version', '?'))}: {_plain_markdown(models)}")
+        if s("source_hash"):
+            lines.append(f"- Source hash: {_plain_markdown(s('source_hash'))}")
+        for key, label in (("openai_reasoning_effort", "OpenAI/OpenRouter reasoning effort"),
+                           ("anthropic_effort", "Anthropic effort"),
+                           ("google_thinking_level", "Google thinking level")):
+            if s(key):
+                lines.append(f"- {label}: {_plain_markdown(s(key))}")
         lines.append(
             f"- Analysts: {_plain_markdown(', '.join(analyst_names(s('analysts'))))}; "
             f"research debate rounds {_plain_markdown(s('max_debate_rounds', '?'))}, "

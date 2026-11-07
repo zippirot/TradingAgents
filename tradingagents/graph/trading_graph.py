@@ -36,13 +36,16 @@ from .setup import GraphSetup
 logger = logging.getLogger(__name__)
 
 
-def _state_log_path(config, ticker, trade_date):
+def _state_log_path(config, ticker, trade_date, run_id=None):
     directory = Path(config["results_dir"]) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
-    return directory / f"full_states_log_{trade_date}.json"
+    suffix = "_" + safe_ticker_component(str(run_id)[:8]) if run_id else ""
+    return directory / f"full_states_log_{trade_date}{suffix}.json"
 
 
 def _recover_logged_summary(config, ticker, trade_date, record):
-    path = _state_log_path(config, ticker, _validate_trade_date(trade_date))
+    path = _state_log_path(config, ticker, _validate_trade_date(trade_date), record.get("run_id"))
+    if not path.exists():
+        path = _state_log_path(config, ticker, trade_date)
     try:
         with path.open(encoding="utf-8") as saved:
             state = json.load(saved)
@@ -92,6 +95,7 @@ def _validate_trade_date(trade_date) -> str:
 # whether it checkpoints, and how often it retries a provider.
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "input_cost_per_million", "output_cost_per_million",
 })
 
 
@@ -365,6 +369,7 @@ class TradingAgentsGraph:
             "run_metrics=2",
             "financing_evidence=2",
             "shared_source_brief=4",
+            "operational_delivery=1",
             "financial_claim_prompt=1",
             "document_search=2",
             "document_followup=2",
@@ -480,6 +485,8 @@ class TradingAgentsGraph:
         cfg = self.config
         return {
             "version": tradingagents.__version__,
+            "source_hash": publication.runtime_versions()["code"],
+            **{key: cfg.get(key) for key in ("openai_reasoning_effort", "anthropic_effort", "google_thinking_level")},
             "llm_provider": cfg.get("llm_provider"),
             "deep_think_provider": tier_provider(cfg, "deep") if cfg.get("llm_provider") else None,
             "deep_think_llm": cfg.get("deep_think_llm"),
@@ -528,6 +535,7 @@ class TradingAgentsGraph:
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
+        state["run_settings"]["source_hash"] = state["publication_versions"]["code"]
         state["analysis_clock"] = self._analysis_cutoff(trade_date)
         state["market_observation_cutoff"] = min(
             datetime.now(UTC), datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
@@ -838,4 +846,7 @@ class TradingAgentsGraph:
                 # Reports can be in any language and this file is read by a person.
                 json.dump(entry, f, indent=4, ensure_ascii=False)
 
+        if final_state.get("run_id"):
+            archive = _state_log_path(self.config, final_state["company_of_interest"], trade_date, final_state["run_id"])
+            replace_file(archive, write_snapshot, strict=True)
         replace_file(log_path, write_snapshot, strict=True)

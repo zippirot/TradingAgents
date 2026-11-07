@@ -16,6 +16,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured,
 )
+from tradingagents.operational_capture import delivered_narrative
 
 
 def create_research_manager(llm):
@@ -67,7 +68,11 @@ Write these sections, in this order, starting with the recommendation on its own
         if saved.get("requests"):
             prompt += "\nOriginal case inputs (unvalidated model assumptions):\n" + json.dumps(saved["requests"])
         decision = invoke_structured(structured_llm, prompt, "Research Manager")
-        investment_plan = render_research_plan(decision) if decision is not None else llm.invoke(prompt).content
+        if decision is not None:
+            investment_plan = delivered_narrative(render_research_plan(decision))
+        else:
+            raw = llm.invoke(prompt)
+            investment_plan = delivered_narrative(raw.content, raw)
         revision = {}
         if decision is not None and decision.revised_cases is not None and saved:
             revision["shared_valuation_scenarios"] = replay_cases(state, revision=decision.revised_cases)

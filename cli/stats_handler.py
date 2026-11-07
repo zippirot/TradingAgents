@@ -1,4 +1,5 @@
 import threading
+from decimal import Decimal, DecimalException, InvalidOperation
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -76,6 +77,9 @@ class StatsCallbackHandler(BaseCallbackHandler):
     def get_stats(self) -> dict[str, Any]:
         """Return current statistics."""
         with self._lock:
+            scope = ("complete_observed" if self.token_usage_calls > 0
+                     and self.token_usage_calls == self.llm_calls and self.token_usage_missing == 0
+                     else "partial_observed" if self.token_usage_calls > 0 else "unavailable")
             return {
                 "llm_calls": self.llm_calls,
                 "tool_calls": self.tool_calls,
@@ -83,4 +87,40 @@ class StatsCallbackHandler(BaseCallbackHandler):
                 "tokens_out": self.tokens_out,
                 "token_usage_calls": self.token_usage_calls,
                 "token_usage_missing": self.token_usage_missing,
+                "token_usage_scope": scope,
             }
+
+
+def _valid_price(value: Any) -> Decimal | None:
+    if value is None or isinstance(value, bool) or value == "":
+        return None
+    try:
+        price = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    return price if price.is_finite() and price >= 0 else None
+
+
+def render_usage_cost(stats: dict, config: dict) -> str:
+    """One CLI usage line, with an optional estimate for observed tokens only."""
+    scope = stats.get("token_usage_scope")
+    count_in, count_out = stats.get("tokens_in"), stats.get("tokens_out")
+    if scope not in {"complete_observed", "partial_observed"} or any(
+        type(value) is not int or value < 0 for value in (count_in, count_out)
+    ):
+        return "Tokens: unavailable (usage was not observed)"
+
+    coverage = "complete observed" if scope == "complete_observed" else "partial observed"
+    line = f"Tokens: {count_in:,} in / {count_out:,} out ({coverage})"
+    input_price = _valid_price(config.get("input_cost_per_million"))
+    output_price = _valid_price(config.get("output_cost_per_million"))
+    if input_price is None or output_price is None:
+        return line
+    try:
+        cost = (Decimal(count_in) * input_price + Decimal(count_out) * output_price) / 1_000_000
+    except DecimalException:
+        return line
+    scope_note = "observed tokens only; not the whole run or a billing total" if scope == "partial_observed" else (
+        "observed tokens only; not a billing total"
+    )
+    return f"{line}\nEstimated cost at configured prices: ${cost:.6f} ({scope_note})"

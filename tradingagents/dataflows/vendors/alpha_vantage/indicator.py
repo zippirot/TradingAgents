@@ -215,5 +215,5 @@ def get_indicator(
         # instead of returning the failure as a successful-looking string.
         raise
     except Exception as e:
-        logger.warning("Alpha Vantage indicator %s failed: %s", indicator, e)
-        raise NoMarketDataError(symbol, symbol, f"{indicator} unavailable: {e}") from e
+        logger.warning("Alpha Vantage indicator %s failed: %s", indicator, type(e).__name__)
+        raise NoMarketDataError(symbol, symbol, f"{indicator} unavailable: {type(e).__name__}") from e

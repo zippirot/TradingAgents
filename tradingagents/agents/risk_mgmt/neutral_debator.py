@@ -48,7 +48,8 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
 
         response = llm.invoke(prompt)
 
-        argument = f"Neutral Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Neutral Analyst: {delivered_narrative(response.content, response)}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

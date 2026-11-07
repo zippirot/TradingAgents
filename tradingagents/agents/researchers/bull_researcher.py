@@ -58,7 +58,8 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 
         response = llm.invoke(prompt)
 
-        argument = f"Bull Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Bull Analyst: {delivered_narrative(response.content, response)}"
 
         new_investment_debate_state = {
             **investment_debate_state,

@@ -32,6 +32,7 @@ from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, 
 from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_evidence_view
+from tradingagents.operational_capture import delivered_narrative
 
 
 def create_portfolio_manager(llm):
@@ -174,10 +175,11 @@ Write in order, rating first:
                 "thesis_candidate": thesis_candidate,
             }
             target = validate_final_case({**state, "unvalidated_outputs": original}, request)
-            final_trade_decision = render_pm_decision(decision, target)
+            final_trade_decision = delivered_narrative(render_pm_decision(decision, target))
             final_rating = decision.rating.value
         else:
-            final_trade_decision = llm.invoke(prompt).content
+            raw = llm.invoke(prompt)
+            final_trade_decision = delivered_narrative(raw.content, raw)
             final_rating = parse_rating(final_trade_decision)
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
             original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT}
