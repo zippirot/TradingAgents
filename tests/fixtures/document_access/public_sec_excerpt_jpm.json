@@ -1,0 +1,70 @@
+{
+  "fixture_kind": "offline excerpt from public SEC filing, not a full filing or live acquisition",
+  "provenance": {
+    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm",
+    "source_content_sha256": "d73c7827416a78349ea0b401fe5050ed9afb6d05dd9a1832b076ff072d8ad72b",
+    "private_full_wrapper_sha256": "3365914a40e2938740ffa1def1384daf1819b8504a1c3f72b0d8e7eb2d74192e",
+    "retrieved_at": "2026-11-06T23:40:36.775713+00:00",
+    "source_environment": "frozen pre-build client",
+    "excerpt_locators": [
+      "block-52",
+      "block-60"
+    ]
+  },
+  "queries": {
+    "table_locator": "block-52",
+    "table_query": "Financial performance of JPMorganChase",
+    "prose_locator": "block-60",
+    "prose_query": "net interest income"
+  },
+  "package": {
+    "schema_version": 1,
+    "cik": "0000019617",
+    "as_of": "2026-11-06",
+    "documents": [
+      {
+        "source_id": "sec-document-0f634e3625bf343aba9b84c12769d4db60ae586ad663fb966aac6280d4d2274f",
+        "filing": {
+          "cik": "0000019617",
+          "accession": "0001628280-26-069523",
+          "form": "10-Q",
+          "filed_date": "2026-11-03",
+          "report_date": "2026-09-30",
+          "primary_document": "jpm-20260930.htm",
+          "items": "",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm",
+        "retrieved_at": "2026-11-06T23:40:36.775713+00:00",
+        "content_hash": "d73c7827416a78349ea0b401fe5050ed9afb6d05dd9a1832b076ff072d8ad72b",
+        "blocks": [
+          {
+            "locator": "block-52",
+            "section": "Document",
+            "text": "| | | | | | | | | | | | | | | | | | | | | | | | | | | | | ; Financial performance of JPMorganChase | | | | | | | ; (unaudited) As of or for the period ended, (in millions, except per share data and ratios) | Three months ended September 30, | | Nine months ended September 30, ; 2026 | 2025 | Change | | 2026 | | 2025 | | Change ; Selected income statement data | | | | | | | | | ; Noninterest revenue | $ | 23,136 | | $ | 22,461 | | 3 | % | | $ | 79,442 | | | $ | 66,201 | | | 20 | % ; Net interest income | 27,036 | | 23,966 | | 13 | | | 77,913 | | | 70,448 | | | 11 | ; Total net revenue | 50,172 | | 46,427 | | 8 | | | 157,355 | | | 136,649 | | | 15 | ; Total noninterest expense | 27,295 | | 24,281 | | 12 | | | 81,461 | | | 71,657 | | | 14 | ; Pre-provision profit | 22,877 | | 22,146 | | 3 | | | 75,894 | | | 64,992 | | | 17 | ; Provision for credit losses | 2,743 | | 3,403 | | (19) | | | 7,765 | | | 9,557 | | | (19) | ; Net income | 15,305 | | 14,393 | | 6 | | | 52,954 | | | 44,023 | | | 20 | ; Diluted earnings per share | 5.57 | | 5.07 | | 10 | | | 19.20 | | | 15.38 | | | 25 | ; Selected ratios and metrics | | | | | | | | | ; Return on common equity | 17 | % | 17 | % | | | 20 | % | | 17 | % | | ; Return on tangible common equity | 20 | | 20 | | | | 24 | | | 21 | | | ; Book value per share | $ | 132.30 | | $ | 124.96 | | 6 | | | $ | 132.30 | | | $ | 124.96 | | | 6 | ; Tangible book value per share | 112.64 | | 105.70 | | 7 | | | 112.64 | | | 105.70 | | | 7 | ; Capital ratios - Standardized(a) | | | | | | | | | ; CET1 capital | 14.0 | % | 14.8 | % | | | 14.0 | % | | 14.8 | % | | ; Tier 1 capital | 14.9 | | 15.8 | | | | 14.9 | | | 15.8 | | | ; Total capital | 16.9 | | 17.7 | | | | 16.9 | | | 17.7 | | | ; Memo: | | | | | | | | | ; NII excluding Markets(b) | $ | 24,726 | | $ | 23,391 | | 6 | | | $ | 71,683 | | | $ | 68,734 | | | 4 | ; NIR excluding Markets(b) | 15,861 | | 14,785 | | 7 | | | 53,825 | | | 42,537 | | | 27 | ; Markets(c) | 10,320 | | 8,944 | | 15 | | | 33,957 | | | 27,543 | | | 23 | ; Total net revenue - managed basis | $ | 50,907 | | $ | 47,120 | | 8 | % | | $ | 159,465 | | | $ | 138,814 | | | 15 | %",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-60",
+            "section": "Document",
+            "text": "–Net interest income (\"NII\") of $27.0 billion, up 13%, driven by higher Markets net interest income, higher deposit balances, higher balances in Card Services, and higher wholesale loan balances,",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": [
+          "Public excerpt fixture: other filing blocks intentionally omitted"
+        ]
+      }
+    ],
+    "gaps": [
+      "Public excerpt fixture: other filing blocks intentionally omitted"
+    ],
+    "selected_accessions": [
+      "0001628280-26-069523"
+    ]
+  }
+}

@@ -108,10 +108,12 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
     """Replay only named supported derivations; unresolved cycles never pass."""
     from tradingagents.dataflows.financial_evidence import (
         derive_cash_outflow,
+        derive_parent_net_income,
         derive_quarter,
         derive_ttm,
     )
 
+    sources = {source.source_id: source for source in package.sources}
     ready = {fact.fact_id: fact for fact in package.facts if fact.origin == "reported"}
     pending = [fact for fact in package.facts if fact.origin == "derived"]
     reasons = []
@@ -127,6 +129,13 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     expected = derive_quarter(*inputs)
                 elif fact.formula_id == "reported_cash_outflow_magnitude_v1" and len(inputs) == 1:
                     expected = derive_cash_outflow(inputs[0])
+                elif fact.formula_id == "consolidated_profit_less_nci_v1" and len(inputs) == 2:
+                    if any(len(item.source_ids) != 1 or item.source_ids[0] not in sources
+                           for item in inputs):
+                        raise ValueError("parent income needs exact source references")
+                    expected = derive_parent_net_income(
+                        *inputs, *(sources[item.source_ids[0]] for item in inputs)
+                    )
                 elif fact.formula_id == "four_quarter_sum_v1":
                     expected = derive_ttm(inputs)
                 else:
@@ -366,6 +375,12 @@ def create_source_acquisition(selected_analysts):
             update["price_observation"] = {"status": "unavailable",
                 "reason": "No supported dated-close provider is configured; no additional vendor was used"}
         update["evidence_acquisition"] = record
+        from tradingagents.agents.document_access import prepare_document_sources
+
+        update.update(prepare_document_sources({**state, **update}, selected_analysts))
+        from tradingagents.agents.transcript_access import prepare_transcript_sources
+
+        update.update(prepare_transcript_sources({**state, **update}, selected_analysts))
         from tradingagents.agents.valuation_reference_flow import acquire_reference_inputs
 
         update.update(acquire_reference_inputs({**state, **update}, config))
@@ -431,9 +446,19 @@ def assess_financial_package(
     calculations = []
     extraction = None
     source_errors = []
-    if disclosures is not None:
+    search_packages = []
+    if not source_only:
+        from tradingagents.agents.document_access import retained_search_packages
+
         try:
-            package, calculations, extraction = filing_accounting_evidence(package, disclosures)
+            search_packages = retained_search_packages(state)
+        except ValueError as exc:
+            source_errors.append(f"Retained document search integrity: {exc}")
+    quote_packages = tuple(([disclosures] if disclosures is not None else []) + search_packages)
+    if quote_packages:
+        try:
+            if disclosures is not None:
+                package, calculations, extraction = filing_accounting_evidence(package, disclosures)
             # Outlooks cite full filing excerpts, not only the accounting cells
             # selected elsewhere. Register their canonical document provenance
             # without replacing an existing ID with different source metadata.
@@ -441,7 +466,16 @@ def assess_financial_package(
 
             sources = {source.source_id: source for source in package.sources}
             document_ids = set()
-            for document in disclosures.documents:
+            quote_documents = {}
+            for quote_package in quote_packages:
+                for document in quote_package.documents:
+                    previous = quote_documents.get(document.source_id)
+                    if previous and (previous.filing != document.filing
+                                     or previous.url != document.url
+                                     or previous.content_hash != document.content_hash):
+                        raise ValueError("conflicting retained filing source metadata")
+                    quote_documents.setdefault(document.source_id, document)
+            for document in quote_documents.values():
                 if document.source_id in document_ids:
                     raise ValueError("duplicate canonical filing document source ID")
                 document_ids.add(document.source_id)
@@ -563,18 +597,19 @@ def assess_financial_package(
                    "message": c.message} for c in operating)
     disclosure_summary = ""
     disclosure_references = []
-    if disclosures is not None:
+    if quote_packages:
         from tradingagents.dataflows.disclosure_discovery import discover_disclosures
         from tradingagents.dataflows.disclosure_evidence import parse_disclosure_report
 
         blocks = {
             (doc.source_id, block.locator): block.section + "\n" + block.text
-            for doc in disclosures.documents
+            for quote_package in quote_packages
+            for doc in quote_package.documents
             for block in doc.blocks
         }
-        discovered = discover_disclosures((disclosures,))
+        discovered = discover_disclosures((disclosures,) if disclosures is not None else ())
         grounded = discovered if source_only else parse_disclosure_report(
-            state.get("fundamentals_report", ""), blocks, packages=(disclosures,))
+            state.get("fundamentals_report", ""), blocks, packages=quote_packages)
         model_grounded = None if source_only else grounded
         # Deterministic proposals pass the same validator. Keep rejected model
         # submissions visible; accepted discovery never retroactively repairs them.
@@ -595,7 +630,9 @@ def assess_financial_package(
             source_id: f"D{i}"
             for i, source_id in enumerate(sorted({c.source_id for c in grounded.claims}), 1)
         }
-        for document in disclosures.documents:
+        for document in {
+            doc.source_id: doc for quote_package in quote_packages for doc in quote_package.documents
+        }.values():
             if document.source_id in source_labels:
                 disclosure_references.append(
                     f"- {source_labels[document.source_id]}: source_id {document.source_id}; {document.url}"
@@ -656,11 +693,11 @@ def assess_financial_package(
             package, [balance, *calculations]
         ),
     }
-    if disclosures is not None:
+    if quote_packages:
         update["disclosure_evidence"] = {
-            "packages": [disclosures.model_dump(mode="json")],
+            "packages": [item.model_dump(mode="json") for item in quote_packages],
             "extraction": grounded.model_dump(mode="json"),
-            "coverage_gaps": list(disclosures.gaps),
+            "coverage_gaps": list(dict.fromkeys(gap for item in quote_packages for gap in item.gaps)),
             "model_extraction": model_grounded.model_dump(mode="json") if model_grounded is not None else None,
             "deterministic_extraction": discovered.model_dump(mode="json"),
             "submission_counts": {
@@ -1306,7 +1343,17 @@ def canonical_accounting_context(package, calculations):
     }
     coverage = []
     for metric in sorted(core):
-        rows = [f for f in package.facts if f.metric == metric and f.origin == "reported"]
+        rows = [
+            f for f in package.facts if f.metric == metric
+            and (f.origin == "reported" or (
+                metric == "Net Income" and f.formula_id == "consolidated_profit_less_nci_v1"
+            ))
+        ]
+        # The definition bridge is source-replayed and remains explicitly
+        # derived; a missing direct-tag placeholder must not hide it. Do not
+        # broaden this to arbitrary calculated quarters or TTM values.
+        if any(f.formula_id == "consolidated_profit_less_nci_v1" for f in rows):
+            rows = [f for f in rows if f.value is not None]
         latest = max((f.period_end for f in rows), default=None)
         rows = [f for f in rows if f.period_end == latest]
         # Retain the latest reported quarter and YTD bases where available.

@@ -1,0 +1,144 @@
+# Document access Build B — vendor calls and existing macro
+
+Local implementation candidate. Paid proof was subsequently approved for three attempts on 93a1ae5; two attempts are consumed. Required acceptance remains incomplete.
+No publication, release or installation acceptance is claimed.
+
+## Baseline and isolation
+
+- Accepted staging: b67f1c8444075048cb12921d9b758c53cfc9e886, identical accepted PR #8 source a066b6f874eca5c102f3e8a089dbcce599d86daa.
+- Build A parent: 0376d61036e3b944bff40482deb918a579749d09 on codex/document-access-a. Initial e49260e9f13161a4e83d168450761ffd48240f72 remains an ancestor.
+- Active branch: codex/document-access-b; worktree /Users/zipp/Developer/tradingagents-document-access-20261106/build-a, Machine 1 M1 Pro/16 GB.
+- Plan SHA256: 724bf45c6326de8bb48e56fb662a5d825a7e93813efaae1efae753a32a2e09fe.
+- Full private source wrappers, authorized credentials, proof ledgers, generated reports and runtime remain outside Git under the task root. Existing worktrees, staging, launcher, model pins, preferences, history, reports and other projects are preserved.
+
+## Shipped behavior
+
+An eligible SEC earnings source must explicitly identify its fiscal quarter/year and actual call date. Calendar quarter-end never substitutes for call date. Fiscal-quarter ambiguity, future calls or missing date evidence produce a reasoned unavailable result and research continues. An exact intraday historical cutoff with no reliable transcript publication/end timestamp conservatively withholds the full call until the end of its Eastern call day; call start does not establish complete Q&A availability.
+
+Alpha Vantage transcript wording is unverified. Prepared remarks are bounded to 4,000 source characters with partial excerpts labeled. Fundamentals and News receive that context and use the same search_documents tool with an explicit transcript: query prefix for Q&A. Unprefixed searches remain SEC filing searches. Both share three calls per analyst, three whole passages / 12,000 source characters per call and a 200-character query limit. Final bull/bear questions can request either source; returned vendor passages stay labeled for RM/risk/PM and report as cited or unresolved.
+
+The exact vendor body hash, normalized turns, date-source pin, scope, corpus and wrapper hashes are retained for replay. Resume does not replace source text from cache. Optional provider failures do not stop research. Quota notices, entitlement denial, key failures and transport failures are distinguished safely, without automatic provider retries.
+
+All transcript figures remain unlinked vendor wording. Independent review rejected an unused helper that trusted caller-supplied acceptance/semantic fields and did not compare values. It and its misleading positive test were removed. Full verified company/metric/period/unit/basis/qualification comparability is unavailable in the current canonical claim schema; no positive numeric-link proof is claimed. SEC filing claims retain their separate quote/metric/period/unit/qualification validator and authority.
+
+Existing FRED functionality is reused. The News prompt requests a short dated macro section or the actual unavailable reason. No macro feature, paid data service, article-body fetch, dependency, valuation case revision, pricing or range was added.
+
+## Source observations and cross-company qualification
+
+- Exactly one authorized free Alpha Vantage preflight: HTTP200, 56,967 bytes, 47 DOCN turns, no provider notice. Provider body SHA256 6629854cad9b0fc46741d887140210dbdd6da9acb36c837de3212bb2802da55a. SEC ex99.1 block-54 pins the November 3 call. No second availability probe was made.
+- Official Alpha Vantage documentation lists the endpoint without a premium badge; general support describes the standard free allowance as 25 requests/day for most datasets. No endpoint-specific transcript quota guarantee was found. A later free response may be unavailable or limited; no paid entitlement is enabled.
+- Six free FRED reads (series plus observations for FEDFUNDS, DGS10, CPIAUCSL) pinned observation_end and realtime_start/end to 2026-11-06. Latest observation dates were 2026-10-01, 2026-11-05 and 2026-09-01 respectively; no future dates were rendered. No-key behavior explicitly names FRED_API_KEY. Full model-run macro delivery is still unobserved.
+- DOCN's retained response/date source is positive offline evidence. JPM's actual earnings release also supports an explicit dated call. Its bank Revenue tag is outside the existing canonical Revenue mapping; this is a deferred pre-existing scope finding, not new financial behavior.
+- The proposed live pair is MSFT (software SIC7372) and CAT (machinery SIC3531). Their full filings fit the corrected finite 16 MB reader. MSFT has the existing accepted Revenue tag. Retained MSFT/CAT earnings sources do not establish the necessary explicit fiscal year/call date, so the transcript source is unavailable. Their offline tests verify that no vendor request is made from those ambiguous sources. No positive transcript coverage is claimed for them.
+- Minimal public SEC excerpts are in tests/fixtures/document_access; full wrappers, hashes and publication references are private/inputs/non-docn*, evidence/document-transcript-cross-company.*, and evidence/document-transcript-msft-addendum.*.
+
+## Verification and independent review
+
+- Full Build B offline inventory: 2,836 passed, one optional langchain_aws skip, one configured deselection, 100 subtests; log build-b-offline-boundary.log.
+- Full Ruff and pip check passed; no dependencies changed. Diff checks passed.
+- Final collection: 2,838 selected / 2,839 collected (one DeepSeek live integration deselected by repository policy). The added candidate-branch boundary test was covered by 18 fresh proof-guard passes after the full run. The optional AWS-provider test remains skipped because its optional dependency is absent. This is complete combined offline inventory coverage, not one full run on the final source revision.
+- Focused B/FRED source checks passed (64 tests plus 8 subtests). Actual Fundamentals/News node prompts receive labeled prepared remarks or unavailable reasons; their actual private analyst subgraphs execute prefixed Q&A searches. Vendor passages cannot become quoteable SEC packages.
+- Actual checkpoint interruption after transcript fetch/cache and before source persistence resumes without a duplicate request; exact wrapper data is preserved. Search-call interruption, tamper rejection, legacy/report/publication recovery and canonical memory/scoring exclusions are covered with the retained A evidence and fresh affected checks.
+- DOCN saved-state replay captures actual RM/risk/PM prompts with deterministic model responses. Markdown/HTML/CLI display citation-or-unresolved outcomes. Ready and unavailable transcript reports were rendered in isolated headless Chrome on M1 and visually inspected on the coordinator.
+- Independent code/artifact review is in evidence/document-build-b-independent-audit.md. Confirmed call-start and unsafe linkage findings were closed. Proof-tool independent review is in evidence/document-proof-independent-review.md; confirmed false-success, account-receipt, failure-observability, credential and candidate-branch findings are addressed before live authorization.
+- The public proof runner and its guard tests are versioned under docs/reviews/document-access-proof-tools and tests. Default/qualification performs local reads only. A fresh hash-bound approval, exact clean candidate, per-attempt fresh usage/endpoint receipt, authorized source credentials and conservative reservations are required to send a paid request.
+- One advisory audit pass permits at most two model-call attempts (one application retry); SDK retries are disabled. Unknown-cost reservations remain held. A CLI failure consumes its single ticker attempt; there is no automatic rerun or top-up.
+- Passing evidence is reused only for unchanged source/dependencies/configuration/impact. Final affected harness checks account for changes after the full suite; combined evidence is not a full suite on one final revision.
+
+## Pending acceptance and authority
+
+The original frozen-candidate approval and all old ledgers remain intact. The older $6.587296 unknown reservations remain separate; old attempt authority is exhausted and is not stacked with this task’s allowance.
+
+The user subsequently approved $72 aggregate, $24 each, for at most three Medium-depth CLI attempts on 93a1ae5, one each DOCN/MSFT/CAT, using anthropic/claude-opus-5.5 quick and openai/gpt-6.1-terra-pro deep, all four analysts, three research/risk rounds, four tool rounds and 16,384 maximum output tokens. DOCN must observe a positive dated transcript and successful dated macro output; MSFT/CAT may prove explicit unavailable continuation without claiming positive transcript coverage. Missing observations remain explicit and do not become successful positive proof.
+
+Vendor transcript revisions/publication vintage cannot be verified retrospectively from this endpoint. Its wording stays unverified, never accepted financial evidence. The data cannot supply undisclosed operating facts or establish predictive ratings.
+
+Valuation Build 2/A3, the comparison, publication and installation remain held. No push, PR, merge, production change, worktree removal, scheduler or broker action is authorized. Exact-head GitHub CI awaits separate publication approval.
+
+## Post-approval observations and correction checkpoint
+
+Two attempts on exact 93a1ae582c1ebf1b50761c7dff92b243bcd25074 are consumed; neither may be rerun under this authority. CAT has not started. No release action is approved.
+
+- DOCN ran after the actual November 6 NYSE close, all four analysts, three research/risk rounds, 33 wire calls. Its CLI completed with an Underweight research rating and six-month model-stated horizon. The original proof job failed because its inherited Build 1 check required a same-analysis-date close. Actual canonical data explicitly used the November 5 completed close, $70.70, because the November 6 bar had no Close. That fallback is shown on the rendered card; November 6 close/indicators were not observed by this CLI. A separate preflight close is not substituted.
+- Original report evidence retains eight full documents, six searches, four debate questions with returned passages, a dated November 3 vendor transcript (47 turns), and four dated macro outputs. Read-only recovery from those exact saved artifacts validated the new source/journal fields. The main state-log projection omitted those fields and nested debate questions; original job/log files are preserved as failing evidence rather than rewritten.
+- The original rendered DOCN report was visually inspected using isolated M1 Chrome CDP captures after simple screenshot capture produced blank images. Search counts, unverified transcript labels, dated fallback and all four unresolved follow-up labels are readable. All four questions remain unresolved because the published final decision did not cite a returned source reference. These are actual missing citations, not a claim that a source was absent.
+- MSFT’s single attempt ended in REVIEW before research/risk debate. Its 29 submitted financial claims passed, but critical reconciliations lacked large primary filings rejected by the old bounded reader’s 2.5 MB transport limit. The new full-search reader had acquired them. A subsequent offline replay with the corrected transport reads both large primaries while preserving 40,000 extracted characters each; some accounting reconciliations remain unavailable within those existing brief limits. Two other selected source files are absent from the retained replay cache, so its disclosure-coverage result also has a fixture limitation. Increasing transport is necessary but is not evidence that all MSFT REVIEW causes are resolved. This attempt does not establish late-role delivery or a complete unavailable-transcript continuation.
+- Two runs have $11.46117315 known settled usage and $5.450528 retained unknown reservations, $16.91170115 committed exposure. Three HTTP400 structured-call responses lacked usage; their holds are not cleared by observed account deltas. No extra attempt or top-up is authorized.
+
+The correction batch repairs bounded primary transport without changing the accepted brief’s filing selection or character caps, retains new source fields/questions in standard logs, supplies bounded labeled transcript/follow-up material to the existing advisory audit call, and corrects the document-only price verifier. Build 1’s stricter proof remains unchanged. New audit input has not been observed in either consumed live attempt.
+
+A replacement committed candidate must pass affected offline checks and independent review before requesting a CAT-only rebind to that exact SHA. The original allowance, two consumed claims, unknown holds, model/depth/configuration and three-attempt ceiling remain intact. No CAT call is authorized on changed code until that rebind is approved. The original job failures remain recorded; recovered source evidence and offline corrections do not become a single full live run on the replacement revision.
+
+### Correction verification
+
+The stable correction batch passed a fresh full offline suite: 2,851 tests plus 100 subtests, one optional AWS dependency skip and one configured live-integration deselection (31.01 seconds). Full Ruff, pip dependency check and diff check passed. This broader rerun is justified by changes across source acquisition, advisory audit inputs, standard state logging and paid proof authorization boundaries. Actual DOCN and MSFT retained report evidence passed the corrected standard log round-trip offline; MSFT correctly lacks post-debate fields because it entered REVIEW. Original paid outputs and failure records remain unchanged. Fresh source/log hashes are in evidence/build-b-correction-verification.json outside Git.
+
+### CAT source qualification: final paid slot preserved
+
+Seven fresh free SEC GETs acquired the two missing selected 8-Ks, their three selected exhibits, the prior 10-Q and CompanyFacts into new immutable private wrappers; no retries, original-cache substitution or model calls. The offline existing pipeline parsed 615 canonical facts / 470 sources and seven bounded filing documents. Disclosure coverage, source integrity and balance-sheet checks pass. Critical core statements (compatible Net Income at 2026-09-30), dated equity movement, obligation-category coverage and equipment/lease principal cash-flow coverage remain unavailable. Qualification SHA256: aa894a2a5828b5cd9a42517691dfaecbf5c8f9c1dee57f8167e626290dbdc39d, private/inputs/cat-qualification/qualification.json. These are pre-analyst source preconditions; model prose cannot make their absence a verified value. No complete non-REVIEW CAT outcome is qualified.
+
+The last CAT attempt remains unclaimed. The recommendation is to preserve it and obtain a separate scope decision for the existing accounting-source coverage before spending it. The document-access correction candidate is locally verified; cross-company full-run acceptance remains incomplete. Accounting source/tag/period changes are not silently added to the approved search/transcript build, and no REVIEW gate is weakened. The draft-only CAT rebind helper remains unused as authority. A later CAT attempt still needs an exact repaired-candidate approval and fresh usage/rate receipt; no extra attempt or top-up is implied.
+
+### Deferred accounting-source scope decision
+
+CAT CompanyFacts has no eligible us-gaap/NetIncomeLoss row ending 2026-09-30, the sole current Net Income mapping. It has distinct ProfitLoss ($3.286B Q3 / $9.427B YTD) and NetIncomeLossAvailableToCommonStockholdersBasic ($3.287B / $9.429B), filed November 4 in accession 0000018230-26-000057. They must not be blindly aliased. The full retained 10-Q has 962 blocks: equity statement heading block-92, table block-95, cash-flow table block-118. The bounded selection retains the equity table but omits its heading; current verification does not establish complete dated movement/principal bridges. Required obligation categories or explicit sourced zeros remain unverified.
+
+The proposed separate local scope is definition-aware income mapping plus preservation of statement/table date context and source-supported equity/obligation/principal extraction, tested against retained DOCN, MSFT and CAT sources. Unknown amounts remain unavailable; no gate downgrade, invented zero, new reasoning call, new service, paid attempt or release action is implied. This is broader accounting extraction than the approved search/transcript change and needs a scope decision before implementation. The last CAT slot remains preserved.
+
+
+## Approved accounting-source extension
+
+The user subsequently approved the narrow local source-mapping/table-context extension; the exact receipt is outside Git at private/accounting-source-scope-approval.json. No paid or release authority was added.
+
+- Parent Net Income may now be derived as consolidated ProfitLoss minus income attributable to noncontrolling interests. Both distinct reported metrics, signed amounts, and both source IDs remain. This is not an alias to the common-stockholder earnings numerator. Inputs must have identical issuer, USD/US-GAAP basis, full period and as-of, exact canonical tag/date locators, and identical filing/snapshot metadata. Direct NetIncomeLoss facts retain priority. The named derivation is replayed by source-integrity validation and visibly labeled derived in the accepted brief.
+- CAT's actual retained CompanyFacts supports Q3 parent Net Income of $3.287B and YTD $9.429B through that bridge. Direct DOCN and MSFT income fact identities/values/origins remain unchanged. A reproduced both-facts period-relabeling gap was closed with exact source-locator date matching and an observed red/green regression.
+- Nearby unambiguous SEC statement titles and scales now survive the heading–Unaudited–scale arrangement without changing table text or locators. No year is borrowed into a table from the filing date or another statement. Finite brief selection and character caps remain.
+- Microsoft’s retained supplemental lease tables now establish finance lease liabilities of $70.973B and operating lease liabilities of $27.477B at September 30, 2026, each reconciled to its two source liability components. Its explicitly dated cash-paid lease table establishes $1.0B finance-lease financing cash flow for July–September. These are not equipment-financing facts; lease operating cash and noncash additions do not become principal. An explicit cash-paid dash is a sourced zero; an empty cell is unavailable.
+- CAT's leased-to-others asset purchases and finance lease revenue are not lessee principal or obligations. Long-term debt repayments do not establish equipment-specific principal. Unverified equipment categories remain unavailable, not zero.
+
+### Extension verification and limits
+
+A fresh full offline suite passed 2,874 tests and 100 subtests, one optional AWS skip and one configured live-integration deselection, in 31.46 seconds. The broader rerun is warranted by new financial derivation lineage, canonical context and filing-cell mappings. Full Ruff, pip check and diff check passed. Independent review is in evidence/accounting-extension-independent-audit.md; the reproduced period-locator issue is closed. Final affected source-omission wording checks are recorded separately, so any combined final coverage is not described as one full suite on the eventual record commit.
+
+Retained-byte replays used no network/model calls. Exact raw_report (financial_claim_validation.raw_report) is required: the saved fundamentals_report can be the post-validation accepted brief, and the initial DOCN replay mistakenly used that projection. The corrected immutable DOCN raw-report replay passes all eight critical checks and retains limited quality, matching its original source outcome. MSFT's original 29 financial claims still validate; CAT's empty-report source qualification does not claim analyst coverage. The old first replay artifacts remain with their setup limitation and are superseded only for the claim-input assessment.
+
+Microsoft still lacks a verified complete dated equity movement and equipment obligation/principal coverage. Its newly readable large filings also exhaust the existing 120,000-character brief before a later debt-offering 8-K; that 8-K itself parses correctly and is in full search. This is a bounded-view omission, not absent public filing text. CAT's full equity tables exist, but their multiple-period/noncontrolling-interest layout is not established as the original parent-equity movement contract by this narrow reader. CAT still lacks verified equipment/finance-lease obligation and principal categories. These remaining checks stay REVIEW; no completeness assertion is manufactured from a table's existence.
+
+Offline Markdown/HTML rendering and JSON recovery preserve REVIEW, retain the new canonical numbers/source IDs in evidence, and replay their derivation after serialization. Review projection intentionally withholds unsupported numerical research; no model report or new publication was produced. M1 Chrome captures were visually inspected. The first render assertion incorrectly expected new numbers in a REVIEW narrative; the corrected check verifies evidence retention and the unchanged safe REVIEW projection.
+
+The legacy direct-tag get_income_statement CSV can still say NetIncomeLoss unavailable for CAT while the canonical brief contains the explicitly derived parent figure. It is a raw reported-tag view; no derived figure is presented there as a directly reported amount.
+
+The final CAT paid slot remains unclaimed. Its required source preconditions are already unavailable, so spending it now cannot establish the intended full late-role path. No new audit/model behavior has been observed on this extension. Full live cross-company acceptance remains incomplete; the original 93a1 attempts, financial/source records and unknown reservations are preserved. Valuation Build2/A3, comparison, publication and installation remain held.
+
+
+### Final evidence accounting
+
+After the full extension suite, the package-omission reason was made precise and a lease-total precision regression was closed. Entire later filings omitted at the 120,000-character limit remain critical; partial selected excerpts remain informational and their truncated table cells cannot verify arithmetic. This preserves the existing gate contract rather than adding a new blanket REVIEW rule. Lease reconciliation now uses the printed quantum of both components and the selected total, not the broad display scale. A decimal mismatch reproduced the former false pass; the corrected negative test and actual Microsoft source fixture pass.
+
+Final affected checks: 203 passed, with full Ruff and diff checks passing. Final inventory is 2,879 selected / 2,880 collected (one configured deselection): the 2,874-test full pass plus four new passing boundary tests accounts for 2,878 unique passing tests, with the same one optional AWS skip and 100 subtests. This is combined evidence across revisions, not one full run on the final commit. The final affected checks cover the changed SEC package handling, disclosure coverage, filing cells, derived-income lineage/context, source budgets and all new cases. Unchanged dependency checks are reused because no dependency/configuration/environment changed.
+
+The last printed-precision correction affects only new supplemental lease-total acceptance. Retained Microsoft component/total cells are integral millions and reconcile exactly; both old and corrected quantums are identical there. The actual-source positive mapping test and independent 11-test mapping review confirm unchanged values. Final v3 raw-input replays remain valid for their observed source facts and critical statuses with that impact justification; they are not another live run. Original DOCN/HTML observations remain reusable for unchanged retrieval, cutoff, labels, completed-price fallback and role routing, while new audit inputs, income derivation, source context and standard-log behavior have fresh offline evidence only.
+
+The independent audit records and closes both strict-lineage period relabeling and printed-precision findings, plus the final package-budget semantics review. No confirmed material code finding remains in this local extension. Remaining unavailable accounting scope and missing live observations are explicit acceptance limitations, not successful proof.
+
+
+## User decision — use the two existing results for now
+
+The user instructed: “Let’s just use the 2 for now.” Current review therefore uses the existing DigitalOcean (DOCN) and Microsoft (MSFT) results; Caterpillar (CAT) is skipped for now. No additional paid call is authorized or planned. The private receipt is existing-two-results-user-decision.json.
+
+The two results retain their actual outcomes: DOCN completed its CLI analysis and supplied positive document/transcript/macro observations, with the original failing proof postcheck and read-only recovery preserved; Microsoft ended in REVIEW before the late debate/audit/Portfolio Manager path. They are not relabeled as two successful full proofs. Corrected-source offline verification and independent review remain the basis for the subsequent local fixes. Missing live observations and the financial coverage limits above remain disclosed.
+
+The unused CAT attempt is held, not spent, reassigned or carried into an automatic future run. Known settled usage remains $11.46117315, unknown reservations $5.450528, committed exposure $16.91170115. No ledger entry, original report or original job status is changed by this decision.
+
+This resolves the request for direction at the current review checkpoint. It does not authorize publication, installation, valuation Build2/A3, comparison or a revised paid-proof plan, and does not establish exact-head release acceptance.
+
+
+## Final local delivery audit under the two-result decision
+
+The user's choice to use the existing DOCN/MSFT results is the current delivery boundary; CAT and further paid calls remain held. The completion audit rechecked the plan requirement by requirement against source, hashes, executed checks, rendered artifacts, preserved run outputs and the user's amendments. It does not turn the original failed proof jobs into successful ones, claim a third live company, or establish release acceptance.
+
+That audit found and closed one remaining offline proof gap. The existing provider-failure tests covered messages/reporting separately; the new tests/test_transcript_failure_complete_graph.py now proves that a real transcript-preparation VendorUnavailableError produces a pinned unavailable wrapper, and a compiled retained-DOCN graph continues through all four analysts, passing financial checks, bull/bear/document lookup, Research Manager, trader, all three risk roles, advisory audit, Portfolio Manager and metrics. The final decision is not REVIEW, and generated Markdown/HTML retain the unavailable reason. The error provider is called once, including after graph completion. Models/social-news providers are scripted and SEC refetches are forbidden. This is offline continuation proof, not live provider or model evidence; private inputs stay outside Git. The test skips outside M1 when those inputs are absent, and that skip is not proof.
+
+Primary review also corrected the proof's metadata to say offline/scripted models rather than inherit model labels from its saved input. Focused transcript/failure/recovery checks: 19 passed in 3.29 seconds; full Ruff and diff checks passed. No application, dependency or configuration source changed in this final step, so earlier broad results remain valid. Final inventory: 2,880 selected / 2,881 collected, one deselection. Combined evidence accounts for 2,879 passing tests, the one optional AWS skip and 100 subtests; it is not a single full run on the final revision. Detailed requirement/evidence mapping is outside Git at evidence/document-goal-completion-audit.json.
+
+The local implementation is ready for the user's review using the chosen two results and disclosed limitations. Original three-company live coverage, live behavior of the latest local fixes, and Microsoft late-role behavior remain unobserved and are not claimed. Build2/A3, comparison, publication, exact-head CI, installation, production promotion and worktree cleanup remain outside this delivery and held.

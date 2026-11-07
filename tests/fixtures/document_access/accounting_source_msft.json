@@ -1,0 +1,32 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436133/msft-20260930.htm",
+  "content_hash": "8dfd564177bb67a51accf7d15e190f6685d7b5f113ed844ba4f98c73e4fe48d6",
+  "retrieved_at": "2026-11-07T00:39:49.820218+00:00",
+  "source_excerpt_method": "extract_sections(max_chars=40000), exact retained untruncated blocks",
+  "blocks": [
+    {
+      "locator": "block-44",
+      "section": "Document",
+      "text": "; | | | | | | | | ; (In millions) (Unaudited) | | | ; | ; | | ; | | September 30, 2026 | | | June 30, 2026 | ; | | | | | | | | ; Assets | | | | | | | | ; Current assets: | | | | | | | | ; Cash and cash equivalents | | $ | 20,281 | | | $ | 20,935 | ; Short-term investments | | | 44,228 | | | | 55,908 | ; | | | | | ; | | | | | ; Total cash, cash equivalents, and short-term investments | | | 64,509 | | | | 76,843 | ; Accounts receivable, net of allowance for doubtful accounts of $728 and $1,040 | | | 62,084 | | | | 80,876 | ; Inventories | | | 1,835 | | | | 1,397 | ; Other current assets | | | 57,709 | | | | 48,594 | ; | | | | | ; | | | | | ; Total current assets | | | 186,137 | | | | 207,710 | ; Property and equipment, net of accumulated depreciation of $127,208 and $118,691 | | | 346,844 | | | | 313,076 | ; Operating lease right-of-use assets | | | 30,178 | | | | 24,177 | ; Equity and other investments | | | 37,808 | | | | 36,348 | ; Goodwill | | | 119,646 | | | | 119,651 | ; Intangible assets, net | | | 17,751 | | | | 18,609 | ; Other long-term assets | | | 41,039 | | | | 38,805 | ; | | | | | ; | | | | | ; Total assets | | $ | 779,403 | | | $ | 758,376 | ; | | | | | | | | ; | | | | | | | | ; Liabilities and stockholders’ equity | | | | | | | | ; Current liabilities: | | | | | | | | ; Accounts payable | | $ | 42,625 | | | $ | 42,416 | ; Current portion of long-term debt | | | 4,391 | | | | 9,227 | ; Accrued compensation | | | 10,156 | | | | 14,945 | ; Short-term income taxes | | | 1,447 | | | | 2,534 | ; Short-term unearned revenue | | | 66,866 | | | | 72,965 | ; Other current liabilities | | | 26,483 | | | | 26,738 | ; | | | | | ; | | | | | ; Total current liabilities | | | 151,968 | | | | 168,825 | ; Long-term debt | | | 31,090 | | | | 31,067 | ; Long-term income taxes | | | 29,235 | | | | 28,647 | ; Long-term unearned revenue | | | 2,697 | | | | 2,747 | ; Deferred income taxes | | | 3,174 | | | | 3,054 | ; Operating lease liabilities | | | 21,719 | | | | 16,532 | ; Other long-term liabilities | | | 69,011 | | | | 65,117 | ; | | | | | ; | | | | | ; Total liabilities | | | 308,894 | | | | 315,989 | ; | | | | | | | | ; | | | | | | | | ; Commitments and contingencies | | | | | | | | ; Stockholders’ equity: | | | | | | | | ; Common stock and paid-in capital – shares authorized 24,000; outstanding 7,427 and 7,427 | | | 119,571 | | | | 117,406 | ; Retained earnings | | | 354,795 | | | | 328,265 | ; Accumulated other comprehensive loss | | | (3,857 | ) | | | (3,284 | ) ; | | | | | ; | | | | | ; Total stockholders’ equity | | | 470,509 | | | | 442,387 | ; | | | | | | | | ; | | | | | | | | ; Total liabilities and stockholders’ equity | | $ | 779,403 | | | $ | 758,376 | ; | | | | | | | |",
+      "truncated": false,
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef U_USD -> iso4217:USD"
+    },
+    {
+      "locator": "block-246",
+      "section": "Document ; Supplemental cash flow information related to leases was as follows:",
+      "text": "; | | | | | | | | ; (In millions) | | | ; | | | | | | | | ; | | | | | | | | ; Three Months Ended September 30, | | | 2026 | | | | 2025 | ; | | | | | | | | ; Cash paid for amounts included in the measurement of lease liabilities: | | | | | | | | ; Operating cash flows from operating leases | | $ | 1,547 | | | $ | 1,656 | ; Operating cash flows from finance leases | | | 769 | | | | 546 | ; Financing cash flows from finance leases | | | 1,000 | | | | 639 | ; | | | | | | | | ; Right-of-use assets obtained in exchange for lease obligations: | | | | | | | | ; Operating leases | | | 6,523 | | | | 1,417 | ; Finance leases | | | 5,192 | | | | 9,147 | ; | | | | | | | |",
+      "truncated": false,
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef U_USD -> iso4217:USD"
+    },
+    {
+      "locator": "block-248",
+      "section": "Document ; Supplemental balance sheet information related to leases was as follows:",
+      "text": "; | | | | | | | | ; (In millions, except lease term and discount rate) | | | | | | ; | | | | | | ; | | ; | | September 30, 2026 | | | June 30, 2026 | ; | | ; Operating Leases | | | | | | | | ; | | | | | | | | ; Operating lease right-of-use assets | | $ | 30,178 | | | $ | 24,177 | ; | | | | | | | | ; | | | | | | | | ; Other current liabilities | | $ | 5,758 | | | $ | 5,393 | ; Operating lease liabilities | | | 21,719 | | | | 16,532 | ; | | | | | | | | ; | | | | | | | | ; Total operating lease liabilities | | $ | 27,477 | | | $ | 21,925 | ; | | | | | | | | ; | | | | | | | | ; Finance Leases | | | | | | | | ; | | | | | | | | ; Property and equipment, at cost | | $ | 89,779 | | | $ | 82,712 | ; Accumulated depreciation | | | (17,154 | ) | | | (15,431 | ) ; | | | | | | | | ; | | | | | | | | ; Property and equipment, net | | $ | 72,625 | | | $ | 67,281 | ; | | | | | | | | ; | | | | | | | | ; Other current liabilities | | $ | 5,005 | | | $ | 4,290 | ; Other long-term liabilities | | | 65,968 | | | | 62,304 | ; | | | | | | | | ; | | | | | | | | ; Total finance lease liabilities | | $ | 70,973 | | | $ | 66,594 | ; | | | | | | | | ; | | | | | | | | ; Weighted Average Remaining Lease Term | | | | | | | | ; | | | | | | | | ; Operating leases | | | 8 years | | | | 6 years | ; Finance leases | | | 13 years | | | | 13 years | ; | | | | | | | | ; Weighted Average Discount Rate | | | | | | | | ; | | | | | | | | ; Operating leases | | | 4.1% | | | | 3.7% | ; Finance leases | | | 4.5% | | | | 4.5% | ; | | | | | | | |",
+      "truncated": false,
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef U_USD -> iso4217:USD"
+    }
+  ]
+}

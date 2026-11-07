@@ -1,0 +1,67 @@
+{
+  "fixture_kind": "offline excerpt from public SEC EX-99.1 earnings release; not complete filing or vendor transcript",
+  "provenance": {
+    "ticker": "CAT",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000052/ex991toformcat3q2026earnin.htm",
+    "filing_primary_url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000052/cat-20261029.htm",
+    "source_content_sha256": "acae1d3d5da6cf6dde12530a82f0fcf46cc9f9c5e73261126c620f5d26c66d79",
+    "private_full_wrapper_sha256": "8d931caebd855ed8529ec439e4e9931f05d76ae83f27204cc5309e45ab19cb3f",
+    "retrieved_at": "2026-11-07T00:35:21.920448+00:00",
+    "filed_date": "2026-10-29",
+    "excerpt_locators": [
+      "block-7",
+      "block-84"
+    ],
+    "call_date_claim": "no actual call date in retained CAT release; webcast link alone is insufficient"
+  },
+  "package": {
+    "schema_version": 1,
+    "cik": "0000018230",
+    "as_of": "2026-11-06",
+    "documents": [
+      {
+        "source_id": "sec-document-94acb8e7459f9addf290858870d05f653abb38d05e808cff462eb2342b98e0d2",
+        "filing": {
+          "cik": "0000018230",
+          "accession": "0000018230-26-000052",
+          "form": "8-K",
+          "filed_date": "2026-10-29",
+          "report_date": "2026-10-29",
+          "primary_document": "cat-20261029.htm",
+          "items": "2.02,9.01",
+          "url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000052/cat-20261029.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000052/ex991toformcat3q2026earnin.htm",
+        "retrieved_at": "2026-11-07T00:35:21.920448+00:00",
+        "content_hash": "acae1d3d5da6cf6dde12530a82f0fcf46cc9f9c5e73261126c620f5d26c66d79",
+        "blocks": [
+          {
+            "locator": "block-7",
+            "section": "Document",
+            "text": "Caterpillar Reports Third-Quarter 2026 Results",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-84",
+            "section": "Document",
+            "text": "https://investors.caterpillar.com/financials/quarterly-results/default.aspx (live broadcast/replays of quarterly conference call)",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": [
+          "Public excerpt fixture: other release blocks intentionally omitted"
+        ]
+      }
+    ],
+    "gaps": [
+      "Public excerpt fixture: other release blocks intentionally omitted"
+    ],
+    "selected_accessions": [
+      "0000018230-26-000052"
+    ]
+  }
+}

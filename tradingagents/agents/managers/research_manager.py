@@ -65,6 +65,7 @@ Write these sections, in this order, starting with the recommendation on its own
         )
 
         new_investment_debate_state = {
+            **investment_debate_state,
             "history": investment_debate_state.get("history", ""),
             "bear_history": investment_debate_state.get("bear_history", ""),
             "bull_history": investment_debate_state.get("bull_history", ""),

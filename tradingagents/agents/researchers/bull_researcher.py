@@ -6,6 +6,10 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.agents.document_questions import (
+    document_question_instruction,
+    parse_document_questions,
+)
 
 
 def create_bull_researcher(llm):
@@ -50,19 +54,26 @@ Latest world affairs news: {news_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
-""" + EVIDENCE_DISCIPLINE + get_language_instruction()
+""" + EVIDENCE_DISCIPLINE + document_question_instruction(state) + get_language_instruction()
 
         response = llm.invoke(prompt)
 
         argument = f"Bull Analyst: {response.content}"
 
         new_investment_debate_state = {
+            **investment_debate_state,
             "history": history + "\n" + argument,
             "bull_history": bull_history + "\n" + argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
         }
+
+        if state.get("_document_question_final_turn") and state.get("asset_type", "stock") == "stock":
+            new_investment_debate_state["document_questions"] = {
+                **(investment_debate_state.get("document_questions") or {}),
+                "bull": parse_document_questions(response.content, "bull"),
+            }
 
         return {"investment_debate_state": new_investment_debate_state}
 

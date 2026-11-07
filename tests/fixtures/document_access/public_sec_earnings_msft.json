@@ -1,0 +1,78 @@
+{
+  "fixture_kind": "offline excerpt from public SEC EX-99.1 earnings release; not complete filing or vendor transcript",
+  "provenance": {
+    "ticker": "MSFT",
+    "sic": "7372",
+    "sic_description": "Services-Prepackaged Software",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436122/msft-ex99_1.htm",
+    "filing_primary_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436122/msft-20261028.htm",
+    "source_content_sha256": "50a31b1530b846e170c7bc309be39dfb0533279f846c30b0c42a2da28e6ab5a4",
+    "private_full_wrapper_sha256": "2c2c73352c487d19294b5c409136b0140c2a07b4981c63ed55bde610052b9e04",
+    "retrieved_at": "2026-11-07T00:39:51.132687+00:00",
+    "filed_date": "2026-10-28",
+    "excerpt_locators": [
+      "block-3",
+      "block-4",
+      "block-48"
+    ],
+    "call_date_claim": "unavailable: First Quarter headline lacks fiscal year; conference call text says today without calendar date"
+  },
+  "package": {
+    "schema_version": 1,
+    "cik": "0000789019",
+    "as_of": "2026-11-06",
+    "documents": [
+      {
+        "source_id": "sec-document-8afeb5cf39b1733c6fa3509254dd6d470085980fb4333759599ab5c4dd997e2c",
+        "filing": {
+          "cik": "0000789019",
+          "accession": "0001193125-26-436122",
+          "form": "8-K",
+          "filed_date": "2026-10-28",
+          "report_date": "2026-10-28",
+          "primary_document": "msft-20261028.htm",
+          "items": "2.02,9.01",
+          "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436122/msft-20261028.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436122/msft-ex99_1.htm",
+        "retrieved_at": "2026-11-07T00:39:51.132687+00:00",
+        "content_hash": "50a31b1530b846e170c7bc309be39dfb0533279f846c30b0c42a2da28e6ab5a4",
+        "blocks": [
+          {
+            "locator": "block-3",
+            "section": "Document",
+            "text": "Microsoft Announces First Quarter Results",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-4",
+            "section": "Document",
+            "text": "REDMOND, Wash. — October 28, 2026 — Microsoft Corp. today announced the following results for the quarter ended September 30, 2026, as compared to the corresponding period of last fiscal year:",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-48",
+            "section": "Document",
+            "text": "Satya Nadella, chairman and chief executive officer, Amy Hood, executive vice president and chief financial officer, Alice Jolla, chief accounting officer, Brian DeFoe, deputy general counsel and corporate secretary, and Jonathan Neilson, vice president of investor relations, will host a conference call and webcast at 2:30 p.m. Pacific time (5:30 p.m. Eastern time) today to discuss details of the company’s performance for the quarter and certain forward-looking information. The session may be accessed at http://www.microsoft.com/en-us/investor. Participants can also dial into the conference call at (877) 407-0666 or +1 (201) 689-8023 for international, no password required. The webcast will be available for replay through the close of business on October 28, 2027.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": [
+          "Public excerpt fixture: other release blocks intentionally omitted"
+        ]
+      }
+    ],
+    "gaps": [
+      "Public excerpt fixture: other release blocks intentionally omitted"
+    ],
+    "selected_accessions": [
+      "0001193125-26-436122"
+    ]
+  }
+}

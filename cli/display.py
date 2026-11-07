@@ -455,6 +455,27 @@ def display_complete_report(final_state):
         console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
         console.print(Panel(Markdown(final_state["final_trade_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
+    if final_state.get("document_followups"):
+        from tradingagents.agents.document_questions import render_document_followups
+
+        followups = render_document_followups(final_state, final_state.get("final_trade_decision") or "")
+        console.print(Panel(Markdown(followups), title="Debate document follow-up",
+                            border_style="blue", padding=(1, 2)))
+    if final_state.get("document_sources") or final_state.get("document_search_trace"):
+        from tradingagents.agents.document_access import render_document_searches
+
+        searches = render_document_searches(final_state)
+        if searches:
+            console.print(Panel(Markdown(searches), title="Document searches",
+                                border_style="blue", padding=(1, 2)))
+    if final_state.get("transcript_sources"):
+        from tradingagents.agents.transcript_access import render_transcript_status
+
+        status = render_transcript_status(final_state)
+        if status:
+            console.print(Panel(Markdown(status), title="Vendor transcript",
+                                border_style="blue", padding=(1, 2)))
+
 
 def update_research_team_status(status):
     """Update status for research team members (not Trader)."""

@@ -144,6 +144,10 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
             for key in path:
                 value = (value or {}).get(key)
             if value:
+                if path == ("final_trade_decision",) and final_state.get("document_followups"):
+                    from tradingagents.agents.document_questions import render_document_followups
+
+                    value += "\n\n" + render_document_followups(final_state, value)
                 written.append((agent, filename, value))
         if folder == "5_portfolio" and final_state.get("mechanical_valuation_grid"):
             from tradingagents.agents.mechanical_valuation import render_mechanical_valuation_grid
@@ -229,6 +233,10 @@ def prepare_report_state(final_state: dict) -> dict:
                 key: research(value) if isinstance(value, str) and value else value
                 for key, value in original.items()
             }
+            if field == "investment_debate_state":
+                questions = (final_state.get(field) or {}).get("document_questions")
+                if questions is not None:
+                    prepared[field]["document_questions"] = questions
     scenarios = prepared.get("shared_valuation_scenarios")
     if scenarios:
         from tradingagents.agents.shared_valuation import render_shared_valuation
@@ -266,6 +274,10 @@ def evidence_snapshot(final_state: dict) -> dict:
         "valuation_reference_brief",
         "vendor_expectations",
         "evidence_acquisition",
+        "document_sources",
+        "transcript_sources",
+        "document_search_trace",
+        "document_followups",
         "shared_source_brief",
         "price_observation",
         "valuation_price_comparison",
@@ -316,6 +328,16 @@ def evidence_appendix(final_state: dict) -> str:
     ]
     if quality.get("scope") == "legacy export":
         lines += ["Legacy export — financial evidence unvalidated.", ""]
+    from tradingagents.agents.document_access import render_document_searches
+
+    searches = render_document_searches(final_state)
+    if searches:
+        lines += [searches, ""]
+    from tradingagents.agents.transcript_access import render_transcript_status
+
+    transcript_status = render_transcript_status(final_state)
+    if transcript_status:
+        lines += [transcript_status, ""]
     disclosure = final_state.get("disclosure_evidence")
     counts = disclosure.get("submission_counts") if isinstance(disclosure, dict) else None
     if isinstance(counts, dict):

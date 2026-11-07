@@ -444,6 +444,10 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
         rendered = render_shared_valuation(scenarios)
         if rendered:
             context += "\n\n" + rendered
+    if state.get("document_followups"):
+        from tradingagents.agents.document_questions import document_followup_context
+
+        context += "\n\n" + document_followup_context(state)
     return context
 
 

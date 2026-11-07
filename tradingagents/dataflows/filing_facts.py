@@ -20,6 +20,9 @@ from tradingagents.dataflows.financial_evidence import EvidencePackage, Financia
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
 Metric = Literal[
+    "Finance Lease Liabilities",
+    "Operating Lease Liabilities",
+    "Finance Lease Principal Payments",
     "Cash-flow Property and Equipment Payments",
     "Cash-flow Software Development Payments",
     "Intangible Asset Acquisition Payments",
@@ -305,6 +308,8 @@ def _adjusted_context(block):
 
 _LABELS = {_normal(label): metric for metric, aliases in _ALIASES.items() for label in aliases}
 _OBLIGATIONS = {
+    "Finance Lease Liabilities",
+    "Operating Lease Liabilities",
     "Equipment Financing Obligations",
     "Finance Lease and Equipment Obligations",
     "Total Borrowings",
@@ -414,6 +419,23 @@ def _rows(block):
                 "Cash Flow",
                 *(match.group(2) + ", " + year for year in following[1:]),
             ]
+    # Some SEC tables put a single shared month/day and aligned years in
+    # the same row. Preserve its source row index and resolve each year only
+    # from that row, never from the filing date or an adjacent statement.
+    joined = [
+        (index, row, re.fullmatch(
+            r"(Three|Six|Nine|Twelve) Months Ended ([A-Za-z]+ \d{1,2}),", row[0], re.I
+        ))
+        for index, row in enumerate(compact)
+        if len(row) >= 2 and all(re.fullmatch(r"\d{4}", cell) for cell in row[1:])
+    ]
+    joined = [(index, row, match) for index, row, match in joined if match]
+    if len(joined) == 1 and not duration_rows:
+        index, row, match = joined[0]
+        compact[index] = [
+            match.group(1) + " Months Ended",
+            *(match.group(2) + ", " + year for year in row[1:]),
+        ]
     return compact
 
 
@@ -621,7 +643,62 @@ def _borrowings_definition(document, block, rows, selection, end, scale, value):
     return [(b, "borrowings perimeter definition") for b in (intro, facility, repaid, undrawn)]
 
 
+def _lease_balance_context(block):
+    return bool(re.search(
+        r"Supplemental balance sheet information related to leases", block.section, re.I
+    ))
+
+
+def _lease_cash_context(block):
+    return bool(re.search(
+        r"Supplemental cash flow information related to leases", block.section, re.I
+    ))
+
+
+def _lease_total_components(rows, selection, scale, value, total_quantum):
+    """An explicit lease total must reconcile its two source liability rows."""
+    finance = selection.metric == "Finance Lease Liabilities"
+    group = "financeleases" if finance else "operatingleases"
+    groups = [index for index, row in enumerate(rows[:selection.row_index])
+              if _normal(row[0]) in {"financeleases", "operatingleases"}]
+    if not groups or _normal(rows[groups[-1]][0]) != group:
+        raise ValueError("lease total lacks its explicit finance/operating group")
+    labels = ("othercurrentliabilities", "otherlongtermliabilities" if finance
+              else "operatingleaseliabilities")
+    components = []
+    indexes = []
+    for label in labels:
+        found = [(index, row) for index, row in enumerate(rows)
+                 if groups[-1] < index < selection.row_index and _normal(row[0]) == label]
+        if len(found) != 1 or len(found[0][1]) != len(rows[selection.row_index]):
+            raise ValueError("lease total current/noncurrent components are ambiguous")
+        index, row = found[0]
+        amount, quantum = _number(row[selection.column_index], scale)
+        if amount < 0:
+            raise ValueError("lease liability component is negative")
+        components.append((amount, quantum))
+        indexes.append(index)
+    if indexes != sorted(indexes):
+        raise ValueError("lease liability component ordering differs")
+    for row in rows[indexes[0]:selection.row_index]:
+        if row[0] and _normal(row[0]) not in labels and len(row) > 1:
+            raise ValueError("unmapped row within lease liability reconciliation")
+    tolerance = (sum((quantum for _, quantum in components), Decimal(0)) + total_quantum) / 2
+    if value < 0 or abs(sum((amount for amount, _ in components), Decimal(0)) - value) > tolerance:
+        raise ValueError("lease total differs from its current/noncurrent components")
+
+
 def _metric(label, block=None):
+    if block is not None and _lease_balance_context(block):
+        total = {
+            "totalfinanceleaseliabilities": "Finance Lease Liabilities",
+            "totaloperatingleaseliabilities": "Operating Lease Liabilities",
+        }.get(_normal(label))
+        if total:
+            return total
+    if (block is not None and _lease_cash_context(block)
+            and _normal(label) == "financingcashflowsfromfinanceleases"):
+        return "Finance Lease Principal Payments"
     if block is not None and _adjusted_context(block):
         return _ADJUSTED_LABELS.get(_normal(label))
     if block is not None and _cash_context(block) and _normal(label) in _CASH_LABELS:
@@ -688,6 +765,12 @@ def _duration(block, rows, column_end=None):
     # An explicit single duration caption; multiple span headings need a
     # richer layout parser and are rejected rather than aligned by guesswork.
     caption = " ".join(row[0] for row in rows if len(row) == 1) + " " + block.section
+    aligned_durations = [
+        row[0] for row in rows if len(row) > 1
+        and re.fullmatch(r"(?:three|six|nine|twelve) months ended", row[0], re.I)
+        and all(_DATE.fullmatch(cell) for cell in row[1:])
+    ]
+    caption += " " + " ".join(aligned_durations)
     matches = re.findall(r"\b(three|six|nine|twelve|3|6|9|12)\s+months?\s+ended\b", caption, re.I)
     if not matches and re.search(r"\byear ended\b", caption, re.I):
         matches = ["twelve"]
@@ -736,6 +819,20 @@ def _dated_column(rows, selection):
 
 
 def _period(block, rows, selection):
+    if selection.metric == "Finance Lease Principal Payments":
+        markers = [index for index, row in enumerate(rows)
+                   if _normal(row[0]) == "cashpaidforamountsincludedinthemeasurementofleaseliabilities"]
+        noncash = [index for index, row in enumerate(rows)
+                   if _normal(row[0]) == "rightofuseassetsobtainedinexchangeforleaseobligations"]
+        if (not _lease_cash_context(block) or len(markers) != 1
+                or markers[0] >= selection.row_index
+                or any(index < selection.row_index for index in noncash)):
+            raise ValueError("finance lease principal lacks explicit cash-paid liability context")
+        return _duration(block, rows, column_end=_dated_column(rows, selection))
+    if selection.metric in {"Finance Lease Liabilities", "Operating Lease Liabilities"}:
+        if not _lease_balance_context(block):
+            raise ValueError("lease total requires supplemental lease balance context")
+        return None, _dated_column(rows, selection)
     if selection.metric in _CASH_ALIASES and _cash_context(block):
         if any(re.search(r"non[- ]cash .*activities", row[0], re.I) for row in rows[:selection.row_index]):
             raise ValueError("noncash supplemental rows cannot establish cash-flow inputs")
@@ -838,6 +935,7 @@ def discover_filing_cells(disclosures: DisclosurePackage) -> tuple[FilingCellSel
                     _adjusted_context(block)
                     or (_cash_context(block) and metric in _CASH_ALIASES)
                     or metric in _OBLIGATIONS
+                    or metric == "Finance Lease Principal Payments"
                     or metric
                     in {
                         "Equipment Financing Principal Payments",
@@ -927,9 +1025,14 @@ def verify_filing_cells(disclosures: DisclosurePackage, selections) -> FilingFac
             ):
                 raise ValueError("source row label does not establish selected role")
             scale = _scale(block, rows)
-            number = _cash_number if _cash_context(block) and selection.metric in _CASH_ALIASES else _number
+            cash_payment = (_cash_context(block) and selection.metric in _CASH_ALIASES) or (
+                _lease_cash_context(block) and selection.metric == "Finance Lease Principal Payments"
+            )
+            number = _cash_number if cash_payment else _number
             value, rounding = number(rows[selection.row_index][selection.column_index], scale)
             start, end = _period(block, rows, selection)
+            if selection.metric in {"Finance Lease Liabilities", "Operating Lease Liabilities"}:
+                _lease_total_components(rows, selection, scale, value, rounding)
             if end > disclosures.as_of:
                 raise ValueError("source period exceeds analysis cutoff")
             if selection.metric in _REDUCTIONS and value > 0:
