@@ -1,4 +1,5 @@
 """Portable source-backed checks for management guidance valuation ranges."""
+from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
 
@@ -83,6 +84,80 @@ def source_state(monkeypatch):
         "price_observation": quote, "financial_evidence": evidence.model_dump(mode="json"),
         "disclosure_evidence": {"packages": [disclosure.model_dump(mode="json")]},
     }
+
+
+def _guidance_values(state):
+    result = price_implied_valuation(state)
+    return (result["management_revenue_guidance_range_usd"],
+            result["guided_diluted_weighted_average_shares_range"],
+            result["growth_floor_percent"])
+
+
+def _excerpt(package, locators):
+    copy = deepcopy(package)
+    copy["documents"][0]["blocks"] = [
+        block for block in copy["documents"][0]["blocks"] if block["locator"] in locators]
+    return copy
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("copies", ["full", "excerpt", "repeat_excerpt"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_consistent_repeated_source_preserves_guidance(monkeypatch, copies, reverse):
+    state = source_state(monkeypatch)
+    full = state["disclosure_evidence"]["packages"][0]
+    excerpt = _excerpt(full, {"block-24", "block-4", "block-44", "block-46"})
+    repeated = full if copies == "full" else excerpt
+    packages = [full, repeated] if copies != "repeat_excerpt" else [full, excerpt, excerpt]
+    state["disclosure_evidence"]["packages"] = list(reversed(packages)) if reverse else packages
+    assert _guidance_values(state) == (["1208000000", "1211000000"],
+                                       ["128000000", "129000000"], "60")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("change", ["text", "section", "currency", "hash", "filing_cik",
+                                    "filing_form", "package_cik", "package_cutoff"])
+@pytest.mark.parametrize("bad_first", [False, True])
+def test_conflicting_repeated_source_stays_invalid_after_matching_copy(monkeypatch, change, bad_first):
+    state = source_state(monkeypatch)
+    full = state["disclosure_evidence"]["packages"][0]
+    bad = _excerpt(full, {"block-46"})
+    doc = bad["documents"][0]
+    if change in {"text", "section"}:
+        doc["blocks"][0][change] += " conflicting"
+    elif change == "currency":
+        doc["blocks"][0]["currency"] = "EUR"
+    elif change == "hash":
+        doc["content_hash"] = "0" * 64
+    elif change == "package_cik":
+        bad["cik"] = "0000000000"
+    elif change == "package_cutoff":
+        bad["as_of"] = "2026-11-03"
+    else:
+        doc["filing"][change.removeprefix("filing_")] = "0000000000" if change == "filing_cik" else "10-Q"
+    state["disclosure_evidence"]["packages"] = ([bad, full, deepcopy(full)] if bad_first
+                                                    else [full, bad, deepcopy(full)])
+    assert _guidance_values(state) == (None, None, None)
+
+
+@pytest.mark.unit
+def test_persisted_claims_do_not_supply_missing_or_forged_guidance(monkeypatch):
+    state = source_state(monkeypatch)
+    original = state["disclosure_evidence"]["packages"][0]
+    state["disclosure_evidence"]["packages"] = [_excerpt(original, {"block-24"})]
+    state["disclosure_evidence"]["deterministic_extraction"] = {
+        "claims": [{"metric": "Total revenue", "value": "999", "period": "full year 2026"}]}
+    assert _guidance_values(state) == (None, None, None)
+
+
+@pytest.mark.unit
+def test_quarterly_revenue_cannot_replace_missing_full_year_guidance(monkeypatch):
+    state = source_state(monkeypatch)
+    package = state["disclosure_evidence"]["packages"][0]
+    state["disclosure_evidence"]["packages"] = [_excerpt(package, {
+        "block-42", "block-43", "block-44", "block-45", "block-4"})]
+    result = price_implied_valuation(state)
+    assert result["management_revenue_guidance_range_usd"] is None
 
 
 @pytest.mark.unit

@@ -267,6 +267,10 @@ def document_followup_context(state) -> str:
         lines.append(f"Question {result['question_id']} ({result['role']}): {result['query']}")
         if result["status"] != "found":
             lines.append(f"Lookup: {result['status']}; {result['reason']}")
+        else:
+            for gap in result.get("gaps", []):
+                if "Convertible Notes" in gap and ("no passage names" in gap or "omitted" in gap):
+                    lines.append(f"Lookup gap: {gap}")
         for passage in result["passages"]:
             if passage.get("provider") == "Alpha Vantage":
                 lines.append(f"Source {passage['citation_ref']} | {passage['label']} | "
@@ -304,7 +308,9 @@ def render_document_followups(state, final_decision_text: str = "") -> str:
         if result["status"] == "not_found":
             label = ("not found in retained vendor transcript"
                      if result["query"].casefold().startswith("transcript:") else "not found in retained filings")
-            lines.append(f"{prefix} — {label} (0 passages).")
+            reason = result.get("reason", "")
+            detail = f": {reason}" if reason and reason != label else ""
+            lines.append(f"{prefix} — {label}{detail} (0 passages).")
         elif result["status"] != "found":
             lines.append(f"{prefix} — unavailable: {result['reason']} (0 passages).")
         else:
@@ -324,4 +330,7 @@ def render_document_followups(state, final_decision_text: str = "") -> str:
                     f"{prefix} — {count} source passage(s) returned; unresolved "
                     "(final decision did not cite a returned source reference)."
                 )
+            for gap in result.get("gaps", []):
+                if "Convertible Notes" in gap and ("no passage names" in gap or "omitted" in gap):
+                    lines.append(f"  - Lookup gap: {gap}")
     return "\n".join(lines)

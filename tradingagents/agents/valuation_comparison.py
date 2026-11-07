@@ -247,36 +247,63 @@ def _source_only_claims(state, package, currency):
     if not isinstance(packages, (list, tuple)):
         return {}
     trusted = {}
-    seen_ids = set()
+    blocked = set()
+    locators = {}
     for raw in packages:
         if not isinstance(raw, dict):
-            continue
-        if raw.get('cik') != package.cik or raw.get('as_of') != str(package.as_of):
             continue
         for doc in raw.get('documents') or ():
             if not isinstance(doc, dict):
                 continue
+            source_id = doc.get('source_id')
+            source = source_by_id.get(source_id)
+            if source is None or source_id in blocked:
+                continue
             filing = doc.get('filing') or {}
             if not isinstance(filing, dict):
+                blocked.add(source_id)
+                trusted.pop(source_id, None)
                 continue
-            source = source_by_id.get(doc.get('source_id'))
-            if doc.get('source_id') in seen_ids:
-                trusted.pop(doc.get('source_id'), None)
+            identity = (doc.get('url'), doc.get('content_hash'), filing)
+            valid = (raw.get('cik') == package.cik and raw.get('as_of') == str(package.as_of)
+                     and filing.get('cik') == package.cik
+                     and filing.get('filed_date') == str(source.filed_date)
+                     and source.filed_date <= package.as_of
+                     and (source.url, source.content_hash, source.accession, source.form, str(source.filed_date))
+                     == (doc.get('url'), doc.get('content_hash'), filing.get('accession'),
+                         filing.get('form'), filing.get('filed_date')))
+            if not valid or (source_id in trusted and trusted[source_id][0] != identity):
+                blocked.add(source_id)
+                trusted.pop(source_id, None)
                 continue
-            seen_ids.add(doc.get('source_id'))
-            if (source is not None and filing.get('cik') == package.cik
-                    and filing.get('filed_date') == str(source.filed_date)
-                    and source.filed_date <= package.as_of
-                    and (source.url, source.content_hash, source.accession, source.form, str(source.filed_date))
-                    == (doc.get('url'), doc.get('content_hash'), filing.get('accession'),
-                        filing.get('form'), filing.get('filed_date'))):
-                trusted[doc['source_id']] = doc
+            blocks = locators.setdefault(source_id, {})
+            for block in doc.get('blocks') or ():
+                if not isinstance(block, dict) or not isinstance(block.get('locator'), str):
+                    blocked.add(source_id)
+                    break
+                locator = block['locator']
+                if locator in blocks and blocks[locator] != block:
+                    blocked.add(source_id)
+                    break
+                blocks[locator] = block
+            if source_id in blocked:
+                trusted.pop(source_id, None)
+                continue
+            if source_id not in trusted:
+                trusted[source_id] = (identity, [])
+            trusted[source_id][1].append({**raw, 'documents': [doc]})
     if not trusted:
         return {}
-    try:
-        discovered = discover_disclosures(packages)
-    except (ValueError, TypeError, KeyError):
-        return {}
+    validated = []
+    for _, source_packages in trusted.values():
+        for source_package in source_packages:
+            try:
+                discovered = discover_disclosures((source_package,))
+            except (ValueError, TypeError, KeyError):
+                continue
+            for claim in discovered.claims:
+                if claim not in validated:
+                    validated.append(claim)
     year = package.as_of.year
     wanted = {
         'revenue': ('Total revenue', f'full year {year}', 'guidance', 'exact'),
@@ -286,7 +313,7 @@ def _source_only_claims(state, package, currency):
     }
     claims = {}
     for name, spec in wanted.items():
-        matches = [c for c in discovered.claims
+        matches = [c for c in validated
                    if ((c.metric, c.period, c.kind, c.comparator) == spec if name == 'revenue'
                        else (c.metric, c.period, c.kind, c.comparator, c.unit) == spec)
                    and c.source_id in trusted and c.value > 0 and (c.upper_value is None or c.upper_value >= c.value)]
