@@ -175,7 +175,7 @@ def test_markdown_html_and_cli_render_vendor_status_honestly(monkeypatch, tmp_pa
     if not available:
         state.pop("transcript_sources")
         monkeypatch.setattr(transcript_access.vendor_transcript, "get_latest_transcript_evidence",
-                            lambda *a, **k: {"status": "unavailable", "reason": "forced provider failure"})
+                            lambda *a, **k: {"status": "unavailable", "reason": "forced provider failure dummy-secret-987"})
         state.update(transcript_access.prepare_transcript_sources(state, ["fundamentals", "news"]))
     state["final_trade_decision"] = "Offline report display fixture, no accepted transcript valuation."
     output = Path(os.environ.get("DOCUMENT_ACCESS_B_RENDER_OUTPUT") or str(tmp_path)) / str(available)
@@ -192,4 +192,5 @@ def test_markdown_html_and_cli_render_vendor_status_honestly(monkeypatch, tmp_pa
         assert "Transcript figures remain unlinked" in markdown
         assert "Revenue grew this quarter" not in markdown
     else:
-        assert all("Vendor transcript unavailable: forced provider failure" in text for text in (markdown, html, cli))
+            assert all("Vendor transcript unavailable: Transcript provider or cache unavailable" in text
+                       and "dummy-secret-987" not in text for text in (markdown, html, cli))

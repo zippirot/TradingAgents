@@ -176,9 +176,17 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def vendor_unavailable(method: str, error: Exception) -> str:
     """What a call returns when every vendor was throttled or unreachable."""
+    safe_reasons = {
+        "retained_scope_mismatch": "Requested issuer or cutoff differs from retained source evidence; no replacement vintage was fetched.",
+        "retained_source_unavailable": "Retained SEC unavailable; no replacement vintage was fetched.",
+        "retained_filing_unavailable": "Retained SEC filing evidence unavailable; no replacement vintage was fetched.",
+        "retained_integrity_unavailable": "Retained financial source integrity is unavailable; no replacement vintage was fetched.",
+        "retained_package_invalid": "Retained source package invalid or unavailable; no replacement vintage was fetched.",
+    }
+    reason = safe_reasons.get(getattr(error, "reason_code", None), "")
     return (
-        f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
-        f"({type(error).__name__}). This says nothing about the instrument; report the "
+        f"DATA_UNAVAILABLE: configured vendor unreachable or unavailable for {method} right now "
+        f"({type(error).__name__}). {reason} This says nothing about the instrument; report the "
         f"data as unavailable and do not estimate or fabricate values."
     )
 

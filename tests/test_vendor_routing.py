@@ -103,6 +103,15 @@ class VendorRoutingTests(unittest.TestCase):
         unsafe.__cause__ = ValueError("dummy-secret-987")
         self.assertNotIn("dummy-secret-987", router.no_data_available(unsafe))
 
+    def test_retained_cutoff_reason_is_fixed_and_never_copies_exception_text(self):
+        from tradingagents.dataflows.errors import VendorUnavailableError
+
+        error = VendorUnavailableError("dummy-secret-987", reason_code="retained_scope_mismatch")
+        result = router.vendor_unavailable("get_financial_evidence", error)
+        self.assertIn("retained", result.lower())
+        self.assertIn("cutoff", result.lower())
+        self.assertNotIn("dummy-secret-987", result)
+
     def test_unknown_configured_vendor_raises(self):
         set_config({"data_vendors": {"core_stock_apis": "bogus_vendor"}})
         with self.assertRaises(ValueError) as ctx:

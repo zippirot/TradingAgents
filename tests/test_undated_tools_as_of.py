@@ -7,6 +7,7 @@ only live odds, so a historical run withholds them.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from unittest import mock
 
 import pandas as pd
@@ -176,7 +177,7 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     from tradingagents.dataflows.errors import VendorUnavailableError
 
     def _down(*a, **k):
-        raise VendorUnavailableError("Yahoo Finance is unreachable")
+        raise VendorUnavailableError("Yahoo Finance is unreachable; dummy-secret-987")
 
     set_config({"data_vendors": {"fundamental_data": "yfinance"}})
     monkeypatch.setitem(router.VENDOR_METHODS["get_balance_sheet"], "yfinance", _down)
@@ -184,6 +185,7 @@ def test_every_vendor_unavailable_says_so_rather_than_crashing(monkeypatch):
     out = router.route_to_vendor("get_balance_sheet", "AAPL", "annual", "2026-09-01")
 
     assert "unavailable" in out.lower() and "unreachable" in out.lower()
+    assert "dummy-secret-987" not in out
     assert "delisted" not in out.lower()  # not a claim about the symbol
 
 
@@ -211,7 +213,9 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch,
 @pytest.mark.unit
 @pytest.mark.parametrize("func, args", [
     pytest.param(f, a, id=f.__name__) for f, a in (
-        (yahoo_market.get_YFin_data_online, ("AAPL", "2025-06-02", "2025-06-06")),
+        (yahoo_market.get_YFin_data_online, (
+            "AAPL", (date.today() - timedelta(days=14)).isoformat(),
+            (date.today() - timedelta(days=7)).isoformat())),
         (yahoo_fundamentals.get_balance_sheet, ("AAPL", "quarterly", "2025-06-06")),
         (yahoo_fundamentals.get_cashflow, ("AAPL", "quarterly", "2025-06-06")),
         (yahoo_fundamentals.get_income_statement, ("AAPL", "quarterly", "2025-06-06")),
@@ -220,16 +224,18 @@ def test_the_price_path_also_tells_an_outage_from_an_unknown_symbol(monkeypatch,
 ])
 def test_a_historical_run_is_not_told_todays_date(func, args, tmp_path):
     """A header stamped with the wall clock tells a backtest when it is really running."""
-    from datetime import date
-
     set_config({"data_cache_dir": str(tmp_path)})
     statement = pd.DataFrame({pd.Timestamp("2025-03-31"): [1.0]}, index=["Total Assets"])
-    prices = pd.DataFrame({"Open": [1.0], "High": [1.0], "Low": [1.0], "Close": [1.0], "Volume": [1]},
-                          index=pd.DatetimeIndex(["2025-06-02"], name="Date"))
+    sessions = pd.bdate_range(date.today() - timedelta(days=21), date.today())
+    prices = pd.DataFrame({"Open": [1.0] * len(sessions), "High": [1.0] * len(sessions),
+                           "Low": [1.0] * len(sessions), "Close": [1.0] * len(sessions),
+                           "Volume": [1] * len(sessions), "Stock Splits": [0.0] * len(sessions)},
+                          index=sessions.rename("Date"))
     ticker = mock.Mock(quarterly_balance_sheet=statement, quarterly_cashflow=statement,
                        quarterly_income_stmt=statement,
                        insider_transactions=_insider_frame("2025-05-30"),
-                       history=lambda **k: prices)
+                       history=lambda **k: prices,
+                       get_history_metadata=lambda: {"exchangeTimezoneName": "America/New_York"})
     with mock.patch.object(yahoo_market.yf, "Ticker", return_value=ticker):
         out = func(*args)
 

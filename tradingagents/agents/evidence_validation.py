@@ -303,6 +303,7 @@ def _acquisition_scope(state, selected_analysts):
 def create_source_acquisition(selected_analysts):
     """Acquire one source vintage before analyst fan-out; never authorize publication."""
     from tradingagents.dataflows.errors import NoMarketDataError, VendorError
+    from tradingagents.dataflows.router import no_data_available
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
     from tradingagents.operational_capture import record_operation
 
@@ -345,7 +346,9 @@ def create_source_acquisition(selected_analysts):
                             raise ValueError("SEC filing package issuer or cutoff differs from requested instrument")
                     except (VendorError, ValidationError, ValueError) as exc:
                         record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC filings")
-                        record["disclosure_error"] = str(exc)
+                        record["disclosure_error"] = (
+                            f"SEC filing unavailable: {no_data_available(exc)}" if isinstance(exc, NoMarketDataError)
+                            else f"SEC filing unavailable ({type(exc).__name__})")
                         disclosures = None
                     if disclosures is not None:
                         from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
@@ -365,7 +368,9 @@ def create_source_acquisition(selected_analysts):
             except (VendorError, ValidationError, ValueError) as exc:
                 record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC financial acquisition")
                 record["status"] = "unavailable"
-                record["reason"] = str(exc)
+                record["reason"] = (
+                    f"SEC unavailable: {no_data_available(exc)}" if isinstance(exc, NoMarketDataError)
+                    else f"SEC unavailable ({type(exc).__name__})")
         # Price is independent of financial scope and critical-accounting status.
         from tradingagents.dataflows.config import get_config
         from tradingagents.dataflows.vendors.yahoo.price_observation import (

@@ -13,8 +13,9 @@ from langchain_core.messages import AIMessage
 from pydantic import ValidationError
 
 from tradingagents.dataflows.date_window import resolve_analysis_cutoff
-from tradingagents.dataflows.errors import VendorError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorError
 from tradingagents.dataflows.filing_search import corpus_hash, search_filing_evidence
+from tradingagents.dataflows.router import no_data_available
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
@@ -120,7 +121,9 @@ def prepare_document_sources(state, selected_analysts) -> dict:
             })
         _check_corpus(corpus, scope, (state.get("issuer_identity") or {}).get("cik"))
     except VendorError as exc:
-        record.update(status="unavailable", reason=str(exc))
+        reason = (f"SEC unavailable: {no_data_available(exc)}" if isinstance(exc, NoMarketDataError)
+                  else f"SEC unavailable ({type(exc).__name__})")
+        record.update(status="unavailable", reason=reason)
         return {"document_sources": record}
     except ValidationError as exc:
         raise ValueError("Malformed bounded filing evidence") from exc

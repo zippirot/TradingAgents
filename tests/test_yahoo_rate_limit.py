@@ -68,7 +68,10 @@ def test_the_indicator_path_retries_a_rate_limit(yahoo):
     """The prices behind every indicator were fetched with ``yf.download``, which
     returns an empty frame for a 429, so they were never retried."""
     bar = pd.DataFrame({"Open": [1.0], "High": [1.0], "Low": [1.0], "Close": [1.0],
-                        "Volume": [100]}, index=pd.DatetimeIndex([DAY], name="Date"))
+                        "Volume": [100], "Stock Splits": [0]},
+                       index=pd.DatetimeIndex([DAY], name="Date"))
+    yahoo.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2026-09-19 12:00")))
+    yahoo.setattr(ohlcv, "_retrieval_time", lambda: pd.Timestamp("2026-09-19 12:00+00:00"))
     answers = [YFRateLimitError(), bar]
 
     def history(self, **kwargs):

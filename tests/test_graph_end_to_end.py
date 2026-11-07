@@ -449,7 +449,7 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
     from tradingagents.dataflows.vendors import sec_edgar
 
     def unavailable(ticker):
-        raise VendorUnavailableError("SEC source unavailable in controlled proof")
+        raise VendorUnavailableError("SEC source unavailable in controlled proof dummy-secret-987")
 
     monkeypatch.setattr(sec_edgar, "cik_for", unavailable)
     graph = _graph(tmp_path, monkeypatch, ScriptedModel(),
@@ -457,9 +457,11 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
     state, signal = graph.propagate("NVDA", TRADE_DATE)
     assert signal == "REVIEW"
     assert state["investment_plan"] == state["trader_investment_plan"] == ""
-    assert "SEC source unavailable" in state["final_trade_decision"]
+    assert "SEC unavailable" in state["final_trade_decision"]
+    assert "dummy-secret-987" not in str(state)
     path = tmp_path / "results/NVDA/TradingAgentsStrategy_logs" / f"full_states_log_{TRADE_DATE}.json"
     saved = json.loads(path.read_text())
+    assert "dummy-secret-987" not in str(saved)
     assert saved["final_rating"] == "REVIEW"
     assert saved["fundamentals_report"]
     assert saved["investment_debate_state"]["history"] == ""

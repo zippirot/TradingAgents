@@ -49,6 +49,10 @@ class VendorUnavailableError(VendorError):
     Says nothing about the instrument; the router skips to the next vendor.
     """
 
+    def __init__(self, message: str = "", *, reason_code: str | None = None):
+        super().__init__(message)
+        self.reason_code = reason_code
+
 
 class VendorNotConfiguredError(VendorError, ValueError):
     """A vendor was selected but its API key/configuration is missing.
