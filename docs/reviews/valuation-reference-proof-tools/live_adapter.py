@@ -46,6 +46,54 @@ BUILD2_LEDGER = BUILD2_ROOT / "private/build2-ledger.jsonl"
 BUILD2_BUDGET_SCOPES = {f"proof:{name}" for name in BUILD2_ATTEMPTS}
 
 
+# Exact immutable artifacts from the completed first Build2 attempt.
+BUILD2_FIRST_LEDGER_BYTES = 38662
+BUILD2_FIRST_LEDGER_SHA = "1a1c40b00f1a19c76b7b6a9ad3f9d0d316c031853246b0031ef441566c3f1954"
+BUILD2_FIRST_CANDIDATE_SHA = "c7410189bb3a2b7533ecda59b289b1c862c1626da297396f5cbd6d74e514525b"
+
+
+def build2_second_allowance(record, ledger, *, claimed=False):
+    """Validate the one remaining slot against the preserved first attempt."""
+    private = ledger.path.parent
+    original_path = private / "build2-candidate.json"
+    if ledger.path != BUILD2_LEDGER or ledger.path.resolve() != ledger.path or original_path.resolve() != original_path:
+        raise ValueError("Wrong Build2 prior proof path")
+    original_bytes = original_path.read_bytes()
+    if hashlib.sha256(original_bytes).hexdigest() != BUILD2_FIRST_CANDIDATE_SHA:
+        raise ValueError("First candidate bytes changed")
+    original = json.loads(original_bytes)
+    digest = manifest_hash(original)
+    expected = {"attempt": BUILD2_ATTEMPTS[1], "attempt_cap_usd": "12",
+                "original_allowance_sha256": digest, "original_candidate_sha256": BUILD2_FIRST_CANDIDATE_SHA,
+                "prefix_bytes": BUILD2_FIRST_LEDGER_BYTES, "prefix_sha256": BUILD2_FIRST_LEDGER_SHA}
+    if record.get("second_slot") != expected:
+        raise ValueError("Second slot amendment differs from preserved authority")
+    preserved = ledger.path.read_bytes()
+    prefix = preserved[:BUILD2_FIRST_LEDGER_BYTES]
+    if hashlib.sha256(prefix).hexdigest() != BUILD2_FIRST_LEDGER_SHA or not claimed and len(prefix) != len(preserved):
+        raise ValueError("First terminal ledger prefix differs or second slot already used")
+    events = [json.loads(line) for line in prefix.splitlines()]
+    first = BUILD2_ATTEMPTS[0]
+    if ([e.get("approval_sha256") for e in events if e["type"] == "allowance"] != [digest]
+            or [(e["phase"], e["approval_sha256"]) for e in events if e["type"] == "attempt_claim"] != [(first, digest)]
+            or (events[-1]["type"], events[-1].get("name"), events[-1].get("execution"), events[-1].get("feature_proof"))
+            != ("attempt_end", first, "complete", "incomplete")):
+        raise ValueError("Second slot requires a terminal, feature-incomplete first attempt")
+    changes = {"candidate_head", "tree", "runner_sha256", "reviewed_provider", "second_slot"}
+    if ({k:v for k,v in record.items() if k not in changes} != {k:v for k,v in original.items() if k not in changes}
+            or not record["clean"] or record["candidate_head"] == original["candidate_head"]):
+        raise ValueError("Second candidate changes fixed authority or dependencies")
+    rates = record["reviewed_provider"]
+    prior_rates = original["reviewed_provider"]
+    if rates["aliases"] != prior_rates["aliases"] or any(
+        _rate(rates["rates"][m][k]) > _rate(v) for m in (A, B_DEEP) for k, v in prior_rates["rates"][m].items()
+    ):
+        raise ValueError("Second reviewed route exceeds the original price/alias envelope")
+    subprocess.run(["git", "merge-base", "--is-ancestor", original["candidate_head"], record["candidate_head"]],
+                   cwd=original["worktree_root"], check=True)
+    return digest
+
+
 def build2_machine():
     cpu, ram = subprocess.check_output(["/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string",
                                         "hw.memsize"], text=True).splitlines()
@@ -841,11 +889,21 @@ def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: Cli
         claims = [e for e in events if e["type"] == "attempt_claim"]
         entry = next((e for e in claims if e["phase"] == claim.name), None)
         allowance = [e for e in events if e["type"] == "allowance"]
+        allowance_digest = claim.approval_sha256
+        if entry and "second_slot" in entry["approval_record"]:
+            if claim.name != BUILD2_ATTEMPTS[1] or Decimal(entry["attempt_cap_usd"]) > 12:
+                raise ValueError("Second slot amendment is restricted to the remaining $12 attempt")
+            frozen_path = ledger.path.parent / "build2-second-candidate.json"
+            raw = frozen_path.read_bytes()
+            if (frozen_path.resolve() != frozen_path or hashlib.sha256(raw).hexdigest() != entry.get("second_candidate_sha256")
+                    or json.loads(raw) != entry["approval_record"]):
+                raise ValueError("Frozen second candidate changed")
+            allowance_digest = build2_second_allowance(entry["approval_record"], ledger, claimed=True)
         if (claim.kind != "proof" or spec.proof_scope != BUILD2_SCOPE or entry is None
                 or [e["phase"] for e in claims] != list(BUILD2_ATTEMPTS[:len(claims)])
                 or entry["approval_sha256"] != claim.approval_sha256
                 or entry["analysis_date"] != spec.analysis_date or spec.analysis_cutoff_utc != build2_cutoff(entry["session"])
-                or len(allowance) != 1 or allowance[0]["approval_sha256"] != claim.approval_sha256
+                or len(allowance) != 1 or allowance[0]["approval_sha256"] != allowance_digest
                 or ledger.path != BUILD2_LEDGER or ledger.path.resolve() != ledger.path
                 or manifest_hash(entry["approval_record"]) != claim.approval_sha256
                 or any(e.get("type") == "attempt_end" and e.get("name") == claim.name for e in events)):

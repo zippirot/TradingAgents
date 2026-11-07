@@ -91,3 +91,48 @@ endpoint and after-close session receipts, and retain isolated runtime/ledger
 outputs. Empty or rejected proposals prove fallback only. Paid execution and
 its feature acceptance are pending at this implementation checkpoint. Required
 exact-head GitHub CI remains pending future publication approval.
+
+## First live result and bounded correction
+
+Frozen implementation candidate: `0b81953370ccef8581be534a53c7bf72d8298fe2`.
+The first authorized attempt completed all four analysts and three research/risk
+rounds after the November 6 NYSE close. Its canonical completed price was
+$72.4800033569336 for November 6, with no fallback. The PM stated a six-month
+horizon, selected no case and supplied a reason. All ten accepted advisory
+audit findings received dispositions; token coverage correctly remained partial.
+The previously fixed management revenue range, guided shares and growth floor
+were all populated. Model pins, credentials and original preferences were
+hash-checked unchanged.
+
+Live feature acceptance was **incomplete**. The analyst's 16,384-token response
+(including 3,226 reasoning tokens) stopped inside its third case, leaving an
+unterminated JSON fence. All proposed cases were withheld. The RM supplied no
+replacement. The first two objects could be isolated and priced diagnostically,
+but that is not accepted live output and is not used as feature proof.
+The original raw response, candidate and reports remain unchanged.
+
+Observed billed usage was $8.18959380, corroborated by the account-usage delta.
+Two unknown responses retain $1.409728 and $2.308384 reservations. The first
+attempt therefore commits $11.90770580, leaving $12.09229420 under the existing
+allowance. No aggregate usage observation releases an unknown individual hold.
+
+The correction changes only the analyst's output instructions: four complete
+named extraction blocks precede a concise narrative; zero to two justified
+compact cases are requested. Missing inputs may still produce an empty list.
+Validation, exact source qualifiers, case arithmetic, source acquisition, model
+IDs, depth, output cap and call count are unchanged. This is not a parser repair
+loop. The prompt's affected inventory passed 185 checks across two invocations;
+the integrated prompt, graph and proof subset passed 95. Ruff, dependency and
+diff checks passed. Earlier full-suite and retained-export evidence is reused
+because the calculation, retrieval, report/export and recovery sources and their
+dependencies remain unchanged; neither passing old evidence nor the first
+fallback report establishes live case acceptance.
+
+For the unused second attempt, a separate exclusive candidate receipt binds the
+reviewed descendant to the first candidate and exact terminal ledger prefix.
+The original receipt and ledger are preserved. The same ledger enforces the
+original $24/two-attempt allowance, a $12 second-attempt cap, all outstanding
+holds and fresh account/session/provider observations. No new allowance is
+created. The corrective prompt and this linkage receive focused independent
+review before commitment and launch. Second-attempt execution remains pending
+at this corrective checkpoint; no release action is authorized.

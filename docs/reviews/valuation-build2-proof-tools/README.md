@@ -49,3 +49,14 @@ Only the operator refreshes inputs, freezes the accepted candidate or starts a r
    unknown holds and independent feature assessment. An empty proposal is not
    feature proof. Establish why proof is incomplete before explicitly invoking a
    second attempt with its own refreshed receipt pair. Preserve all prior files.
+
+For the remaining slot after the first completed, feature-incomplete run on
+`0b81953`, leave the first candidate, reviewed provider file and ledger in place.
+After the corrected descendant has been independently reviewed and committed,
+place its fresh provider metadata in `../private/build2-receipts/reviewed-second.provider.json`
+and run `.venv/bin/python "$RUNNER" --freeze-second`. This writes only the
+exclusive second candidate receipt and checks the original terminal ledger
+fingerprint. Requalify the clean source, then obtain the fresh slot-2 receipts
+as in step 4. Launch once with `--run Build2-DOCN-2 --attempt-cap 12` and the
+same explicit credentials argument. This uses the original ledger and retains
+the full first-attempt exposure of $11.90770580, including $3.718112 unresolved.

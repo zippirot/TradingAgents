@@ -150,22 +150,42 @@ def provider(path):
             "usage_usd": str(money(key["usage"])), "remaining_usd": str(money(key["limit_remaining"]))}
 
 
-def freeze():
+def freeze(*, second=False):
     candidate = environment()
     if not candidate["clean"] or candidate["candidate_head"] == BASE:
         raise RuntimeError("Freeze needs a clean committed Build2 candidate")
-    candidate["reviewed_provider"] = provider(RECEIPTS / "reviewed.provider.json")
+    reviewed_file = "reviewed-second.provider.json" if second else "reviewed.provider.json"
+    candidate["reviewed_provider"] = provider(RECEIPTS / reviewed_file)
     now = datetime.now(UTC)
     if live._b3_aware_time(candidate["reviewed_provider"]["observed_at"], now) < now - timedelta(minutes=10):
         raise ValueError("Refresh reviewed provider metadata before freezing")
-    create(FROZEN, candidate)
-    return {"candidate_sha256": sha(FROZEN), "candidate_head": candidate["candidate_head"]}
+    target = FROZEN
+    if second:
+        original = read(FROZEN)
+        if original["reviewed_provider"] != provider(RECEIPTS / "reviewed.provider.json"):
+            raise ValueError("Original reviewed provider receipt changed")
+        target = PRIVATE / "build2-second-candidate.json"
+        candidate["second_slot"] = {"attempt": ATTEMPTS[1], "attempt_cap_usd": "12",
+            "original_allowance_sha256": manifest_hash(original), "original_candidate_sha256": sha(FROZEN),
+            "prefix_bytes": live.BUILD2_FIRST_LEDGER_BYTES, "prefix_sha256": live.BUILD2_FIRST_LEDGER_SHA}
+        ledger = PilotLedger(LEDGER)
+        with ledger.budget_lock():
+            live.build2_second_allowance(candidate, ledger)
+            create(target, candidate)
+    else:
+        create(target, candidate)
+    return {"candidate_sha256": sha(target), "candidate_head": candidate["candidate_head"]}
 
 
-def verify_candidate():
-    candidate = read(FROZEN)
-    reviewed = provider(RECEIPTS / "reviewed.provider.json")
-    if candidate != {**environment(), "reviewed_provider": reviewed} or not candidate["clean"]:
+def verify_candidate(*, second=False):
+    candidate = read(PRIVATE / "build2-second-candidate.json" if second else FROZEN)
+    reviewed = provider(RECEIPTS / ("reviewed-second.provider.json" if second else "reviewed.provider.json"))
+    expected = {**environment(), "reviewed_provider": reviewed}
+    if second:
+        if read(FROZEN)["reviewed_provider"] != provider(RECEIPTS / "reviewed.provider.json"):
+            raise ValueError("Original reviewed provider receipt changed")
+        expected["second_slot"] = candidate["second_slot"]
+    if candidate != expected or not candidate["clean"]:
         raise RuntimeError("Frozen Build2 source, inputs, dependencies, history or rates changed")
     return candidate
 
@@ -185,6 +205,8 @@ def claim(name, cap, candidate, session, receipt, ledger):
            for t in (session["observed_at"], session["nyse-calendar"]["retrieved_at"], session["docn-chart"]["retrieved_at"])):
         raise ValueError("Stale session receipt")
     reviewed = candidate["reviewed_provider"]
+    if "second_slot" in candidate and observed <= datetime.fromisoformat(reviewed["observed_at"]):
+        raise ValueError("Refresh the second-slot provider receipt after reviewing the amended candidate")
     if (receipt["aliases"] != reviewed["aliases"] or any(
             money(receipt["rates"][m][k]) > money(v)
             for m in MODELS for k, v in reviewed["rates"][m].items())):
@@ -194,8 +216,16 @@ def claim(name, cap, candidate, session, receipt, ledger):
         events = ledger.events()
         attempts = [e for e in events if e["type"] == "attempt_claim"]
         idx = ATTEMPTS.index(name)
+        allowance_digest = digest
+        amendment = {}
+        if "second_slot" in candidate:
+            frozen_path = PRIVATE / "build2-second-candidate.json"
+            if name != ATTEMPTS[1] or cap > 12 or read(frozen_path) != candidate:
+                raise ValueError("Invalid amended slot, frozen candidate or attempt cap")
+            allowance_digest = live.build2_second_allowance(candidate, ledger)
+            amendment["second_candidate_sha256"] = sha(frozen_path)
         if ([e["phase"] for e in attempts] != list(ATTEMPTS[:idx])
-                or (events and [e.get("approval_sha256") for e in events if e["type"] == "allowance"] != [digest])
+                or (events and [e.get("approval_sha256") for e in events if e["type"] == "allowance"] != [allowance_digest])
                 or (idx and (not any(e["type"] == "attempt_end" and e["name"] == ATTEMPTS[0] for e in events)
                              or observed <= datetime.fromisoformat(attempts[0]["provider_receipt"]["observed_at"])))):
             raise RuntimeError("Attempt sequence, prior completion or frozen allowance differs; no resume")
@@ -209,7 +239,7 @@ def claim(name, cap, candidate, session, receipt, ledger):
                            "prior_unknown_reserved_usd": candidate["prior_unknown_reserved_usd"],
                            "old_ledgers": candidate["old_ledgers"], "attempts": 2})
         ledger.append({"type": "attempt_claim", "phase": name, "ticker": "DOCN", "attempt_cap_usd": str(cap),
-                       "approval_sha256": digest, "approval_record": candidate, "provider_receipt": receipt,
+                       "approval_sha256": digest, "approval_record": candidate, "provider_receipt": receipt, **amendment,
                        "session": session, "analysis_date": session["session_date"]})
     return live.ExecutionClaim("proof", name, digest)
 
@@ -353,7 +383,8 @@ def assess(state, work):
 
 
 def run(name, cap, credentials):
-    candidate = verify_candidate()
+    second = name == ATTEMPTS[1] and (PRIVATE / "build2-second-candidate.json").exists()
+    candidate = verify_candidate(second=True) if second else verify_candidate()
     ledger = PilotLedger(LEDGER)
     work = safe(PRIVATE / name)
     if work.exists():
@@ -378,7 +409,10 @@ def run(name, cap, credentials):
         wire = live.OpenRouterWireGuard(budget, receipt["rates"], max_output_tokens=16384, kind="run",
                                         serialize_paid_requests=True, allow_unfrozen_sources=True,
                                         allowed_resolved_models={m:set(v) for m,v in receipt["aliases"].items()})
-        verify_candidate()
+        if second:
+            verify_candidate(second=True)
+        else:
+            verify_candidate()
         for env_key in list(os.environ):
             if env_key.startswith(("LANGCHAIN_", "LANGSMITH_", "OTEL_")) or env_key == "OPENAI_LOG":
                 del os.environ[env_key]
@@ -415,6 +449,7 @@ def main():
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--qualify", action="store_true")
     action.add_argument("--freeze", action="store_true")
+    action.add_argument("--freeze-second", action="store_true")
     action.add_argument("--run", choices=ATTEMPTS)
     parser.add_argument("--credentials", type=Path)
     parser.add_argument("--attempt-cap")
@@ -431,7 +466,7 @@ def main():
     else:
         if args.credentials or args.attempt_cap:
             parser.error("No credentials or budget outside explicit --run")
-        result = freeze() if args.freeze else {"qualification": "offline", "network_calls": 0, **environment()}
+        result = freeze(second=args.freeze_second) if args.freeze or args.freeze_second else {"qualification": "offline", "network_calls": 0, **environment()}
     print(json.dumps(result, indent=2))
     return 0
 

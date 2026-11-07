@@ -296,3 +296,101 @@ def test_one_matching_row_cannot_mask_two_incorrect_published_case_prices(tmp_pa
     assert result["status"] == "incomplete"
     assert [r["case_id"] for r in result["verified_cases"]] == [rows[0]["case_id"]]
     assert [r["case_id"] for r in result["mismatched_cases"]] == [r["case_id"] for r in rows[1:]]
+
+
+def test_second_candidate_amendment_preserves_first_slot_and_unknown_cost(tmp_path, monkeypatch):
+    import subprocess
+    from copy import deepcopy
+
+    h, ledger, session, receipt, candidate, _ = fixture(tmp_path, monkeypatch)
+    repo = tmp_path / "source"
+    repo.mkdir()
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
+    git("init", "-q")
+    for contents in ("original", "fixed prompt"):
+        (repo / "prompt").write_text(contents)
+        git("add", "prompt")
+        git("-c", "user.name=Offline Test", "-c", "user.email=offline@example.invalid", "commit", "-qm", contents)
+        if contents == "original":
+            original_head = git("rev-parse", "HEAD")
+    next_head = git("rev-parse", "HEAD")
+    original = {**candidate, "worktree_root":str(repo), "candidate_head":original_head,
+                "clean":True, "config":dict(h.CONFIG), "dependency_manifest_sha256":"fixture-deps"}
+    first, second = h.ATTEMPTS
+    h.claim(first,"14",original,session,receipt,ledger)
+    budget = pilot.BudgetGuard(ledger, Decimal(24), allowed_models=h.MODELS, allowed_kinds={"run"},
+                               max_calls=64, scope="proof:"+first, scope_ceiling=Decimal("14"))
+    budget.reserve(pilot.A,"3.718112",kind="run")
+    ticket = budget.reserve(pilot.B_DEEP,"9",kind="run")
+    budget.settle(ticket,"8.18959380")
+    original_file = tmp_path / "build2-candidate.json"
+    h.create(original_file, original)
+    monkeypatch.setattr(h,"FROZEN",original_file)
+    monkeypatch.setattr(h,"PRIVATE",tmp_path)
+    monkeypatch.setattr(h,"RECEIPTS",tmp_path)
+    monkeypatch.setattr(h.live,"BUILD2_FIRST_CANDIDATE_SHA",h.sha(original_file))
+    def bind_prefix():
+        monkeypatch.setattr(h.live,"BUILD2_FIRST_LEDGER_BYTES",ledger.path.stat().st_size)
+        monkeypatch.setattr(h.live,"BUILD2_FIRST_LEDGER_SHA",h.sha(ledger.path))
+    bind_prefix()
+    revised_env = {**original, "candidate_head":next_head}
+    revised_env.pop("reviewed_provider")
+    monkeypatch.setattr(h,"environment",lambda:deepcopy(revised_env))
+    current = {**receipt, "observed_at":"2026-11-07T06:00:00+00:00"}
+    reviewed_second = {**current, "observed_at": "2026-11-07T05:59:58+00:00"}
+    def read_provider(path):
+        return deepcopy(reviewed_second if "second" in path.name else receipt)
+    monkeypatch.setattr(h,"provider",read_provider)
+    with pytest.raises(ValueError,match="terminal"):
+        h.freeze(second=True)
+    ledger.append({"type":"attempt_end","name":first,"execution":"complete","feature_proof":"incomplete"})
+    bind_prefix()
+    frozen_prefix = ledger.path.read_bytes()
+    frozen_original = original_file.read_bytes()
+    for key, value in (("config",{**h.CONFIG,"output_cap":65536}), ("dependency_manifest_sha256","changed")):
+        previous = revised_env[key]
+        revised_env[key] = value
+        with pytest.raises(ValueError,match="authority or dependencies"):
+            h.freeze(second=True)
+        revised_env[key] = previous
+    revised_env["candidate_head"] = original_head
+    with pytest.raises(ValueError,match="authority or dependencies"):
+        h.freeze(second=True)
+    revised_env["candidate_head"] = next_head
+    with monkeypatch.context() as m:
+        broader = deepcopy(current)
+        broader["aliases"][pilot.A].append("unapproved")
+        m.setattr(h,"provider",lambda p:broader if "second" in p.name else receipt)
+        with pytest.raises(ValueError,match="price/alias"):
+            h.freeze(second=True)
+    h.freeze(second=True)
+    assert ledger.path.read_bytes() == frozen_prefix and original_file.read_bytes() == frozen_original
+    amended = h.verify_candidate(second=True)
+    with pytest.raises(ValueError, match="Refresh the second-slot provider receipt"):
+        h.claim(second,"12",amended,session,reviewed_second,ledger)
+    with pytest.raises(ValueError,match="attempt cap"):
+        h.claim(second,"12.05",amended,session,current,ledger)
+    original_file.write_bytes(frozen_original+b" ")
+    with pytest.raises(ValueError,match="First candidate bytes changed"):
+        h.claim(second,"12",amended,session,current,ledger)
+    original_file.write_bytes(frozen_original)
+    ledger.path.write_bytes(frozen_prefix.replace(b"3.718112",b"0.000000"))
+    with pytest.raises(ValueError,match="prefix differs"):
+        h.claim(second,"12",amended,session,current,ledger)
+    ledger.path.write_bytes(frozen_prefix)
+    authority = h.claim(second,"12",amended,session,current,ledger)
+    assert ledger.path.read_bytes().startswith(frozen_prefix)
+    budget = pilot.BudgetGuard(ledger, Decimal(24), allowed_models=h.MODELS, allowed_kinds={"run"},
+                               max_calls=64, scope="proof:"+second, scope_ceiling=Decimal(12))
+    h.live.verify_budget_binding(authority,budget,spec(),None)
+    assert ledger.committed_usd()==Decimal("11.90770580")
+    budget.reserve(pilot.A,"12",kind="run")
+    assert ledger.committed_usd()==Decimal("23.90770580")
+    with pytest.raises(RuntimeError,match="cap"):
+        budget.reserve(pilot.A,"0.1",kind="run")
+    with pytest.raises(ValueError,match="already used"):
+        h.claim(second,"1",amended,session,current,ledger)
+    with pytest.raises(ValueError,match="Wrong attempt"):
+        h.claim("Build2-DOCN-3","0.01",amended,session,current,ledger)
+    assert sum(e["type"]=="allowance" for e in ledger.events())==1
