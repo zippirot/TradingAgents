@@ -40,5 +40,5 @@ def test_citation_hidden_in_raw_diagnostics_is_not_claimed_as_published():
     s["final_trade_decision"] = "Hold. No cited source in this published decision."
     s["unvalidated_outputs"] = {"portfolio_manager": {"rationale": ref}}
     rendered = str(_report_parts(s))
-    assert "unresolved" in rendered
+    assert 'source passages retrieved; final-decision citation not verified.' in rendered
     assert "cited in final decision:" not in rendered

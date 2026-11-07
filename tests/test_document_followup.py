@@ -124,7 +124,7 @@ def test_context_and_report_require_actual_pm_reference():
     assert ref in context
     assert "not found in retained filings" in context
     unresolved = render_document_followups(state, "No citation")
-    assert "unresolved" in unresolved
+    assert 'source passages retrieved; final-decision citation not verified.' in unresolved
     assert ref not in unresolved
     cited = render_document_followups(state, "I considered " + ref)
     assert ref in cited

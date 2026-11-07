@@ -327,8 +327,8 @@ def render_document_followups(state, final_decision_text: str = "") -> str:
                 )
             else:
                 lines.append(
-                    f"{prefix} — {count} source passage(s) returned; unresolved "
-                    "(final decision did not cite a returned source reference)."
+                    f"{prefix} — {count} passage(s): source passages retrieved; "
+                    "final-decision citation not verified."
                 )
             for gap in result.get("gaps", []):
                 if "Convertible Notes" in gap and ("no passage names" in gap or "omitted" in gap):
