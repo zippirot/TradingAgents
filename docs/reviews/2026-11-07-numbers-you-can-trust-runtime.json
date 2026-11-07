@@ -1,6 +1,6 @@
 {
   "source_state_sha256": "f1fe3b2a81131b1c6ded29e91e564494c1a646a1a0c104116b1cfac45b8a6809",
-  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-wh6g9z39",
   "prior_decision_id": "ddb3c455-244c-4332-a607-b6e0bc5e7917",
   "prior_as_of": "2026-11-06",
   "comparison": {
@@ -201,7 +201,7 @@
     ]
   },
   "exports": [
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45/second/complete_report.md",
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-mjossw45/second/complete_report.html"
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-wh6g9z39/second/complete_report.md",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/numbers-proof-wh6g9z39/second/complete_report.html"
   ]
 }

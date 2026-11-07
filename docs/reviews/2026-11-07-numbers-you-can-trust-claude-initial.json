@@ -1,0 +1,129 @@
+{
+  "run_id": "e43af411-26b7-4847-a234-be6bc6b93eb5",
+  "status": "completed",
+  "started_at": "2026-11-07T18:21:07.884Z",
+  "deadline_at": "2026-11-07T20:51:07.884Z",
+  "completed_at": "2026-11-07T18:50:47.328Z",
+  "report": {
+    "base_commit": "9ba8aa9c931cdc2b98fa25e94a39defdf3cad258",
+    "head_commit": "f83f703c1851691d2e01cb4fffb35917d6f4e3fa",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 54,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-numbers-you-can-trust-acceptance.md",
+      "docs/reviews/2026-11-07-numbers-you-can-trust-runtime.json",
+      "docs/reviews/numbers-you-can-trust-proof.py",
+      "docs/reviews/valuation-reference-proof-tools/live_adapter.py",
+      "docs/superpowers/plans/2026-11-07-numbers-you-can-trust.md",
+      "tests/test_assumption_history.py",
+      "tests/test_case_valuation.py",
+      "tests/test_evidence_gate.py",
+      "tests/test_graph_end_to_end.py",
+      "tests/test_native_risk_checkpoint.py",
+      "tests/test_operational_capture.py",
+      "tests/test_peer_period_scope.py",
+      "tests/test_sec_documents.py",
+      "tests/test_valuation.py",
+      "tests/test_valuation_outlooks.py",
+      "tests/test_valuation_reference_live_adapter.py",
+      "tradingagents/agents/assumption_history.py",
+      "tradingagents/agents/decision_context.py",
+      "tradingagents/agents/evidence_validation.py",
+      "tradingagents/agents/output_validation.py",
+      "tradingagents/agents/valuation.py",
+      "tradingagents/agents/valuation_cases.py",
+      "tradingagents/agents/valuation_outlooks.py",
+      "tradingagents/agents/valuation_reference_flow.py",
+      "tradingagents/dataflows/vendors/sec_documents.py",
+      "tradingagents/dataflows/vendors/sec_edgar.py",
+      "tradingagents/graph/setup.py",
+      "tradingagents/graph/trading_graph.py"
+    ],
+    "summary": "Independent read-only audit of the frozen Build A \"Numbers you can trust\" range (9ba8aa9c -> f83f703c) against the frozen plan, acceptance report, and runtime receipt in request.json. All seven authorized tasks are implemented consistently with the frozen requirements: A1's inclusive 0.1x-10x magnitude guard sits inside _forecast after unit/basis validation and covers EV scenarios, PE (positive EPS only) and Build 2 cases, with Review Focus 1 (unit mismatch rejected before magnitude) directly tested; A2 replays both model claims and deterministic discovery against uniquely matched, untruncated canonical source blocks, prefers the newest filing date per normalized key, grounds neither side of a same-latest-date conflict (Review Focus 2) and surfaces a stable warning through the gate without mutating input; A3 reorders acquisition to protect 10-K/10-Q statements and the latest 2.02 release, separately budgets the discovery primary (4k) from its EX-99.1 exhibit, and preserves all existing limits, with the private DOCN replay receipt showing the Nov 3 guidance retained under 120k; A4 forces unmapped fundamentals-selected stocks to REVIEW end-to-end (acquisition, gate, publication, CLI wire drill) with no invented non-filer source, matching the approved product decision; A5 applies the peer-only three-year period floor before ambiguity selection with leap-day handling and an unchanged issuer default; A6 computes the prior-publication comparison once at finalization under the known-at rule with self/future exclusion and sequence tie-break, retains it before the terminal checkpoint, renders from retained data only (export proven not to reread the store), and treats unknown filing inventories as unknown rather than false; A7 is a documented evidence-only \"not reproduced; no code change\" disposition with matching parent/child condition IDs. Global constraints hold in the diff (no new dependencies, offline tests, exception type names only). The acceptance report transparently corrects the earlier proof misattribution (source-only price_implied_valuation, not the outlook adapter, carries the FY2026 DOCN guidance) and distinguishes focused development evidence from the single full-suite run on the clean implementation commit. No in-scope Critical, High, or Medium findings were identified from the frozen evidence; nine Low observations are recorded (priority-tier spillover and a misleading truncation gap message in sec_documents, an untested exact-timestamp tie-break, a missing KeyError guard, a terminal-node failure-mode shift, reduced generic-fixture fundamentals coverage, retained-inventory semantics of new_filings_between, a bypassed internal trade_date guard in the gate's warning call, and a cosmetic duplicate setdefault). Passing this audit grants no integration or release authority; exact-candidate CI and installs remain deferred to authorized integration.",
+    "limitations": [
+      "Read-only static audit of the single frozen request.json (base 9ba8aa9c -> head f83f703c); no tests, linters, or application code were executed by this auditor.",
+      "Builder receipts (full pytest 3134 passed / ruff clean at d2d9993b, private DOCN replay receipt, /tmp logs) are accepted as builder evidence, not reproduced independently; private replay inputs (saved DOCN state, publication store, SEC cache) were not available to this audit.",
+      "HEAD context was limited to the modules the packet supplied; unlisted callers (e.g., report_html.py internals, propagation.py, thesis.py, publication.publish internals beyond excerpts) were assessed only through the supplied excerpts and diff.",
+      "Exact-candidate remote CI and fresh-install smoke are unverified per the acceptance report (candidate unpushed); this audit cannot close that gap.",
+      "The declared build size (medium) was escalated to extra medium because the frozen scope exceeds 10 files; audit depth prioritized A1-A7 owning paths and the two in-scope review focuses over exhaustive line-by-line review of every test fixture.",
+      "No evidence outside the frozen file was used; repository working-tree state was not consulted."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "extract_sections promotes any digit-bearing expect/guidance/outlook block to tier 3 in every bounded document, not only the latest earnings exhibit; common forward-looking boilerplate in large 10-K/10-Q extractions can now outrank tier-2 financing-scope prose and reorder retained sections beyond the A3 target path (statement/obligation tables remain tier 3 and regression tests pass, so impact is bounded)",
+        "path": "tradingagents/dataflows/vendors/sec_documents.py"
+      },
+      {
+        "severity": "low",
+        "title": "Truncation gap text for the latest 8-K primary says 'package remaining 4000 characters' when 4000 is the special per-primary allocation, not the package remainder; the omission is reported but its stated cause is misleading",
+        "path": "tradingagents/dataflows/vendors/sec_documents.py"
+      },
+      {
+        "severity": "low",
+        "title": "A6 sequence tie-break at exactly equal published_at timestamps is implemented (max over (stamp, sequence)) but no test publishes two priors with identical timestamps; same-day coverage uses distinct hours only",
+        "path": "tests/test_assumption_history.py"
+      },
+      {
+        "severity": "low",
+        "title": "_grounded's exception guard omits KeyError/LookupError; a claim citing a block absent from the verified block map would raise out of grounded_outlook_warnings inside the evidence gate. Both validators currently reject such claims first, so this is defense-in-depth only",
+        "path": "tradingagents/agents/valuation_outlooks.py"
+      },
+      {
+        "severity": "low",
+        "title": "metrics_node now executes full enforce_publication (case replay, mechanical grid, valuation-reference replay) inside the terminal graph node; an unexpected exception there fails the run at Run Metrics instead of at record_decision, a failure-mode shift not separately exercised",
+        "path": "tradingagents/graph/setup.py"
+      },
+      {
+        "severity": "low",
+        "title": "record_decision contains a redundant duplicate setdefault('run_id', ...) before and after enforce_publication (cosmetic)",
+        "path": "tradingagents/graph/trading_graph.py"
+      },
+      {
+        "severity": "low",
+        "title": "Generic offline graph/stream/recovery fixtures no longer select fundamentals, so those specific end-to-end tests stop covering the mapped-fundamentals directional path; acceptance states US-filer REVIEW/complete-evidence paths are tested separately and A4-specific tests cover the unmapped branch, but the generic-path coverage reduction is a deliberate contract change worth tracking",
+        "path": "tests/test_graph_end_to_end.py"
+      },
+      {
+        "severity": "low",
+        "title": "new_filings_between compares retained-document inventories (accession, filed_date) rather than filings filed between the two run dates; a filing dropped by the retention budget on the current side could yield 'No new filing was retained', which is literally accurate for retention but could be read as a filing-activity statement. The rendered wording matches the implemented semantics and unknown inventories correctly render nothing",
+        "path": "tradingagents/agents/assumption_history.py"
+      },
+      {
+        "severity": "low",
+        "title": "grounded_outlook_warnings is invoked from the gate with trade_date overridden to the package as_of to satisfy _grounded's internal consistency check; this bypasses one of the adapter's own guards in that call path (scope equality is separately enforced upstream by the gate)",
+        "path": "tradingagents/agents/evidence_validation.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "extra medium",
+      "escalation_reasons": [
+        "Frozen scope changes more than 10 files or more than 500 lines."
+      ]
+    },
+    "progress": {
+      "observed_events": 5184,
+      "last_activity_at": "2026-11-07T18:50:46.974Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 18,
+      "hard_budget_usd": 30,
+      "soft_turn_limit": 40,
+      "turn_limit": 70,
+      "wall_clock_limit_minutes": 150,
+      "actual_cost_usd": 5.206624500000001,
+      "actual_elapsed_ms": 1779298,
+      "soft_limit_reached": true
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}
