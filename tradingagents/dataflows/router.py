@@ -199,6 +199,8 @@ def no_data_available(error: NoMarketDataError) -> str:
     # Arbitrary vendor detail can be an exception payload or credential.
     fixed = {
         "no rows", "not covered", "not a US SEC filer", "US filer with no us-gaap facts",
+        "Requested indicator is not supported by this vendor",
+        "Indicator calculation or retrieval unavailable",
         "no price rows", "no fundamentals", "no fundamental fields",
         "no Balance Sheet data", "no Cash Flow data", "no Income Statement data",
         "invalid nonempty closing price in source data",
@@ -219,7 +221,9 @@ def no_data_available(error: NoMarketDataError) -> str:
     detail = error.detail
     safe_detail = detail in fixed or (error.__cause__ is None and len(detail) <= 300
                                       and any(re.fullmatch(pattern, detail) for pattern in dated))
-    if error.__cause__ is not None and detail != "Historical adjustment basis verification unavailable":
+    if error.__cause__ is not None and detail not in {
+        "Historical adjustment basis verification unavailable", "Indicator calculation or retrieval unavailable"
+    }:
         safe_detail = False
     reason = f" ({detail})" if safe_detail else ""
     return (

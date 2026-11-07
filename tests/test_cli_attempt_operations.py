@@ -1,5 +1,6 @@
 """Attempt directories, save recovery and retained state paths are operator behavior."""
 import json
+from pathlib import Path
 
 import pytest
 
@@ -124,3 +125,11 @@ def test_save_retry_cannot_reuse_the_failed_path(monkeypatch, tmp_path):
             return path / 'complete_report.md'
     assert run._offer_reports({}, Graph(), 'DOCN', show=False, html=False)
     assert len(paths) == 2 and paths[0].resolve() != paths[1].resolve()
+
+
+def test_enter_keeps_default_with_relative_results_directory(monkeypatch):
+    root = Path('results/DOCN/2026-11-06/120000-12345678')
+    default = root / 'reports'
+    # Typer returns its displayed default when the operator presses Enter.
+    monkeypatch.setattr(run.typer, 'prompt', lambda *args, **kwargs: kwargs['default'])
+    assert run._prompt_save_path(default, root) == default.resolve()

@@ -123,7 +123,7 @@ def main():
         source_data = pd.read_csv(source_copy)
         source_close = round(float(source_data.loc[source_data["Date"].str.startswith(DAY), "Close"].iloc[0]), 2)
         cfg = deepcopy(cli_run.DEFAULT_CONFIG)
-        cfg.update(results_dir=str(root / "results"), data_cache_dir=str(root / "cache"),
+        cfg.update(results_dir="results", data_cache_dir=str(root / "cache"),
                    memory_log_path=str(root / "memory.md"), checkpoint_enabled=True,
                    max_debate_rounds=1, max_risk_discuss_rounds=1, max_tool_rounds=1,
                    input_cost_per_million=1.0, output_cost_per_million=2.0)
@@ -132,7 +132,8 @@ def main():
                       "quick_think_llm": "offline-quick", "deep_think_llm": "offline-deep",
                       "backend_url": None, "llm_provider": "openai", "output_language": "English"}
         stream = io.StringIO()
-        with patch.object(cli_run, "DEFAULT_CONFIG", cfg), \
+        with contextlib.chdir(root), \
+             patch.object(cli_run, "DEFAULT_CONFIG", cfg), \
              patch.object(cli_run, "get_user_selections", return_value=selections), \
              patch.object(trading_graph, "create_tier_client", side_effect=lambda *a, **k: OfflineModel(calls, control)), \
              patch.object(trading_graph, "resolve_instrument_identity", return_value={"company_name": "DOCN recorded source"}), \
@@ -160,8 +161,13 @@ def main():
                 return original_save(graph, *args, **kwargs)
 
             answers = iter(["Y", "", "Y", ""])
+
+            def prompt_answer(*args, **kwargs):
+                answer = next(answers)
+                return kwargs.get("default", "") if answer == "" else answer
+
             with patch.object(cli_run.sys, "stdin", SimpleNamespace(isatty=lambda: True)), \
-                 patch.object(cli_run.typer, "prompt", side_effect=lambda *a, **k: next(answers)), \
+                 patch.object(cli_run.typer, "prompt", side_effect=prompt_answer), \
                  patch.object(cli_run, "_graphical_browser", return_value=None), \
                  patch.object(trading_graph.TradingAgentsGraph, "save_reports", fail_once):
                 cli_run.run_analysis(checkpoint=True, flags={**common_flags, "save": None})
@@ -191,7 +197,8 @@ def main():
         events_by_short_id = {}
         for row in event_rows:
             events_by_short_id.setdefault(row["attempt_id"][:8], []).append(row["event"])
-        receipt = {"disposable_root": str(root), "recorded_source_sha256": original_hash,
+        receipt = {"disposable_root": str(root), "results_configuration": "relative results; Enter returns displayed default",
+                   "recorded_source_sha256": original_hash,
                    "copied_source_unchanged": hashlib.sha256(source_copy.read_bytes()).hexdigest() == original_hash,
                    "split_actions": "simulated zero actions; no live absence claim",
                    "attempt_count": len(attempts), "model_calls": len(calls),

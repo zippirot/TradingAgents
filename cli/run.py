@@ -478,6 +478,7 @@ def _resolve_save_path(answer: str, default: Path, results_dir: Path) -> Path:
 
 
 def _prompt_save_path(default, results_dir):
+    default = Path(default).resolve()
     for _ in range(2):
         answer = typer.prompt("Save path (press Enter for default)", default=str(default))
         try:

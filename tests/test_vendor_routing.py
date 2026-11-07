@@ -154,3 +154,35 @@ class VendorRoutingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_local_unsupported_indicator_reason_survives_sanitization():
+    import pytest
+
+    from tradingagents.dataflows.vendors.alpha_vantage.indicator import get_indicator
+
+    with pytest.raises(NoMarketDataError) as raised:
+        get_indicator('AAPL', 'unsupported-dummy-secret-987', '2026-11-06', 30)
+    result = router.no_data_available(raised.value)
+    assert 'requested indicator is not supported by this vendor' in result.lower()
+    assert 'dummy-secret-987' not in result
+
+
+def test_wrapped_indicator_failures_keep_fixed_context_without_vendor_text(monkeypatch):
+    import pytest
+
+    from tradingagents.dataflows.vendors.alpha_vantage import indicator as av
+    from tradingagents.dataflows.vendors.yahoo import market
+
+    def failed(*args, **kwargs):
+        raise ValueError('dummy-secret-987')
+
+    monkeypatch.setattr(av, '_make_api_request', failed)
+    monkeypatch.setattr(market, 'get_stock_stats', failed)
+    for invoke in [lambda: av.get_indicator('AAPL', 'rsi', '2026-11-06', 30),
+                   lambda: market.get_stockstats_indicator('AAPL', 'rsi', '2026-11-06')]:
+        with pytest.raises(NoMarketDataError) as raised:
+            invoke()
+        result = router.no_data_available(raised.value)
+        assert 'Indicator calculation or retrieval unavailable' in result
+        assert 'dummy-secret-987' not in result
