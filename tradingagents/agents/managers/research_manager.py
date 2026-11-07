@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import json
+
 from tradingagents.agents.context import (
     EVIDENCE_DISCIPLINE,
     get_instrument_context_from_state,
     get_language_instruction,
 )
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
+from tradingagents.agents.shared_valuation import replay_cases
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
-    invoke_structured_or_freetext,
+    invoke_structured,
 )
 
 
@@ -41,7 +44,7 @@ The debate always contains conflicting arguments; deciding which side is stronge
 
 ---
 
-Use the shared valuation scenarios, when available, to distinguish disputed assumptions from established inputs. Explain which assumptions the debate supports and what would change the case. Do not promote a scenario or an uncalculated debate alternative into a validated final target.
+Use the shared valuation scenarios, when available, to distinguish disputed assumptions from established inputs. In revised_cases you may supply one complete revised list in the analyst format, preserving existing names for the same case. Copy original requests and change only assumptions you justify. Otherwise omit revised_cases. Explain which assumptions the debate supports and what would change the case. Do not promote a scenario or an uncalculated debate alternative into a validated final target.
 
 **Debate History:**
 {history}
@@ -56,13 +59,18 @@ Write these sections, in this order, starting with the recommendation on its own
 
 {NO_EXTERNAL_TOOLS}""" + EVIDENCE_DISCIPLINE + get_language_instruction()
 
-        investment_plan = invoke_structured_or_freetext(
-            structured_llm,
-            llm,
-            prompt,
-            render_research_plan,
-            "Research Manager",
-        )
+        saved = replay_cases(state) if state.get("shared_valuation_scenarios") else {}
+        if saved.get("status") not in (None, "not_applicable"):
+            from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
+
+            prompt += "\nFor any optional revised_cases use the following analyst input contract, returning the list in revised_cases instead of a fence:\n" + SHARED_VALUATION_INPUTS
+        if saved.get("requests"):
+            prompt += "\nOriginal case inputs (unvalidated model assumptions):\n" + json.dumps(saved["requests"])
+        decision = invoke_structured(structured_llm, prompt, "Research Manager")
+        investment_plan = render_research_plan(decision) if decision is not None else llm.invoke(prompt).content
+        revision = {}
+        if decision is not None and decision.revised_cases is not None and saved:
+            revision["shared_valuation_scenarios"] = replay_cases(state, revision=decision.revised_cases)
 
         new_investment_debate_state = {
             **investment_debate_state,
@@ -74,6 +82,7 @@ Write these sections, in this order, starting with the recommendation on its own
         }
 
         return {
+            **revision,
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
         }

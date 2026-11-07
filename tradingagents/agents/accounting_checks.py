@@ -253,6 +253,19 @@ _TOTAL_COMPONENTS = (
 )
 
 
+def validate_obligation_category(category, group):
+    metrics = {f.metric for f in group}
+    if not metrics <= _OBLIGATION_METRICS[category] or len(metrics) != len(group):
+        raise ValueError("unclassified or duplicate obligation components")
+    if category == "borrowings" and "Total Borrowings" in metrics and len(metrics) > 1:
+        raise ValueError("total borrowings overlaps borrowing components")
+    for total, current, noncurrent in _TOTAL_COMPONENTS:
+        if total in metrics and metrics & {current, noncurrent}:
+            raise ValueError("overlapping total and components")
+        if metrics & {current, noncurrent} and not {current, noncurrent} <= metrics:
+            raise ValueError("current/noncurrent coverage incomplete")
+
+
 def calculate_obligations(package, components_by_category, cash_id):
     """Three dated net perimeters; an absent category is never an inferred zero.
 
@@ -306,16 +319,7 @@ def calculate_obligations(package, components_by_category, cash_id):
                 raise ValueError("negative gross obligation or cash requires reconciliation")
             for category in categories:
                 group = _facts(package, components_by_category[category])
-                metrics = {f.metric for f in group}
-                if not metrics <= _OBLIGATION_METRICS[category] or len(metrics) != len(group):
-                    raise ValueError("unclassified or duplicate obligation components")
-                if category == "borrowings" and "Total Borrowings" in metrics and len(metrics) > 1:
-                    raise ValueError("total borrowings overlaps borrowing components")
-                for total, current, noncurrent in _TOTAL_COMPONENTS:
-                    if total in metrics and metrics & {current, noncurrent}:
-                        raise ValueError("overlapping total and components")
-                    if metrics & {current, noncurrent} and not {current, noncurrent} <= metrics:
-                        raise ValueError("current/noncurrent coverage incomplete")
+                validate_obligation_category(category, group)
             with localcontext() as ctx:
                 ctx.prec = 50
                 result = sum((f.value for f in facts[:-1]), Decimal(0)) - facts[-1].value

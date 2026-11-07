@@ -14,6 +14,7 @@ from collections.abc import Mapping
 
 from pydantic import BaseModel
 
+from tradingagents.agents.decision_context import final_request
 from tradingagents.agents.rating import RATINGS_5_TIER, run_rating
 
 SCHEMA_VERSION = 1
@@ -173,31 +174,31 @@ _REVIEW_PROCESS = {
     "Arabic": "توقف التشغيل عند فحص الأدلة. يمكن مراجعة البحث المتاح؛ ولم تكتمل النقاشات أو مقترح التداول أو قرار المحفظة النهائي.",
     "Russian": "Выполнение остановилось на проверке доказательств. Доступные материалы можно изучить; обсуждения, торговое предложение и окончательное решение не были завершены.",
 }
-_NO_TARGET = {
-    "English": "Evidence quality is {quality}; no supported final price target is available, and any scenario values are conditional rather than a validated target.",
-    "Spanish": "La calidad de la evidencia es {quality}; no hay un objetivo final de precio respaldado, y los valores de escenarios son condicionales, no un objetivo validado.",
-    "Portuguese": "A qualidade da evidência é {quality}; não há preço-alvo final fundamentado, e os valores de cenários são condicionais, não um alvo validado.",
-    "French": "La qualité des preuves est {quality} ; aucun objectif de cours final étayé n'est disponible, et les valeurs des scénarios restent conditionnelles.",
-    "German": "Die Beleglage ist {quality}; ein belegtes endgültiges Kursziel liegt nicht vor, und Szenariowerte sind bedingt und kein validiertes Ziel.",
-    "Chinese": "证据质量为{quality}；目前没有得到支持的最终目标价，情景数值仅为有条件估计，并非经验证的目标价。",
-    "Japanese": "証拠の質は{quality}であり、裏付けのある最終目標株価はなく、シナリオ値は条件付きで検証済み目標ではない。",
-    "Korean": "증거 품질은 {quality}이며 근거가 확인된 최종 목표가는 없고 시나리오 값은 조건부 수치로 검증된 목표가가 아니다.",
-    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; समर्थित अंतिम मूल्य लक्ष्य उपलब्ध नहीं है और परिदृश्य मूल्य सशर्त हैं, सत्यापित लक्ष्य नहीं।",
-    "Arabic": "جودة الأدلة {quality}؛ لا يتوفر سعر مستهدف نهائي مدعوم، وقيم السيناريو مشروطة وليست هدفًا متحققًا منه.",
-    "Russian": "Качество доказательств: {quality}; обоснованная окончательная целевая цена отсутствует, а сценарные значения условны и не являются проверенной целью.",
+_NO_ADOPTION = {
+    "English": "Evidence quality is {quality}; the report records no validated case adoption, and any case values remain conditional.",
+    "Spanish": "La calidad de la evidencia es {quality}; ningún escenario adoptado superó la validación final y los valores de los escenarios son condicionales.",
+    "Portuguese": "A qualidade da evidência é {quality}; não há adoção validada de cenário e os valores dos cenários são condicionais.",
+    "French": "La qualité des preuves est {quality} ; aucune adoption de scénario n’a été validée et les valeurs des scénarios restent conditionnelles.",
+    "German": "Die Beleglage ist {quality}; es liegt keine bestätigte Szenarioauswahl vor und die Szenariowerte bleiben bedingt.",
+    "Chinese": "证据质量为{quality}；没有通过最终验证的获选情景，情景估值均取决于相应假设。",
+    "Japanese": "証拠の質は{quality}で、最終検証を通過した採用シナリオはなく、各シナリオの評価額は前提条件に依存する。",
+    "Korean": "증거 품질은 {quality}이며 최종 검증을 통과한 채택 시나리오는 없고 시나리오 평가액은 가정에 따라 달라진다.",
+    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; किसी परिदृश्य के चयन की अंतिम पुष्टि नहीं हुई और परिदृश्य के मूल्य उसकी मान्यताओं पर निर्भर हैं।",
+    "Arabic": "جودة الأدلة {quality}؛ لم يجتز أي سيناريو معتمد التحقق النهائي وتظل قيم السيناريوهات مشروطة بافتراضاتها.",
+    "Russian": "Качество доказательств: {quality}; выбор сценария не подтверждён итоговой проверкой, а оценки по сценариям зависят от допущений.",
 }
-_SUPPORTED_TARGET = {
-    "English": "Evidence quality is {quality}; the supported final price target remains conditional on its dated inputs and assumptions, not a guaranteed outcome.",
-    "Spanish": "La calidad de la evidencia es {quality}; el objetivo final de precio respaldado depende de sus datos y supuestos fechados y no garantiza un resultado.",
-    "Portuguese": "A qualidade da evidência é {quality}; o preço-alvo final fundamentado depende de dados e premissas datados, sem garantia de resultado.",
-    "French": "La qualité des preuves est {quality} ; l'objectif de cours final étayé dépend de données et d'hypothèses datées et ne garantit aucun résultat.",
-    "German": "Die Beleglage ist {quality}; das belegte endgültige Kursziel hängt von datierten Daten und Annahmen ab und garantiert kein Ergebnis.",
-    "Chinese": "证据质量为{quality}；有依据的最终目标价仍取决于注明日期的数据和假设，并非保证结果。",
-    "Japanese": "証拠の質は{quality}であり、裏付けのある最終目標株価も日付付きの入力と前提に依存し、成果を保証しない。",
-    "Korean": "증거 품질은 {quality}이며 근거가 있는 최종 목표가도 날짜가 명시된 자료와 가정에 따라 달라지고 결과를 보장하지 않는다.",
-    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; समर्थित अंतिम मूल्य लक्ष्य भी दिनांकित आँकड़ों और मान्यताओं पर निर्भर है, परिणाम की गारंटी नहीं।",
-    "Arabic": "جودة الأدلة {quality}؛ يظل السعر المستهدف النهائي المدعوم مشروطًا بمدخلاته وافتراضاته المؤرخة ولا يضمن نتيجة.",
-    "Russian": "Качество доказательств: {quality}; обоснованная окончательная целевая цена зависит от датированных данных и допущений и не гарантирует результат.",
+_ADOPTED_CASE = {
+    "English": "Evidence quality is {quality}; the portfolio manager adopted a validated case whose conditional value at the end of the case period depends on its stated assumptions.",
+    "Spanish": "La calidad de la evidencia es {quality}; el gestor adoptó un escenario validado cuyo valor condicional al cierre del período depende de los supuestos indicados.",
+    "Portuguese": "A qualidade da evidência é {quality}; o gestor adotou um cenário validado cujo valor condicional ao fim do período depende das premissas declaradas.",
+    "French": "La qualité des preuves est {quality} ; le gérant a retenu un scénario validé dont la valeur en fin de période dépend des hypothèses énoncées.",
+    "German": "Die Beleglage ist {quality}; das Portfoliomanagement hat ein geprüftes Szenario gewählt, dessen bedingter Wert am Periodenende von den genannten Annahmen abhängt.",
+    "Chinese": "证据质量为{quality}；投资组合经理采用了经过验证的情景，其期末估值取决于所列假设。",
+    "Japanese": "証拠の質は{quality}で、運用責任者が採用した検証済みシナリオの期末評価額は、明示された前提条件に依存する。",
+    "Korean": "증거 품질은 {quality}이며 운용자가 채택한 검증된 시나리오의 기말 평가액은 명시된 가정에 따라 달라진다.",
+    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; पोर्टफोलियो प्रबंधक ने सत्यापित परिदृश्य चुना है और उसकी अवधि के अंत का सशर्त मूल्य बताई गई मान्यताओं पर निर्भर है।",
+    "Arabic": "جودة الأدلة {quality}؛ اعتمد مدير المحفظة سيناريو اجتاز التحقق وتعتمد قيمته المشروطة في نهاية الفترة على الافتراضات المذكورة.",
+    "Russian": "Качество доказательств: {quality}; управляющий выбрал проверенный сценарий, условная оценка на конец его периода зависит от указанных допущений.",
 }
 _FALLBACK = {
     "English": ("The full narrative summary is unavailable because this saved run has no retained editorial summary.",
@@ -426,8 +427,7 @@ def _rating_sentence(rating, language):
 
 def _evidence_sentence(constraints, language):
     quality = constraints["evidence_status"]
-    supported = constraints["target_status"] == "supported" and constraints["final_target_eligible"]
-    template = (_SUPPORTED_TARGET if supported else _NO_TARGET).get(language)
+    template = (_ADOPTED_CASE if constraints["adopted_case"] else _NO_ADOPTION).get(language)
     return template.format(quality=quality) if template else ""
 
 
@@ -441,7 +441,16 @@ def build_summary_input(prepared_state: dict, settings: dict | None, parts) -> d
         rating = "REVIEW"
     context = _mapping(state.get("decision_context"))
     target = _mapping(context.get("target"))
-    use = _mapping(target.get("decision_use"))
+    adopted = _mapping(context.get("adopted_case"))
+    request = _mapping(final_request(state))
+    # The prepared card has already replayed source inputs and the final selection.
+    # Its adoption must refer to the original PM request, including the exact version.
+    case = None
+    if (rating != "REVIEW" and context.get("basis") == "valuation" and request.get("method") == "case"
+            and isinstance(adopted.get("case_id"), str) and type(adopted.get("version")) is int
+            and type(request.get("version")) is int
+            and (adopted["case_id"], adopted["version"]) == (request.get("case_id"), request.get("version"))):
+        case = {"case_id": adopted["case_id"], "version": adopted["version"]}
     quality = _mapping(state.get("evidence_quality"))
     checks = quality.get("checks")
     checks = checks if isinstance(checks, list) else []
@@ -452,8 +461,8 @@ def build_summary_input(prepared_state: dict, settings: dict | None, parts) -> d
         evidence_limits = [_text(c.get("message"), 200) for c in checks
                            if isinstance(c, Mapping) and c.get("status") in {"fail", "unavailable"}
                            and isinstance(c.get("message"), str) and c["message"].strip()][:3]
-    constraints = {"target_status": _text(target.get("status"), 40) or "unavailable",
-                   "final_target_eligible": use.get("final_target_eligible") is True,
+    constraints = {"calculation_status": _text(target.get("status"), 40) or "unavailable",
+                   "adopted_case": case,
                    "evidence_status": _text(quality.get("status"), 40) or "unvalidated",
                    "evidence_limits": evidence_limits,
                    "scenario_count": _mapping(context.get("scenarios")).get("supported_count", 0),
@@ -535,7 +544,18 @@ def _payload(response):
         return None
 
 
-def _body_items(value, expected, rating=None, target_supported=False):
+# Final selection is stated by the protected evidence sentence. Naming a case
+# in editorial prose cannot establish its identity or version.
+_CASE_DISPOSITION = re.compile(
+    r"\b(?:portfolio manager|PM|final decision)\s+"
+    r"(?:(?:has\s+)?(?:adopted|selected|chosen|chose)|(?:did not|didn't|declined to)\s+(?:adopt|select|choose))"
+    r"(?:\s+[\w-]+){0,6}\s+(?:case|scenario)\b"
+    r"|\b(?:case|scenario)\s+(?:was|is|has been)\s+(?:not\s+)?(?:adopted|selected|chosen)\b",
+    re.IGNORECASE,
+)
+
+
+def _body_items(value, expected, rating=None):
     if not isinstance(value, Mapping) or not isinstance(value.get("sentences"), list):
         return None
     items = value["sentences"]
@@ -562,11 +582,11 @@ def _body_items(value, expected, rating=None, target_supported=False):
             return None
         target_claim = re.search(
             r"(?i)\b(?:supported|validated|established)\s+(?:final\s+)?(?:price\s+)?target\b|"
-            r"\bfinal\s+(?:price\s+)?target\s+(?:is|was|of|at|:)\b", sentence,
+            r"\b(?:final\s+(?:price\s+)?target|price\s+target)\s+(?:is|was|of|at)\b", sentence,
         )
         previous_clause = sentence[:target_claim.start()].rsplit(";", 1)[-1].rsplit(",", 1)[-1] if target_claim else ""
         negated = bool(re.search(r"(?i)\b(?:no|not|without)\s+(?:an?\s+)?$", previous_clause))
-        if not target_supported and target_claim and not negated:
+        if _CASE_DISPOSITION.search(sentence) or (target_claim and not negated):
             return None
         found.update(refs)
         result.append({"text": sentence, "sections": refs})
@@ -599,7 +619,7 @@ def generate_summary(context: dict, llm) -> dict:
         "every main section; combine contributions when needed to stay within 3-10 body sentences. Explain the "
         "decisive reason, explicit horizon when present, material bull/bear disagreement, the trading proposal and "
         "risk perspectives. Attribute interpretations to the report or analysts. Distinguish the provisional trader "
-        "action from the final portfolio rating. Do not state a final target unless the constraints say it is supported. "
+        "action from the final portfolio rating. Case-period values are conditional on the stated assumptions. Discuss case assumptions and risks, and leave statements about final case adoption to the protected evidence sentence. Do not present a case value as a price target. "
         "Do not treat omitted/truncated source text as proof that evidence is absent. "
         f"Write sentence text in {context['language']}; keep canonical rating tokens in English. "
         "The application adds the fixed process, rating definition and evidence/target limit separately; "
@@ -626,9 +646,7 @@ def generate_summary(context: dict, llm) -> dict:
         record = _unavailable(context, _error_category(exc))
         record["elapsed_ms"] = round((time.monotonic() - started) * 1000)
         return record
-    items = _body_items(parsed, {section["key"] for section in context["sections"]}, context["rating"],
-                        context["constraints"]["target_status"] == "supported"
-                        and context["constraints"]["final_target_eligible"])
+    items = _body_items(parsed, {section["key"] for section in context["sections"]}, context["rating"])
     if items is None:
         record = _unavailable(context, "malformed_response")
     else:
@@ -658,9 +676,7 @@ def resolve_summary(context: dict, saved_record) -> dict:
             reason = "invalid_summary_schema"
         elif saved_record.get("status") == "completed":
             items = _body_items({"sentences": saved_record.get("body_items")},
-                                {section["key"] for section in context["sections"]}, context["rating"],
-                                context["constraints"]["target_status"] == "supported"
-                                and context["constraints"]["final_target_eligible"])
+                                {section["key"] for section in context["sections"]}, context["rating"])
             sentences = saved_record.get("sentences")
             if (items is not None and isinstance(sentences, list)
                     and sentences == [first, *(item["text"] for item in items), last]):
