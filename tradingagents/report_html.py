@@ -15,11 +15,13 @@ from markdown_it import MarkdownIt
 from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.rating import run_rating
 from tradingagents.reporting import (
-    _report_parts,
+    _DESCRIPTIONS,
     analyst_names,
-    evidence_appendix,
+    historical_anchors,
     prepare_report_state,
     render_token_usage,
+    report_sections,
+    summary_input_for_report,
 )
 
 # Ratings by direction, so the page can show which way the call leans.
@@ -88,48 +90,26 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .run .group > .name { color: var(--muted); margin-right: 0.3rem; }
 .run .then { color: var(--muted); margin: 0 0.2rem; }
 
-/* The sections: listed under the header on narrow screens. On wide ones, a
-   quiet rail centred on the left edge (numerals for the sections, short bars
-   for their agents) that opens into the full list when pointed at or focused. */
-.contents { margin: 2.25rem 0 0; font: 0.9rem/1.45 var(--sans); }
+/* A visible in-flow outline remains readable on wide screens, phones and print. */
+.summary { margin: 2.25rem 0 0; }
+.summary h2, .contents h2 { margin: 0 0 0.8rem; font: 600 1.35rem/1.3 var(--sans); }
+.summary p { margin: 0 0 1rem; overflow-wrap: anywhere; }
+.contents { margin: 2.25rem 0; padding: 1.25rem 1.5rem; border: 1px solid var(--rule);
+  background: var(--wash); font: 0.9rem/1.45 var(--sans); }
 .contents ul { margin: 0; padding: 0; list-style: none; }
 .contents > ul > li { margin: 0 0 0.75rem; }
 .contents ul ul { margin-top: 0.2rem; padding-left: 1.6rem; font-size: 0.85rem; }
 .contents ul ul li { margin: 0.1rem 0; }
-.contents a { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); text-decoration: none; }
+.contents li { overflow-wrap: anywhere; }
+.contents a { display: inline-flex; align-items: baseline; gap: 0.6rem; color: var(--muted); text-decoration: none; }
 .contents > ul > li > a { color: var(--ink); }
 .contents .num { min-width: 1.6rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.contents .bar { display: none; }
+.contents .description { display: block; margin-left: 2.2rem; color: var(--muted); font-size: 0.82rem; }
 .contents a:hover .label, .contents a:focus-visible .label { color: var(--accent); text-decoration: underline; }
 .to-top { position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom));
   padding: 0.25rem 0.6rem; border: 1px solid var(--edge); border-radius: 4px; background: var(--paper);
   color: var(--muted); font: 0.8rem/1.4 var(--sans); text-decoration: none; }
 
-@media (min-width: 60rem) {
-  .contents { position: fixed; left: 1rem; top: 50%; transform: translateY(-50%); z-index: 1;
-    max-height: 86vh; overflow-y: auto; overscroll-behavior: contain; margin: 0;
-    padding: 0.7rem 0.9rem; border: 1px solid transparent; border-radius: 6px;
-    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s; }
-  .contents > ul > li { margin: 0 0 0.35rem; }
-  .contents ul ul { margin-top: 0; padding-left: 0; }
-  .contents ul ul li { margin: 0; }
-  /* Marks reach 3:1 contrast and rows 24px, the WCAG 2.2 floors for a control's
-     visual cue and its pointer target. */
-  .contents a { min-height: 1.5rem; }
-  .contents .num { min-width: 1.4rem; }
-  .contents .bar { display: block; flex: none; width: 1.25rem; height: 2px; margin-left: 0.2rem;
-    border-radius: 1px; background: var(--mark); }
-  .contents .label { max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
-    transition: opacity 0.15s, max-width 0.2s; }
-  .contents:hover, .contents:focus-within { background: var(--paper); border-color: var(--rule);
-    box-shadow: 0 6px 24px rgb(0 0 0 / 0.08); }
-  .contents:hover .label, .contents:focus-within .label { max-width: 18rem; opacity: 1; }
-  .contents a:hover .bar, .contents a:focus-visible .bar { background: var(--accent); }
-  .to-top { display: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .contents, .contents .label { transition: none; }
-}
 
 /* The maker's credit: one quiet line at the foot. */
 .credit { margin-top: 4.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule);
@@ -151,6 +131,7 @@ main h2 + h3 { margin-top: 1.25rem; padding-top: 0; border-top: 0; }
 main h4, main h5, main h6 { margin: 1.75rem 0 0.5rem; font: 600 1rem/1.4 var(--sans); }
 main h5, main h6 { color: var(--muted); }
 main p, main ul, main ol { margin: 0 0 1rem; }
+main p, main li { overflow-wrap: anywhere; }
 main li { margin: 0.25rem 0; }
 main strong { font-weight: 650; }
 main blockquote { margin: 1.25rem 0; padding: 0.1rem 0 0.1rem 1rem; border-left: 3px solid var(--rule);
@@ -183,7 +164,8 @@ tbody tr:last-child td { border-bottom: 0; }
   body { font-size: 11pt; }
   .table { overflow: visible; }
   .page { max-width: none; padding: 0; }
-  .contents, .to-top { display: none; }
+  .contents { background: none; border: 1px solid var(--rule); break-inside: avoid; }
+  .to-top { display: none; }
   main h2 { break-before: page; border-top: 0; margin-top: 0; }
   main section:first-child h2 { break-before: auto; }
   main h3, main h4 { break-after: avoid; }
@@ -279,20 +261,25 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
     return details
 
 
-def render_report(ticker: str, final_state: dict, settings: dict | None, parts, *, diagnostics_sidecar: bool = False) -> str:
-    """The report page: title and rating, what produced the run, contents, sections."""
+def render_report(ticker: str, final_state: dict, settings: dict | None, parts=None, *,
+                  diagnostics_sidecar: bool = False) -> str:
+    """Build a direct HTML export with current validation and no model calls."""
     prepared = prepare_report_state(final_state)
-    if prepared != final_state:
-        parts = _report_parts(prepared)
-    final_state = prepared
-    if not any(heading == "VI. Evidence and Quality" for heading, _, _ in parts):
-        parts = list(parts) + [
-            (
-                "VI. Evidence and Quality",
-                "6_evidence",
-                [("Evidence Summary", "summary.md", evidence_appendix(final_state))],
-            )
-        ]
+    parts = report_sections(prepared, None if prepared != final_state else parts)
+    display_settings = (prepared.get("run_settings") if isinstance(prepared.get("run_settings"), dict)
+                        else settings)
+    from tradingagents.report_summary import resolve_summary
+
+    summary = resolve_summary(summary_input_for_report(prepared, display_settings, parts),
+                              prepared.get("executive_summary"))
+    return _render_prepared_report(ticker, prepared, display_settings, parts, summary,
+                                   diagnostics_sidecar=diagnostics_sidecar)
+
+
+def _render_prepared_report(ticker: str, final_state: dict, settings: dict | None, parts,
+                            summary: dict, *, diagnostics_sidecar: bool = False) -> str:
+    """Render one already prepared and resolved presentation."""
+    anchors = historical_anchors(parts)
     md = _markdown()
     rating = run_rating(final_state) if final_state.get("final_trade_decision") else ""
     tone = _TONE.get(rating, "review")
@@ -314,22 +301,31 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
     )
 
     contents, body = [], []
-    for n, (heading, _folder, written) in enumerate(parts, 1):
+    for heading, folder, written in parts:
+        anchor = anchors[folder]
         agents = "".join(
-            f'<li><a href="#s{n}-{m}"><span class="bar"></span> <span class="label">{escape(agent)}</span></a></li>'
+            f'<li><a href="#{anchor}-{m}"><span class="label">{escape(agent)}</span></a></li>'
             for m, (agent, _f, _t) in enumerate(written, 1)
         )
         numeral, _, name = heading.partition(". ")
         contents.append(
-            f'<li><a href="#s{n}"><span class="num">{escape(numeral)}</span> '
-            f'<span class="label">{escape(name)}</span></a><ul>{agents}</ul></li>'
+            f'<li><a href="#{anchor}"><span class="num">{escape(numeral)}</span> '
+            f'<span class="label">{escape(name)}</span></a>'
+            f'<span class="description">{escape(_DESCRIPTIONS[folder])}</span><ul>{agents}</ul></li>'
         )
-        body.append(f'<section id="s{n}"><h2>{escape(heading)}</h2>')
+        body.append(f'<section id="{anchor}"><h2>{escape(heading)}</h2>')
         for m, (agent, _filename, text) in enumerate(written, 1):
             if diagnostics_sidecar:
                 text = text.replace("evidence.json diagnostics", "diagnostics.json")
-            body.append(f'<h3 id="s{n}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
+            body.append(f'<h3 id="{anchor}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
         body.append("</section>")
+
+    summary_html = (
+        '<section class="summary" aria-labelledby="executive-summary">'
+        '<h2 id="executive-summary">Executive summary</h2>'
+        f'<p>{escape(summary.get("process") or "")}</p>'
+        f'<p>{escape(" ".join(summary.get("sentences") or []))}</p></section>'
+    )
 
     page_title = " ".join(x for x in (ticker, date, rating) if x)
     return f"""<!doctype html>
@@ -346,12 +342,15 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts, 
 <header class="masthead">
 <a class="logo" href="{_COMPANY}" rel="noopener" aria-label="Tauric Research">{_LOGO}</a>
 <h1>{title}</h1>
-<div class="condition-summary">{condition_summary}</div>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
+</header>
+{summary_html}
+<nav class="contents" aria-label="Table of contents"><h2>Table of contents</h2><ul>{"".join(contents)}</ul></nav>
+<aside class="report-meta" aria-label="Report details">
+<div class="condition-summary">{condition_summary}</div>
 <dl class="run">{details}</dl>
 {export_view}
-</header>
-<nav class="contents" aria-label="Sections"><ul>{"".join(contents)}</ul></nav>
+</aside>
 <main>
 {"".join(body)}
 </main>

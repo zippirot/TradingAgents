@@ -515,3 +515,38 @@ def test_shared_scenarios_survive_checkpoint_without_recalculation(tmp_path, mon
     assert final["shared_valuation_scenarios"] == seen[0]
     path = next((tmp_path / "results/DOCN/TradingAgentsStrategy_logs").glob("full_states_log_*.json"))
     assert json.loads(path.read_text())["shared_valuation_scenarios"] == seen[0]
+
+
+@pytest.mark.parametrize("entry", ["cli", "python"])
+def test_public_entry_points_export_the_completed_summary(tmp_path, monkeypatch, offline, entry):
+    """Both the merged CLI stream and propagate carry editorial text through the real writer."""
+    import json
+
+    import cli.run as cli_run
+    from tradingagents.report_summary import SummaryOutput
+
+    from .test_cli_memory_log import _run_cli
+
+    response = {"sentences": [
+        {"text": "The analysts contributed market and company research.", "sections": ["1_analysts"]},
+        {"text": "The research debate informed the trading proposal.", "sections": ["2_research", "3_trading"]},
+        {"text": "The risk discussion informed the final portfolio decision.", "sections": ["4_risk", "5_portfolio"]},
+        {"text": "Evidence coverage limits the valuation assessment.", "sections": ["6_evidence"]},
+    ]}
+    monkeypatch.setitem(STRUCTURED, SummaryOutput, response)
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True))
+    dest = tmp_path / "report"
+    if entry == "cli":
+        def save(state, app, ticker, **choices):
+            app.save_reports(state, ticker, dest)
+
+        monkeypatch.setattr(cli_run, "_offer_reports", save)
+        _run_cli(monkeypatch, tmp_path, graph)
+    else:
+        state, _ = graph.propagate("NVDA", TRADE_DATE)
+        graph.save_reports(state, "NVDA", dest)
+    record = json.loads((dest / "executive_summary.json").read_text())
+    assert record["status"] == "completed"
+    for extension in ("md", "html"):
+        output = (dest / f"complete_report.{extension}").read_text()
+        assert all(item["text"] in output for item in response["sentences"])

@@ -81,6 +81,17 @@ def test_unknown_response_cost_keeps_full_reservation(tmp_path):
 
 
 @pytest.mark.unit
+def test_cli_call_reconciliation_counts_editorial_retries_and_rejects_strays():
+    metrics = {"research_rounds_completed": 2, "risk_rounds_completed": 2, "model_calls": 10}
+    assert live_adapter.verify_cli_model_calls(metrics, 2, 12, [(10, 12)]) == 2
+    assert live_adapter.verify_cli_model_calls(metrics, 2, 10, []) == 0
+    for physical, intervals in ((12, [(10, 11)]), (12, [(11, 12)]),
+                                (12, [(10, 11), (11, 12)]), (11, []), (9, [(10, 9)])):
+        with pytest.raises(RuntimeError, match="differs from wire evidence"):
+            live_adapter.verify_cli_model_calls(metrics, 2, physical, intervals)
+
+
+@pytest.mark.unit
 def test_proof_attempt_claim_is_separate_and_consumed_on_failure(tmp_path):
     ledger = pilot.PilotLedger(tmp_path / "part_a_proof.jsonl")
     proof = live_adapter.ProofAttemptLedger(ledger, ceiling_usd="10", max_attempts=2)
@@ -564,6 +575,10 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
         claim=live_adapter.ExecutionClaim("comparison", pilot.SLOTS[0].name), approval=approval)
     assert result["state"]["company_of_interest"] == ticker
     assert result["model_calls"] > 10
+    assert result["model_calls"] == (result["state"]["run_metrics"]["model_calls"]
+                                     + result["editorial_model_calls"])
+    assert result["editorial_model_calls"] == 1
+    assert len([entry for entry in ledger.events() if entry["type"] == "request_meta"]) == result["model_calls"]
     assert result["state"]["market_observation_cutoff"] == market_cutoff
     files = capture.write(memory=b"", prior_publication={"files": {}})
     manifest = {"ticker": ticker, "analysis_date": date, "cutoff_utc": market_cutoff,
@@ -588,6 +603,7 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
         openrouter_key="fake", sec_user_agent="offline-test",
         claim=live_adapter.ExecutionClaim("comparison", pilot.SLOTS[0].name), approval=approval)
     assert replay_result["model_calls"] == result["model_calls"]
+    assert replay_result["editorial_model_calls"] == result["editorial_model_calls"]
     assert replay_result["state"]["trade_date"] == date
     if mapped:
         assert result["state"]["valuation_reference"]["phase"] == "final"

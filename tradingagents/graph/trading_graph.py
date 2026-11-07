@@ -20,7 +20,13 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, publication, settlement
 from tradingagents.memory.reflection import Reflector
-from tradingagents.reporting import verified_publication, write_report_tree
+from tradingagents.report_summary import generate_summary, resolve_summary
+from tradingagents.reporting import (
+    prepare_report_state,
+    summary_input_for_report,
+    verified_publication,
+    write_report_tree,
+)
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -28,6 +34,26 @@ from .propagation import Propagator
 from .setup import GraphSetup
 
 logger = logging.getLogger(__name__)
+
+
+def _state_log_path(config, ticker, trade_date):
+    directory = Path(config["results_dir"]) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
+    return directory / f"full_states_log_{trade_date}.json"
+
+
+def _recover_logged_summary(config, ticker, trade_date, record):
+    path = _state_log_path(config, ticker, _validate_trade_date(trade_date))
+    try:
+        with path.open(encoding="utf-8") as saved:
+            state = json.load(saved)
+    except FileNotFoundError:
+        return None
+    except (UnicodeError, json.JSONDecodeError, OSError) as exc:
+        logger.warning("Prior editorial projection unavailable (%s)", type(exc).__name__)
+        return None
+    if isinstance(state, dict) and state.get("run_id") == record["run_id"]:
+        return state.get("executive_summary")
+    return None
 
 
 def record_attempt_event(config, attempt_id, ticker, trade_date, event, *, decision_id=None, error_type=None):
@@ -632,6 +658,29 @@ class TradingAgentsGraph:
         except Exception as exc:
             logger.warning("Publication saved but outcome summary unavailable: %s", exc)
             final_state["outcome_summary"] = "Outcome history unavailable; retained records need inspection."
+        if frozen is None:
+            # Editorial output belongs only to the readable projection. Publication
+            # and its immutable metrics/evidence have already been committed.
+            try:
+                context = summary_input_for_report(prepare_report_state(final_state))
+                saved = final_state.get("executive_summary")
+                if not saved or resolve_summary(context, saved)["status"] != "completed":
+                    final_state["executive_summary"] = generate_summary(
+                        context, getattr(self, "deep_thinking_llm", None)
+                    )
+            except Exception as exc:
+                # An editorial adapter failure cannot cancel a published decision.
+                # Provider exceptions can include private prompt text or endpoints.
+                logger.warning("Executive summary unavailable (%s)", type(exc).__name__)
+                final_state["executive_summary"] = {
+                    "schema_version": 1, "status": "unavailable", "error_category": "preparation",
+                }
+        elif "executive_summary" not in final_state:
+            # A terminal graph checkpoint predates the post-publication state log.
+            # On retry, reuse the summary only from this exact publication.
+            recovered = _recover_logged_summary(self.config, company_name, trade_date, record)
+            if recovered is not None:
+                final_state["executive_summary"] = recovered
         self._log_state(trade_date, final_state)
         if is_review(run_rating(final_state)):
             logger.info("Research REVIEW for %s on %s saved without trading-memory insertion", company_name, trade_date)
@@ -762,16 +811,13 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 
         # A ticker that would escape the results directory is rejected.
-        safe_ticker = safe_ticker_component(final_state["company_of_interest"])
-        directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
-        directory.mkdir(parents=True, exist_ok=True)
-
-        log_path = directory / f"full_states_log_{trade_date}.json"
+        log_path = _state_log_path(self.config, final_state["company_of_interest"], trade_date)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         from tradingagents.dataflows.files import replace_file
 
         def write_snapshot(temp):

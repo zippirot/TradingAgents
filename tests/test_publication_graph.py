@@ -93,3 +93,92 @@ def test_later_revision_cannot_win_memory_while_primary_projection_is_delayed(tm
     entry = app.memory_log.load_entries()[0]
     assert entry['decision_id'] == primary['decision_id']
     assert entry['rating'] == 'Underweight'
+
+
+def test_review_summary_survives_log_and_publication_replay(tmp_path):
+    """A resumed terminal checkpoint may lack presentation fields added after publication."""
+    from copy import deepcopy
+
+    from tradingagents.reporting import evidence_snapshot
+
+    app, state = graph_and_state(tmp_path)
+    app.record_decision('DOCN', '2026-11-04', state)
+    original = list_records(app.config)[0]
+    saved = deepcopy(state['executive_summary'])
+    assert saved['status'] == 'review'
+    displayed = app.save_reports(state, 'DOCN', tmp_path / 'review-export', html=False).read_text()
+    opening = displayed.split('## Executive summary', 1)[1].split('## Table of contents', 1)[0]
+    assert 'REVIEW' in opening
+    assert 'executive_summary' not in evidence_snapshot(state)
+    # Recreate a retry from a checkpoint without in-memory report enrichment.
+    del state['executive_summary']
+    app.record_decision('DOCN', '2026-11-04', state)
+    assert state['executive_summary'] == saved
+    retained = json.loads(next(tmp_path.rglob('full_states_log_*.json')).read_text())
+    assert retained['executive_summary'] == saved
+    assert list_records(app.config) == [original]
+
+
+@pytest.mark.parametrize('timeout', [False, True])
+def test_editorial_outcome_is_logged_but_never_changes_publication_or_replays(tmp_path, timeout):
+    from tradingagents.memory.log import TradingMemoryLog
+    from tradingagents.memory.publication import load_evidence
+
+    app, state = graph_and_state(tmp_path)
+    state.update(
+        evidence_quality={'status': 'limited', 'checks': [], 'scope': 'selected fundamentals'},
+        final_rating='Underweight', final_trade_decision='Rating: Underweight\nCapital spending weighs on margins.',
+        market_report='Market analysts describe a weaker trend.',
+        investment_plan='The research manager questions capacity costs.',
+        trader_investment_plan='Sell gradually.', decision_context={}, target_validation={},
+        risk_debate_state={**state['risk_debate_state'], 'neutral_history': 'Rebound risk complicates a reduction.'},
+    )
+    app.memory_log = TradingMemoryLog({'memory_log_path': str(tmp_path / 'memory.md')})
+    calls = []
+
+    class EditorialModel:
+        def with_structured_output(self, schema, **kwargs):
+            return self
+
+        def invoke(self, prompt, **kwargs):
+            # The decision and evidence must already be durable before inference.
+            record = list_records(app.config)[0]
+            calls.append((record, load_evidence(app.config, record)))
+            if timeout:
+                raise TimeoutError('sensitive provider detail')
+            return {'sentences': [
+                {'text': 'The market analyst reports a weaker trend.', 'sections': ['1_analysts']},
+                {'text': 'The research manager questions the cost of building capacity.', 'sections': ['2_research']},
+                {'text': 'The trader proposes a gradual reduction given the risk of a rebound.',
+                 'sections': ['3_trading', '4_risk']},
+                {'text': 'The portfolio manager weighs margin pressure against limited evidence.',
+                 'sections': ['5_portfolio', '6_evidence']},
+            ]}
+
+    app.deep_thinking_llm = EditorialModel()
+    app.record_decision('DOCN', '2026-11-04', state)
+    pub = list_records(app.config)[0]
+    assert calls == [(pub, load_evidence(app.config, pub))]
+    saved = json.loads(next(tmp_path.rglob('full_states_log_*.json')).read_text())
+    summary = saved['executive_summary']
+    assert summary['status'] == ('unavailable' if timeout else 'completed')
+    assert summary == state['executive_summary']
+    assert 'executive_summary' not in load_evidence(app.config, pub)
+    assert 'sensitive provider detail' not in json.dumps(summary)
+    if not timeout:
+        assert summary['sentences'][1] not in pub['canonical_decision']
+    assert app.memory_log.load_entries()[0]['rating'] == 'Underweight'
+    for current in [state, saved]:
+        destination = app.save_reports(current, 'DOCN', tmp_path / 'export')
+        for path in (destination, destination.with_suffix('.html')):
+            text = path.read_text()
+            if timeout:
+                assert 'editorial generation or validation failed' in text
+                assert 'lower-than-normal allocation' in text
+            else:
+                assert all(line in text for line in summary['sentences'])
+    del state['executive_summary']
+    app.record_decision('DOCN', '2026-11-04', state)
+    assert state['executive_summary'] == summary
+    assert calls == [(pub, load_evidence(app.config, pub))]
+    assert list_records(app.config) == [pub]
