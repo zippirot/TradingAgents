@@ -1,6 +1,8 @@
 """The final factual review respects publication and per-run cost boundaries."""
 from copy import deepcopy
 
+import pytest
+
 from tradingagents import ground_truth_flow as flow
 
 
@@ -171,6 +173,9 @@ def test_literal_primary_source_correction_reaches_one_independent_pm_reassessme
 
 def test_vendor_only_or_missing_literal_replacement_never_triggers_pm(monkeypatch):
     for kind, quote, outcome in [('attributed vendor output', 'Revenue was 20 USD.', 'contradicted'),
+                                  ('retained report context', 'Revenue was 20 USD.', 'contradicted'),
+                                  ('reproduced valuation reference', 'Revenue was 20 USD.', 'contradicted'),
+                                  ('subjective valuation assumption', 'Revenue was 20 USD.', 'contradicted'),
                                   ('filing passage', 'Revenue was 30 USD.', 'contradicted'),
                                   ('filing passage', 'Revenue was 20 USD.', 'unsupported')]:
         candidate = {'final_rating': 'Hold'}
@@ -206,3 +211,57 @@ def test_pm_and_audit_phases_share_token_allowance_and_preserve_zero(monkeypatch
         wrapped.invoke('Another prompt')
     assert model.calls == 1
     assert progress['requests'] == 1
+
+
+@pytest.mark.parametrize(('kind', 'wrong'), [
+    ('validated retained market observation', 'The completed close was 999 USD.'),
+    ('reproduced financial calculation', 'Scoped cash generation was 999 million USD.'),
+])
+def test_reproduced_market_and_cash_corrections_request_one_pm_review(monkeypatch, kind, wrong):
+    import json
+
+    from tests.test_ground_truth_calculations import fixture as calculation_fixture
+    from tests.test_price_observation import install
+    from tradingagents import ground_truth_display
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    from tradingagents.ground_truth import _source_index, build_inventory
+
+    install(monkeypatch)
+    market_state = {'run_id': 'market-correction', 'company_of_interest': 'DOCN',
+                    'trade_date': '2026-11-04',
+                    'price_observation': price_observation.get_price_observation('DOCN', '2026-11-04')}
+    cash_state, _ = calculation_fixture()
+    candidate = market_state if kind == 'validated retained market observation' else cash_state
+    source = next(s for s in _source_index(candidate)[0].values() if s['kind'] == kind)
+    if kind == 'reproduced financial calculation':
+        correction = json.loads(source['text'])['result_in_millions']
+    else:
+        correction = source['text']
+    candidate.update(final_rating='Hold', final_trade_decision=wrong)
+    monkeypatch.setattr(ground_truth_display, 'build_report_inventory',
+        lambda state: build_inventory(state, parts=[('Decision', '5_portfolio', [
+            ('PM', 'decision.md', state['final_trade_decision'])])], summary_text=''))
+
+    class Reviewer:
+        def invoke(self, prompt):
+            chunk = json.loads(prompt.split('REPORT CHUNK:\n')[1].split('\nSUPPLIED SOURCES')[0])
+            original = chunk['text'] == wrong
+            return {'no_material_claims': False, 'claims': [{
+                'quoted_claim': chunk['text'], 'outcome': 'contradicted' if original else 'supported',
+                'decision_material': True, 'explanation': 'The scoped retained source supplies the observed value.',
+                **({'correction': correction} if original else {}),
+                'evidence': [{'source_id': source['source_id'], 'locator': source['locator'],
+                              'quote': source['text']}]}]}
+    calls = []
+    def reconsider(state, corrections, model):
+        calls.append(corrections)
+        assert corrections[0]['evidence'][0]['kind'] == kind
+        assert corrections[0]['code_verified'] is False
+        assert 'independently assess' in state['investment_plan']
+        return {'final_rating': 'Hold', 'final_trade_decision': correction}
+    flow.audit_before_publication(candidate, Reviewer(), {'ground_truth_audit': True},
+                                  reassess=reconsider, validate=lambda state: {})
+    assert len(calls) == 1, kind
+    assert candidate['ground_truth_reassessment']['status'] == 'completed'
+    assert candidate['final_rating'] == 'Hold'
+    assert not any(c['outcome'] == 'contradicted' for c in candidate['ground_truth_prepublication']['claims'])

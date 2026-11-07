@@ -91,6 +91,20 @@ def test_audit_companion_write_failure_preserves_research_without_stale_link(tmp
         assert "ground_truth_audit-" not in text
 
 
+def test_completed_reassessment_does_not_leave_a_handled_correction_unresolved():
+    from tradingagents.ground_truth_display import audit_assessment
+
+    claim = {"section_id": "1_analysts/market.md", "quoted_claim": "Close was 100 USD.",
+             "correction": "Close was 70 USD.", "outcome": "contradicted", "decision_material": True}
+    record = {"status": "completed with findings", "claims": [claim], "coverage": {}}
+    state = {"ground_truth_reassessment": {"status": "completed", "corrections": [claim]}}
+    assert "Recommendation needs review" not in audit_assessment(record, state)
+    for changed in ({**claim, "correction": "Close was 60 USD."},
+                    {**claim, "outcome": "unsupported", "correction": None}):
+        assert "Recommendation needs review" in audit_assessment({**record, "claims": [changed]}, state)
+    assert "Recommendation needs review" in audit_assessment(record, {})
+
+
 def test_published_diagnostic_references_keep_matching_audit_on_both_exports(tmp_path):
     from uuid import uuid4
 

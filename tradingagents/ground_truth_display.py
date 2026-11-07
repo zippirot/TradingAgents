@@ -59,10 +59,7 @@ def project_report(state, parts, summary):
     summary = {**summary, "_ground_truth_text": corrected_text(
         "summary/summary.md", _diagnostic_text(state, _summary_markdown(summary)), record)}
     text = render_audit(record)
-    unresolved_material = any(
-        claim.get("decision_material") is True and claim.get("outcome") in {"contradicted", "unsupported"}
-        for claim in record.get("claims", [])
-    )
+    unresolved_material = _recommendation_needs_review(record, state)
     if unresolved_material:
         text += "\n\n**Recommendation needs review.** Material factual questions remain in the delivered conclusion or its premises."
     reassessment = state.get("ground_truth_reassessment")
@@ -89,13 +86,38 @@ def audit_assessment(record, state):
     text += f"Reviewed {coverage.get('reviewed_chunks', 0)} of {coverage.get('total_chunks', 0)} report chunks. "
     text += f"Contradicted claims {counts['contradicted']}, unsupported claims {counts['unsupported']}."
     text += "\n\nSource quotations and calculations are checked in code. Interpretation of source meaning uses model review."
-    reassessment = state.get("ground_truth_reassessment") or {}
-    unresolved = any(c.get("decision_material") is True and c.get("outcome") in {"contradicted", "unsupported"}
-                     for c in record.get("claims", []))
-    if unresolved or reassessment and reassessment.get("status") != "completed":
+    if _recommendation_needs_review(record, state):
         text += "\n\n**Recommendation needs review.** Material factual questions remain or reassessment was unavailable."
     if record.get("reason"):
         text += "\n\n" + _plain_markdown(str(record["reason"]))
     for limit in [*coverage.get("source_gaps", []), *record.get("limits", [])][:3]:
         text += "\n\n" + _plain_markdown(str(limit))
     return text
+
+
+def _correction_key(claim):
+    refs = tuple(sorted((str(ref.get("source_id")), str(ref.get("locator")))
+                        for ref in claim.get("evidence", [])))
+    return (claim.get("section_id"), claim.get("quoted_claim"), claim.get("correction"), refs)
+
+
+def _recommendation_needs_review(record, state):
+    reassessment = state.get("ground_truth_reassessment") or {}
+    if not isinstance(reassessment, dict):
+        return True
+    if reassessment and reassessment.get("status") != "completed":
+        return True
+    corrections = reassessment.get("corrections", [])
+    if not isinstance(corrections, list) or any(not isinstance(c, dict) for c in corrections):
+        return True
+    handled = {_correction_key(c) for c in corrections}
+    for claim in record.get("claims", []):
+        if claim.get("decision_material") is not True:
+            continue
+        if claim.get("outcome") == "unsupported":
+            return True
+        if claim.get("outcome") == "contradicted" and (
+                not claim.get("correction") or claim.get("ambiguous_location")
+                or _correction_key(claim) not in handled):
+            return True
+    return False

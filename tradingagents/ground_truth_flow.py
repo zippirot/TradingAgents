@@ -41,7 +41,7 @@ def _audit_pass(state, llm, config):
 
 
 def _material_correction(claim):
-    """Only dated source-backed corrections can prompt an independent PM review."""
+    """A literal validated observation or rederived fact may prompt PM review."""
     correction = claim.get('correction')
     if (claim.get('outcome') != 'contradicted' or claim.get('decision_material') is not True
             or not isinstance(correction, str) or not correction.strip()):
@@ -50,7 +50,9 @@ def _material_correction(claim):
         return True
     if (claim.get('verification') or {}).get('source_quotes_validated') is not True:
         return False
-    return any(evidence.get('kind') in {'filing passage', 'canonical financial fields'}
+    return any(evidence.get('kind') in {'filing passage', 'canonical financial fields',
+                                        'validated retained market observation',
+                                        'reproduced financial calculation', 'reproduced RPO comparison'}
                and isinstance(evidence.get('quote'), str) and correction in evidence['quote']
                for evidence in claim.get('evidence') or [])
 
