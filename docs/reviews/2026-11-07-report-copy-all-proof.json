@@ -1,0 +1,175 @@
+{
+  "source_sha256": {
+    "tradingagents/report_html.py": "b56f5b94c09f4811d9c22f07a2bd56b8b230892697e2f6dff7376e6e63d7b09f",
+    "tests/test_report_html.py": "f558f601efb808114f800386a26f08db78f333e9338f702445846a069e848248"
+  },
+  "local_only_artifact_root": "/Users/zipp/Documents/ChatGPT/Tauric/output/report-copy-all-proof",
+  "cases": [
+    {
+      "browser": "Chrome",
+      "version": "156.0.8078.80",
+      "case": "normal-early",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294404,
+      "text_sha256": "7e90ef2f666af81fe45c50a5e8ecedce09e50d426adb2cd4c9e86861fb2885ac",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Chrome",
+      "version": "156.0.8078.80",
+      "case": "denied",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294404,
+      "text_sha256": "7e90ef2f666af81fe45c50a5e8ecedce09e50d426adb2cd4c9e86861fb2885ac",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Chrome",
+      "version": "156.0.8078.80",
+      "case": "unavailable",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294404,
+      "text_sha256": "7e90ef2f666af81fe45c50a5e8ecedce09e50d426adb2cd4c9e86861fb2885ac",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Chrome",
+      "version": "156.0.8078.80",
+      "case": "normal-final-double-click",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294404,
+      "text_sha256": "7e90ef2f666af81fe45c50a5e8ecedce09e50d426adb2cd4c9e86861fb2885ac",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Chrome",
+      "version": "156.0.8078.80",
+      "case": "both-fail",
+      "observed_message": "Copy failed, select the text manually",
+      "fixture_fallback_result": false,
+      "false_success": false,
+      "status": "passed"
+    },
+    {
+      "browser": "Safari",
+      "version": "26.5",
+      "case": "normal-early",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294352,
+      "text_sha256": "4f2d5e9699efda9efe8c2d6facfd8d1dd814d2c180dc3cb799c89a2603bca83d",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Safari",
+      "version": "26.5",
+      "case": "denied",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294352,
+      "text_sha256": "4f2d5e9699efda9efe8c2d6facfd8d1dd814d2c180dc3cb799c89a2603bca83d",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Safari",
+      "version": "26.5",
+      "case": "unavailable",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294352,
+      "text_sha256": "4f2d5e9699efda9efe8c2d6facfd8d1dd814d2c180dc3cb799c89a2603bca83d",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Safari",
+      "version": "26.5",
+      "case": "normal-final-double-click",
+      "clipboard_types": [
+        "text/plain"
+      ],
+      "characters": 294352,
+      "text_sha256": "4f2d5e9699efda9efe8c2d6facfd8d1dd814d2c180dc3cb799c89a2603bca83d",
+      "excluded_controls": true,
+      "begins": "DOCN / Underweight",
+      "ends": "Full operational audit: ./operational_audit.md",
+      "status": "passed"
+    },
+    {
+      "browser": "Safari",
+      "version": "26.5",
+      "case": "both-fail",
+      "observed_message": "Copy failed, select the text manually",
+      "fixture_fallback_result": false,
+      "false_success": false,
+      "status": "passed"
+    }
+  ],
+  "html_case_hashes": [
+    {
+      "case": "unavailable",
+      "file_sha256": "1614f15495cf5ca1faac8945f50776dbfb1cf23e1f2217257f75ccc0d247ea3e",
+      "core_script_sha256": "00e95af7122712466e33cf352e4c461848457b4d6fa223397cf0590ca858eee5"
+    },
+    {
+      "case": "denied",
+      "file_sha256": "7e55f0a62362e1c390bc2dd5c2b98e45ab1a483de20dfde6dcdcd13cd6092891",
+      "core_script_sha256": "00e95af7122712466e33cf352e4c461848457b4d6fa223397cf0590ca858eee5"
+    },
+    {
+      "case": "both-fail",
+      "file_sha256": "859b64ad5540e442e2878623519d8976c55a25d2c7c78b06bba5d494a426d93b",
+      "core_script_sha256": "00e95af7122712466e33cf352e4c461848457b4d6fa223397cf0590ca858eee5"
+    },
+    {
+      "case": "normal",
+      "file_sha256": "c24c860134640f23812a119492c416c938e6599e1b45086be8ca1772f8288ff4",
+      "core_script_sha256": "00e95af7122712466e33cf352e4c461848457b4d6fa223397cf0590ca858eee5"
+    }
+  ],
+  "full_suite": {
+    "passed": 3101,
+    "skipped": 10,
+    "integration_deselected": 1,
+    "warnings": 24,
+    "subtests": 100,
+    "seconds": 56.55,
+    "log_sha256": "27bad120d25e79d2d2305e4d09d18d37f94b50399dcec9092fecc778f7e4d6d4"
+  },
+  "limits": [
+    "No remote CI or installation claimed.",
+    "Injected local proof envelopes force rejected/absent API and failed execCommand; core copy-script bytes unchanged; each envelope uses its own exact CSP hash.",
+    "Clipboard payloads differ across browser engines only in rendered whitespace; each browser normal/denied/absent payloads match exactly."
+  ]
+}

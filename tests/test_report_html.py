@@ -1,6 +1,6 @@
 """An optional HTML copy of the report, for readers who do not open Markdown (#1419).
 
-It is one self-contained file: no script, no remote asset, nothing a report's
+It is one self-contained file: one fixed copy script, no remote asset, nothing a report's
 text can inject; the Markdown report is unchanged.
 """
 
@@ -52,11 +52,30 @@ def test_the_markdown_report_is_the_same_with_or_without_html(tmp_path):
 
 
 @pytest.mark.unit
-def test_the_page_loads_nothing_and_runs_nothing(tmp_path):
+def test_the_page_runs_only_its_fixed_copy_script_and_loads_nothing(tmp_path):
+    import base64
+    import hashlib
+
+    from tradingagents.report_html import _COPY_SCRIPT
+
     page = _html(tmp_path)
     assert "Content-Security-Policy" in page and "default-src 'none'" in page
-    assert "<script" not in page.lower()
+    scripts = re.findall(r"<script>(.*?)</script>", page, re.DOTALL)
+    assert scripts == [_COPY_SCRIPT]
+    digest = base64.b64encode(hashlib.sha256(scripts[0].encode()).digest()).decode()
+    assert f"script-src 'sha256-{digest}'" in page
+    assert page.lower().count("<script") == 1
+    assert not re.search(r"https?://|fetch\(|XMLHttpRequest|import\s|text/html", scripts[0])
     assert not re.search(r'<(img|link|iframe|object|embed)\b', page, re.IGNORECASE)
+
+
+def test_copy_control_is_accessible_in_masthead_and_hidden_when_printing(tmp_path):
+    page = _html(tmp_path)
+    header = page[page.index('<header'):page.index('</header>')]
+    assert '<button type="button" class="copy-all" id="copy-all"' in header
+    assert 'aria-label="Copy the full report as text"' in header
+    assert 'aria-live="polite"' in header
+    assert '.copy-all { display: none; }' in page[page.index('@media print'):]
 
 
 @pytest.mark.unit

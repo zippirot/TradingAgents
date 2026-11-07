@@ -1,6 +1,11 @@
 # D1: Copy All in the local HTML report
 
-Build size: very small. Model: GPT-6 Sol (`gpt-6-sol`), medium reasoning. Estimate: 1.5–2.5 active hours; credits unavailable.
+Delivery size: very small.
+Build size: small
+
+The audit runner has no very-small category; use its smallest supported category with the existing $4 hard cap. Independent reviewer: Claude Fable (`~anthropic/claude-fable-latest`), preserving the predecessor Claude route.
+
+Recommended model: GPT-6 Sol (`gpt-6-sol`), medium reasoning. Estimate: 1.5–2.5 active hours; credits unavailable.
 
 Independent audit: required
 

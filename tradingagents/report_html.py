@@ -1,11 +1,13 @@
 """The report as one self-contained HTML page (#1419).
 
-The page reads well in a browser, on a phone and in print. It loads nothing and
-runs nothing: styles are inline, there is no script, and a Content-Security-Policy
-forbids any fetch. Report text is rendered as CommonMark with raw HTML and images
+The page reads well in a browser, on a phone and in print. It loads nothing;
+a CSP hash permits only the fixed copy script. Report text is rendered as
+CommonMark with raw HTML and images
 off, so nothing a model wrote can inject markup or load a remote asset.
 """
 
+import base64
+import hashlib
 from datetime import datetime
 from html import escape
 from importlib.resources import files
@@ -36,6 +38,83 @@ _COMPANY = "https://tauric.ai"
 _ORG = "https://github.com/TauricResearch"
 _PROJECT = f"{_ORG}/TradingAgents"
 
+_COPY_SCRIPT = """(() => {
+  const button = document.getElementById('copy-all');
+  let reset;
+
+  function reportText() {
+    const source = document.getElementById('top');
+    const copy = source.cloneNode(true);
+    copy.removeAttribute('id');
+    copy.querySelectorAll('button, script, .logo, .to-top').forEach(node => node.remove());
+    copy.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+    copy.classList.add('copy-source');
+    copy.style.width = source.getBoundingClientRect().width + 'px';
+    copy.setAttribute('aria-hidden', 'true');
+    copy.inert = true;
+    document.body.appendChild(copy);
+    try {
+      return copy.innerText.trim();
+    } finally {
+      copy.remove();
+    }
+  }
+
+  function fallback(text) {
+    const active = document.activeElement;
+    const selection = window.getSelection();
+    const ranges = [];
+    if (selection) {
+      for (let i = 0; i < selection.rangeCount; i++) ranges.push(selection.getRangeAt(i).cloneRange());
+    }
+    const buffer = document.createElement('textarea');
+    buffer.className = 'copy-buffer';
+    buffer.value = text;
+    buffer.readOnly = true;
+    buffer.setAttribute('aria-label', 'Report text to copy');
+    document.body.appendChild(buffer);
+    try {
+      buffer.select();
+      return document.execCommand('copy');
+    } finally {
+      buffer.remove();
+      if (active && active.focus) active.focus({preventScroll: true});
+      if (selection) {
+        selection.removeAllRanges();
+        ranges.forEach(range => selection.addRange(range));
+      }
+    }
+  }
+
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    clearTimeout(reset);
+    button.disabled = true;
+    let copied = false;
+    try {
+      const text = reportText();
+      if (!text) throw new Error('Empty report');
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch {
+        copied = fallback(text);
+      }
+    } catch {
+      copied = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = copied ? 'Copied' : 'Copy failed, select the text manually';
+      if (copied) reset = setTimeout(() => { button.textContent = 'Copy All'; }, 2000);
+    }
+  });
+})();"""
+
+
+def _copy_script_csp_hash() -> str:
+    return "sha256-" + base64.b64encode(hashlib.sha256(_COPY_SCRIPT.encode()).digest()).decode()
+
+
 _CSS = """
 :root {
   --paper: #fbfbfa; --ink: #1c2126; --muted: #5d6670; --rule: #e2e5e8; --wash: #f2f4f5;
@@ -65,7 +144,14 @@ a { color: var(--accent); text-underline-offset: 0.15em; }
 h1, h2, h3, h4 { text-wrap: balance; }
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.masthead { padding-bottom: 1.75rem; border-bottom: 1px solid var(--rule); }
+.masthead { position: relative; padding-bottom: 1.75rem; border-bottom: 1px solid var(--rule); }
+.copy-all { position: absolute; top: 0; right: 0; max-width: calc(100% - 10rem);
+  padding: 0.35rem 0.6rem; border: 1px solid var(--edge); border-radius: 4px;
+  background: var(--paper); color: var(--muted); font: 0.8rem/1.4 var(--sans); cursor: pointer; }
+.copy-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.copy-all:disabled { cursor: wait; }
+/* Render the same layout off-screen so innerText preserves paragraphs and tables. */
+.copy-source, .copy-buffer { position: fixed; left: -100000px; top: 0; pointer-events: none; }
 /* The logo leads at the top left, where readers look for it, 24px tall (the usual
    on-screen floor for a wordmark) with at least its height clear below. */
 .masthead .logo { display: block; width: fit-content; margin: 0 0 2.25rem; }
@@ -166,6 +252,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .page { max-width: none; padding: 0; }
   .contents { background: none; border: 1px solid var(--rule); break-inside: avoid; }
   .to-top { display: none; }
+  .copy-all { display: none; }
   main h2 { break-before: page; border-top: 0; margin-top: 0; }
   main section:first-child h2 { break-before: auto; }
   main h3, main h4 { break-after: avoid; }
@@ -349,13 +436,14 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src '{_copy_script_csp_hash()}'">
 <title>{escape(page_title)}: TradingAgents report</title>
 <style>{_CSS}</style>
 </head>
 <body>
 <div class="page" id="top">
 <header class="masthead">
+<button type="button" class="copy-all" id="copy-all" aria-label="Copy the full report as text" aria-live="polite">Copy All</button>
 <a class="logo" href="{_COMPANY}" rel="noopener" aria-label="Tauric Research">{_LOGO}</a>
 <h1>{title}</h1>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
@@ -375,6 +463,7 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 <a class="to-top" href="#top">Top</a>
 <section class="operational-assessment" aria-label="Operational quality assessment">{audit_html}</section>
 </div>
+<script>{_COPY_SCRIPT}</script>
 </body>
 </html>
 """
