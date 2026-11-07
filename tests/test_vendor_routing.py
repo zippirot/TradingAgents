@@ -103,6 +103,10 @@ class VendorRoutingTests(unittest.TestCase):
         unsafe.__cause__ = ValueError("dummy-secret-987")
         self.assertNotIn("dummy-secret-987", router.no_data_available(unsafe))
 
+    def test_arbitrary_direct_no_data_detail_is_not_sent_downstream(self):
+        error = NoMarketDataError("AAPL", detail="dummy-secret-987")
+        self.assertNotIn("dummy-secret-987", router.no_data_available(error))
+
     def test_retained_cutoff_reason_is_fixed_and_never_copies_exception_text(self):
         from tradingagents.dataflows.errors import VendorUnavailableError
 

@@ -147,10 +147,11 @@ def test_disclosure_failure_keeps_facts_and_final_review_without_retry(sources, 
     from tradingagents.dataflows.vendors import sec_documents
 
     monkeypatch.setattr(sec_documents, "get_filing_evidence",
-                        lambda *a: (_ for _ in ()).throw(VendorUnavailableError("filing unavailable")))
+                        lambda *a: (_ for _ in ()).throw(VendorUnavailableError("filing unavailable dummy-secret-987")))
     prepared = acquire(initial())
     assert prepared["financial_evidence"]["facts"]
-    assert prepared["evidence_acquisition"]["disclosure_error"] == "filing unavailable"
+    assert prepared["evidence_acquisition"]["disclosure_error"] == "SEC filing unavailable (VendorUnavailableError)"
+    assert "dummy-secret-987" not in str(prepared)
     assert "filing_evidence" not in prepared
     checked = create_evidence_gate(["fundamentals"])({**initial(), **prepared})
     assert checked["final_rating"] == "REVIEW"

@@ -1,4 +1,5 @@
 import logging
+import re
 
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import (
@@ -194,14 +195,33 @@ def vendor_unavailable(method: str, error: Exception) -> str:
 def no_data_available(error: NoMarketDataError) -> str:
     """What a call returns when every vendor that answered had no usable data."""
     resolved = "" if error.canonical == error.symbol else f" (resolved to '{error.canonical}')"
-    # Surface the typed error's detail (e.g. "latest row is 2025-06-11 ...
-    # stale") so the agent sees the specific reason — invalid symbol, no
-    # coverage, or stale data — not just a generic "unavailable".
-    # A vendor may wrap a transport exception in a no-data error. Its detail
-    # then contains provider text, while locally derived no-data detail remains useful.
-    trusted_with_cause = {"Historical adjustment basis verification unavailable"}
-    safe_detail = error.detail and (error.__cause__ is None or error.detail in trusted_with_cause)
-    reason = f" ({error.detail[:300]})" if safe_detail else ""
+    # Only known, locally constructed no-data explanations reach the model.
+    # Arbitrary vendor detail can be an exception payload or credential.
+    fixed = {
+        "no rows", "not covered", "not a US SEC filer", "US filer with no us-gaap facts",
+        "no price rows", "no fundamentals", "no fundamental fields",
+        "no Balance Sheet data", "no Cash Flow data", "no Income Statement data",
+        "invalid nonempty closing price in source data",
+        "no completed price rows at the observation cutoff",
+        "no bar in range has a closing price",
+        "Historical adjustment basis unavailable beyond 400-day verification bound",
+        "Historical adjustment basis is not compatible with the analysis cutoff",
+        "Historical adjustment basis verification unavailable",
+    }
+    dated = (
+        r"no price rows on or before \d{4}-\d{2}-\d{2}",
+        r"no completed rows between \d{4}-\d{2}-\d{2} and \d{4}-\d{2}-\d{2}",
+        r"no (?:annual|quarterly) (?:balance sheet|income statement|cash flow statement) filed by \d{4}-\d{2}-\d{2}",
+        r"no statement evidence filed by \d{4}-\d{2}-\d{2}",
+        r"latest row is \d{4}-\d{2}-\d{2}, \d+ days before the requested \d{4}-\d{2}-\d{2} "
+        r"\(stale\) — refusing to use it",
+    )
+    detail = error.detail
+    safe_detail = detail in fixed or (error.__cause__ is None and len(detail) <= 300
+                                      and any(re.fullmatch(pattern, detail) for pattern in dated))
+    if error.__cause__ is not None and detail != "Historical adjustment basis verification unavailable":
+        safe_detail = False
+    reason = f" ({detail})" if safe_detail else ""
     return (
         f"NO_DATA_AVAILABLE: No usable market data for '{error.symbol}'{resolved} from "
         f"any configured vendor{reason}. The symbol may be invalid, delisted, "
