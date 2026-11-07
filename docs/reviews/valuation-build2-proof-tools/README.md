@@ -60,3 +60,33 @@ fingerprint. Requalify the clean source, then obtain the fresh slot-2 receipts
 as in step 4. Launch once with `--run Build2-DOCN-2 --attempt-cap 12` and the
 same explicit credentials argument. This uses the original ledger and retains
 the full first-attempt exposure of $11.90770580, including $3.718112 unresolved.
+
+### Approved checkpoint continuation
+
+The continuation uses its own entry point, `continue_cli.py`. Its single claim
+has a $12 limit and shares the original ledger under the newly approved $36
+aggregate. The first two attempts committed $21.00409590, including $7.698176
+in unknown reservations. The account headroom check also retains the linked
+$12.037824 historical unknown holds.
+
+1. On the reviewed clean Machine 2 commit, run
+   `.venv/bin/python docs/reviews/valuation-build2-proof-tools/continue_cli.py --qualify`.
+   It checks the approval, native resume qualification, terminal ledger bytes,
+   prior model and source inputs, and the original application and CLI trees.
+2. Capture fresh account usage/headroom and served endpoint rates/aliases in
+   `../private/build2-receipts/Build2-DOCN-continuation.provider.json`, using
+   the provider receipt shape above. The market session and price come from
+   the original November 6 analysis.
+3. Once, run
+   `.venv/bin/python docs/reviews/valuation-build2-proof-tools/continue_cli.py --run --candidate "$REVIEWED_HEAD" --credentials "$CREDS"`.
+   Use a private 0600 JSON file containing OPENROUTER_API_KEY. The claim precedes
+   runtime creation and credential reading. The runner copies the checkpoint
+   and input cache into `../private/Build2-DOCN-continuation/`, verifies the
+   saved thread and pending Aggressive Analyst, and resumes with native graph
+   input `None`. Only the ordered risk turns, audit and Portfolio Manager may
+   send model requests. SDK retries stay disabled. The two existing bounded
+   application fallbacks allow up to 13 sends under the same $12 cap.
+4. Inspect the continuation's `continuation-result.json`, role entries in the
+   shared ledger, CLI receipt, assessment and private reports. Callback coverage
+   is partial across the process restart. Original settled usage, unknown holds
+   and continuation usage are available in the ledger.

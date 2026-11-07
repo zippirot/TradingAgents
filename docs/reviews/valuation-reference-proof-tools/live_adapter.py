@@ -43,7 +43,8 @@ BUILD2_SCOPE = "valuation:Build2+A3"
 BUILD2_ATTEMPTS = ("Build2-DOCN-1", "Build2-DOCN-2")
 BUILD2_ROOT = Path("/Users/zipp/Developer/tradingagents-valuation-build2-20261106")
 BUILD2_LEDGER = BUILD2_ROOT / "private/build2-ledger.jsonl"
-BUILD2_BUDGET_SCOPES = {f"proof:{name}" for name in BUILD2_ATTEMPTS}
+BUILD2_CONTINUATION = "Build2-DOCN-continuation"
+BUILD2_BUDGET_SCOPES = {f"proof:{name}" for name in (*BUILD2_ATTEMPTS, BUILD2_CONTINUATION)}
 
 
 # Exact immutable artifacts from the completed first Build2 attempt.
@@ -1136,9 +1137,14 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
                            source_credentials: dict[str, str] | None = None):
     """Set the actual CLI env without reading user preferences or mutating them."""
     spec.validate()
-    if not openrouter_key or not sec_user_agent or work.is_symlink():
+    continuation = (spec.proof_scope == BUILD2_SCOPE and claim is not None
+                    and claim.kind == "continuation" and claim.name == BUILD2_CONTINUATION)
+    if not openrouter_key or not continuation and not sec_user_agent or work.is_symlink():
         raise ValueError("Proof workdir or required credentials invalid")
-    if spec.proof_scope in {BUILD2_SCOPE, DOCUMENT_PROOF_SCOPE}:
+    if continuation:
+        if sec_user_agent or source_credentials is not None:
+            raise ValueError("Checkpoint continuation permits no source credentials")
+    elif spec.proof_scope in {BUILD2_SCOPE, DOCUMENT_PROOF_SCOPE}:
         if (not isinstance(source_credentials, dict)
                 or set(source_credentials) != {"FRED_API_KEY", "ALPHA_VANTAGE_API_KEY"}
                 or any(not isinstance(value, str) or not value for value in source_credentials.values())):
@@ -1154,7 +1160,7 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
             del os.environ[name]
     values = {
         "PYTHON_DOTENV_DISABLED": "1",
-        "OPENROUTER_API_KEY": openrouter_key, "SEC_EDGAR_USER_AGENT": sec_user_agent,
+        "OPENROUTER_API_KEY": openrouter_key,
         "TRADINGAGENTS_RESULTS_DIR": str(work / "results"),
         "TRADINGAGENTS_CACHE_DIR": str(work / "cache"),
         "TRADINGAGENTS_MEMORY_LOG_PATH": str(work / "memory/trading_memory.md"),
@@ -1174,6 +1180,10 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
     }
     if spec.analysis_cutoff_utc is not None:
         values["TRADINGAGENTS_ANALYSIS_CUTOFF_UTC"] = spec.analysis_cutoff_utc
+    if continuation:
+        os.environ.pop("SEC_EDGAR_USER_AGENT", None)
+    else:
+        values["SEC_EDGAR_USER_AGENT"] = sec_user_agent
     os.environ.update(values)
     if source_credentials is not None:
         os.environ.update(source_credentials)

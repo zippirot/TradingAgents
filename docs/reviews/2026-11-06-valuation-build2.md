@@ -179,3 +179,47 @@ That route must be qualified offline and bound to explicit new paid authority
 before any call. No further publication, installation, comparison, scheduler or
 broker action has occurred. Machine 1 remains on the accepted production
 release `3d1b8f329f53b98daaecf05df4e522bc5491c87c`.
+
+## Authorized checkpoint continuation — November 7
+
+The user separately approved one checkpoint continuation capped at $12,
+raising this task's aggregate ceiling to $36. All previous settled charges and
+unknown-cost reservations remain in the same ledger. No comparison, release or
+installation authority was added. The approval receipt is retained privately
+and bound by SHA-256 to the continuation guard.
+
+The task-specific continuation command uses the native graph checkpoint and
+the original CLI configuration builder. It is not a new analyst/report run.
+The application and CLI trees remain identical to `486586a`; only proof tooling,
+tests and these records change. The source database, preferences and retained
+inputs are verified before copying to a new private runtime. The guard requires
+the original post-Trader checkpoint, unchanged run identity, completed debate,
+and pending first risk role. It permits nine risk turns, at most two audit
+calls and the existing PM structured/free-text fallback, at most thirteen
+in-role sends total. All new source networking is denied. No existing runtime,
+memory, publication, model preference or credential file is modified.
+
+Qualification resumed a copy of the actual database using fixture models and
+then exercised the exact command-line wrapper and real SDK using synthetic
+HTTP replies and a copied ledger. Both preserve original input hashes, case
+values and timestamps. The fixture executions are offline evidence only.
+Recovery before and after the final state-log write produced no duplicate
+calls or publication/memory entries. Callback metrics retain partial coverage;
+the original checkpoint does not contain all earlier callback observations.
+The unchanged original cost ledger supplies the separate observed whole-proof
+usage and cost history.
+
+The parent ran 178 related checks in two disjoint test inventories, including
+the native checkpoint and real-SDK simulated transport drill; all passed.
+Repository-wide Ruff, dependency and diff checks passed. Focused independent
+review passed eight checks and closed two initial wrapper setup defects before
+any real continuation. Earlier full offline and retained-input evidence is
+reused: the application, CLI, source acquisition, calculation, rendering and
+dependencies are unchanged, while the affected proof and recovery paths were
+rerun. This remains combined evidence, not a full suite on this commit.
+
+Real execution is pending at this qualification checkpoint. Before starting,
+the operator must commit the reviewed wrapper, verify its exact clean head,
+refresh actual usage and all served route prices, and reserve conservative
+request costs against the new $12 scope and existing $36 aggregate ceiling.
+No automatic restart or further attempt is authorized.
