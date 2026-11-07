@@ -212,6 +212,18 @@ def _summary_companion(saved_record, projection: dict) -> dict:
     """Keep a bounded original record when valid, without accepting extra fields."""
     from tradingagents.report_summary import SCHEMA_VERSION
 
+    def projected_record():
+        return {"schema_version": SCHEMA_VERSION, "status": projection["status"],
+                "source_input_digest": projection["source_input_digest"],
+                "process": projection["process"], "sentences": projection["sentences"],
+                "error_category": projection.get("reason")}
+
+    # An invalid current completed record can contain protected prose supplied
+    # by an old model response. Keep only the verified fallback projection.
+    if (isinstance(saved_record, dict) and saved_record.get("status") == "completed"
+            and saved_record.get("source_input_digest") == projection.get("source_input_digest")
+            and projection.get("status") != "completed"):
+        return projected_record()
     if (isinstance(saved_record, dict) and saved_record.get("schema_version") == SCHEMA_VERSION
             and saved_record.get("status") in {"completed", "unavailable", "review"}
             and isinstance(saved_record.get("source_input_digest"), str)
@@ -230,10 +242,7 @@ def _summary_companion(saved_record, projection: dict) -> dict:
                        or not item["sections"] or len(item["sections"]) > 6
                        or any(not isinstance(section, str) or section not in _DESCRIPTIONS
                               for section in item["sections"]) for item in items)):
-            return {"schema_version": SCHEMA_VERSION, "status": projection["status"],
-                    "source_input_digest": projection["source_input_digest"],
-                    "process": projection["process"], "sentences": projection["sentences"],
-                    "error_category": projection.get("reason")}
+            return projected_record()
         clean = {key: saved_record[key] for key in
                  ("schema_version", "status", "source_input_digest", "process", "sentences")}
         if isinstance(items, list) and len(items) <= 10:
@@ -246,19 +255,6 @@ def _summary_companion(saved_record, projection: dict) -> dict:
                 and all(isinstance(section, str) and section in _DESCRIPTIONS
                         for section in item["sections"])
             ]
-        framing = saved_record.get("framing")
-        if (isinstance(framing, dict)
-                and set(framing) == {"process", "rating_definition", "evidence_limit"}
-                and all(isinstance(framing[key], str) and framing[key].strip()
-                        and len(framing[key]) <= limit
-                        for key, limit in (("process", 1200), ("rating_definition", 350),
-                                           ("evidence_limit", 450)))
-                and framing["process"] == saved_record["process"]
-                and saved_record["sentences"]
-                and framing["rating_definition"] == saved_record["sentences"][0]
-                and framing["evidence_limit"] == saved_record["sentences"][-1]):
-            clean["framing"] = {key: framing[key] for key in
-                                ("process", "rating_definition", "evidence_limit")}
         model = saved_record.get("generation_model")
         if model is None or isinstance(model, str) and len(model) <= 100:
             clean["generation_model"] = model
@@ -273,10 +269,7 @@ def _summary_companion(saved_record, projection: dict) -> dict:
         if type(elapsed) in {int, float} and 0 <= elapsed <= 3_600_000:
             clean["elapsed_ms"] = elapsed
         return clean
-    return {"schema_version": SCHEMA_VERSION, "status": projection["status"],
-            "source_input_digest": projection["source_input_digest"],
-            "process": projection["process"], "sentences": projection["sentences"],
-            "error_category": projection.get("reason")}
+    return projected_record()
 
 
 def _summary_markdown(summary: dict) -> str:

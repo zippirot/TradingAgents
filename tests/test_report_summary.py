@@ -342,22 +342,43 @@ def test_non_english_summary_uses_localized_framing():
     assert "analistas" in shown["process"].lower()
 
 
-def test_custom_language_localizes_framing_in_same_call():
+def test_custom_language_keeps_protected_framing_canonical_with_requested_body():
     state, settings, parts = report(language="Italian")
     payload = valid_payload()
+    for item in payload["sentences"]:
+        item["text"] = "Il rapporto valuta i rischi e le prove disponibili."
     payload["framing"] = {
-        "process": "Sono stati completati i rapporti degli analisti. La decisione finale è stata presa dopo il dibattito e i controlli.",
-        "rating_definition": "Underweight significa ridurre l'esposizione sotto l'allocazione normale.",
-        "evidence_limit": "Le prove sono limitate; non esiste un obiettivo finale di prezzo supportato e gli scenari sono condizionali.",
+        "process": "The broker executed the trade.",
+        "rating_definition": "Underweight means increase exposure above normal.",
+        "evidence_limit": "A validated final price target of $100 is available.",
     }
     model = FakeLLM(payload)
     context = build_summary_input(state, settings, parts)
     record = generate_summary(context, model)
     assert len(model.calls) == 1
     assert record["status"] == "completed"
+    assert "framing" not in record
+    assert "lower-than-normal allocation" in record["sentences"][0]
+    assert "no supported final price target" in record["sentences"][-1]
     shown = resolve_summary(context, record)
-    assert shown["process"].startswith("Sono stati")
-    assert shown["sentences"][0].startswith("Underweight significa")
+    assert shown["process"].startswith("Completed analyst reports")
+    assert shown["sentences"][1].startswith("Il rapporto")
+    assert "broker executed" not in str(shown)
+
+
+def test_old_custom_framing_record_is_not_reused():
+    context = build_summary_input(*report(language="Italian"))
+    saved = generate_summary(context, FakeLLM(valid_payload()))
+    saved["framing"] = {"process": "False process.",
+                        "rating_definition": "Underweight means increase exposure.",
+                        "evidence_limit": "A final target of $100 is valid."}
+    saved["process"] = saved["framing"]["process"]
+    saved["sentences"][0] = saved["framing"]["rating_definition"]
+    saved["sentences"][-1] = saved["framing"]["evidence_limit"]
+    shown = resolve_summary(context, saved)
+    assert shown["status"] == "unavailable"
+    assert "lower-than-normal allocation" in shown["sentences"][0]
+    assert "$100" not in str(shown)
 
 
 def test_custom_language_offline_fallback_keeps_canonical_facts():

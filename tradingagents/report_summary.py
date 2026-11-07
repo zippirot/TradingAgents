@@ -24,15 +24,8 @@ class SummarySentence(BaseModel):
     sections: list[str]
 
 
-class SummaryFraming(BaseModel):
-    process: str
-    rating_definition: str
-    evidence_limit: str
-
-
 class SummaryOutput(BaseModel):
     sentences: list[SummarySentence]
-    framing: SummaryFraming | None = None
 
 
 _SECTION_LIMITS = {"5_portfolio": 6500, "1_analysts": 7000, "2_research": 5000,
@@ -580,25 +573,6 @@ def _body_items(value, expected, rating=None, target_supported=False):
     return result if found == expected else None
 
 
-def _custom_framing(value, rating):
-    framing = value.get("framing") if isinstance(value, Mapping) else None
-    if not isinstance(framing, Mapping) or set(framing) != {"process", "rating_definition", "evidence_limit"}:
-        return None
-    process, first, last = (framing[key] for key in ("process", "rating_definition", "evidence_limit"))
-    if any(not isinstance(text, str) or not text.strip() or len(text) > limit
-           for text, limit in ((process, 1200), (first, 350), (last, 450))):
-        return None
-    if not first.strip().startswith(rating) or any(
-        re.search(r"\b" + token + r"\b", first[len(rating):], re.I)
-        for token in (*RATINGS_5_TIER, "REVIEW") if token != rating
-    ):
-        return None
-    if not 2 <= _sentence_count(process) <= 3 or _sentence_count(first) != 1 or _sentence_count(last) != 1:
-        return None
-    return {"process": _text(process, 1200), "rating_definition": _text(first, 350),
-            "evidence_limit": _text(last, 450)}
-
-
 def _unavailable(context, reason):
     return {"schema_version": SCHEMA_VERSION, "status": "review" if context["rating"] == "REVIEW" else "unavailable",
             "source_input_digest": context["source_input_digest"], "process": context["process"],
@@ -628,12 +602,8 @@ def generate_summary(context: dict, llm) -> dict:
         "action from the final portfolio rating. Do not state a final target unless the constraints say it is supported. "
         "Do not treat omitted/truncated source text as proof that evidence is absent. "
         f"Write sentence text in {context['language']}; keep canonical rating tokens in English. "
-        "The application adds the rating definition and evidence/target limit separately.\n"
-        + ("Also return framing {process, rating_definition, evidence_limit}: translate the following fixed factual "
-           "framing into the requested language without changing meaning. Keep the canonical rating token at the start "
-           "of rating_definition. Process must be 2-3 sentences; each other field one sentence. "
-           + json.dumps(context["canonical_framing"], ensure_ascii=False) + "\n"
-           if context["language"] not in _PROCESS else "")
+        "The application adds the fixed process, rating definition and evidence/target limit separately; "
+        "do not return or revise those protected sentences.\n"
         + json.dumps(source, ensure_ascii=False, separators=(",", ":"))
     )
     if len(prompt) > _MAX_PROMPT:
@@ -659,20 +629,17 @@ def generate_summary(context: dict, llm) -> dict:
     items = _body_items(parsed, {section["key"] for section in context["sections"]}, context["rating"],
                         context["constraints"]["target_status"] == "supported"
                         and context["constraints"]["final_target_eligible"])
-    custom = (_custom_framing(parsed, context["rating"]) if context["language"] not in _PROCESS else None)
-    if items is None or context["language"] not in _PROCESS and custom is None:
+    if items is None:
         record = _unavailable(context, "malformed_response")
     else:
-        first = custom["rating_definition"] if custom else _rating_sentence(context["rating"], context["language"])
-        last = custom["evidence_limit"] if custom else _evidence_sentence(context["constraints"], context["language"])
+        first = _rating_sentence(context["rating"], context["language"]) or context["canonical_framing"]["rating_definition"]
+        last = _evidence_sentence(context["constraints"], context["language"]) or context["canonical_framing"]["evidence_limit"]
         record = {"schema_version": SCHEMA_VERSION, "status": "completed",
                   "source_input_digest": context["source_input_digest"],
-                  "process": custom["process"] if custom else context["process"],
+                  "process": context["process"] or context["canonical_framing"]["process"],
                   "sentences": [first, *(item["text"] for item in items), last], "body_items": items,
                   "generation_model": context.get("generation_model") or None,
                   "truncation": context["truncation"], "error_category": None}
-        if custom:
-            record["framing"] = custom
     record["elapsed_ms"] = round((time.monotonic() - started) * 1000)
     return record
 
@@ -690,17 +657,12 @@ def resolve_summary(context: dict, saved_record) -> dict:
         elif saved_record.get("schema_version") != SCHEMA_VERSION:
             reason = "invalid_summary_schema"
         elif saved_record.get("status") == "completed":
-            custom = (_custom_framing(saved_record, context["rating"])
-                      if context["language"] not in _PROCESS else None)
-            if custom:
-                first, last, process = custom["rating_definition"], custom["evidence_limit"], custom["process"]
             items = _body_items({"sentences": saved_record.get("body_items")},
                                 {section["key"] for section in context["sections"]}, context["rating"],
                                 context["constraints"]["target_status"] == "supported"
                                 and context["constraints"]["final_target_eligible"])
             sentences = saved_record.get("sentences")
-            if (items is not None and (context["language"] in _PROCESS or custom is not None)
-                    and isinstance(sentences, list)
+            if (items is not None and isinstance(sentences, list)
                     and sentences == [first, *(item["text"] for item in items), last]):
                 return {"status": "completed", "reason": None, "source_input_digest": context["source_input_digest"],
                         "process": process, "sentences": list(sentences)}

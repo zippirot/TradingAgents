@@ -233,7 +233,7 @@ def test_token_footer_names_research_scope_in_both_exports(tmp_path):
 
 
 @pytest.mark.unit
-def test_custom_language_companion_round_trips_without_extra_fields(tmp_path):
+def test_custom_language_companion_keeps_canonical_framing_and_italian_body(tmp_path):
     from tests.test_report_summary import FakeLLM, valid_payload
     from tradingagents.report_summary import generate_summary, resolve_summary
     from tradingagents.reporting import prepare_report_state, summary_input_for_report
@@ -241,28 +241,49 @@ def test_custom_language_companion_round_trips_without_extra_fields(tmp_path):
     settings = {**SETTINGS, "output_language": "Italian"}
     state = dict(_state(), final_trade_decision="Rating: Underweight. Reduce exposure.")
     payload = valid_payload()
-    framing = {
-        "process": "Sono stati completati i rapporti degli analisti. La decisione finale è stata presa dopo il dibattito e i controlli.",
-        "rating_definition": "Underweight significa ridurre l'esposizione sotto l'allocazione normale.",
-        "evidence_limit": "Le prove sono limitate; non esiste un obiettivo finale di prezzo supportato e gli scenari sono condizionali.",
+    italian_body = [
+        "Il rapporto considera debolezza di mercato e notizie contrastanti.",
+        "La ricerca rialzista è stata superata dai rischi discussi.",
+        "La proposta del trader e la decisione finale sono state valutate separatamente.",
+        "Le prospettive di rischio favoriscono una esposizione prudente.",
+        "I controlli delle prove hanno lasciato limiti importanti.",
+    ]
+    for item, sentence in zip(payload["sentences"], italian_body, strict=True):
+        item["text"] = sentence
+    hostile_framing = {
+        "process": "Il modello ha sostituito il processo.",
+        "rating_definition": "Underweight significa comprare più azioni.",
+        "evidence_limit": "Un obiettivo finale di prezzo è supportato.",
     }
-    payload["framing"] = framing
+    payload["framing"] = hostile_framing
     context = summary_input_for_report(prepare_report_state(state), settings)
     record = generate_summary(context, FakeLLM(payload))
     assert record["status"] == "completed"
-    state["executive_summary"] = {**record, "api_key": "must-not-export"}
+    assert "framing" not in record
+    state["executive_summary"] = {**record, "framing": hostile_framing, "api_key": "must-not-export"}
     write_report_tree(state, "DOCN", tmp_path, settings=settings)
     companion = json.loads((tmp_path / "executive_summary.json").read_text())
-    # The export retains valid saved framing while removing unknown fields.
-    assert companion["framing"] == framing
-    assert "must-not-export" not in str(companion)
+    assert "framing" not in companion and "must-not-export" not in str(companion)
     shown = resolve_summary(context, companion)
     assert shown["status"] == "completed"
     markdown = (tmp_path / "complete_report.md").read_text()
     html = (tmp_path / "complete_report.html").read_text()
-    assert framing["process"] in markdown and framing["process"] in html
-    assert framing["rating_definition"] in markdown and framing["rating_definition"] in unescape(html)
-    malformed = dict(state, executive_summary={**record, "framing": {**framing, "api_key": "nested-secret"}})
-    write_report_tree(malformed, "DOCN", tmp_path / "malformed", settings=settings)
-    sidecar = (tmp_path / "malformed" / "executive_summary.json").read_text()
-    assert "nested-secret" not in sidecar
+    for text in (markdown, unescape(html)):
+        assert context["canonical_framing"]["process"] in text
+        assert context["canonical_framing"]["rating_definition"] in text
+        assert context["canonical_framing"]["evidence_limit"] in text
+        assert all(sentence in text for sentence in italian_body)
+        assert hostile_framing["rating_definition"] not in text
+        assert hostile_framing["evidence_limit"] not in text
+    old_record = {**record, "process": hostile_framing["process"],
+                  "sentences": [hostile_framing["rating_definition"],
+                                *record["sentences"][1:-1], hostile_framing["evidence_limit"]],
+                  "framing": hostile_framing}
+    write_report_tree(dict(state, executive_summary=old_record), "DOCN", tmp_path / "unsafe",
+                      settings=settings)
+    unsafe_companion = json.loads((tmp_path / "unsafe" / "executive_summary.json").read_text())
+    assert unsafe_companion["status"] == "unavailable"
+    assert "framing" not in unsafe_companion
+    assert hostile_framing["rating_definition"] not in str(unsafe_companion)
+    assert hostile_framing["evidence_limit"] not in str(unsafe_companion)
+    assert resolve_summary(context, unsafe_companion)["status"] == "unavailable"
