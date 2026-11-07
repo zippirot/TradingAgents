@@ -1,0 +1,85 @@
+{
+  "run_id": "a93181f1-205f-45c1-a7d7-05f17d8f4c90",
+  "status": "completed",
+  "started_at": "2026-11-07T18:55:17.990Z",
+  "deadline_at": "2026-11-07T19:40:17.990Z",
+  "completed_at": "2026-11-07T19:01:09.800Z",
+  "report": {
+    "base_commit": "f83f703c1851691d2e01cb4fffb35917d6f4e3fa",
+    "head_commit": "750cf0bc3a8d6206d6f06f0140c239c26c766c7c",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 18,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-numbers-you-can-trust-acceptance.md",
+      "docs/reviews/2026-11-07-numbers-you-can-trust-claude-initial.json",
+      "docs/reviews/2026-11-07-numbers-you-can-trust-findings-review.md",
+      "docs/reviews/2026-11-07-numbers-you-can-trust-runtime.json",
+      "tests/test_sec_documents.py",
+      "tradingagents/dataflows/vendors/sec_documents.py"
+    ],
+    "summary": "Closure audit of frozen range f83f703c→750cf0bc for Build A \"Numbers you can trust\", using only the frozen request.json. The range contains exactly one source correction (9562c373 in tradingagents/dataflows/vendors/sec_documents.py plus a regression in tests/test_sec_documents.py) and documentation/receipt updates. The correction addresses the single finding the implementer upgraded to material from the initial independent Claude Fable audit (run e43af411, 0 Critical/High/Medium, 9 Low): generic expect/guidance boilerplate previously shared priority tier 3 with statement/obligation tables and could displace them under the bounded extraction budget. I verified analytically from the frozen code that the new regression test fails at base (boilerplate keys (3,6,…) beat the statement table's (3,2,…) under a 19,320-char budget) and passes at HEAD (tables tier 3 vs boilerplate tier 1), that the tier-4 prioritize_guidance path protecting the latest 2.02 exhibit is untouched, and that the pre-existing late-guidance and late-financial-notes tests still select correctly under the new sort key. The acceptance addendum is internally consistent (3134→3135 passed with exactly one added test; exact commits 9562c373/750cf0bc identified; unpushed candidate, pending closure review, and CI/install gaps disclosed). The findings-review document disposes all nine initial Low observations with requirement-grounded rationale; the archived initial-audit JSON matches the summarized ledger and results; the runtime receipt delta is temp-path-only with unchanged source_state_sha256, consistent with a display-priority fix. No in-scope Critical, High, or Medium findings. Remaining observations are Low: non-latest-document guidance now ranks below financing-scope prose without a dedicated competing-tier test; the new bool(numerical_guidance) secondary sort key precedes hits in every tier (minor untested reordering within tiers 2–3); and the previously deferred misleading \"package remaining 4000 characters\" gap wording persists as documented. Passing this closure audit grants no integration or release authority; exact-candidate remote CI and install verification remain open as the acceptance report states.",
+    "limitations": [
+      "Read-only static audit of the single frozen request.json (base f83f703c -> head 750cf0bc); no tests, linters, or application code were executed by this auditor. Baseline-fail/head-pass behavior of the new regression was established by manual trace of the frozen code, not by running pytest.",
+      "Builder receipts (pytest 3135 passed/10 skipped/1 deselected, 67 focused passes, ruff clean, /tmp proof logs, sanitized runtime receipt) are accepted as builder evidence, not independently reproduced; private replay inputs (saved DOCN state, publication store, SEC cache) were not available.",
+      "HEAD context was limited to the modules supplied in the frozen requirements blob; unlisted callers and the full crowded-package fixture bodies were assessed only through supplied excerpts and the diff.",
+      "Exact-candidate remote CI and fresh-install verification remain open because the candidate is unpushed; this audit cannot close that gap.",
+      "The initial audit's nine Low dispositions were reviewed for documented reasoning and consistency with the frozen plan, not re-derived from scratch against every owning module.",
+      "No evidence outside the frozen file was used; the repository working tree, git objects, and network were not consulted."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Numerical-guidance blocks in non-latest documents now rank at tier 1, below tier-2 financing-scope prose; a real guidance sentence in a 10-K/10-Q competing with financing prose inside one bounded document is not covered by a dedicated test (bounded: the latest 2.02 exhibit keeps tier 4 via prioritize_guidance, and guidance still outranks same-tier generic prose via the new secondary key)",
+        "path": "tradingagents/dataflows/vendors/sec_documents.py"
+      },
+      {
+        "severity": "low",
+        "title": "The new secondary sort key bool(numerical_guidance) precedes the hits count in every tier, so within tiers 2-3 an expect-bearing block outranks blocks with more financial hits; this cross-tier reordering side effect of the fix is untested and could marginally change which same-tier blocks survive the budget",
+        "path": "tradingagents/dataflows/vendors/sec_documents.py"
+      },
+      {
+        "severity": "low",
+        "title": "Previously deferred Low persists at HEAD: the latest-8-K-primary truncation gap text still says 'package remaining 4000 characters' when 4000 is the special per-primary allocation, not the package remainder; documented as a deferred cosmetic diagnostic in the findings review, and the omission itself is still reported",
+        "path": "tradingagents/dataflows/vendors/sec_documents.py"
+      },
+      {
+        "severity": "low",
+        "title": "The findings-review narrative describes the reproduction as '60 numbered expectation boilerplate paragraphs'; the committed regression uses 60 identical unnumbered paragraphs containing the year 2026 (digit-bearing, not numbered) - a cosmetic description/test mismatch with no effect on the proof's validity",
+        "path": "docs/reviews/2026-11-07-numbers-you-can-trust-findings-review.md"
+      },
+      {
+        "severity": "low",
+        "title": "Closure chain remains open by design: the acceptance addendum correctly states the independent review of the final correction was pending at head and the candidate is locally unpushed, so exact-candidate remote CI and clean-install verification are unverified; this run satisfies the pending closure review but grants no integration or release authority",
+        "path": "docs/reviews/2026-11-07-numbers-you-can-trust-acceptance.md"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "medium",
+      "escalation_reasons": []
+    },
+    "progress": {
+      "observed_events": 870,
+      "last_activity_at": "2026-11-07T19:01:09.492Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 4,
+      "hard_budget_usd": 8,
+      "soft_turn_limit": 15,
+      "turn_limit": 25,
+      "wall_clock_limit_minutes": 45,
+      "actual_cost_usd": 0.8955855000000001,
+      "actual_elapsed_ms": 351663,
+      "soft_limit_reached": true
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

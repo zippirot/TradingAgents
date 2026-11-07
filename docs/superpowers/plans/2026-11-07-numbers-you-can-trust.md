@@ -7,6 +7,8 @@ Independent audit: required
 
 User approved D1 staging integration/push and Build A start on 2026-11-07. D1 is now integrated at 9ba8aa9c931cdc2b98fa25e94a39defdf3cad258, the verified GitHub/local staging base of this branch. Production remains 9ade69bf155d1b25699d3aecfff3c1b07752aff0. Only A1–A7 are authorized here; A7 is diagnostic unless reproduced. No Build C start, next integration/push, production release, installation or cleanup is authorized.
 
+Execution checkpoint, 2026-11-07: A1–A6 implemented and verified; A7 not reproduced, evidence-only. Corrected source `9562c373`, final audited candidate `750cf0bc`. Full suite 3,135 passed, Ruff clean, initial Claude audit and final correction closure complete with no open material findings. The checklists below preserve the frozen instructions; actual results and Low dispositions are authoritative in `docs/reviews/2026-11-07-numbers-you-can-trust-acceptance.md`. No integration/push or next-build start is authorized.
+
 ## Branch and Release Boundary
 
 - **Feature completion — Machine 2.** Only after a build start is authorized, fetch remote refs and compare the intended local `staging` SHA to canonical GitHub `staging`. If they differ, report both and stop before branching; do not silently pick one or rewrite either. From the verified exact commit create a new `codex/<build-slug>` branch and isolated worktree at `~/Documents/ChatGPT/Tauric/worktrees/<build-slug>`. Develop, run proofs and commit code and verification evidence there. No ordinary development on `main`, `staging` or `production`.
