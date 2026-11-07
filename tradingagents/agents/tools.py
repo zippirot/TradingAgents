@@ -415,7 +415,9 @@ def search_documents(
     run_state: Annotated[dict, InjectedState] = None,
     tool_call_id: Annotated[str, InjectedToolCallId] = "",
 ) -> Command:
-    """Search this run's retained full SEC filings, including notes and tables.
+    """Use transcript: QUERY to search retained vendor call Q&A (wording unverified);
+    unprefixed queries search SEC filings. Both share the same limits.
+    Search this run's retained full SEC filings, including notes and tables.
 
     Fundamentals and News may each make at most 3 calls. Each returns at most
     3 complete passages totaling 12000 text characters; oversized or incomplete

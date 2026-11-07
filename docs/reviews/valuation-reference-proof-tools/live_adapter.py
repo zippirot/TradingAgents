@@ -18,7 +18,7 @@ import sys
 import threading
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from unittest.mock import patch
@@ -35,6 +35,10 @@ from pilot import (
     PilotLedger,
     manifest_hash,
 )
+
+DOCUMENT_PROOF_SCOPE = "document-access:BuildB"
+DOCUMENT_PROOF_TICKERS = ("DOCN", "MSFT", "CAT")
+DOCUMENT_PROOF_PREFIX = "DocumentAccess-"
 
 EXTRA_A_PIN_REASON = (
     "User-approved temporary peer pin for accepted-row live proof; "
@@ -152,7 +156,8 @@ class OpenRouterWireGuard:
         self.request_count = 0
         self.stopped = False
         if type(serialize_paid_requests) is not bool or (serialize_paid_requests and (
-                kind != "run" or budget.scope not in {"proof:B3", "proof:Build1"})):
+                kind != "run" or (budget.scope not in {"proof:B3", "proof:Build1"} and
+                budget.scope not in {f"proof:DocumentAccess:{ticker}" for ticker in DOCUMENT_PROOF_TICKERS}))):
             raise ValueError("Paid-request serialization is only approved for B3 and Build1 proofs")
         self.serialize_paid_requests = serialize_paid_requests
         self._paid_turn_lock = threading.Lock()
@@ -741,6 +746,27 @@ class ExecutionClaim:
 
 def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
     events = ledger.events()
+    if claim.kind == "proof" and claim.name.startswith(DOCUMENT_PROOF_PREFIX):
+        ticker = claim.name[len(DOCUMENT_PROOF_PREFIX):]
+        entry = next((e for e in events if e.get("type") == "attempt_claim"
+                      and e.get("phase") == claim.name), None)
+        if ticker not in DOCUMENT_PROOF_TICKERS or entry is None:
+            raise RuntimeError("Document-access attempt claim missing")
+        record = _validate_document_access_approval(entry["approval_record"])
+        expected = (ticker, record["analysis_date"], B_DEEP, A, 3, 16384, 4)
+        actual = (spec.ticker, spec.analysis_date, spec.quick_model, spec.deep_model,
+                  spec.depth, spec.max_output_tokens, spec.max_tool_rounds)
+        allowance = [e for e in events if e.get("type") == "allowance"]
+        if (claim.approval_sha256 != entry.get("approval_sha256")
+                or ledger.path.resolve() != Path(record["ledger_path"]).resolve()
+                or manifest_hash(record) != claim.approval_sha256
+                or len(allowance) != 1 or allowance[0].get("approval_sha256") != claim.approval_sha256
+                or actual != expected or spec.proof_scope != DOCUMENT_PROOF_SCOPE
+                or spec.extra_peer_pins is not None or spec.context_cap is not None
+                or spec.analysis_timezone != "America/Denver"):
+            raise RuntimeError("Document-access proof execution differs from approved scope")
+        spec.validate()
+        return
     if claim.kind == "proof":
         entry = next((e for e in events if e["type"] == "attempt_claim"
                       and e.get("phase") == claim.name), None)
@@ -787,6 +813,14 @@ def verify_budget_binding(claim: ExecutionClaim, budget: BudgetGuard,
     events = budget.ledger.events()
     if claim.kind == "proof":
         entry = next(e for e in events if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
+        if claim.name.startswith(DOCUMENT_PROOF_PREFIX):
+            record = _validate_document_access_approval(entry["approval_record"])
+            if (approval is not None or budget.scope != f"proof:DocumentAccess:{spec.ticker}"
+                    or budget.ceiling != Decimal(record["ceiling_usd"])
+                    or budget.scope_ceiling != Decimal(record["per_attempt_ceiling_usd"])
+                    or budget.max_calls != record["max_calls_per_attempt"]):
+                raise RuntimeError("Document-access wire budget differs from fresh authority")
+            return
         if (approval is not None or budget.scope != f"proof:{claim.name}"
                 or budget.ceiling != Decimal(entry["ceiling_usd"])
                 or budget.scope_ceiling != Decimal(entry["phase_ceiling_usd"])
@@ -811,7 +845,7 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
                  "name": claim.name, "ticker": spec.ticker,
                  "analysis_date": spec.analysis_date, "depth": spec.depth,
                  "approval_sha256": claim.approval_sha256}
-        if claim.kind == "proof" and claim.name in {"B3", "Build1"}:
+        if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
             entry = next(e for e in ledger.events() if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
             record = entry["approval_record"]
             worktree = Path(record["worktree_root"])
@@ -819,7 +853,7 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
             # A legitimate start consumes the attempt even if its candidate
             # subsequently fails the final check. No CLI/paid call precedes it.
             ledger.append(event)
-            if claim.name == "Build1":
+            if claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX):
                 _verify_run_fixes_machine()
                 origin = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=worktree, text=True).strip()
                 if origin != record["repository_origin"]:
@@ -854,7 +888,7 @@ class CliSpec:
     proof_scope: str | None = None
 
     def validate(self):
-        if (not self.ticker or not self.ticker.isupper() or self.depth not in (1, 2)
+        if (not self.ticker or not self.ticker.isupper() or self.depth not in (1, 2, 3)
                 or self.max_output_tokens <= 0 or self.max_tool_rounds <= 0):
             raise ValueError("Invalid fixed CLI scope")
         date.fromisoformat(self.analysis_date)
@@ -870,8 +904,18 @@ class CliSpec:
         ).astimezone(UTC) > datetime.now(UTC):
             raise ValueError("Frozen market observation cutoff cannot be in the future")
         expected_models = (B_DEEP, A) if self.proof_scope == "run-fixes:Build1" else (A, A)
-        if self.proof_scope not in {None, "run-fixes:Build1"}:
+        if self.proof_scope not in {None, "run-fixes:Build1", DOCUMENT_PROOF_SCOPE}:
             raise ValueError("Unknown CLI proof scope")
+        if self.proof_scope == DOCUMENT_PROOF_SCOPE:
+            if (self.ticker not in DOCUMENT_PROOF_TICKERS or self.depth != 3
+                    or (self.quick_model, self.deep_model) != (B_DEEP, A)
+                    or self.max_output_tokens != 16384 or self.max_tool_rounds != 4
+                    or self.extra_peer_pins is not None or self.context_cap is not None
+                    or self.analysis_cutoff_utc is not None
+                    or self.market_observation_cutoff is not None):
+                raise ValueError("Document-access proof scope differs")
+        elif self.depth == 3:
+            raise ValueError("Depth 3 is reserved for document-access proof")
         if self.depth == 1 and (self.quick_model, self.deep_model) != expected_models:
             raise ValueError("Proof model tiers differ from the declared authority")
         if self.extra_peer_pins is not None and (
@@ -902,11 +946,19 @@ def verify_cli_config(config: dict, spec: CliSpec):
 
 
 def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, sec_user_agent: str,
-                           claim: ExecutionClaim | None = None, ledger: PilotLedger | None = None):
+                           claim: ExecutionClaim | None = None, ledger: PilotLedger | None = None,
+                           source_credentials: dict[str, str] | None = None):
     """Set the actual CLI env without reading user preferences or mutating them."""
     spec.validate()
     if not openrouter_key or not sec_user_agent or work.is_symlink():
         raise ValueError("Proof workdir or required credentials invalid")
+    if spec.proof_scope == DOCUMENT_PROOF_SCOPE:
+        if (not isinstance(source_credentials, dict)
+                or set(source_credentials) != {"FRED_API_KEY", "ALPHA_VANTAGE_API_KEY"}
+                or any(not isinstance(value, str) or not value for value in source_credentials.values())):
+            raise ValueError("Document proof needs exactly the approved macro/transcript credentials")
+    elif source_credentials is not None:
+        raise ValueError("Additional source credentials are reserved for document proof")
     if spec.extra_peer_pins is not None:
         if claim is None or ledger is None:
             raise ValueError("Extra A pins require the approved A2 execution claim")
@@ -937,6 +989,8 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
     if spec.analysis_cutoff_utc is not None:
         values["TRADINGAGENTS_ANALYSIS_CUTOFF_UTC"] = spec.analysis_cutoff_utc
     os.environ.update(values)
+    if source_credentials is not None:
+        os.environ.update(source_credentials)
     for path in (work / "results", work / "cache", work / "memory"):
         path.mkdir(parents=True, exist_ok=True)
     if spec.extra_peer_pins is not None:
@@ -1158,10 +1212,33 @@ def frozen_market_cutoff(spec: CliSpec):
         yield
 
 
+@contextmanager
+def one_document_audit_attempt(spec: CliSpec):
+    """Document proof keeps the application retry bound at two model calls."""
+    if spec.proof_scope != DOCUMENT_PROOF_SCOPE:
+        yield
+        return
+    import tradingagents.graph.setup as setup_module
+
+    original = setup_module.create_advisory_audit
+
+    def one_attempt(llm, *, deep_model_id, quick_model_id, sdk_retries_disabled=False):
+        if not sdk_retries_disabled:
+            raise RuntimeError("Document proof requires zero SDK retries")
+        return original(
+            llm, deep_model_id=deep_model_id, quick_model_id=quick_model_id,
+            sdk_retries_disabled=True,
+        )
+
+    with patch.object(setup_module, "create_advisory_audit", one_attempt):
+        yield
+
+
 def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                 source_replay: FrozenVendorReplay | None, *, openrouter_key: str,
                 sec_user_agent: str, claim: ExecutionClaim,
-                approval: Approval | None = None):
+                approval: Approval | None = None,
+                source_credentials: dict[str, str] | None = None):
     """Run the real CLI under exact source, HTTP, config and isolated-path hooks."""
     if wire.max_output_tokens != spec.max_output_tokens or set(wire.rates) != {spec.quick_model, spec.deep_model}:
         raise ValueError("Wire guard differs from actual CLI model/cap scope")
@@ -1171,12 +1248,13 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         raise ValueError("A7 requires frozen sources and no unfrozen source allowance")
     if claim.kind == "proof" and (source_replay is not None or not wire.allow_unfrozen_sources):
         raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
-    if claim.kind == "proof" and claim.name in {"B3", "Build1"} and not wire.serialize_paid_requests:
+    if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name.startswith(DOCUMENT_PROOF_PREFIX)) and not wire.serialize_paid_requests:
         raise ValueError("B3 proof requires serialized paid requests at its unchanged output cap")
     verify_budget_binding(claim, wire.budget, spec, approval)
     start_execution(claim, wire.budget.ledger, spec)
     configure_isolated_env(spec, work, openrouter_key=openrouter_key,
-                           sec_user_agent=sec_user_agent, claim=claim, ledger=wire.budget.ledger)
+                           sec_user_agent=sec_user_agent, claim=claim, ledger=wire.budget.ledger,
+                           source_credentials=source_credentials)
     if source_replay is not None:
         install_starting_snapshot(source_replay.gateway, work)
     DEFAULT_CONFIG = fresh_default_config()
@@ -1198,6 +1276,7 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         with ExitStack() as stack:
             stack.enter_context(checked_cli_config(spec))
             stack.enter_context(frozen_market_cutoff(spec))
+            stack.enter_context(one_document_audit_attempt(spec))
             if source_replay is not None:
                 stack.enter_context(source_replay.installed())
                 stack.enter_context(installed_network_gate(gate))
@@ -1235,9 +1314,9 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                     requested != [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
                                   for ticker in spec.extra_peer_pins]):
                 raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
-        if claim.kind == "proof" and claim.name == "Build1":
+        if claim.kind == "proof" and (claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
             entry = next(e for e in wire.budget.ledger.events()
-                         if e["type"] == "attempt_claim" and e.get("phase") == "Build1")
+                         if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
             verify_run_fixes_completed_state(state, spec, entry["approval_record"])
         return {"state": state, "model_calls": wire.request_count,
                 "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
@@ -1291,3 +1370,184 @@ def build_pilot_receipt(manifest: dict, spec: CliSpec, slot_name: str,
                       "quick_model": spec.quick_model, "deep_model": spec.deep_model,
                       "llm_max_retries": 0},
             "model_calls": cli_result["model_calls"], "cost_usd": str(cost), "completed": True}
+
+
+def _document_access_prior_exposure(record):
+    """Link historical reservations, including unknown holds, without reusing authority."""
+    historical = record.get("old_ledgers")
+    if not isinstance(historical, dict) or not historical:
+        raise ValueError("Historical proof ledgers are required")
+    committed = Decimal(0)
+    unknown = Decimal(0)
+    for name, digest in historical.items():
+        path = Path(name)
+        if (not path.is_absolute() or path.is_symlink() or not path.is_file()
+                or hashlib.sha256(path.read_bytes()).hexdigest() != digest):
+            raise ValueError("Historical proof ledger changed")
+        ledger = PilotLedger(path)
+        events = ledger.events()
+        settled = {event["ticket"] for event in events if event.get("type") == "settle"}
+        committed += ledger.committed_usd()
+        unknown += sum((Decimal(event["usd"]) for event in events
+                        if event.get("type") == "reserve" and event["ticket"] not in settled), Decimal(0))
+    if (committed != Decimal(record.get("prior_committed_exposure_usd", "-1"))
+            or unknown != Decimal(record.get("prior_unknown_reserved_usd", "-1"))):
+        raise ValueError("Historical committed or unknown exposure differs")
+    return committed, unknown
+
+
+def _validate_document_access_approval(record):
+    """Exact three-attempt document proof authority; no historical allowance is inherited."""
+    required = {
+        "approval_id", "approved_at_recorded", "user_instruction", "phase", "attempts",
+        "tickers", "analysis_date", "quick_model", "deep_model", "depth",
+        "max_output_tokens", "max_tool_rounds", "analysts", "llm_max_retries",
+        "audit_max_attempts", "candidate_head", "worktree_root", "repository_origin", "ledger_path",
+        "machine", "ceiling_usd", "per_attempt_ceiling_usd", "max_calls_per_attempt",
+        "old_ledgers", "prior_committed_exposure_usd", "prior_unknown_reserved_usd",
+        "runner_sha256", "provider_metadata_sha256", "candidate_sha256", "session",
+        "receipt_refresh_policy", "receipt_root", "approved_route_rate_caps", "resolved_model_ids",
+    }
+    if not isinstance(record, dict) or set(record) != required:
+        raise ValueError("Document-access approval record is incomplete")
+    now = datetime.now(UTC)
+    _b3_aware_time(record["approved_at_recorded"], now)
+    ceiling = Decimal(record["ceiling_usd"])
+    attempt = Decimal(record["per_attempt_ceiling_usd"])
+    if (not isinstance(record["approval_id"], str) or not record["approval_id"].strip()
+            or not isinstance(record["user_instruction"], str) or not record["user_instruction"].strip()
+            or record["phase"] != "DocumentAccess" or record["attempts"] != 3
+            or record["tickers"] != list(DOCUMENT_PROOF_TICKERS)
+            or record["quick_model"] != B_DEEP or record["deep_model"] != A
+            or record["depth"] != 3 or record["max_output_tokens"] != 16384
+            or record["max_tool_rounds"] != 4
+            or record["analysts"] != ["market", "social", "news", "fundamentals"]
+            or record["llm_max_retries"] != 0 or record["audit_max_attempts"] != 2
+            or record["receipt_refresh_policy"] != "per_attempt_local_receipt_v1"
+            or type(record["max_calls_per_attempt"]) is not int
+            or not 1 <= record["max_calls_per_attempt"] <= 128
+            or not ceiling.is_finite() or not attempt.is_finite()
+            or ceiling <= 0 or attempt <= 0 or attempt * 3 > ceiling
+            or record["machine"] != {"cpu": "Apple M1 Pro", "ram_bytes": 17179869184}
+            or not re.fullmatch(r"[0-9a-f]{40}", record["candidate_head"])
+            or not re.fullmatch(r"[0-9a-f]{64}", record["candidate_sha256"])
+            or not re.fullmatch(r"[0-9a-f]{64}", record["runner_sha256"])
+            or not re.fullmatch(r"[0-9a-f]{64}", record["provider_metadata_sha256"])):
+        raise ValueError("Document-access proof scope or budget differs")
+    worktree = Path(record["worktree_root"])
+    ledger_path = Path(record["ledger_path"])
+    receipt_root = Path(record["receipt_root"])
+    if not worktree.is_absolute() or worktree.is_symlink() or not worktree.is_dir():
+        raise ValueError("Document-access worktree is unsafe")
+    if not ledger_path.is_absolute() or ledger_path.is_symlink():
+        raise ValueError("Document-access ledger path is unsafe")
+    if not receipt_root.is_absolute() or receipt_root.is_symlink():
+        raise ValueError("Document-access receipt root is unsafe")
+    if not isinstance(record["repository_origin"], str) or not record["repository_origin"]:
+        raise ValueError("Document-access repository origin missing")
+    date.fromisoformat(record["analysis_date"])
+    session = record["session"]
+    if not isinstance(session, dict) or session.get("session_date") != record["analysis_date"]:
+        raise ValueError("Document-access session differs")
+    close = datetime.fromisoformat(session["regular_close_utc"])
+    from zoneinfo import ZoneInfo
+
+    approved_at = datetime.fromisoformat(record["approved_at_recorded"]).astimezone(UTC)
+    if (close.tzinfo is None or close > now or close > approved_at
+            or close.astimezone(ZoneInfo("America/New_York")).date()
+            != date.fromisoformat(record["analysis_date"])):
+        raise ValueError("Document-access proof requires observed completed session")
+    caps = record["approved_route_rate_caps"]
+    aliases = record["resolved_model_ids"]
+    if (not isinstance(caps, dict) or set(caps) != {A, B_DEEP}
+            or not isinstance(aliases, dict) or set(aliases) != {A, B_DEEP}):
+        raise ValueError("Approved document route rates or model IDs missing")
+    for model in (A, B_DEEP):
+        if (set(caps[model]) != {"input_per_token", "output_per_token",
+                                "cache_read_per_token", "cache_write_per_token"}
+                or any(not Decimal(str(value)).is_finite() or Decimal(str(value)) < 0
+                       for value in caps[model].values())
+                or model not in aliases[model] or not all(
+                    isinstance(value, str) for value in aliases[model]
+                )):
+            raise ValueError("Approved document endpoint rates or aliases malformed")
+    _document_access_prior_exposure(record)
+    return record
+
+
+def _document_access_attempt_receipt(record: dict, ticker: str, ledger: PilotLedger) -> dict:
+    """Verify one newly observed read-only account/endpoint receipt before a claim."""
+    path = Path(record["receipt_root"]) / f"{ticker}.json"
+    if ticker not in DOCUMENT_PROOF_TICKERS or path.is_symlink() or not path.is_file():
+        raise ValueError("Per-attempt provider receipt missing or unsafe")
+    raw = path.read_bytes()
+    metadata = json.loads(raw)
+    observed = datetime.fromisoformat(metadata["observed_at"])
+    now = datetime.now(UTC)
+    if observed.tzinfo is None or not now - timedelta(minutes=10) <= observed <= now:
+        raise ValueError("Per-attempt provider receipt is not fresh")
+    prior = [event for event in ledger.events() if event.get("type") == "provider_receipt"]
+    if prior and observed <= max(datetime.fromisoformat(event["observed_at"]) for event in prior):
+        raise ValueError("Per-attempt provider receipt was not refreshed")
+    rates = conservative_route_rates(metadata, {A, B_DEEP})
+    aliases = resolved_model_ids(metadata, {A, B_DEEP})
+    for model in (A, B_DEEP):
+        if (sorted(aliases[model]) != record["resolved_model_ids"][model]
+                or any(Decimal(rates[model][key]) > Decimal(record["approved_route_rate_caps"][model][key])
+                       for key in rates[model])):
+            raise ValueError("Served model or endpoint price exceeds approved envelope")
+    account = metadata["results"].get("key")
+    if not isinstance(account, dict) or account.get("limit_remaining") is None:
+        raise ValueError("Fresh account headroom unavailable")
+    remaining = Decimal(str(account["limit_remaining"]))
+    events = ledger.events()
+    settled = {event["ticket"] for event in events if event.get("type") == "settle"}
+    new_unknown = sum((Decimal(event["usd"]) for event in events if event.get("type") == "reserve"
+                       and event["ticket"] not in settled), Decimal(0))
+    prior_unknown = Decimal(record["prior_unknown_reserved_usd"])
+    required = Decimal(record["per_attempt_ceiling_usd"]) + new_unknown + prior_unknown
+    if not remaining.is_finite() or remaining < required:
+        raise ValueError("Fresh account headroom cannot cover attempt and unknown holds")
+    return {
+        "type": "provider_receipt", "ticker": ticker, "path": str(path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "observed_at": observed.isoformat(), "rates": rates,
+        "resolved_model_ids": {model: sorted(values) for model, values in aliases.items()},
+        "limit_remaining_usd": str(remaining), "required_headroom_usd": str(required),
+        "approval_sha256": manifest_hash(record),
+    }
+
+
+def claim_document_access_proof(ledger: PilotLedger, approval_record: dict, ticker: str) -> str:
+    """Claim one ticker once in the shared new ledger, preserving failed attempts."""
+    record = _validate_document_access_approval(approval_record)
+    if (ticker not in DOCUMENT_PROOF_TICKERS
+            or str(ledger.path.resolve()) in record["old_ledgers"]
+            or ledger.path.is_symlink()
+            or ledger.path.resolve() != Path(record["ledger_path"]).resolve()):
+        raise ValueError("Document-access ticker or fresh ledger differs")
+    digest = manifest_hash(record)
+    with ledger.budget_lock():
+        events = ledger.events()
+        allowance = [event for event in events if event["type"] == "allowance"]
+        if events and (len(allowance) != 1 or allowance[0].get("approval_sha256") != digest):
+            raise RuntimeError("Document-access allowance differs")
+        claims = [event for event in ledger.events() if event["type"] == "attempt_claim"]
+        if (len(claims) >= 3 or any(event.get("ticker") == ticker for event in claims)
+                or any(event.get("phase") not in
+                       {DOCUMENT_PROOF_PREFIX + item for item in DOCUMENT_PROOF_TICKERS}
+                       for event in claims)):
+            raise RuntimeError("Document-access attempt already claimed or cap reached")
+        receipt = _document_access_attempt_receipt(record, ticker, ledger)
+        if not events:
+            ledger.append({"type": "allowance", "approval_sha256": digest,
+                           "ceiling_usd": record["ceiling_usd"], "attempts": 3,
+                           "old_ledgers": record["old_ledgers"],
+                           "prior_committed_exposure_usd": record["prior_committed_exposure_usd"],
+                           "prior_unknown_reserved_usd": record["prior_unknown_reserved_usd"]})
+        ledger.append(receipt)
+        ledger.append({"type": "attempt_claim", "phase": DOCUMENT_PROOF_PREFIX + ticker,
+                       "ticker": ticker, "ceiling_usd": record["ceiling_usd"],
+                       "phase_ceiling_usd": record["per_attempt_ceiling_usd"],
+                       "approval_sha256": digest, "approval_record": record})
+    return digest

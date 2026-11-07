@@ -275,6 +275,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "vendor_expectations",
         "evidence_acquisition",
         "document_sources",
+        "transcript_sources",
         "document_search_trace",
         "document_followups",
         "shared_source_brief",
@@ -332,6 +333,11 @@ def evidence_appendix(final_state: dict) -> str:
     searches = render_document_searches(final_state)
     if searches:
         lines += [searches, ""]
+    from tradingagents.agents.transcript_access import render_transcript_status
+
+    transcript_status = render_transcript_status(final_state)
+    if transcript_status:
+        lines += [transcript_status, ""]
     disclosure = final_state.get("disclosure_evidence")
     counts = disclosure.get("submission_counts") if isinstance(disclosure, dict) else None
     if isinstance(counts, dict):

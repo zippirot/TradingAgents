@@ -468,6 +468,13 @@ def display_complete_report(final_state):
         if searches:
             console.print(Panel(Markdown(searches), title="Document searches",
                                 border_style="blue", padding=(1, 2)))
+    if final_state.get("transcript_sources"):
+        from tradingagents.agents.transcript_access import render_transcript_status
+
+        status = render_transcript_status(final_state)
+        if status:
+            console.print(Panel(Markdown(status), title="Vendor transcript",
+                                border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):

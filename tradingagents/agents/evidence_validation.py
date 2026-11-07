@@ -369,6 +369,9 @@ def create_source_acquisition(selected_analysts):
         from tradingagents.agents.document_access import prepare_document_sources
 
         update.update(prepare_document_sources({**state, **update}, selected_analysts))
+        from tradingagents.agents.transcript_access import prepare_transcript_sources
+
+        update.update(prepare_transcript_sources({**state, **update}, selected_analysts))
         from tradingagents.agents.valuation_reference_flow import acquire_reference_inputs
 
         update.update(acquire_reference_inputs({**state, **update}, config))

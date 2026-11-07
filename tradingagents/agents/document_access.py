@@ -183,6 +183,29 @@ def _batch_position(state, role, call_id, trace):
     return len(previous) + sum(ident not in previous for ident in ids[:ids.index(call_id)])
 
 
+def search_retained_document_sources(state, query, *, max_passages=3, max_chars=12000):
+    """Explicit transcript: queries search vendor Q&A; default stays SEC filings."""
+    if not isinstance(query, str) or not query.strip() or len(query) > 200:
+        raise ValueError("Search query must contain 1-200 characters")
+    corpus = validated_document_corpus(state)
+    if query.casefold().startswith("transcript:"):
+        from tradingagents.agents.transcript_access import validated_transcript_record
+        from tradingagents.dataflows.vendors.alpha_vantage.transcript import (
+            search_transcript_evidence,
+        )
+
+        record = validated_transcript_record(state)
+        if record is None:
+            wrapper = state.get("transcript_sources") or {}
+            return {"passages": [], "gaps": [wrapper.get("reason") or "Transcript unavailable"],
+                    "unavailable": True}
+        return search_transcript_evidence(record, query.split(":", 1)[1].strip(),
+                                         max_passages=max_passages, max_chars=max_chars)
+    if corpus is None:
+        return {"passages": [], "gaps": ["Retained filing source unavailable"], "unavailable": True}
+    return search_filing_evidence(corpus, query, max_passages=max_passages, max_chars=max_chars)
+
+
 def run_document_search(state, query, *, role: str, call_id: str) -> dict:
     """Return one reducer update and one public result, without new acquisition."""
     if role not in _ROLES or not isinstance(call_id, str) or not call_id:
@@ -193,6 +216,11 @@ def run_document_search(state, query, *, role: str, call_id: str) -> dict:
     key = f"{role}:{call_id}"
     corpus = validated_document_corpus(state)
     retained_search_packages(state)
+    transcript_hash = None
+    if isinstance(query, str) and query.casefold().startswith("transcript:"):
+        from tradingagents.agents.transcript_access import validated_transcript_record
+        validated_transcript_record(state)
+        transcript_hash = (state.get("transcript_sources") or {}).get("record_hash")
     prior = trace.get(key)
     position = _batch_position(state, role, call_id, trace)
     if prior is not None:
@@ -211,20 +239,22 @@ def run_document_search(state, query, *, role: str, call_id: str) -> dict:
         "corpus_hash": corpus_hash(corpus) if corpus else None,
         "passages": [], "gaps": [], "reason": "",
     }
+    if isinstance(query, str) and query.casefold().startswith("transcript:"):
+        result["transcript_hash"] = transcript_hash
     if position >= _LIMIT:
         result.update(status="limit_reached", reason=f"At most {_LIMIT} document searches per analyst")
     elif corpus is None:
         result["reason"] = (state.get("document_sources") or {}).get("reason") or "Document corpus unavailable"
     else:
         try:
-            found = search_filing_evidence(corpus, query, max_passages=3, max_chars=12000)
+            found = search_retained_document_sources(state, query, max_passages=3, max_chars=12000)
         except ValueError as exc:
             result.update(status="invalid_query", reason=str(exc))
         else:
             result.update(
-                status="ok" if found["passages"] else "not_found",
+                status="ok" if found["passages"] else "unavailable" if found.get("unavailable") else "not_found",
                 passages=found["passages"], gaps=found["gaps"],
-                reason="" if found["passages"] else "No matching passage in retained filings",
+                reason="" if found["passages"] else "; ".join(found["gaps"]),
             )
     return {"document_search_trace": {key: result}, "result": result}
 
@@ -272,6 +302,12 @@ def retained_search_packages(state) -> list[DisclosurePackage]:
     documents = {doc.source_id: doc for doc in corpus.documents}
     packages = []
     for key, entry in trace.items():
+        if isinstance(entry.get("query"), str) and entry["query"].casefold().startswith("transcript:"):
+            from tradingagents.agents.transcript_access import validated_transcript_record
+
+            validated_transcript_record(state)
+            if entry.get("transcript_hash") != (state.get("transcript_sources") or {}).get("record_hash"):
+                raise ValueError("Retained transcript search source changed")
         if not isinstance(entry, dict) or key != f"{entry.get('role')}:{entry.get('call_id')}" or entry.get("role") not in _ROLES:
             raise ValueError("Malformed document search journal entry")
         if entry.get("corpus_hash") != corpus_hash(corpus):
@@ -284,13 +320,15 @@ def retained_search_packages(state) -> list[DisclosurePackage]:
         if not entry.get("counted") or entry.get("status") != "ok":
             raise ValueError("Uncounted document search passage")
         try:
-            expected = search_filing_evidence(corpus, entry["query"], max_passages=3, max_chars=12000)
+            expected = search_retained_document_sources(state, entry["query"], max_passages=3, max_chars=12000)
         except (KeyError, ValueError) as exc:
             raise ValueError("Invalid retained document search query") from exc
         if expected["passages"] != passages:
             raise ValueError("Document search passage differs from retained source")
         chosen = {}
         for passage in passages:
+            if passage.get("provider") == "Alpha Vantage":
+                continue  # Exact vendor return validated above; never accepted filing evidence.
             doc = documents.get(passage["source_id"])
             if doc is None or passage["content_hash"] != doc.content_hash:
                 raise ValueError("Document search source mismatch")
@@ -298,6 +336,8 @@ def retained_search_packages(state) -> list[DisclosurePackage]:
             if block is None or block.truncated or passage["passage_hash"] != hashlib.sha256(block.text.encode()).hexdigest():
                 raise ValueError("Document search block mismatch")
             chosen.setdefault(doc.source_id, set()).add(block.locator)
+        if not chosen:
+            continue
         selected = tuple(
             doc.model_copy(update={"blocks": tuple(
                 block for block in doc.blocks if block.locator in chosen.get(doc.source_id, ())
@@ -338,7 +378,9 @@ def render_document_searches(state) -> str:
                 raise ValueError("Malformed document search trace")
             reason = entry.get("reason") or ""
             if entry.get("status") == "not_found":
-                reason = "not found in retained filings"
+                reason = ("not found in retained vendor transcript"
+                          if str(entry.get("query", "")).casefold().startswith("transcript:")
+                          else "not found in retained filings")
             gaps = "; ".join(str(g) for g in entry.get("gaps", []))
             finding = "; ".join(part for part in (reason, gaps) if part)
             lines.append(" | ".join((cell(entry.get("role") or key.split(":")[0]),

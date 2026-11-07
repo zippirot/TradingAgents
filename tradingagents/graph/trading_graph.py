@@ -339,8 +339,9 @@ class TradingAgentsGraph:
             "financing_evidence=1",
             "shared_source_brief=2",
             "financial_claim_prompt=1",
-            "document_search=1",
-            "document_followup=1",
+            "document_search=2",
+            "document_followup=2",
+            "vendor_transcript=1",
             "audit_dispositions=1",
             f"settings={digest}",
         ])

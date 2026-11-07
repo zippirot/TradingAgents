@@ -82,6 +82,7 @@ class AgentState(MessagesState):
     disclosure_evidence: Annotated[dict, "Dated filing excerpts, grounded extraction and retrieval gaps; not a coverage guarantee"]
 
     filing_evidence: Annotated[dict, "Canonical dated filing documents for this run"]
+    transcript_sources: Annotated[dict, "Pinned vendor transcript and SEC call date; unverified wording"]
     document_sources: Annotated[dict, "Immutable full filing corpus; untrusted source text, not accepted facts"]
     document_search_trace: Annotated[dict, merge_search_traces]
     document_search_role: Annotated[str, "Private analyst subgraph role, never model supplied"]

@@ -1,0 +1,67 @@
+{
+  "fixture_kind": "offline excerpt from public SEC EX-99.1 earnings release; not complete filing or vendor transcript",
+  "provenance": {
+    "ticker": "JPM",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026065582/a3q26erfexhibit991narrative.htm",
+    "filing_primary_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026065582/jpm-20261013.htm",
+    "source_content_sha256": "34578fe60e0bd0f83dbe473a50085396c4eb288ac8c282bf9afce23b809e7d98",
+    "private_full_wrapper_sha256": "23a7fa3a262a51280cc5cb84ae0e96172dadf050123e607617de7065665eafc3",
+    "retrieved_at": "2026-11-07T00:35:21.405138+00:00",
+    "filed_date": "2026-10-13",
+    "excerpt_locators": [
+      "block-1",
+      "block-107"
+    ],
+    "call_date_claim": "explicit 2026-10-13 in JPM block-107"
+  },
+  "package": {
+    "schema_version": 1,
+    "cik": "0000019617",
+    "as_of": "2026-11-06",
+    "documents": [
+      {
+        "source_id": "sec-document-dba80f0e3df291a5c295260a47ea32b2e5039adb5ab766af903f0e17c9cd7374",
+        "filing": {
+          "cik": "0000019617",
+          "accession": "0001628280-26-065582",
+          "form": "8-K",
+          "filed_date": "2026-10-13",
+          "report_date": "2026-10-13",
+          "primary_document": "jpm-20261013.htm",
+          "items": "2.02,9.01",
+          "url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026065582/jpm-20261013.htm"
+        },
+        "url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026065582/a3q26erfexhibit991narrative.htm",
+        "retrieved_at": "2026-11-07T00:35:21.405138+00:00",
+        "content_hash": "34578fe60e0bd0f83dbe473a50085396c4eb288ac8c282bf9afce23b809e7d98",
+        "blocks": [
+          {
+            "locator": "block-1",
+            "section": "Document",
+            "text": "EX-99.1 2 a3q26erfexhibit991narrative.htm JPMORGAN CHASE & CO. EARNINGS RELEASE - THIRD QUARTER 2026 RESULTS",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          },
+          {
+            "locator": "block-107",
+            "section": "Document",
+            "text": "JPMorgan Chase & Co. will host a conference call today, October 13, 2026, at 8:30 a.m. (ET) to present third-quarter 2026 financial results. The general public can access the conference call by dialing the following numbers: 1 (888) 324-3618 in the U.S. and Canada; +1 (312) 470-7119 for international callers; use passcode 1364784#. Please dial in 15 minutes prior to the start of the call. The live audio webcast and presentation slides will be available on the Firm’s website, www.jpmorganchase.com, under Investor Relations, Events & Presentations.",
+            "truncated": false,
+            "currency": null,
+            "currency_locator": null
+          }
+        ],
+        "gaps": [
+          "Public excerpt fixture: other release blocks intentionally omitted"
+        ]
+      }
+    ],
+    "gaps": [
+      "Public excerpt fixture: other release blocks intentionally omitted"
+    ],
+    "selected_accessions": [
+      "0001628280-26-065582"
+    ]
+  }
+}
