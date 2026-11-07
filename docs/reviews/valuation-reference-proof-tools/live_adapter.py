@@ -1430,6 +1430,44 @@ def one_document_audit_attempt(spec: CliSpec):
         yield
 
 
+@contextmanager
+def counted_editorial_boundary(wire: OpenRouterWireGuard):
+    """Mark the post-metrics editorial call without excluding it from wire cost."""
+    import tradingagents.graph.trading_graph as graph_module
+
+    original = graph_module.generate_summary
+    intervals = []
+
+    def counted(*args, **kwargs):
+        before = wire.request_count
+        try:
+            return original(*args, **kwargs)
+        finally:
+            intervals.append((before, wire.request_count))
+
+    with patch.object(graph_module, "generate_summary", counted):
+        yield intervals
+
+
+def verify_cli_model_calls(metrics: dict, depth: int, physical_calls: int,
+                           editorial_intervals: list[tuple[int, int]]) -> int:
+    """Reconcile immutable research metrics with every budgeted wire request."""
+    research_calls = metrics.get("model_calls")
+    if editorial_intervals:
+        valid_boundary = (len(editorial_intervals) == 1
+                          and editorial_intervals[0][0] == research_calls
+                          and editorial_intervals[0][1] == physical_calls)
+    else:
+        valid_boundary = research_calls == physical_calls
+    if (metrics.get("research_rounds_completed") != depth
+            or metrics.get("risk_rounds_completed") != depth
+            or type(research_calls) is not int or research_calls < 0
+            or type(physical_calls) is not int or physical_calls < research_calls
+            or not valid_boundary):
+        raise RuntimeError("Actual CLI rounds/model-call count differs from wire evidence")
+    return physical_calls - research_calls
+
+
 def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                 source_replay: FrozenVendorReplay | None, *, openrouter_key: str,
                 sec_user_agent: str, claim: ExecutionClaim,
@@ -1482,6 +1520,7 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
             stack.enter_context(checked_cli_config(spec))
             stack.enter_context(frozen_market_cutoff(spec))
             stack.enter_context(one_document_audit_attempt(spec))
+            editorial_intervals = stack.enter_context(counted_editorial_boundary(wire))
             if source_replay is not None:
                 stack.enter_context(source_replay.installed())
                 stack.enter_context(installed_network_gate(gate))
@@ -1505,10 +1544,10 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         if spec.analysis_cutoff_utc is not None and (state.get("analysis_clock") or {}).get("cutoff_utc") != spec.analysis_cutoff_utc:
             raise RuntimeError("Saved analysis cutoff differs from frozen comparison input")
         metrics = state.get("run_metrics") or {}
-        if (metrics.get("research_rounds_completed") != spec.depth
-                or metrics.get("risk_rounds_completed") != spec.depth
-                or metrics.get("model_calls") != wire.request_count):
-            raise RuntimeError("Actual CLI rounds/model-call count differs from wire evidence")
+        # Published run metrics stop before editorial generation. The wire
+        # ledger still counts and budgets every physical editorial request.
+        editorial_calls = verify_cli_model_calls(metrics, spec.depth, wire.request_count,
+                                                 editorial_intervals)
         if not all(state.get(key) for key in ("market_report", "sentiment_report", "news_report",
                                                  "fundamentals_report", "advisory_audit")):
             raise RuntimeError("Saved CLI output is missing an analyst or audit pass")
@@ -1532,6 +1571,7 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
             else:
                 verify_run_fixes_completed_state(state, spec, entry["approval_record"])
         return {"state": state, "model_calls": wire.request_count,
+                "editorial_model_calls": editorial_calls,
                 "price_observation_verification": price_verification,
                 "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
                                     if spec.extra_peer_pins is not None else None),

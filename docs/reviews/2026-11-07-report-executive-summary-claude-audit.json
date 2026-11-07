@@ -1,0 +1,102 @@
+{
+  "run_id": "40ed6e8e-5d4d-4d22-9f8f-dc6f0aa7d142",
+  "status": "completed",
+  "started_at": "2026-11-07T08:51:39.014Z",
+  "deadline_at": "2026-11-07T09:36:39.014Z",
+  "completed_at": "2026-11-07T08:57:37.047Z",
+  "report": {
+    "base_commit": "3d1b8f329f53b98daaecf05df4e522bc5491c87c",
+    "head_commit": "1956905ccfe446b098476f6403ad088fcff80f4f",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 31,
+    "reviewed_files": [
+      "README.md",
+      "docs/reviews/2026-11-06-report-executive-summary-acceptance.md",
+      "docs/reviews/valuation-reference-proof-tools/live_adapter.py",
+      "docs/superpowers/plans/2026-11-06-report-executive-summary.md",
+      "tests/test_document_access_proof_guard.py",
+      "tests/test_evidence_presentation.py",
+      "tests/test_evidence_reporting.py",
+      "tests/test_graph_end_to_end.py",
+      "tests/test_publication_graph.py",
+      "tests/test_report_html.py",
+      "tests/test_report_summary.py",
+      "tests/test_reporting.py",
+      "tests/test_valuation_reference_live_adapter.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/report_html.py",
+      "tradingagents/report_summary.py",
+      "tradingagents/reporting.py"
+    ],
+    "summary": "Audited frozen diff 3d1b8f32→1956905c (17 files) against the governing plan and acceptance record, using only the frozen request.json. The implementation substantially satisfies the plan: a new presentation-only report_summary module provides deterministic process text, a canonical rating-definition map matching the required semantics, a stable SHA-256 source-input digest shared between generation and export validation, bounded per-section model input with truncation records, and strict output validation (3–10 single-sentence body items + 2 application-owned framing sentences = 5–12 total; coverage of every present section; rejection of contradictory final-rating and unsupported-target claims; decimal/abbreviation/CJK sentence handling). Generation occurs once in the shared record_decision path after publication and before _log_state, never for REVIEW runs or frozen replays, reuses matching retained results, and its failure is contained without touching publication, evidence hashes, memory, or decision identity (asserted by tests that observe the durable publication from inside the model call). Both exports share one resolved summary and ordered section model; the decision-first order (I–VI) is consistent across Markdown/HTML contents and body; historical anchors are preserved by section identity (s5,s1,s2,s3,s4,s6); the contents are in-flow and visible in print; summary text is escaped and render/save paths make no model or network calls; the executive_summary.json companion is bounded and strips secrets and model-supplied fields. The previously confirmed material gap — free-form-language model responses able to redefine the rating and assert an unsupported target — is verified closed in this frozen diff: the model supplies only body sentences, the three protected parts (process, rating definition, evidence/target limit) are always application-owned (localized for 11 named languages, canonical English otherwise), forged or invalid saved records resolve to an honest unavailable fallback in both exports and the companion, and dedicated tests reproduce the Italian adversarial case. Legacy, stale, failed, and REVIEW exports are explicit and never padded to imitate the successful narrative contract. Recorded verification (full suite 3,004 passed/10 skipped, Ruff, diff check, desktop/mobile/print inspection, byte-identical per-agent files vs. a fresh base export) is consistent with the diff. Remaining issues are low severity plus one medium procedural item: at the frozen head the acceptance record documents only an incomplete first independent review, so the required audit verdict and independent closure verification were outstanding at commit time — this review now supplies that closure verification, but the committed acceptance record does not yet contain it.",
+    "limitations": [
+      "Audit used only the frozen request.json (requirements text and unified diff); no tests were executed, no rendering was performed, and no repository files outside the frozen evidence were read, so reported test results (3,003/3,004 passing), render hashes, and the visual desktop/mobile/print inspection are taken from the acceptance record rather than independently reproduced.",
+      "Live summarizer prose quality and real provider behavior are unverified, as the acceptance record itself discloses; all generation-path evidence is from offline fixtures and doubles.",
+      "The locally retained DOCN specimen (HTML/PDF/manifest hashes) is outside the frozen payload and could not be inspected; its fidelity table was checked only for internal consistency with the diffed code paths.",
+      "Mechanical validation of model prose cannot establish semantic truth; the validator's contradiction guards (final-rating and supported-target regexes) are English-pattern based, so semantically false body sentences in other languages rely on the canonical protected framing and prompt instructions rather than detection.",
+      "Base-revision context lines not included in the diff (e.g., the unchanged portions of write_report_tree, prepare_report_state, run_settings population during propagate) were inferred from diff context and passing integration tests rather than read directly."
+    ],
+    "findings": [
+      {
+        "severity": "medium",
+        "title": "Independent audit verdict and closure verification were outstanding at the frozen head; acceptance record documents an incomplete first review only",
+        "path": "docs/reviews/2026-11-06-report-executive-summary-acceptance.md"
+      },
+      {
+        "severity": "low",
+        "title": "Contradictory rating/target claim detection in _body_items uses English-only regex patterns; non-English body prose contradicting the canonical framing passes mechanical validation (mitigated by application-owned protected sentences and prompt instructions)",
+        "path": "tradingagents/report_summary.py"
+      },
+      {
+        "severity": "low",
+        "title": "resolve_summary labels a completed record that lacks a source_input_digest as stale_summary rather than invalid, producing a slightly misleading reason/error_category in the fallback and companion",
+        "path": "tradingagents/report_summary.py"
+      },
+      {
+        "severity": "low",
+        "title": "_plain_markdown HTML-entity-escapes & < > in the plain Markdown export, so raw-text readers of complete_report.md see &amp;/&lt; entities in titles and metadata containing those characters",
+        "path": "tradingagents/reporting.py"
+      },
+      {
+        "severity": "low",
+        "title": "A completion retry after a previously failed (unavailable) summary regenerates and makes a new editorial model call; consistent with the plan's no-exactly-once stance and save/re-export never calls, but repeated record_decision retries can accrue editorial calls",
+        "path": "tradingagents/graph/trading_graph.py"
+      },
+      {
+        "severity": "low",
+        "title": "HTML page language attribute remains hardcoded lang=\"en\" while summaries and body may be localized, slightly misdeclaring document language for accessibility tooling (pre-existing pattern, now more visible with localized front matter)",
+        "path": "tradingagents/report_html.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "unknown",
+      "escalation_reasons": [
+        "Prior complete-diff review exhausted its 25-turn limit without issuing a verdict; all material changes now committed, including custom-language financial framing correction."
+      ]
+    },
+    "progress": {
+      "observed_events": 555,
+      "last_activity_at": "2026-11-07T08:57:36.698Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 2,
+      "hard_budget_usd": 3,
+      "soft_turn_limit": null,
+      "turn_limit": 65,
+      "wall_clock_limit_minutes": 45,
+      "actual_cost_usd": 1.477452,
+      "actual_elapsed_ms": 357887,
+      "soft_limit_reached": false
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

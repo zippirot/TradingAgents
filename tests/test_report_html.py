@@ -70,6 +70,33 @@ def test_report_text_cannot_inject_markup_or_fetch_anything(tmp_path):
 
 
 @pytest.mark.unit
+def test_summary_text_cannot_inject_markup(tmp_path, monkeypatch):
+    from tradingagents import report_html
+
+    monkeypatch.setattr(report_html, "summary_input_for_report", lambda *args: {})
+    from tradingagents import report_summary
+    monkeypatch.setattr(report_summary, "resolve_summary", lambda *args: {
+        "process": "<script>alert(1)</script>",
+        "sentences": ["<img src=x onerror=alert(1)>"],
+    })
+    page = report_html.render_report("NVDA", _state(), SETTINGS, None)
+    assert "<script>alert(1)</script>" not in page
+    assert "<img src=x" not in page
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page
+
+
+@pytest.mark.unit
+def test_direct_html_render_uses_new_order_and_old_partial_targets():
+    from tradingagents.report_html import render_report
+
+    state = {"market_report": "MARKET", "final_trade_decision": "Rating: Hold. Maintain exposure."}
+    page = render_report("DOCN", state, None, None)
+    nav = page[page.index('<nav class="contents"'):page.index("</nav>")]
+    assert nav.index('href="#s2"') < nav.index('href="#s1"') < nav.index('href="#s3"')
+    assert page.index('<section id="s2">') < page.index('<section id="s1">') < page.index('<section id="s3">')
+
+
+@pytest.mark.unit
 def test_header_values_are_escaped(tmp_path):
     write_report_tree(_state(), "<b>NV</b>", tmp_path, settings={**SETTINGS, "deep_think_llm": "<i>m</i>"}, html=True)
     page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
@@ -93,7 +120,7 @@ def test_run_details_show_each_value_as_its_own_field(tmp_path):
                 "data_vendors": {"core_stock_apis": "yfinance", "fundamental_data": "sec_edgar,yfinance"}}
     write_report_tree(_state(), "NVDA", tmp_path, settings=settings, html=True)
     page = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
-    header = page[page.index("<header"):page.index("</header>")]
+    header = page[page.index('<aside class="report-meta"'):page.index("</aside>")]
     for value in ("anthropic", "claude-opus-5-5", "openai", "gpt-6-luna", "market", "news",
                   "sec_edgar", "yfinance"):
         assert value in _fields(header)
@@ -107,28 +134,26 @@ def test_the_contents_name_each_section_once_and_list_its_agents_beneath(tmp_pat
     page = _html(tmp_path)
     nav = page[page.index('<nav class="contents"'):page.index("</nav>")]
     assert "<ol" not in nav                     # no list numbers beside the sections' own I-V
-    assert re.search(r'<a href="#s1"><span class="num">I</span>\s*<span class="label">Analyst Team Reports</span></a>', nav)
-    assert re.search(r'<a href="#s1-1"><span class="bar"></span>\s*<span class="label">Market Analyst</span></a>', nav)
+    assert re.search(r'<a href="#s2"><span class="num">I</span>\s*<span class="label">Final Portfolio Decision</span></a>', nav)
+    assert re.search(r'<a href="#s1-1"><span class="label">Market Analyst</span></a>', nav)
 
 
 @pytest.mark.unit
-def test_the_section_rail_opens_on_hover_and_keyboard_focus(tmp_path):
+def test_the_contents_are_visible_without_hover_and_in_print(tmp_path):
     page = _html(tmp_path)
     css = page[page.index("<style>"):page.index("</style>")]
-    # Wide screens: a rail centred on the left edge whose names are hidden from
-    # sight only (still read by screen readers) until it is pointed at or focused.
-    assert "top: 50%" in css and "translateY(-50%)" in css
-    assert ".contents:hover .label" in css and ".contents:focus-within .label" in css
-    assert "display: none" not in css.split(".contents .label", 1)[1].split("}", 1)[0]
+    assert ".contents { margin:" in css
+    assert ".contents, .to-top { display: none; }" not in css
+    assert "<h2>Table of contents</h2>" in page
 
 
 @pytest.mark.unit
 def test_the_sections_stay_within_reach(tmp_path):
     page = _html(tmp_path)
     nav = page[page.index('<nav class="contents"'):page.index("</nav>")]
-    assert "<h2" not in nav                                         # the list needs no heading
+    assert "<h2>Table of contents</h2>" in nav
     assert 'id="top"' in page and 'href="#top"' in page             # a way back on small screens
-    assert ".contents { position: fixed;" in page                   # beside the text on wide ones
+    assert page.index('<section class="summary"') < page.index('<nav class="contents"') < page.index('<aside class="report-meta"')
 
 
 @pytest.mark.unit

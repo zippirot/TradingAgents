@@ -565,3 +565,38 @@ def test_revision_checkpoint_preserves_exact_cases_before_and_after_manager(
     assert final["shared_valuation_scenarios"] == completed_manager[0]
     assert completed_manager[0]["revision_status"] == "accepted"
     assert completed_manager[0]["rows"][0]["result"]["target"] != completed_manager[0]["analyst_rows"][0]["result"]["target"]
+
+
+@pytest.mark.parametrize("entry", ["cli", "python"])
+def test_public_entry_points_export_the_completed_summary(tmp_path, monkeypatch, offline, entry):
+    """Both the merged CLI stream and propagate carry editorial text through the real writer."""
+    import json
+
+    import cli.run as cli_run
+    from tradingagents.report_summary import SummaryOutput
+
+    from .test_cli_memory_log import _run_cli
+
+    response = {"sentences": [
+        {"text": "The analysts contributed market and company research.", "sections": ["1_analysts"]},
+        {"text": "The research debate informed the trading proposal.", "sections": ["2_research", "3_trading"]},
+        {"text": "The risk discussion informed the final portfolio decision.", "sections": ["4_risk", "5_portfolio"]},
+        {"text": "Evidence coverage limits the valuation assessment.", "sections": ["6_evidence"]},
+    ]}
+    monkeypatch.setitem(STRUCTURED, SummaryOutput, response)
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True))
+    dest = tmp_path / "report"
+    if entry == "cli":
+        def save(state, app, ticker, **choices):
+            app.save_reports(state, ticker, dest)
+
+        monkeypatch.setattr(cli_run, "_offer_reports", save)
+        _run_cli(monkeypatch, tmp_path, graph)
+    else:
+        state, _ = graph.propagate("NVDA", TRADE_DATE)
+        graph.save_reports(state, "NVDA", dest)
+    record = json.loads((dest / "executive_summary.json").read_text())
+    assert record["status"] == "completed"
+    for extension in ("md", "html"):
+        output = (dest / f"complete_report.{extension}").read_text()
+        assert all(item["text"] in output for item in response["sentences"])

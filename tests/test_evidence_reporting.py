@@ -80,9 +80,9 @@ def test_review_export_has_deterministic_evidence_and_no_buy_decision(tmp_path):
         in evidence["raw_diagnostics"]["unvalidated_outputs"]["fundamentals_report"]
     )
     assert (
-        md.index("I. Analyst Team Reports")
-        < md.index("V. Portfolio Manager Decision")
-        < md.index("VI. Evidence and Quality")
+        md.index("I. Final Portfolio Decision")
+        < md.index("II. Analyst Team Reports")
+        < md.index("Evidence and Quality")
     )
 
 

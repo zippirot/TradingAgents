@@ -3,8 +3,9 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -28,10 +29,12 @@ def approval(tmp_path):
     candidate = tmp_path / "candidate"
     candidate.mkdir()
     now = datetime.now(UTC)
-    # Known completed Wednesday regular session. Only account/endpoint
-    # freshness follows the process clock in these synthetic receipts.
-    completed_close = datetime(2026, 11, 4, 21, tzinfo=UTC)
-    session_date = completed_close.date().isoformat()
+    eastern = ZoneInfo("America/New_York")
+    session_date = now.astimezone(eastern).date()
+    session_close = datetime.combine(session_date, time(16), eastern).astimezone(UTC)
+    while session_date.weekday() >= 5 or session_close >= now:
+        session_date -= timedelta(days=1)
+        session_close = datetime.combine(session_date, time(16), eastern).astimezone(UTC)
     receipt_root = tmp_path / "receipts"
     receipt_root.mkdir()
     pricing = {"prompt": "0.000001", "completion": "0.000005",
@@ -54,7 +57,7 @@ def approval(tmp_path):
         "approval_id": "fresh-document-access", "approved_at_recorded": now.isoformat(),
         "user_instruction": "Explicit fresh approval fixture", "phase": "DocumentAccess",
         "attempts": 3, "tickers": ["DOCN", "MSFT", "CAT"],
-        "analysis_date": session_date,
+        "analysis_date": session_date.isoformat(),
         "quick_model": pilot.B_DEEP, "deep_model": pilot.A, "depth": 3,
         "max_output_tokens": 16384, "max_tool_rounds": 4,
         "analysts": ["market", "social", "news", "fundamentals"],
@@ -73,8 +76,8 @@ def approval(tmp_path):
         "receipt_root": str(receipt_root),
         "approved_route_rate_caps": metadata_rates,
         "resolved_model_ids": {pilot.A: [pilot.A], pilot.B_DEEP: [pilot.B_DEEP]},
-        "session": {"session_date": session_date,
-                    "regular_close_utc": completed_close.isoformat()},
+        "session": {"session_date": session_date.isoformat(),
+                    "regular_close_utc": session_close.isoformat()},
     }
 
 

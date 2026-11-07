@@ -90,7 +90,8 @@ def test_report_has_one_reference_appendix_and_memory_keeps_readable_decision(tm
     saved = write_report_tree(published, "DOCN", tmp_path / "reports")
     report_text = saved.read_text()
     assert report_text.count("### Evidence reference appendix") == 1
-    assert report_text.count("## VI.") == 1
+    # This prepared report has no risk debate, so evidence is the fifth section.
+    assert report_text.splitlines().count("## V. Evidence and Quality") == 1
     assert prepare_report_state(published) == rendered
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
     log.store_decision("DOCN", "2026-11-04", published["final_trade_decision"])

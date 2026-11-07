@@ -7,6 +7,7 @@ run produces the same on-disk report tree a CLI run does.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -26,14 +27,16 @@ from tradingagents.dataflows.files import replace_file
 
 def render_token_usage(metrics: dict | None) -> str:
     """One bounded usage footer; counts are observations, never billing estimates."""
+    scope_note = (" These counts cover the research graph only; editorial summary generation, "
+                  "if present, is recorded separately in executive_summary.json.")
     data = metrics if isinstance(metrics, dict) else {}
     values = [data.get("input_tokens"), data.get("output_tokens")]
     scope = data.get("token_usage_scope")
     if scope not in {"complete_observed", "partial_observed"} or any(type(v) is not int or v < 0 for v in values):
-        return "Token usage: unavailable (usage was not recorded completely enough to total)."
+        return "Token usage: unavailable (usage was not recorded completely enough to total)." + scope_note
     label = "complete observed" if scope == "complete_observed" else "partial observed"
     return (f"Token usage: {values[0]:,} input / {values[1]:,} output ({label}). "
-            "Provider-internal retries may not report usage; these counts are not a billing total.")
+            "Provider-internal retries may not report usage; these counts are not a billing total." + scope_note)
 
 
 def analyst_names(keys) -> list[str]:
@@ -41,25 +44,25 @@ def analyst_names(keys) -> list[str]:
     return ["sentiment" if key == "social" else key for key in keys or []]
 
 
-def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
+def _header(ticker: str, final_state: dict, settings: dict | None, *, metadata_only: bool = False) -> str:
     """The report's title and what produced it: analysis date, version, models, analysts, vendors."""
-    lines = [f"# Trading Analysis Report: {ticker}", ""]
-    if final_state.get("trade_date"):
-        lines.append(f"- Analysis date: {final_state['trade_date']}")
+    lines = [] if metadata_only else [f"# Trading Analysis Report: {_plain_markdown(ticker)}", ""]
+    if final_state.get("trade_date") and not metadata_only:
+        lines.append(f"- Analysis date: {_plain_markdown(final_state['trade_date'])}")
     if final_state.get("final_trade_decision"):
-        lines.append(f"- Rating: {run_rating(final_state)}")
+        lines.append(f"- Rating: {_plain_markdown(run_rating(final_state))}")
         if final_state.get("decision_context"):
             lines += ["", render_condition_summary(final_state["decision_context"]), ""]
     if not final_state.get("evidence_quality"):
         lines.append("- Evidence: Legacy export — financial evidence unvalidated")
     publication = final_state.get("publication_record")
     if publication:
-        lines.append(f"- Decision ID: {publication['decision_id']}")
-        lines.append(f"- First published: {publication['published_at']}")
+        lines.append(f"- Decision ID: {_plain_markdown(publication['decision_id'])}")
+        lines.append(f"- First published: {_plain_markdown(publication['published_at'])}")
     label = "Export generated" if publication else "Generated"
     lines.append(f"- {label}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if final_state.get("report_view_note"):
-        lines.append("- Export view: " + final_state["report_view_note"])
+        lines.append("- Export view: " + _plain_markdown(final_state["report_view_note"]))
     elif publication:
         lines.append("- Historical publication identity not verified against a configured store; current validated projection.")
     if settings:
@@ -73,24 +76,29 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
                 f"deep {deep_provider} {s('deep_think_llm', '?')}, "
                 f"quick {quick_provider} {s('quick_think_llm', '?')}"
             )
-        lines.append(f"- TradingAgents {s('version', '?')}: {models}")
+        lines.append(f"- TradingAgents {_plain_markdown(s('version', '?'))}: {_plain_markdown(models)}")
         lines.append(
-            f"- Analysts: {', '.join(analyst_names(s('analysts')))}; "
-            f"research debate rounds {s('max_debate_rounds', '?')}, "
-            f"risk debate rounds {s('max_risk_discuss_rounds', '?')}"
+            f"- Analysts: {_plain_markdown(', '.join(analyst_names(s('analysts'))))}; "
+            f"research debate rounds {_plain_markdown(s('max_debate_rounds', '?'))}, "
+            f"risk debate rounds {_plain_markdown(s('max_risk_discuss_rounds', '?'))}"
         )
         vendors = {**(s("data_vendors") or {}), **(s("tool_vendors") or {})}
         if vendors:
-            lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
+            lines.append("- Data vendors: " + _plain_markdown(", ".join(f"{k} {v}" for k, v in vendors.items())))
     if final_state.get("memory_note"):
-        lines.append(f"- Memory log: {final_state['memory_note']}")
+        lines.append(f"- Memory log: {_plain_markdown(final_state['memory_note'])}")
     return "\n".join(lines) + "\n\n"
 
 
-# The report's sections in order: (heading, folder, [(agent, file, state path)]).
+# The report's display order: (name, folder, [(agent, file, state path)]).
 _SECTIONS = (
     (
-        "I. Analyst Team Reports",
+        "Final Portfolio Decision",
+        "5_portfolio",
+        (("Portfolio Manager", "decision.md", ("final_trade_decision",)),),
+    ),
+    (
+        "Analyst Team Reports",
         "1_analysts",
         (
             ("Market Analyst", "market.md", ("market_report",)),
@@ -100,7 +108,7 @@ _SECTIONS = (
         ),
     ),
     (
-        "II. Research Team Decision",
+        "Research Team Decision",
         "2_research",
         (
             ("Bull Researcher", "bull.md", ("investment_debate_state", "bull_history")),
@@ -109,12 +117,12 @@ _SECTIONS = (
         ),
     ),
     (
-        "III. Trading Team Plan",
+        "Trading Team Plan",
         "3_trading",
         (("Trader", "trader.md", ("trader_investment_plan",)),),
     ),
     (
-        "IV. Risk Management Team Decision",
+        "Risk Management Team Decision",
         "4_risk",
         (
             ("Aggressive Analyst", "aggressive.md", ("risk_debate_state", "aggressive_history")),
@@ -126,12 +134,37 @@ _SECTIONS = (
             ("Neutral Analyst", "neutral.md", ("risk_debate_state", "neutral_history")),
         ),
     ),
-    (
-        "V. Portfolio Manager Decision",
-        "5_portfolio",
-        (("Portfolio Manager", "decision.md", ("final_trade_decision",)),),
-    ),
 )
+
+_ROMAN = ("I", "II", "III", "IV", "V", "VI")
+_DESCRIPTIONS = {
+    "5_portfolio": "Rating, rationale, valuation, scenarios, and reconsideration conditions",
+    "1_analysts": "Market, sentiment, news, and fundamentals",
+    "2_research": "Bull and bear cases and the research conclusion",
+    "3_trading": "Proposed action, timing, and exposure",
+    "4_risk": "Aggressive, conservative, and neutral perspectives",
+    "6_evidence": "Checks, calculations, references, and limitations",
+}
+
+
+def report_sections(final_state: dict, parts=None):
+    """One ordered section model for both exports and summary input."""
+    by_folder = {folder: written for _, folder, written in
+                 (_report_parts(final_state) if parts is None else parts) if written}
+    if "6_evidence" not in by_folder:
+        by_folder["6_evidence"] = [("Evidence Summary", "summary.md", evidence_appendix(final_state))]
+    headings = [(heading, folder) for heading, folder, _ in _SECTIONS] + [("Evidence and Quality", "6_evidence")]
+    present = [(heading, folder) for heading, folder in headings if folder in by_folder]
+    return [(f"{_ROMAN[index]}. {heading}", folder, by_folder[folder])
+            for index, (heading, folder) in enumerate(present)]
+
+
+def historical_anchors(parts):
+    """Map section identity to its old positional HTML/Markdown anchor."""
+    legacy_order = {"1_analysts": 1, "2_research": 2, "3_trading": 3,
+                    "4_risk": 4, "5_portfolio": 5, "6_evidence": 6}
+    return {folder: f"s{index}" for index, (_heading, folder, _written) in
+            enumerate(sorted(parts, key=lambda part: legacy_order[part[1]]), 1)}
 
 
 def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str, str]]]]:
@@ -157,6 +190,102 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
         if written:
             parts.append((heading, folder, written))
     return parts
+
+
+def summary_input_for_report(prepared_state: dict, settings: dict | None = None, parts=None):
+    """Build the same summary context used at finalization and during offline export."""
+    from tradingagents.report_summary import build_summary_input
+
+    retained = prepared_state.get("run_settings")
+    return build_summary_input(prepared_state, retained if isinstance(retained, dict) else settings,
+                               report_sections(prepared_state) if parts is None else parts)
+
+
+def _plain_markdown(value: str) -> str:
+    """Keep editorial text as prose, even if a saved record contains Markdown."""
+    plain = str(value).replace("\r", " ").replace("\n", " ").replace("&", "&amp;")
+    plain = plain.replace("<", "&lt;").replace(">", "&gt;")
+    return re.sub(r"([\\`*\[\]])", r"\\\1", plain)
+
+
+def _summary_companion(saved_record, projection: dict) -> dict:
+    """Keep a bounded original record when valid, without accepting extra fields."""
+    from tradingagents.report_summary import SCHEMA_VERSION
+
+    def projected_record():
+        return {"schema_version": SCHEMA_VERSION, "status": projection["status"],
+                "source_input_digest": projection["source_input_digest"],
+                "process": projection["process"], "sentences": projection["sentences"],
+                "error_category": projection.get("reason")}
+
+    # An invalid current completed record can contain protected prose supplied
+    # by an old model response. Keep only the verified fallback projection.
+    if (isinstance(saved_record, dict) and saved_record.get("status") == "completed"
+            and saved_record.get("source_input_digest") == projection.get("source_input_digest")
+            and projection.get("status") != "completed"):
+        return projected_record()
+    if (isinstance(saved_record, dict) and saved_record.get("schema_version") == SCHEMA_VERSION
+            and saved_record.get("status") in {"completed", "unavailable", "review"}
+            and isinstance(saved_record.get("source_input_digest"), str)
+            and re.fullmatch(r"[0-9a-f]{64}", saved_record["source_input_digest"])
+            and isinstance(saved_record.get("process"), str)
+            and len(saved_record["process"]) <= 3000
+            and isinstance(saved_record.get("sentences"), list)
+            and (5 <= len(saved_record["sentences"]) <= 12
+                 if saved_record.get("status") == "completed" else not saved_record["sentences"])
+            and all(isinstance(s, str) and len(s) <= 500 for s in saved_record["sentences"])):
+        items = saved_record.get("body_items")
+        if saved_record["status"] == "completed" and (not isinstance(items, list)
+                or not 3 <= len(items) <= 10
+                or any(not isinstance(item, dict) or not isinstance(item.get("text"), str)
+                       or len(item["text"]) > 500 or not isinstance(item.get("sections"), list)
+                       or not item["sections"] or len(item["sections"]) > 6
+                       or any(not isinstance(section, str) or section not in _DESCRIPTIONS
+                              for section in item["sections"]) for item in items)):
+            return projected_record()
+        clean = {key: saved_record[key] for key in
+                 ("schema_version", "status", "source_input_digest", "process", "sentences")}
+        if isinstance(items, list) and len(items) <= 10:
+            clean["body_items"] = [
+                {"text": item["text"], "sections": item["sections"]}
+                for item in items
+                if isinstance(item, dict) and isinstance(item.get("text"), str)
+                and len(item["text"]) <= 500 and isinstance(item.get("sections"), list)
+                and len(item["sections"]) <= 6
+                and all(isinstance(section, str) and section in _DESCRIPTIONS
+                        for section in item["sections"])
+            ]
+        model = saved_record.get("generation_model")
+        if model is None or isinstance(model, str) and len(model) <= 100:
+            clean["generation_model"] = model
+        truncation = saved_record.get("truncation")
+        if isinstance(truncation, dict):
+            clean["truncation"] = {key: value for key, value in truncation.items()
+                                   if key in _DESCRIPTIONS and type(value) is bool}
+        error = saved_record.get("error_category")
+        if error is None or isinstance(error, str) and len(error) <= 80:
+            clean["error_category"] = error
+        elapsed = saved_record.get("elapsed_ms")
+        if type(elapsed) in {int, float} and 0 <= elapsed <= 3_600_000:
+            clean["elapsed_ms"] = elapsed
+        return clean
+    return projected_record()
+
+
+def _summary_markdown(summary: dict) -> str:
+    process = _plain_markdown(summary.get("process") or "")
+    decision = _plain_markdown(" ".join(summary.get("sentences") or []))
+    return f"## Executive summary\n\n{process}\n\n{decision}\n"
+
+
+def _contents_markdown(parts) -> str:
+    anchors = historical_anchors(parts)
+    lines = ["## Table of contents", ""]
+    for heading, folder, written in parts:
+        lines.append(f"- [{heading}](#{anchors[folder]}) — {_DESCRIPTIONS[folder]}")
+        for index, (agent, _filename, _text) in enumerate(written, 1):
+            lines.append(f"  - [{agent}](#{anchors[folder]}-{index})")
+    return "\n".join(lines) + "\n"
 
 
 def prepare_report_state(final_state: dict) -> dict:
@@ -459,34 +588,43 @@ def write_report_tree(
     _write_json(save_path / "evidence.json", original_snapshot if frozen else evidence_snapshot(final_state))
     if frozen:
         _write_json(save_path / "diagnostics.json", original_diagnostics)
-    parts = _report_parts(final_state)
+    display_settings = (final_state.get("run_settings") if isinstance(final_state.get("run_settings"), dict)
+                        else settings)
+    parts = report_sections(final_state)
+    from tradingagents.report_summary import resolve_summary
+
+    summary = resolve_summary(summary_input_for_report(final_state, display_settings, parts),
+                              final_state.get("executive_summary"))
+    _write_json(save_path / "executive_summary.json",
+                _summary_companion(final_state.get("executive_summary"), summary))
     if frozen:
         parts = [(heading, folder, [(agent, filename, text.replace("evidence.json diagnostics", "diagnostics.json"))
                                    for agent, filename, text in written])
                  for heading, folder, written in parts]
-    parts.append(
-        (
-            "VI. Evidence and Quality",
-            "6_evidence",
-            [("Evidence Summary", "summary.md", evidence_appendix(final_state))],
-        )
-    )
+    anchors = historical_anchors(parts)
     sections = []
     for heading, folder, written in parts:
         (save_path / folder).mkdir(exist_ok=True)
         for _agent, filename, text in written:
             (save_path / folder / filename).write_text(text, encoding="utf-8")
-        content = "\n\n".join(f"### {agent}\n{text}" for agent, _filename, text in written)
-        sections.append(f"## {heading}\n\n{content}")
+        content = "\n\n".join(f'<a id="{anchors[folder]}-{index}"></a>\n### {agent}\n{text}'
+                                for index, (agent, _filename, text) in enumerate(written, 1))
+        sections.append(f'<a id="{anchors[folder]}"></a>\n## {heading}\n\n{content}')
 
     (save_path / "complete_report.md").write_text(
-        _header(ticker, final_state, settings) + "\n\n".join(sections)
+        f"# Trading Analysis Report: {_plain_markdown(ticker)}\n\n"
+        + (f"- Analysis date: {_plain_markdown(final_state['trade_date'])}\n\n"
+           if final_state.get("trade_date") else "")
+        + _summary_markdown(summary) + "\n" + _contents_markdown(parts) + "\n"
+        + _header(ticker, final_state, display_settings, metadata_only=True) + "\n\n".join(sections)
         + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n", encoding="utf-8"
     )
     if html:
-        from tradingagents.report_html import render_report
+        from tradingagents.report_html import _render_prepared_report
 
         (save_path / "complete_report.html").write_text(
-            render_report(ticker, final_state, settings, parts, diagnostics_sidecar=bool(frozen)), encoding="utf-8"
+            _render_prepared_report(ticker, final_state, display_settings, parts, summary,
+                                    diagnostics_sidecar=bool(frozen)),
+            encoding="utf-8"
         )
     return save_path / "complete_report.md"
