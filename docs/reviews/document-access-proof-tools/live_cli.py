@@ -331,7 +331,11 @@ def assess_document_feature_proof(state: dict, work: Path, ticker: str) -> dict:
             decision = files[1].read_text()
             summary = files[2].read_text()
             summary_text = summary
-            rendered = render_document_followups(state, state.get("final_trade_decision", "")) if state.get("document_followups") else ""
+            from tradingagents.reporting import prepare_report_state
+
+            prepared = prepare_report_state(state)
+            rendered = (render_document_followups(prepared, prepared.get("final_trade_decision", ""))
+                        if prepared.get("document_followups") else "")
             report_ok = bool(rendered) and rendered in decision and "Document searches" in summary
             result("rendered_report", report_ok,
                    "decision follow-ups and evidence search summary present" if report_ok else
@@ -349,9 +353,34 @@ def assess_document_feature_proof(state: dict, work: Path, ticker: str) -> dict:
                else "Unavailable reason absent from report or final decision missing")
 
     state_log = work / "results" / ticker / "TradingAgentsStrategy_logs" / f"full_states_log_{state.get('trade_date')}.json"
+    persisted = False
     if state_log.is_file() and not state_log.is_symlink():
-        hashes["saved_state"] = sha(state_log)
-    result("saved_state", "saved_state" in hashes, "state log retained" if "saved_state" in hashes else "state log missing")
+        try:
+            saved = read_json(state_log)
+            fields = (
+                "company_of_interest", "trade_date", "analysis_clock", "issuer_identity",
+                "document_sources", "document_search_trace", "transcript_sources",
+                "document_followups", "audit_news_tool_evidence",
+                "price_observation", "final_trade_decision",
+            )
+            persisted = all(key in saved and saved[key] == state.get(key) for key in fields)
+            debate = saved.get("investment_debate_state") or {}
+            actual_debate = state.get("investment_debate_state") or {}
+            retained_debate_fields = (
+                "document_questions", "count", "bull_history", "bear_history",
+                "history", "current_response",
+            )
+            persisted = persisted and bool(debate.get("document_questions")) and all(
+                key not in actual_debate or debate.get(key) == actual_debate[key]
+                for key in retained_debate_fields
+            )
+            if persisted:
+                hashes["saved_state"] = sha(state_log)
+        except (ValueError, TypeError, KeyError):
+            persisted = False
+    result("saved_state", persisted,
+           "run scope, sources, questions and decision persisted" if persisted
+           else "saved scope, sources, questions or decision missing")
     return {
         "status": "complete" if checks and all(item["status"] == "pass" for item in checks.values()) else "incomplete",
         "checks": checks, "source_and_report_hashes": hashes,

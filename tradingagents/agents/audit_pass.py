@@ -104,6 +104,122 @@ def _retained_kpi_context(state):
         lines.append("Additional retained KPI comparisons omitted at the five-record audit cap; no claim error inferred.")
     return "\n".join(lines)[:14000]
 
+
+def _retained_document_audit_context(state):
+    """Bound validated source text used after the analyst/debate, without fetching."""
+    if state.get("document_followups") is None and state.get("transcript_sources") is None:
+        return None
+    limit = 20000
+    lines, label_lines = [], []
+    coverage = {
+        "status": "available", "source_characters": 0,
+        "included_passages": 0, "omitted_passages": 0,
+        "partial_prepared_turns": 0, "integrity_failures": 0,
+        "omission_reasons": [],
+    }
+
+    def omit(reason):
+        coverage["omitted_passages"] += 1
+        if len(coverage["omission_reasons"]) < 12:
+            coverage["omission_reasons"].append(reason)
+
+    def append(text, *, source_id, locator, description, partial=False):
+        if len(text) > limit - coverage["source_characters"]:
+            omit(description + " omitted whole at the combined source-character cap")
+            return
+        reference = source_id + "#" + locator
+        chunk = (description + "\nsource_id " + source_id + "; source_ref " + reference
+                 + ("; partial prepared-remarks excerpt" if partial else "")
+                 + "\n" + text)
+        proposed_labels = [*label_lines, "source_id " + source_id, "source_ref " + reference]
+        serialized = json.dumps({
+            "retained_document_sources": "\n\n".join([*lines, chunk]),
+            "retained_document_labels": "\n".join(dict.fromkeys(proposed_labels)),
+        }, ensure_ascii=False)
+        if len(serialized) > 24000:
+            omit(description + " omitted whole at the serialized audit-context cap")
+            return
+        lines.append(chunk)
+        label_lines.extend(("source_id " + source_id, "source_ref " + reference))
+        coverage["source_characters"] += len(text)
+        coverage["included_passages"] += 1
+        if partial:
+            coverage["partial_prepared_turns"] += 1
+
+    if state.get("transcript_sources") is not None:
+        try:
+            from tradingagents.agents.transcript_access import validated_transcript_record
+            from tradingagents.dataflows.vendors.alpha_vantage.transcript import (
+                prepared_remarks_excerpt,
+            )
+
+            transcript = validated_transcript_record(state)
+            if transcript is not None:
+                excerpt = prepared_remarks_excerpt(transcript, max_chars=4000)
+                evidence = transcript["date_evidence"]
+                for turn in excerpt["turns"][:8]:
+                    append(
+                        turn["text"], source_id=transcript["source_id"],
+                        locator=turn["locator"],
+                        description=("Vendor transcript, wording unverified; "
+                                     "not accepted filing evidence; call " + evidence["call_date"]
+                                     + "; SEC date source " + evidence["source_id"] + "#"
+                                     + evidence["locator"] + "; source hash "
+                                     + transcript["content_hash"] + "; speaker " + turn["speaker"]),
+                        partial=turn["truncated"],
+                    )
+                for _ in excerpt["turns"][8:]:
+                    omit("Additional prepared transcript turn omitted at the eight-turn audit cap")
+                for gap in excerpt["gaps"]:
+                    if len(coverage["omission_reasons"]) < 12:
+                        coverage["omission_reasons"].append("Prepared remarks: " + gap[:200])
+            elif state["transcript_sources"].get("status") == "unavailable":
+                lines.append("Vendor transcript unavailable: " +
+                             str(state["transcript_sources"].get("reason") or "source unavailable")[:200])
+        except (ValueError, TypeError, KeyError, AttributeError):
+            coverage["integrity_failures"] += 1
+            lines.append("Retained transcript cannot be verified; audit coverage/integrity limit.")
+
+    if state.get("document_followups") is not None:
+        try:
+            from tradingagents.agents.document_questions import lookup_document_questions
+
+            lookup_document_questions(state)
+            for result in state["document_followups"]["results"]:
+                for passage in result["passages"]:
+                    source_id, locator = passage["source_id"], passage["locator"]
+                    if passage.get("provider") == "Alpha Vantage":
+                        description = (
+                            "Debate lookup vendor transcript, wording unverified; "
+                            "not accepted filing evidence; source hash "
+                            + passage["content_hash"]
+                        )
+                    else:
+                        description = (
+                            "Debate lookup SEC source text, unvalidated; "
+                            + passage["filing_form"] + " filed " + passage["filing_date"]
+                            + "; source hash " + passage["content_hash"]
+                        )
+                    append(
+                        passage["text"], source_id=source_id, locator=locator,
+                        description=description,
+                    )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            coverage["integrity_failures"] += 1
+            lines.append("Retained debate document follow-up cannot be verified; "
+                         "audit coverage/integrity limit.")
+
+    if coverage["integrity_failures"]:
+        coverage["status"] = "integrity_failure"
+    elif coverage["omitted_passages"] or coverage["partial_prepared_turns"]:
+        coverage["status"] = "partial"
+    return {
+        "text": "\n\n".join(lines),
+        "labels": "\n".join(dict.fromkeys(label_lines)),
+        "coverage": coverage,
+    }
+
+
 def _contexts(state):
     source = {key: str(state.get(key) or "")[:18000] for key in SOURCES}
     from tradingagents.agents.mechanical_context import mechanical_role_context
@@ -111,6 +227,11 @@ def _contexts(state):
     source["retained_kpi_comparisons"] = _retained_kpi_context(state)
     source["analyst_tool_outputs"] = render_tool_evidence(state)
     source["tool_evidence_authority"] = "Recorded tool output, unverified; not accepted financial evidence."
+    retained = _retained_document_audit_context(state)
+    if retained is not None:
+        source["retained_document_sources"] = retained["text"]
+        source["retained_document_labels"] = retained["labels"]
+        source["retained_document_coverage"] = json.dumps(retained["coverage"], sort_keys=True)
     if isinstance(state.get("event_comparison"), Mapping):
         from tradingagents.agents.event_comparison import (
             render_event_comparison,
@@ -126,9 +247,9 @@ def _contexts(state):
     return source, roles
 
 
-def build_advisory_audit_prompt(state):
+def build_advisory_audit_prompt(state, *, _context=None):
     """Render bounded source and role text as untrusted data."""
-    source, roles = _contexts(state)
+    source, roles = _context if _context is not None else _contexts(state)
     return (
         "Prioritize contradictions and numerical inconsistencies: compare claims with actual "
         "dated tool outputs, canonical figures, and each other, respecting units, periods, "
@@ -179,6 +300,7 @@ def _known_labels(source):
             labels.update(re.findall(r"\bsource_id\s+([A-Za-z0-9][A-Za-z0-9_-]*)", line))
             labels.update(re.findall(r"^Source\s+([A-Za-z0-9][A-Za-z0-9_-]*);", line))
             labels.update(re.findall(r"\bfact_id\s+([A-Za-z0-9][A-Za-z0-9_-]*)", line))
+            labels.update(re.findall(r"\bsource_ref\s+([A-Za-z0-9_-]+#[A-Za-z0-9_-]+)", line))
     return labels
 
 
@@ -310,7 +432,10 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id, sdk_retries_dis
     def node(state):
         source, roles = _contexts(state)
         labels = _known_labels({key: text for key, text in source.items()
-                                if key not in {"analyst_tool_outputs", "shared_mechanical_sensitivities"}}) | known_tool_labels(state)
+                                if key not in {"analyst_tool_outputs", "shared_mechanical_sensitivities",
+                                               "retained_document_sources", "retained_document_coverage"}}) | known_tool_labels(state)
+        document_coverage = (json.loads(source["retained_document_coverage"])
+                             if "retained_document_coverage" in source else None)
         record = {
             "status": "unavailable", "findings": [], "audit_scope": _audit_scope(state),
             "counts_by_type": dict.fromkeys(TYPES, 0),
@@ -327,9 +452,16 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id, sdk_retries_dis
             "input_truncation": {
                 **{key: len(str(state.get(key) or "")) > 18000 for key in SOURCES},
                 **{role: len(text) > 6000 for role, text in _role_texts(state).items()},
+                **({"retained_document_sources": bool(
+                    document_coverage["omitted_passages"] or
+                    document_coverage["partial_prepared_turns"] or
+                    document_coverage["integrity_failures"]
+                )} if document_coverage is not None else {}),
             },
         }
-        prompt = build_advisory_audit_prompt(state)
+        if document_coverage is not None:
+            record["document_source_coverage"] = document_coverage
+        prompt = build_advisory_audit_prompt(state, _context=(source, roles))
         record.update(request_size={"characters": len(prompt), "utf8_bytes": len(prompt.encode("utf-8"))},
                       attempts=[], error_category=None,
                       retry_policy="one application retry; SDK retries disabled" if sdk_retries_disabled
@@ -453,6 +585,22 @@ def render_advisory_audit(record, *, dispositions=None):
             if isinstance(item, Mapping):
                 descriptions.append(f"{role}: {item.get('records', 0)} recorded, {item.get('truncated', 0)} truncated, {item.get('omitted', 0)} omitted ({item.get('status', 'unknown')})")
         lines.append("Recorded tool-input coverage: " + _escape("; ".join(descriptions), 1000) + ". Source availability is not a finding.")
+    document_coverage = record.get("document_source_coverage")
+    if isinstance(document_coverage, Mapping):
+        included = document_coverage.get("included_passages", 0)
+        omitted = document_coverage.get("omitted_passages", 0)
+        failures = document_coverage.get("integrity_failures", 0)
+        if all(type(value) is int and 0 <= value <= 100 for value in (included, omitted, failures)):
+            lines.append(
+                f"Retained document audit coverage: {included} passage(s) supplied, "
+                f"{omitted} omitted at the source-character cap, "
+                f"{failures} integrity failure(s)."
+            )
+        reasons = document_coverage.get("omission_reasons")
+        if isinstance(reasons, list):
+            for reason in reasons[:12]:
+                if isinstance(reason, str):
+                    lines.append("Document audit coverage limit: " + _escape(reason, 200) + ".")
     independence = record.get("independence_by_role")
     if isinstance(independence, Mapping) and independence:
         same = [_escape(role.replace("_", " "), 80) for role, value in list(independence.items())[:20] if value == "same model"]

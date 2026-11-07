@@ -1,6 +1,6 @@
 # Document access Build B — vendor calls and existing macro
 
-Local implementation candidate. Required paid CLI observations are not authorized and remain incomplete.
+Local implementation candidate. Paid proof was subsequently approved for three attempts on 93a1ae5; two attempts are consumed. Required acceptance remains incomplete.
 No publication, release or installation acceptance is claimed.
 
 ## Baseline and isolation
@@ -47,10 +47,34 @@ Existing FRED functionality is reused. The News prompt requests a short dated ma
 
 ## Pending acceptance and authority
 
-No new paid model calls have been made. All old ledgers remain intact, with $6.587296 unknown reservations held separately; old attempt authority is exhausted and is not stacked with a new budget.
+The original frozen-candidate approval and all old ledgers remain intact. The older $6.587296 unknown reservations remain separate; old attempt authority is exhausted and is not stacked with this task’s allowance.
 
-A separate fresh allowance will be requested for at most three Medium-depth CLI attempts, one each DOCN/MSFT/CAT, using anthropic/claude-opus-5.5 quick and openai/gpt-6.1-terra-pro deep, all four analysts, three research/risk rounds, four tool rounds and 16,384 maximum output tokens. DOCN must observe a positive dated transcript and successful dated macro output; MSFT/CAT may prove explicit unavailable continuation without claiming positive transcript coverage. Missing observations remain explicit and do not become successful positive proof.
+The user subsequently approved $72 aggregate, $24 each, for at most three Medium-depth CLI attempts on 93a1ae5, one each DOCN/MSFT/CAT, using anthropic/claude-opus-5.5 quick and openai/gpt-6.1-terra-pro deep, all four analysts, three research/risk rounds, four tool rounds and 16,384 maximum output tokens. DOCN must observe a positive dated transcript and successful dated macro output; MSFT/CAT may prove explicit unavailable continuation without claiming positive transcript coverage. Missing observations remain explicit and do not become successful positive proof.
 
 Vendor transcript revisions/publication vintage cannot be verified retrospectively from this endpoint. Its wording stays unverified, never accepted financial evidence. The data cannot supply undisclosed operating facts or establish predictive ratings.
 
 Valuation Build 2/A3, the comparison, publication and installation remain held. No push, PR, merge, production change, worktree removal, scheduler or broker action is authorized. Exact-head GitHub CI awaits separate publication approval.
+
+## Post-approval observations and correction checkpoint
+
+Two attempts on exact 93a1ae582c1ebf1b50761c7dff92b243bcd25074 are consumed; neither may be rerun under this authority. CAT has not started. No release action is approved.
+
+- DOCN ran after the actual November 6 NYSE close, all four analysts, three research/risk rounds, 33 wire calls. Its CLI completed with an Underweight research rating and six-month model-stated horizon. The original proof job failed because its inherited Build 1 check required a same-analysis-date close. Actual canonical data explicitly used the November 5 completed close, $70.70, because the November 6 bar had no Close. That fallback is shown on the rendered card; November 6 close/indicators were not observed by this CLI. A separate preflight close is not substituted.
+- Original report evidence retains eight full documents, six searches, four debate questions with returned passages, a dated November 3 vendor transcript (47 turns), and four dated macro outputs. Read-only recovery from those exact saved artifacts validated the new source/journal fields. The main state-log projection omitted those fields and nested debate questions; original job/log files are preserved as failing evidence rather than rewritten.
+- The original rendered DOCN report was visually inspected using isolated M1 Chrome CDP captures after simple screenshot capture produced blank images. Search counts, unverified transcript labels, dated fallback and all four unresolved follow-up labels are readable. All four questions remain unresolved because the published final decision did not cite a returned source reference. These are actual missing citations, not a claim that a source was absent.
+- MSFT’s single attempt ended in REVIEW before research/risk debate. Its 29 submitted financial claims passed, but critical reconciliations lacked large primary filings rejected by the old bounded reader’s 2.5 MB transport limit. The new full-search reader had acquired them. A subsequent offline replay with the corrected transport reads both large primaries while preserving 40,000 extracted characters each; some accounting reconciliations remain unavailable within those existing brief limits. Two other selected source files are absent from the retained replay cache, so its disclosure-coverage result also has a fixture limitation. Increasing transport is necessary but is not evidence that all MSFT REVIEW causes are resolved. This attempt does not establish late-role delivery or a complete unavailable-transcript continuation.
+- Two runs have $11.46117315 known settled usage and $5.450528 retained unknown reservations, $16.91170115 committed exposure. Three HTTP400 structured-call responses lacked usage; their holds are not cleared by observed account deltas. No extra attempt or top-up is authorized.
+
+The correction batch repairs bounded primary transport without changing the accepted brief’s filing selection or character caps, retains new source fields/questions in standard logs, supplies bounded labeled transcript/follow-up material to the existing advisory audit call, and corrects the document-only price verifier. Build 1’s stricter proof remains unchanged. New audit input has not been observed in either consumed live attempt.
+
+A replacement committed candidate must pass affected offline checks and independent review before requesting a CAT-only rebind to that exact SHA. The original allowance, two consumed claims, unknown holds, model/depth/configuration and three-attempt ceiling remain intact. No CAT call is authorized on changed code until that rebind is approved. The original job failures remain recorded; recovered source evidence and offline corrections do not become a single full live run on the replacement revision.
+
+### Correction verification
+
+The stable correction batch passed a fresh full offline suite: 2,851 tests plus 100 subtests, one optional AWS dependency skip and one configured live-integration deselection (31.01 seconds). Full Ruff, pip dependency check and diff check passed. This broader rerun is justified by changes across source acquisition, advisory audit inputs, standard state logging and paid proof authorization boundaries. Actual DOCN and MSFT retained report evidence passed the corrected standard log round-trip offline; MSFT correctly lacks post-debate fields because it entered REVIEW. Original paid outputs and failure records remain unchanged. Fresh source/log hashes are in evidence/build-b-correction-verification.json outside Git.
+
+### CAT source qualification: final paid slot preserved
+
+Seven fresh free SEC GETs acquired the two missing selected 8-Ks, their three selected exhibits, the prior 10-Q and CompanyFacts into new immutable private wrappers; no retries, original-cache substitution or model calls. The offline existing pipeline parsed 615 canonical facts / 470 sources and seven bounded filing documents. Disclosure coverage, source integrity and balance-sheet checks pass. Critical core statements (compatible Net Income at 2026-09-30), dated equity movement, obligation-category coverage and equipment/lease principal cash-flow coverage remain unavailable. Qualification SHA256: aa894a2a5828b5cd9a42517691dfaecbf5c8f9c1dee57f8167e626290dbdc39d, private/inputs/cat-qualification/qualification.json. These are pre-analyst source preconditions; model prose cannot make their absence a verified value. No complete non-REVIEW CAT outcome is qualified.
+
+The last CAT attempt remains unclaimed. The recommendation is to preserve it and obtain a separate scope decision for the existing accounting-source coverage before spending it. The document-access correction candidate is locally verified; cross-company full-run acceptance remains incomplete. Accounting source/tag/period changes are not silently added to the approved search/transcript build, and no REVIEW gate is weakened. The draft-only CAT rebind helper remains unused as authority. A later CAT attempt still needs an exact repaired-candidate approval and fresh usage/rate receipt; no extra attempt or top-up is implied.

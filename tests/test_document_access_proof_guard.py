@@ -137,6 +137,169 @@ def test_three_unique_claims_preserve_old_unknown_hold_without_stacking(tmp_path
         live_adapter.claim_document_access_proof(pilot.PilotLedger(tmp_path / "another.jsonl"), record, "DOCN")
 
 
+def amended_cat_record(tmp_path):
+    original = approval(tmp_path)
+    original["ceiling_usd"] = "72"
+    original["per_attempt_ceiling_usd"] = "24"
+    ledger = pilot.PilotLedger(tmp_path / "new.jsonl")
+    for ticker in ("DOCN", "MSFT"):
+        live_adapter.claim_document_access_proof(ledger, original, ticker)
+        ledger.append({"type": "execution_start", "name": f"DocumentAccess-{ticker}", "ticker": ticker})
+        ledger.append({"type": "attempt_failed_start", "ticker": ticker})
+    archived = tmp_path / "original-approval.json"
+    archived.write_text(json.dumps(original))
+    prefix = ledger.path.read_bytes()
+    amended = {**original, "approval_id": "fresh-CAT-only", "candidate_head": "b" * 40}
+    amended["final_slot_amendment"] = {
+        "schema_version": 1, "ticker": "CAT",
+        "original_approval_path": str(archived),
+        "original_approval_sha256": hashlib.sha256(archived.read_bytes()).hexdigest(),
+        "original_approval_digest": live_adapter.manifest_hash(original),
+        "ledger_prefix_bytes": len(prefix),
+        "ledger_prefix_sha256": hashlib.sha256(prefix).hexdigest(),
+    }
+    return original, amended, ledger, archived
+
+
+def test_cat_final_slot_amendment_preserves_original_allowance_and_claims(tmp_path):
+    original, amended, ledger, archived = amended_cat_record(tmp_path)
+    digest = live_adapter.claim_document_access_proof(ledger, amended, "CAT")
+    events = ledger.events()
+    assert digest == live_adapter.manifest_hash(amended)
+    assert len([e for e in events if e["type"] == "allowance"]) == 1
+    assert [e["ticker"] for e in events if e["type"] == "attempt_claim"] == ["DOCN", "MSFT", "CAT"]
+    assert [e["approval_sha256"] for e in events if e["type"] == "attempt_claim"] == [
+        live_adapter.manifest_hash(original), live_adapter.manifest_hash(original), digest,
+    ]
+    assert sum(e["type"] == "final_slot_amendment" for e in events) == 1
+    spec = live_adapter.CliSpec(
+        "CAT", amended["analysis_date"], pilot.B_DEEP, pilot.A, 3, 16384,
+        max_tool_rounds=4, proof_scope=live_adapter.DOCUMENT_PROOF_SCOPE,
+    )
+    live_adapter.verify_execution_claim(
+        live_adapter.ExecutionClaim("proof", "DocumentAccess-CAT", digest), ledger, spec,
+    )
+    with pytest.raises((ValueError, RuntimeError)):
+        live_adapter.claim_document_access_proof(ledger, amended, "CAT")
+    with pytest.raises((ValueError, RuntimeError)):
+        live_adapter.claim_document_access_proof(ledger, amended, "DOCN")
+    archived.write_text(archived.read_text() + " ")
+    with pytest.raises(ValueError, match="original approval bytes changed"):
+        live_adapter.verify_execution_claim(
+            live_adapter.ExecutionClaim("proof", "DocumentAccess-CAT", digest), ledger, spec,
+        )
+
+
+def test_cat_amendment_rejects_budget_mutation_and_advanced_prefix(tmp_path):
+    _, amended, ledger, _ = amended_cat_record(tmp_path)
+    changed = {**amended, "ceiling_usd": "73"}
+    with pytest.raises(ValueError, match="budget or original scope"):
+        live_adapter.claim_document_access_proof(ledger, changed, "CAT")
+    changed = {**amended, "max_calls_per_attempt": 61}
+    with pytest.raises(ValueError, match="budget or original scope"):
+        live_adapter.claim_document_access_proof(ledger, changed, "CAT")
+    ledger.append({"type": "unexpected"})
+    with pytest.raises(ValueError, match="advanced before claim"):
+        live_adapter.claim_document_access_proof(ledger, amended, "CAT")
+    assert len([e for e in ledger.events() if e["type"] == "allowance"]) == 1
+    assert len([e for e in ledger.events() if e["type"] == "attempt_claim"]) == 2
+
+
+def test_cat_draft_never_creates_authority_or_claim(tmp_path, monkeypatch):
+    import sys
+
+    harness = load_harness()
+    monkeypatch.setitem(sys.modules, "live_cli", harness)
+    source = HARNESS.with_name("draft_final_slot.py")
+    spec = importlib.util.spec_from_file_location("cat_draft", source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    original, _, ledger, archived = amended_cat_record(tmp_path)
+    candidate_source = tmp_path / "old-candidate.json"
+    candidate_source.write_text(json.dumps({"analysis_date": original["analysis_date"]}))
+    metadata_path = Path(original["receipt_root"]) / "CAT.json"
+    monkeypatch.setattr(harness, "CANDIDATE", candidate_source)
+    monkeypatch.setattr(harness, "LEDGER", ledger.path)
+    monkeypatch.setattr(harness, "assert_environment", lambda: {
+        "branch": "codex/document-access-b", "clean": True,
+        "head": "b" * 40, "modules": {},
+    })
+    monkeypatch.setattr(harness, "prior_ledger_snapshot", lambda: {
+        key: original[key] for key in (
+            "old_ledgers", "prior_committed_exposure_usd", "prior_unknown_reserved_usd"
+        )
+    })
+    before = ledger.path.read_bytes()
+    candidate_path, approval_path = module.draft(
+        archived, metadata_path, tmp_path / "drafts",
+    )
+    candidate = json.loads(candidate_path.read_text())
+    approval_draft = json.loads(approval_path.read_text())
+    assert candidate["head"] == "b" * 40
+    assert approval_draft["candidate_sha256"] == hashlib.sha256(candidate_path.read_bytes()).hexdigest()
+    assert approval_draft["approval_id"] == approval_draft["user_instruction"] == ""
+    with pytest.raises(ValueError):
+        live_adapter._validate_document_access_approval(approval_draft)
+    assert ledger.path.read_bytes() == before
+    with pytest.raises(FileExistsError):
+        module.draft(archived, metadata_path, tmp_path / "drafts")
+
+
+def test_document_price_accepts_canonical_postclose_missing_close_only(monkeypatch):
+    from copy import deepcopy
+
+    from tests.test_price_observation import install
+    from tradingagents.dataflows.vendors.yahoo import price_observation as prices
+
+    install(monkeypatch, now="2026-11-04T22:00:00+00:00", closes=(84, None))
+    price = prices.get_price_observation("DOCN", "2026-11-04")
+    spec = live_adapter.CliSpec(
+        "DOCN", "2026-11-04", pilot.B_DEEP, pilot.A, 3, 16384,
+        max_tool_rounds=4, proof_scope=live_adapter.DOCUMENT_PROOF_SCOPE,
+    )
+    record = {"session": {"regular_close_utc": "2026-11-04T21:00:00+00:00"}}
+    verified = live_adapter.verify_document_access_completed_state(
+        {"price_observation": price}, spec, record,
+    )
+    assert verified["selected_session_date"] == "2026-11-03"
+    assert verified["requested_session_date"] == "2026-11-04"
+    assert verified["price_fallback"]["missing_completed_session_dates"] == ["2026-11-04"]
+    changed = deepcopy(price)
+    changed["price_fallback"]["reason"] = "unexplained"
+    with pytest.raises(ValueError):
+        live_adapter.verify_document_access_completed_state({"price_observation": changed}, spec, record)
+    changed = deepcopy(price)
+    changed.pop("price_fallback")
+    with pytest.raises(ValueError):
+        live_adapter.verify_document_access_completed_state({"price_observation": changed}, spec, record)
+    changed = deepcopy(price)
+    changed["raw_source"]["bars"][-1]["close"] = "85"
+    with pytest.raises(ValueError):
+        live_adapter.verify_document_access_completed_state({"price_observation": changed}, spec, record)
+    with pytest.raises(RuntimeError, match="post-close"):
+        live_adapter.verify_document_access_completed_state(
+            {"price_observation": price}, spec,
+            {"session": {"regular_close_utc": "2026-11-04T23:00:00+00:00"}},
+        )
+    with pytest.raises(ValueError):
+        live_adapter.verify_document_access_completed_state(
+            {"price_observation": price},
+            dataclasses.replace(spec, ticker="MSFT"), record,
+        )
+    changed = deepcopy(price)
+    changed["raw_source"]["bars"][-1]["timestamp"] = "2026-11-05T16:00:00-05:00"
+    with pytest.raises(ValueError):
+        live_adapter.verify_document_access_completed_state(
+            {"price_observation": changed}, spec, record,
+        )
+    install(monkeypatch, now="2026-11-04T20:00:00+00:00", closes=(84, None))
+    partial = prices.get_price_observation("DOCN", "2026-11-04")
+    with pytest.raises(RuntimeError, match="post-close"):
+        live_adapter.verify_document_access_completed_state(
+            {"price_observation": partial}, spec, record,
+        )
+
+
 def test_document_wire_scope_serializes_and_keeps_unknown_reservation(tmp_path):
     ledger = pilot.PilotLedger(tmp_path / "wire.jsonl")
     budget = pilot.BudgetGuard(
@@ -451,6 +614,7 @@ def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(
         }],
     )
     state["final_trade_decision"] = "Rating: Hold"
+    state["price_observation"] = {"status": "available"}
     report = tmp_path / "results" / "reports" / "DOCN_offline"
     (report / "5_portfolio").mkdir(parents=True)
     (report / "6_evidence").mkdir()
@@ -463,11 +627,18 @@ def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(
     (report / "evidence.json").write_text(json.dumps({"document_sources": state["document_sources"]}))
     state_log = tmp_path / "results" / "DOCN" / "TradingAgentsStrategy_logs"
     state_log.mkdir(parents=True)
-    (state_log / "full_states_log_2026-11-06.json").write_text(json.dumps({"company_of_interest": "DOCN"}))
+    (state_log / "full_states_log_2026-11-06.json").write_text(json.dumps(state))
     proof = harness.assess_document_feature_proof(state, tmp_path, "DOCN")
-    assert proof["status"] == "complete"
+    assert proof["status"] == "complete", [k for k, v in proof["checks"].items() if v["status"] != "pass"]
     assert all(row["status"] == "pass" for row in proof["checks"].values())
     assert len(proof["source_and_report_hashes"]["report_files"]) == 4
+    persisted = state_log / "full_states_log_2026-11-06.json"
+    saved = json.loads(persisted.read_text())
+    saved.pop("document_followups")
+    persisted.write_text(json.dumps(saved))
+    incomplete = harness.assess_document_feature_proof(state, tmp_path, "DOCN")
+    assert incomplete["checks"]["saved_state"]["status"] == "missing"
+    assert incomplete["status"] == "incomplete"
 
 
 

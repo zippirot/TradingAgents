@@ -176,10 +176,12 @@ def test_full_search_streams_large_issuer_filing_under_its_own_finite_byte_budge
     full = docs.get_filing_search_evidence("JPM", "2026-11-06")
     assert len(full.documents) == 1
     assert any("Capacity commitment retained" in block.text for block in full.documents[0].blocks)
-    # Bounded brief keeps the original transport budget; neither path is unbounded.
+    # The bounded brief can transport a large primary while retaining its
+    # separate 40k-document and 120k-package extracted-text limits.
     bounded = docs.get_filing_evidence("JPM", "2026-11-06")
-    assert not bounded.documents
-    assert any("byte limit" in gap for gap in bounded.gaps)
+    assert len(bounded.documents) == 1
+    assert any("Capacity commitment retained" in block.text for block in bounded.documents[0].blocks)
+    assert sum(len(block.text) for doc in bounded.documents for block in doc.blocks) <= 120_000
     import pytest
 
     from tradingagents.dataflows.errors import VendorUnavailableError
@@ -189,3 +191,50 @@ def test_full_search_streams_large_issuer_filing_under_its_own_finite_byte_budge
         docs.DocumentClient(max_bytes=16_000_000).fetch(
             "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000002/too-big.htm"
         )
+
+
+def test_prior_quarter_rpo_transport_accepts_large_primary_with_bounded_extraction(
+    monkeypatch, tmp_path,
+):
+    metadata = {"cik": "0001582961", "filings": {"files": [], "recent": {
+        "form": ["10-Q", "10-Q"],
+        "filingDate": ["2026-10-28", "2026-08-05"],
+        "reportDate": ["2026-09-30", "2026-06-30"],
+        "accessionNumber": ["0001582961-26-000003", "0001582961-26-000002"],
+        "primaryDocument": ["current.htm", "prior.htm"],
+        "items": ["", ""],
+    }}}
+    body = ("<!--" + " " * 2_600_000 + "--><p>Remaining performance obligations were $123 million.</p>").encode()
+    monkeypatch.setattr(docs, "cik_for", lambda _: "0001582961")
+    monkeypatch.setattr(docs, "_user_agent", lambda: "fixture@example.invalid")
+    monkeypatch.setattr(docs, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, raw):
+            self.raw = raw
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            for start in range(0, len(self.raw), chunk_size):
+                yield self.raw[start:start + chunk_size]
+
+        def close(self):
+            pass
+
+    def get(url, **kwargs):
+        calls.append(url)
+        return Response(json.dumps(metadata).encode() if "submissions" in url else body)
+
+    monkeypatch.setattr(docs.requests, "get", get)
+    package = docs.get_prior_quarter_evidence("DOCN", "2026-11-06", "2026-09-30")
+    assert len(package.documents) == 1
+    assert package.documents[0].filing.report_date.isoformat() == "2026-06-30"
+    assert any("Remaining performance obligations" in block.text
+               for block in package.documents[0].blocks)
+    assert sum(len(block.text) for block in package.documents[0].blocks) <= 40_000
+    assert len(calls) == 2

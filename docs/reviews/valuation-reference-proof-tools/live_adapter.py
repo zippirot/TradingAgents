@@ -705,6 +705,40 @@ def verify_run_fixes_completed_state(state, spec, record):
         raise RuntimeError("Build1 requires the actual analysis-date completed close")
 
 
+
+def verify_document_access_completed_state(state, spec, record):
+    """Accept only a canonical completed close or an explicit missing-close fallback."""
+    from tradingagents.dataflows.vendors.yahoo.price_observation import validate_price_observation
+
+    price = validate_price_observation(state.get("price_observation"), spec.ticker, spec.analysis_date)
+    close = datetime.fromisoformat(record["session"]["regular_close_utc"])
+    observed = datetime.fromisoformat(
+        price["raw_source"].get("observation_cutoff") or price["raw_source"]["retrieved_at"]
+    )
+    if (close.tzinfo is None or observed.tzinfo is None or observed < close
+            or price.get("status") != "available"
+            or price.get("session_status") != "completed"):
+        raise RuntimeError("Document proof requires a canonical post-close price observation")
+    if price.get("session_date") == spec.analysis_date:
+        if price.get("price_fallback"):
+            raise RuntimeError("Current-session close must not carry a fallback")
+        return {"requested_session_date": spec.analysis_date,
+                "selected_session_date": price["session_date"],
+                "observation_cutoff": observed.isoformat(), "price_fallback": None}
+    fallback = price.get("price_fallback")
+    if (not isinstance(fallback, dict)
+            or fallback.get("reason")
+            != "Latest completed session has no close; using last valid completed session"
+            or fallback.get("latest_completed_session_date") != spec.analysis_date
+            or fallback.get("selected_session_date") != price.get("session_date")
+            or spec.analysis_date not in fallback.get("missing_completed_session_dates", [])):
+        raise RuntimeError("Document proof prior close lacks explicit analysis-date fallback")
+    return {"requested_session_date": spec.analysis_date,
+            "selected_session_date": price["session_date"],
+            "observation_cutoff": observed.isoformat(), "price_fallback": fallback}
+
+
+
 def claim_b3_proof(ledger: PilotLedger, approval_record: dict) -> str:
     """Claim the separately authorized one-shot B3 proof on a new empty ledger."""
     _validate_b3_approval(approval_record)
@@ -760,7 +794,11 @@ def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: Cli
         if (claim.approval_sha256 != entry.get("approval_sha256")
                 or ledger.path.resolve() != Path(record["ledger_path"]).resolve()
                 or manifest_hash(record) != claim.approval_sha256
-                or len(allowance) != 1 or allowance[0].get("approval_sha256") != claim.approval_sha256
+                or len(allowance) != 1
+                or allowance[0].get("approval_sha256") != (
+                    _document_final_slot_amendment(record, ledger, claimed=True)
+                    if record.get("final_slot_amendment") and ticker == "CAT"
+                    else claim.approval_sha256)
                 or actual != expected or spec.proof_scope != DOCUMENT_PROOF_SCOPE
                 or spec.extra_peer_pins is not None or spec.context_cap is not None
                 or spec.analysis_timezone != "America/Denver"):
@@ -1314,11 +1352,18 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                     requested != [{"ticker": ticker, "reason": EXTRA_A_PIN_REASON}
                                   for ticker in spec.extra_peer_pins]):
                 raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
+        price_verification = None
         if claim.kind == "proof" and (claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
             entry = next(e for e in wire.budget.ledger.events()
                          if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
-            verify_run_fixes_completed_state(state, spec, entry["approval_record"])
+            if claim.name.startswith(DOCUMENT_PROOF_PREFIX):
+                price_verification = verify_document_access_completed_state(
+                    state, spec, entry["approval_record"]
+                )
+            else:
+                verify_run_fixes_completed_state(state, spec, entry["approval_record"])
         return {"state": state, "model_calls": wire.request_count,
+                "price_observation_verification": price_verification,
                 "pin_file_sha256": (hashlib.sha256((work / "approved-peer-pins.json").read_bytes()).hexdigest()
                                     if spec.extra_peer_pins is not None else None),
                 "reasoning_settings": {key: DEFAULT_CONFIG.get(key) for key in
@@ -1396,6 +1441,93 @@ def _document_access_prior_exposure(record):
     return committed, unknown
 
 
+def _document_final_slot_amendment(record, ledger=None, *, claimed=False):
+    """Verify a single CAT rebind without resetting the original allowance."""
+    amendment = record.get("final_slot_amendment")
+    if not isinstance(amendment, dict) or set(amendment) != {
+        "schema_version", "ticker", "original_approval_path",
+        "original_approval_sha256", "original_approval_digest",
+        "ledger_prefix_bytes", "ledger_prefix_sha256",
+    } or amendment["schema_version"] != 1 or amendment["ticker"] != "CAT":
+        raise ValueError("Final-slot amendment schema differs")
+    path = Path(amendment["original_approval_path"])
+    if not path.is_absolute() or path.is_symlink() or not path.is_file():
+        raise ValueError("Archived original approval missing or unsafe")
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != amendment["original_approval_sha256"]:
+        raise ValueError("Archived original approval bytes changed")
+    original = json.loads(raw)
+    if not isinstance(original, dict) or "final_slot_amendment" in original:
+        raise ValueError("Archived approval is not an original document authority")
+    _validate_document_access_approval(original)
+    old_digest = manifest_hash(original)
+    if old_digest != amendment["original_approval_digest"]:
+        raise ValueError("Archived original approval digest differs")
+    mutable = {
+        "approval_id", "approved_at_recorded", "user_instruction",
+        "candidate_head", "candidate_sha256", "runner_sha256",
+        "provider_metadata_sha256",
+    }
+    if (any(record[key] != original[key] for key in original if key not in mutable)
+            or record["candidate_head"] == original["candidate_head"]
+            or record["ceiling_usd"] != "72"
+            or record["per_attempt_ceiling_usd"] != "24"
+            or type(amendment["ledger_prefix_bytes"]) is not int
+            or amendment["ledger_prefix_bytes"] <= 0
+            or not re.fullmatch(r"[0-9a-f]{64}", amendment["ledger_prefix_sha256"])):
+        raise ValueError("Final-slot amendment changed budget or original scope")
+    if ledger is None:
+        return old_digest
+    if ledger.path.is_symlink() or not ledger.path.is_file():
+        raise ValueError("Original document ledger missing")
+    data = ledger.path.read_bytes()
+    length = amendment["ledger_prefix_bytes"]
+    prefix = data[:length]
+    if (len(prefix) != length or not prefix.endswith(b"\n")
+            or hashlib.sha256(prefix).hexdigest() != amendment["ledger_prefix_sha256"]):
+        raise ValueError("Original document ledger prefix changed")
+    prefix_events = [json.loads(line) for line in prefix.splitlines() if line.strip()]
+    allowance = [event for event in prefix_events if event.get("type") == "allowance"]
+    claims = [event for event in prefix_events if event.get("type") == "attempt_claim"]
+    if (len(allowance) != 1
+            or allowance[0].get("approval_sha256") != old_digest
+            or allowance[0].get("ceiling_usd") != "72"
+            or allowance[0].get("attempts") != 3
+            or [(event.get("ticker"), event.get("approval_sha256")) for event in claims]
+            != [("DOCN", old_digest), ("MSFT", old_digest)]
+            or any(event.get("approval_record") != original for event in claims)
+            or any(event.get("type") == "final_slot_amendment" for event in prefix_events)
+            or any(not any(e.get("type") == "execution_start"
+                           and e.get("name") == DOCUMENT_PROOF_PREFIX + ticker
+                           for e in prefix_events)
+                   for ticker in ("DOCN", "MSFT"))
+            or any(not any(e.get("type") in {"attempt_failed_start", "attempt_proof_incomplete"}
+                           and e.get("ticker") == ticker for e in prefix_events)
+                   for ticker in ("DOCN", "MSFT"))):
+        raise ValueError("Final-slot amendment original two attempts differ")
+    tail = [json.loads(line) for line in data[length:].splitlines() if line.strip()]
+    if not claimed:
+        if tail:
+            raise ValueError("Final-slot amendment ledger advanced before claim")
+    elif (len(tail) < 3 or tail[0] != {
+            "type": "final_slot_amendment", "ticker": "CAT",
+            "original_approval_sha256": amendment["original_approval_sha256"],
+            "original_approval_digest": old_digest,
+            "ledger_prefix_bytes": length,
+            "ledger_prefix_sha256": amendment["ledger_prefix_sha256"],
+            "new_approval_sha256": manifest_hash(record),
+        } or tail[1].get("type") != "provider_receipt"
+          or tail[1].get("ticker") != "CAT"
+          or tail[1].get("approval_sha256") != manifest_hash(record)
+          or tail[2].get("type") != "attempt_claim"
+          or tail[2].get("ticker") != "CAT"
+          or tail[2].get("approval_sha256") != manifest_hash(record)
+          or sum(e.get("type") == "final_slot_amendment" for e in tail) != 1
+          or sum(e.get("type") == "attempt_claim" for e in tail) != 1):
+        raise ValueError("Final-slot amendment ledger chain differs")
+    return old_digest
+
+
 def _validate_document_access_approval(record):
     """Exact three-attempt document proof authority; no historical allowance is inherited."""
     required = {
@@ -1408,7 +1540,8 @@ def _validate_document_access_approval(record):
         "runner_sha256", "provider_metadata_sha256", "candidate_sha256", "session",
         "receipt_refresh_policy", "receipt_root", "approved_route_rate_caps", "resolved_model_ids",
     }
-    if not isinstance(record, dict) or set(record) != required:
+    amended = isinstance(record, dict) and "final_slot_amendment" in record
+    if not isinstance(record, dict) or set(record) != (required | {"final_slot_amendment"} if amended else required):
         raise ValueError("Document-access approval record is incomplete")
     now = datetime.now(UTC)
     _b3_aware_time(record["approved_at_recorded"], now)
@@ -1472,6 +1605,8 @@ def _validate_document_access_approval(record):
                 )):
             raise ValueError("Approved document endpoint rates or aliases malformed")
     _document_access_prior_exposure(record)
+    if amended:
+        _document_final_slot_amendment(record)
     return record
 
 
@@ -1530,7 +1665,13 @@ def claim_document_access_proof(ledger: PilotLedger, approval_record: dict, tick
     with ledger.budget_lock():
         events = ledger.events()
         allowance = [event for event in events if event["type"] == "allowance"]
-        if events and (len(allowance) != 1 or allowance[0].get("approval_sha256") != digest):
+        if record.get("final_slot_amendment"):
+            if ticker != "CAT":
+                raise RuntimeError("Amended document authority permits CAT only")
+            old_digest = _document_final_slot_amendment(record, ledger)
+            if len(allowance) != 1 or allowance[0].get("approval_sha256") != old_digest:
+                raise RuntimeError("Original document allowance differs")
+        elif events and (len(allowance) != 1 or allowance[0].get("approval_sha256") != digest):
             raise RuntimeError("Document-access allowance differs")
         claims = [event for event in ledger.events() if event["type"] == "attempt_claim"]
         if (len(claims) >= 3 or any(event.get("ticker") == ticker for event in claims)
@@ -1545,6 +1686,16 @@ def claim_document_access_proof(ledger: PilotLedger, approval_record: dict, tick
                            "old_ledgers": record["old_ledgers"],
                            "prior_committed_exposure_usd": record["prior_committed_exposure_usd"],
                            "prior_unknown_reserved_usd": record["prior_unknown_reserved_usd"]})
+        if record.get("final_slot_amendment"):
+            amendment = record["final_slot_amendment"]
+            ledger.append({
+                "type": "final_slot_amendment", "ticker": "CAT",
+                "original_approval_sha256": amendment["original_approval_sha256"],
+                "original_approval_digest": old_digest,
+                "ledger_prefix_bytes": amendment["ledger_prefix_bytes"],
+                "ledger_prefix_sha256": amendment["ledger_prefix_sha256"],
+                "new_approval_sha256": digest,
+            })
         ledger.append(receipt)
         ledger.append({"type": "attempt_claim", "phase": DOCUMENT_PROOF_PREFIX + ticker,
                        "ticker": ticker, "ceiling_usd": record["ceiling_usd"],

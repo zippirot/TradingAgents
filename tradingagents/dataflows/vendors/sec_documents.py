@@ -567,6 +567,9 @@ def exhibit_url(filing: FilingReference, href: str) -> str | None:
     return candidate
 
 
+_DOCUMENT_TRANSPORT_MAX_BYTES = 16_000_000
+
+
 class DocumentClient:
     """Finite per-run HTTP acquisition with immutable-content cache metadata."""
 
@@ -664,7 +667,7 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     cik = cik_for(ticker)
     if cik is None:
         raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
-    client = DocumentClient()
+    client = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
         filings, gaps = select_filings(json.loads(metadata["text"]), cik, as_of_date)
@@ -767,7 +770,7 @@ def get_prior_quarter_evidence(ticker: str, as_of_date: str, current_report_date
     cik = cik_for(ticker)
     if cik is None:
         raise NoMarketDataError(ticker, ticker, 'not a US SEC filer')
-    client = DocumentClient(max_requests=3, max_seconds=45)
+    client = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES, max_requests=3, max_seconds=45)
     metadata = client.fetch(f'https://data.sec.gov/submissions/CIK{cik}.json')
     try:
         filings, gaps = select_prior_quarter_filings(json.loads(metadata['text']), cik,
@@ -927,7 +930,7 @@ def get_current_quarter_rpo_evidence(current: DisclosurePackage) -> DisclosurePa
             or document.source_id != 'sec-document-' + hashlib.sha256(document.url.encode()).hexdigest()):
         return current.model_copy(update={'documents': (), 'gaps': ('Current RPO source identity mismatch',)})
     try:
-        source = DocumentClient(max_requests=1, max_seconds=20).fetch(document.url)
+        source = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES, max_requests=1, max_seconds=20).fetch(document.url)
         if source['content_hash'] != document.content_hash:
             raise VendorUnavailableError('Current filing content changed; RPO comparison unavailable')
         blocks, _, gaps = extract_sections(source['text'], max_chars=40000, prioritize_rpo=True)
@@ -944,7 +947,6 @@ def get_current_quarter_rpo_evidence(current: DisclosurePackage) -> DisclosurePa
 _SEARCH_FILING_LIMIT = 24
 _SEARCH_DOCUMENT_LIMIT = 32
 _SEARCH_EXHIBITS_PER_8K = 4
-_SEARCH_DOCUMENT_MAX_BYTES = 16_000_000
 
 
 def select_search_filings(
@@ -1022,7 +1024,7 @@ def get_filing_search_evidence(
     pins = {document.url: document.content_hash for document in (
         bounded_package.documents if bounded_package else ()
     )}
-    client = DocumentClient(max_bytes=_SEARCH_DOCUMENT_MAX_BYTES,
+    client = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES,
                             max_requests=1 + _SEARCH_DOCUMENT_LIMIT, max_seconds=240)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
