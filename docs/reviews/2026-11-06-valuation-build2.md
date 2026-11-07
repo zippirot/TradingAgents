@@ -1,5 +1,12 @@
 # Valuation Build 2 and amendment A3
 
+Status, November 7: **local implementation and the authorized continued live
+proof are complete**. Publication, installation and the comparison remain held.
+The live report shows a FY2027 conditional range of $38.72–$68.55 against the
+November 6 close of $72.48. The PM adopted neither case, retained risk-assessment
+basis, and issued Underweight over 6–12 months. The final verified outcome and
+cost reconciliation below supersede the earlier incomplete checkpoints.
+
 Baseline: `3d1b8f329f53b98daaecf05df4e522bc5491c87c`, accepted staging and
 production after PR #11. Development uses the isolated Machine 2 worktree
 `/Users/zipp/Developer/tradingagents-valuation-build2-20261106/source`, branch
@@ -223,3 +230,55 @@ the operator must commit the reviewed wrapper, verify its exact clean head,
 refresh actual usage and all served route prices, and reserve conservative
 request costs against the new $12 scope and existing $36 aggregate ceiling.
 No automatic restart or further attempt is authorized.
+
+## Final verified outcome
+
+The single authorized continuation completed on reviewed clean proof-tool head
+`3ff41b07253206318f05bf12a68e28f19f9c1de5`, with the application and CLI still
+identical to `486586a`. It reused the original November 6 sources, completed
+analysts, six debate turns, RM and Trader. The real request ledger records
+exactly nine risk calls, one audit and one PM call; all eleven have usage and
+settlement observations. No completed earlier role or source request repeated.
+The original source database, cache, preferences, plans, retained inputs and
+authorized credential source remained unchanged. The temporary credential copy
+was removed after reconciliation.
+
+Independent review verified both conditional prices, source IDs, period,
+currency, closing-share basis and the saved completed close. Every automated
+feature check passed. The live card shows one FY2027 borrowings-only forward
+revenue group, closing common shares, US-GAAP, $38.72–$68.55 and the close above
+that range. The model's Underweight rating has an explicit 6–12 month horizon.
+The PM supplied a reason for adopting neither case, so the basis correctly
+remains risk assessment and no dated A3 value appears. All eight accepted audit
+findings received dispositions. This was not a forced target or forced rating.
+
+Actual Markdown, HTML and captured CLI output were inspected; a local browser
+render was also reviewed. The full saved report and canonical state label
+callback token coverage partial. The first inspection incorrectly expected the
+saved-report usage footer inside the CLI report-view component, which excludes
+that footer by design. The unchanged coverage assertion passed against both
+full saved formats and the state; CLI range, close, basis and horizon checks
+passed. No application change or weakened coverage claim was needed.
+
+Continuation usage was $3.64673900, corroborated by the actual key usage delta.
+Total observed charges across both initial attempts and this continuation are
+$16.95265890. The four earlier unknown responses retain $7.698176 reservations;
+none was released. Aggregate committed exposure is $24.65083490 against the
+approved $36 ceiling. The continuation has no new unknown holds. Both initial
+attempts and the single additional continuation are consumed; remaining dollars
+do not authorize another attempt.
+
+Evidence is combined across the stopped CLI attempt and its native graph
+continuation, not a fresh uninterrupted full CLI run. Live RM revision and
+dated PM adoption were not chosen; their positive, negative, exact-version and
+recovery branches passed offline. Financing denomination remains unknown, so
+the live financing sensitivity stays unavailable. Peer/valuation references and
+model forecasts remain labeled with their comparability and verification limits.
+No predictive track record is established.
+
+The final code-and-artifact audit found no unresolved material issue. Required
+local checks use the recorded combined evidence and affected reruns; the final
+record-only commit does not change application, CLI, test or proof-tool source.
+Exact-head GitHub CI remains pending authorized publication. No push, PR,
+merge, production promotion, installation, scheduler, broker action or worktree
+removal was performed for Build 2.
