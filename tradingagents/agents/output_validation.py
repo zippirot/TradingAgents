@@ -2,27 +2,24 @@
 
 from copy import deepcopy
 
-from pydantic import ValidationError
-
 from tradingagents.agents.decision_context import (
-    horizon_incomplete,
+    final_request,
     prepare_decision_context,
     render_decision_context,
+    validate_final_case,
 )
 from tradingagents.agents.evidence_presentation import readable_evidence
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
-from tradingagents.agents.shared_valuation import prepare_shared_valuation
-from tradingagents.agents.valuation import TargetResult, validate_target
+from tradingagents.agents.shared_valuation import prepare_shared_valuation, replay_cases
+from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_comparison import (
     compare_valuation,
     price_implied_valuation,
     render_price_implied_valuation,
     render_valuation_comparison,
 )
-from tradingagents.agents.valuation_outlooks import grounded_outlooks
-from tradingagents.dataflows.financial_evidence import EvidencePackage
 
 
 def enforce_evidence_review(state: dict) -> dict:
@@ -115,9 +112,7 @@ def enforce_publication(state: dict) -> dict:
     originals = dict(state.get("unvalidated_outputs") or {})
     updates = {}
     if "shared_valuation_scenarios" in state:
-        saved = state["shared_valuation_scenarios"]
-        requests = saved.get("requests", []) if isinstance(saved, dict) else []
-        updates["shared_valuation_scenarios"] = prepare_shared_valuation(state, requests)
+        updates["shared_valuation_scenarios"] = replay_cases(state)
     for field in (
         "investment_plan", "trader_investment_plan", "final_trade_decision",
         "investment_debate_state", "risk_debate_state",
@@ -158,20 +153,11 @@ def enforce_publication(state: dict) -> dict:
                 )
                 for key, value in debate.items()
             }
-    saved_target = state.get("target_validation")
-    request = saved_target.get("request") if isinstance(saved_target, dict) else None
-    try:
-        package = EvidencePackage.model_validate(state.get("financial_evidence"))
-        target = validate_target(request, package, grounded_outlooks(state))
-    except (ValidationError, ValueError, TypeError):
-        target = TargetResult(
-            status="unsupported",
-            reasons=("Canonical financial evidence unavailable; target omitted.",),
-        )
-    if horizon_incomplete(state):
-        target = TargetResult(status="unsupported", reasons=("Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.",))
+    request = final_request(state)
+    target = validate_final_case(state, request, updates.get("shared_valuation_scenarios"))
     updates["target_validation"] = {**target.model_dump(mode="json"), "request": request}
-    comparison = compare_valuation(state, target, request)
+    comparison = ({"status": "unavailable", "rows": [], "reason": "Case-period completed-close comparison is shown on the decision card."}
+                  if isinstance(request, dict) and request.get("method") == "case" else compare_valuation(state, target, request))
     updates["valuation_price_comparison"] = comparison
     independent = price_implied_valuation(state)
     updates["price_implied_valuation"] = independent

@@ -18,6 +18,38 @@ def _unavailable(reason):
     return {'status': 'unavailable', 'reason': reason, 'rows': []}
 
 
+def comparable_quote(state, package, unit, anchor):
+    saved_quote = state.get('price_observation') or {}
+    if saved_quote.get('status') == 'unavailable':
+        raise ValueError(saved_quote.get('reason') or 'Dated price unavailable')
+    ticker = state.get('company_of_interest') or state.get('ticker')
+    if not isinstance(ticker, str) or not ticker.strip():
+        raise ValueError('Run ticker unavailable for price identity validation')
+    ticker = normalize_symbol(ticker)
+    identity = state.get('issuer_identity') or {}
+    if (not isinstance(identity, dict)
+            or identity.get('ticker') != ticker
+            or identity.get('cik') != package.cik
+            or identity.get('as_of') != str(package.as_of)
+            or identity.get('source') != 'SEC issuer map'):
+        raise ValueError('Verified issuer identity does not bind these financial facts to the price ticker')
+    quote = validate_price_observation(saved_quote, ticker, package.as_of)
+    if unit != quote['currency'] + '/shares':
+        raise ValueError('Price and valuation currencies or share units differ')
+    quote_date = date.fromisoformat(quote['session_date'])
+    if anchor is None or anchor > quote_date:
+        raise ValueError('Source share-basis date is unavailable or later than observed price')
+    if (not quote['coverage_complete'] or date.fromisoformat(quote['coverage_start']) > anchor
+            or date.fromisoformat(quote['coverage_end']) < quote_date):
+        raise ValueError('Insufficient split coverage from original capital/share-basis date to quote')
+    # Today's observed split may already adjust yesterday's completed close,
+    # even while today's session remains incomplete. Check through the cutoff.
+    if any(anchor < date.fromisoformat(s['session_date']) <= package.as_of and Decimal(s['ratio']) != 1
+           for s in quote['splits']):
+        raise ValueError('Observed split after original capital/share-basis date; comparison unavailable without a validated restated share basis')
+    return quote
+
+
 def compare_valuation(state: dict, result: TargetResult, request) -> dict:
     """Recalculate saved requests and revalidate the retained quote; never fetch.
 
@@ -36,41 +68,14 @@ def compare_valuation(state: dict, result: TargetResult, request) -> dict:
         if ((result.method == 'ev_revenue' and any(s.multiple_assumption_date is None for s in result.scenario_results))
                 or (result.method == 'pe' and result.multiple_assumption_date is None)):
             return _unavailable('Undated multiple assumption: arithmetic remains a conditional sensitivity; dated price/reverse comparison unavailable.')
-        saved_quote = state.get('price_observation') or {}
-        if saved_quote.get('status') == 'unavailable':
-            return _unavailable(saved_quote.get('reason') or 'Dated price unavailable')
-        ticker = state.get('company_of_interest') or state.get('ticker')
-        if not isinstance(ticker, str) or not ticker.strip():
-            raise ValueError('Run ticker unavailable for price identity validation')
-        ticker = normalize_symbol(ticker)
-        identity = state.get('issuer_identity') or {}
-        if (not isinstance(identity, dict)
-                or identity.get('ticker') != ticker
-                or identity.get('cik') != package.cik
-                or identity.get('as_of') != str(package.as_of)
-                or identity.get('source') != 'SEC issuer map'):
-            raise ValueError('Verified issuer identity does not bind these financial facts to the price ticker')
-        quote = validate_price_observation(saved_quote, ticker, package.as_of)
-        if result.unit != quote['currency'] + '/shares':
-            raise ValueError('Price and valuation currencies or share units differ')
-        observed = Decimal(quote['close'])
-        quote_date = date.fromisoformat(quote['session_date'])
         if result.method == 'ev_revenue':
             anchor = result.capital_snapshot_date
         else:
             identifier = request.eps_fact_id if hasattr(request, 'eps_fact_id') else request.get('eps_fact_id')
             fact = next((f for f in package.facts if f.fact_id == identifier), None)
             anchor = fact.period_end if fact else None
-        if anchor is None or anchor > quote_date:
-            raise ValueError('Source share-basis date is unavailable or later than observed price')
-        if (not quote['coverage_complete'] or date.fromisoformat(quote['coverage_start']) > anchor
-                or date.fromisoformat(quote['coverage_end']) < quote_date):
-            raise ValueError('Insufficient split coverage from original capital/share-basis date to quote')
-        # Today's observed split may already adjust yesterday's completed close,
-        # even while today's session remains incomplete. Check through the cutoff.
-        if any(anchor < date.fromisoformat(s['session_date']) <= package.as_of and Decimal(s['ratio']) != 1
-               for s in quote['splits']):
-            raise ValueError('Observed split after original capital/share-basis date; comparison unavailable without a validated restated share basis')
+        quote = comparable_quote(state, package, result.unit, anchor)
+        observed = Decimal(quote['close'])
         rows = []
         with localcontext() as context:
             context.prec = 60

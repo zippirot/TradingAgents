@@ -21,11 +21,15 @@ from tradingagents.agents.context import (
     get_language_instruction,
     get_portfolio_context_from_state,
 )
-from tradingagents.agents.decision_context import DECISION_HORIZON_CONTRACT, horizon_incomplete
+from tradingagents.agents.decision_context import (
+    DECISION_HORIZON_CONTRACT,
+    horizon_incomplete,
+    validate_final_case,
+)
 from tradingagents.agents.rating import parse_rating
 from tradingagents.agents.schemas import RequiredHorizonPortfolioDecision, render_pm_decision
 from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, invoke_structured
-from tradingagents.agents.valuation import TargetResult, validate_target
+from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_evidence_view
 
@@ -98,22 +102,11 @@ Audit findings are unverified advice, never rating authority. An unavailable aud
 
 **Canonical financial facts for optional valuation_request (bounded view):**
 {canonical_facts}
-Use only these exact fact IDs for a supported EV/revenue or P/E request. Forecasts,
-multiples and scenario weights are assumptions, not verified outcomes. A legacy
-price_target does not establish a target. Management guidance/ambition cannot be
-self-certified: without a separately validated outlook mapping, omit that claim.
-Use multiple_assumption_date for each multiple (the current analysis date for your
-subjective assumption). A multi-scenario final request requires weight_rationale;
-weights are subjective, never calibrated probabilities. A dated decision valuation
-requires both decision_date and an explicit rerating_assumption. A future annual
-value is otherwise only a sensitivity, not a three-/six-month price target.
-For material financing or dilution, use capital_structure_assumption=forward_capital_v1
-and the typed funding bridge: cash flow, capex, acquisitions, explicit debt/lease
-changes, equity issuance and other share dilution. Assumptions must cover the
-entire interval after the source capital snapshot to the forecast end. Never fill
-a funding gap silently; unavailable assumptions may leave valuation unsupported.
-An unchanged snapshot remains an explicitly limited sensitivity. A risk-based
-Underweight does not establish a negative expected return.
+Select a supported active case through valuation_request with method "case", exact case_id and integer version.
+For a case-period value only, explicitly set rerating_assumption to "none" and omit decision_date.
+A dated link needs a future date within your stated decision horizon and a substantive rerating assumption.
+Capital and the multiple must be suitable at that date. Never derive a horizon price by discounting or interpolation.
+If no case is adopted, omit valuation_request and state why in no_case_reason. The rating remains your research opinion.
 
 **Source-grounded management outlook records (guidance and ambitions are distinct):**
 {outlook_context}
@@ -169,6 +162,7 @@ Write in order, rating first:
             request = json.loads(json.dumps(request, default=str), parse_constant=str)
             original["portfolio_manager"] = {
                 "contract_version": DECISION_HORIZON_CONTRACT,
+                "case_contract": 1,
                 "structured": json.loads(
                     json.dumps(
                         {**decision.model_dump(mode="json"), "valuation_request": request},
@@ -179,16 +173,7 @@ Write in order, rating first:
                 "valuation_request": request,
                 "thesis_candidate": thesis_candidate,
             }
-            target = (
-                validate_target(request, package, outlooks)
-                if package is not None
-                else TargetResult(
-                    status="unsupported",
-                    reasons=("Canonical financial evidence unavailable; target omitted.",),
-                )
-            )
-            if horizon_incomplete({"unvalidated_outputs": original}):
-                target = TargetResult(status="unsupported", reasons=("Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.",))
+            target = validate_final_case({**state, "unvalidated_outputs": original}, request)
             final_trade_decision = render_pm_decision(decision, target)
             final_rating = decision.rating.value
         else:

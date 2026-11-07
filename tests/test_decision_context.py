@@ -32,7 +32,7 @@ def test_canonical_request_replays_and_preserves_explicit_date():
     raw.update(decision_date='2027-01-19', rerating_assumption='Results catalyst.')
     value['target_validation']['request'] = raw
     record = prepare_decision_context(value)
-    assert record['basis'] == 'valuation' and record['target']['status'] == 'supported'
+    assert record['basis'] == 'risk assessment' and record['target']['status'] == 'supported'  # legacy arithmetic; no case adoption
     assert record['horizon']['text'] == '2027-01-19'
 
 
@@ -102,7 +102,9 @@ def test_advisory_breach_is_recomputed_and_disposition_remains_unvalidated():
 
 def test_unsupported_final_request_is_not_rescued_by_early_scenarios():
     value = state()
-    value['shared_valuation_scenarios'] = {'requests': [{'name': 'Base', 'request': ev_request()}]}
+    from tests.test_case_valuation import revenue_case
+    value.update(scenario_state([revenue_case()]))
+    value['shared_valuation_scenarios'] = {'requests': [revenue_case()]}
     value['target_validation']['request'] = ev_request() | {'shares_fact_id': 'invented'}
     record = prepare_decision_context(value)
     assert record['basis'] == 'risk assessment' and record['target']['status'] == 'unsupported'

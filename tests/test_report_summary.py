@@ -70,7 +70,7 @@ def test_complete_summary_is_grounded_and_retained():
     assert 5 <= len(shown["sentences"]) <= 12
     assert shown["sentences"][0].startswith("Underweight")
     assert "lower-than-normal allocation" in shown["sentences"][0]
-    assert "final price target" in shown["sentences"][-1]
+    assert "no validated case adoption" in shown["sentences"][-1]
     assert "conditional" in shown["sentences"][-1]
     assert "completed" in shown["process"].lower()
     assert "three rounds" not in shown["process"].lower()
@@ -338,7 +338,7 @@ def test_non_english_summary_uses_localized_framing():
     assert shown["status"] == "completed"
     assert shown["sentences"][0].startswith("Underweight")
     assert "exposición" in shown["sentences"][0]
-    assert "objetivo" in shown["sentences"][-1]
+    assert "ningún escenario adoptado" in shown["sentences"][-1]
     assert "analistas" in shown["process"].lower()
 
 
@@ -359,7 +359,7 @@ def test_custom_language_keeps_protected_framing_canonical_with_requested_body()
     assert record["status"] == "completed"
     assert "framing" not in record
     assert "lower-than-normal allocation" in record["sentences"][0]
-    assert "no supported final price target" in record["sentences"][-1]
+    assert "no validated case adoption" in record["sentences"][-1]
     shown = resolve_summary(context, record)
     assert shown["process"].startswith("Completed analyst reports")
     assert shown["sentences"][1].startswith("Il rapporto")
@@ -385,7 +385,7 @@ def test_custom_language_offline_fallback_keeps_canonical_facts():
     context = build_summary_input(*report(language="Italian"))
     shown = resolve_summary(context, None)
     assert "lower-than-normal allocation" in shown["sentences"][0]
-    assert "final price target" in shown["sentences"][-1]
+    assert "no validated case adoption" in shown["sentences"][-1]
     assert "Completed analyst reports" in shown["process"]
 
 
@@ -435,3 +435,60 @@ def test_hindi_korean_and_arabic_sentence_boundaries_are_counted():
     assert _sentence_count("पहला वाक्य।दूसरा वाक्य।") == 2
     assert _sentence_count("첫 문장이다.다음 문장이다.") == 2
     assert _sentence_count("هل هذا صحيح؟نعم، هذا صحيح۔") == 2
+
+
+@pytest.mark.parametrize("language", ["English", "Spanish", "Italian"])
+@pytest.mark.parametrize("selection", ["adopted", "unadopted", "stale", "legacy", "review"])
+def test_executive_evidence_framing_follows_final_case_authority(language, selection):
+    from tests.test_case_valuation import revenue_case
+    from tests.test_shared_valuation import state as scenario_state
+    from tests.test_valuation import ev_request
+    from tradingagents.agents.decision_context import prepare_decision_context
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+
+    base, settings, parts = report(language=language)
+    state = {**base, **scenario_state([revenue_case()])}
+    cases = prepare_shared_valuation(state)
+    row = cases["rows"][0]
+    request = {"method": "case", "case_id": row["case_id"], "version": row["version"], "rerating_assumption": "none"}
+    pm = {"case_contract": 1, "valuation_request": request, "structured": {"time_horizon": "6 months"}}
+    if selection == "unadopted":
+        pm["valuation_request"] = None
+    if selection == "stale":
+        pm["valuation_request"] = {**request, "version": 2}
+    if selection == "legacy":
+        pm = {"structured": {"time_horizon": "6 months"}}
+    if selection == "review":
+        state["final_rating"] = "REVIEW"
+    state.update(shared_valuation_scenarios=cases, unvalidated_outputs={"portfolio_manager": pm},
+                 target_validation={"request": ev_request() if selection == "legacy" else request})
+    state["decision_context"] = prepare_decision_context(state)
+    if selection == "legacy":
+        assert state["decision_context"]["target"]["status"] == "supported"
+    context = build_summary_input(state, settings, parts)
+    shown = resolve_summary(context, None)["sentences"][-1]
+    if selection == "adopted":
+        assert ("valor condicional al cierre del período" if language == "Spanish" else "conditional value at the end of the case period") in shown
+    else:
+        assert ("ningún escenario adoptado" if language == "Spanish" else "no validated case adoption") in shown
+    assert "price target" not in shown.lower() and "objetivo" not in shown.lower()
+    if selection in {"adopted", "unadopted"} and language == "English":
+        contrary = ("The portfolio manager did not adopt any valuation case." if selection == "adopted"
+                    else "The portfolio manager adopted the downside case as the final valuation.")
+        payload = valid_payload()
+        payload["sentences"][2]["text"] = "The portfolio manager considered the downside case when assessing financing risk."
+        saved = generate_summary(context, FakeLLM(payload))
+        assert resolve_summary(context, saved)["status"] == "completed"
+        payload["sentences"][2]["text"] = contrary
+        assert generate_summary(context, FakeLLM(payload))["status"] == "unavailable"
+        saved["body_items"][2]["text"] = contrary
+        saved["sentences"][3] = contrary
+        assert resolve_summary(context, saved)["reason"] == "invalid_saved_summary"
+    if selection == "adopted" and language == "English":
+        body = valid_payload()
+        body["sentences"][-1]["text"] = "The report sets a price target of $100."
+        assert generate_summary(context, FakeLLM(body))["status"] == "unavailable"
+        pm["valuation_request"] = {**request, "version": 2}
+        stale = build_summary_input(state, settings, parts)
+        assert stale["constraints"]["adopted_case"] is None
+        assert stale["source_input_digest"] != context["source_input_digest"]

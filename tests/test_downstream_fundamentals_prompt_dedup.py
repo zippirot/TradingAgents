@@ -75,7 +75,9 @@ def test_accepted_evidence_is_not_replayed_as_fundamentals(module_name, factory_
     assert prompt.count("RESEARCH_INTERPRETATION_SENTINEL") == 1
     assert "UNVALIDATED_CLAIM_SENTINEL" not in prompt
     assert "See the accepted evidence brief and labeled research context above." in prompt
-    assert "SCENARIO_STATUS_SENTINEL" in prompt
+    # Cached scenario projections are not source authority. This minimal state
+    # has no eligible financial package from which to recalculate a scenario.
+    assert "SCENARIO_STATUS_SENTINEL" not in prompt
     for marker in ("TECHNICAL_SENTINEL", "SENTIMENT_SENTINEL", "NEWS_SENTINEL"):
         assert marker in prompt
 

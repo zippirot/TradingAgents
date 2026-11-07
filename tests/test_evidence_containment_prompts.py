@@ -58,14 +58,7 @@ def test_downstream_roles_cannot_promote_unsupported_claims(monkeypatch, role):
     )
     if kind == "managers":
         monkeypatch.setattr(module, "bind_structured", lambda *a: None)
-        if role == "research":
-            monkeypatch.setattr(
-                module,
-                "invoke_structured_or_freetext",
-                lambda structured, llm, prompt, *a: captured.append(prompt) or "Hold",
-            )
-        else:
-            monkeypatch.setattr(module, "invoke_structured", lambda *a: None)
+        monkeypatch.setattr(module, "invoke_structured", lambda *a: None)
     debate = {
         "history": "Unverified conversion hypothesis",
         "count": 1,

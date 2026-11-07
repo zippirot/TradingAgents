@@ -36,6 +36,7 @@ from pydantic import (
 )
 
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, TargetResult
+from tradingagents.agents.valuation_cases import CaseSelection
 from tradingagents.memory.thesis import ThesisCondition
 
 # LLMs sometimes write a placeholder string ("None", "N/A", ...) into an optional
@@ -116,6 +117,10 @@ class ResearchPlan(BaseModel):
     instructions the trader can execute against.
     """
 
+    revised_cases: Annotated[Any, WithJsonSchema({"anyOf": [
+        {"type": "array", "maxItems": 3, "items": {"type": "object", "properties": {
+            "name": {"type": "string"}, "request": {"type": "object"}},
+            "required": ["name", "request"], "additionalProperties": False}}, {"type": "null"}]})] = Field(default=None, description="Optional one complete replacement valuation_scenarios list; preserve unchanged case names to retain identity. Omit if no revision.")
     recommendation: PortfolioRating = Field(
         description=(
             "The investment recommendation. Exactly one of Buy / Overweight / "
@@ -298,7 +303,7 @@ def label_legacy_trader_price(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-ValuationRequest = Annotated[EVRevenueTarget | PETarget, Field(discriminator="method")]
+ValuationRequest = Annotated[CaseSelection | EVRevenueTarget | PETarget, Field(discriminator="method")]
 _VALUATION_REQUEST = TypeAdapter(ValuationRequest)
 
 
@@ -355,10 +360,11 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Legacy input retained for compatibility only; never an authoritative target. Use valuation_request with canonical fact IDs, or omit the target.",
     )
+    no_case_reason: str | None = Field(default=None, max_length=1200, description="Brief reason when no supported case is adopted.")
     valuation_request: ValuationRequest | None = Field(
         default=None,
         description=(
-            "Optional supported valuation bridge: EV/revenue scenarios or basis-matched P/E. "
+            "Select an active case by method=case, exact case_id, version, and explicit rerating_assumption (none, or a justified dated link). "
             "Reference exact canonical financial fact IDs; make forecasts, multiples and subjective "
             "weights explicit. Never invent missing inputs. Management guidance/ambition needs "
             "a separately source-validated outlook reference; model assertions do not establish one."
