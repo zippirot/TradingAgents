@@ -81,6 +81,18 @@ def test_audit_failure_leaves_report_with_unrated_and_no_stale_link(tmp_path, mo
 def test_direct_html_has_assessment_but_no_sidecar_link():
     page = render_report("DOCN", _state(), None)
     assert "Operational quality" in page
+    assert "Report integrity: not applicable (in-memory rendering)" in page
+    assert "Report integrity: verified" not in page
+    assert "Full operational audit" not in page
+
+
+def test_direct_html_claimed_publication_is_unverified_without_store():
+    state = _state()
+    state["publication_record"] = {"decision_id": "claimed", "published_at": "2026-11-06",
+                                   "record_sha256": "0" * 64}
+    page = render_report("DOCN", state, None)
+    assert "Operational quality: 2/5 — Low confidence" in page
+    assert "Report integrity: unverified" in page
     assert "Full operational audit" not in page
 
 

@@ -1,0 +1,100 @@
+{
+  "run_id": "3bc83cff-9f85-4809-9c15-d2267678b118",
+  "status": "completed",
+  "started_at": "2026-11-07T16:07:19.448Z",
+  "deadline_at": "2026-11-07T16:52:19.448Z",
+  "completed_at": "2026-11-07T16:12:06.471Z",
+  "report": {
+    "base_commit": "fd010a03ba33091860e3baf03c92eb5fb4c91e8c",
+    "head_commit": "d3cb1e0edd57326c2eb994deab1b690ffb4fbe4d",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 19,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-operational-report-audit-acceptance.md",
+      "docs/superpowers/plans/2026-11-06-operational-report-audit.md",
+      "tests/test_operational_audit.py",
+      "tests/test_operational_capture.py",
+      "tests/test_operational_export.py",
+      "tradingagents/agents/evidence_validation.py",
+      "tradingagents/agents/state.py",
+      "tradingagents/agents/structured.py",
+      "tradingagents/dataflows/router.py",
+      "tradingagents/dataflows/vendors/reddit.py",
+      "tradingagents/dataflows/vendors/stocktwits.py",
+      "tradingagents/graph/setup.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/operational_audit.py",
+      "tradingagents/operational_capture.py",
+      "tradingagents/report_html.py",
+      "tradingagents/reporting.py"
+    ],
+    "summary": "Audited frozen change fd010a03→d3cb1e0e (17 paths, ~1,376 diff lines) implementing the operational report audit plan. The core design is sound and matches milestones 1–5: observations are run-identity-bound with per-row content hashes; scoring is deterministic with explicit reason codes where source severity is never rating authority; critical findings outweigh passes; Unrated is distinct from 2/5; stale/malformed or foreign-run observations cap the score at 2/5, blocking a different or interrupted run from borrowing a passing result. Export binding uses a destination lock, strict write-and-read-back verification, digest-suffixed companion filenames for reused folders, Unrated-with-no-stale-link on audit-only failure, and propagation of required write failures; both renderers end with the required footer and tests parse actual artifacts including concurrency, Markdown-only, direct-render and reused-folder cases, and assert no private exception text leaks. Material issues: (1) VendorNotConfiguredError skips are counted as vendor failures, so an intentional configuration skip grades a run 4/5 (or 3/5 on exhaustion), contradicting the plan's rule that intentional skips do not lower the score; (2) structured-output exhaustion falling back to free text is recorded as model_retry_recovered (5/5, invisible) rather than fallback_recovered (4/5), making exhausted recovery indistinguishable from a clean run; (3) direct HTML render claims Report integrity \"verified\" without performing any export/publication check; (4) milestone-2 verify items (truncation capture, partial restart, second independent run through the real graph) are not evidenced by tests in the frozen diff; (5) latent risk that the observation reducer's ValueError could abort a live run if identity inputs ever vary mid-run; (6) milestones 6–7 (independent audit, visual/portable inspection, closure) are open at head, as the acceptance record itself discloses — this review presumably serves as that pending independent audit. No critical or high-severity defects found; publication integrity, decisions, and historical records are untouched by the new observation fields in the diff.",
+    "limitations": [
+      "Audit was restricted to the frozen request.json diff and requirements; unchanged files it depends on (evidence_snapshot allowlist, dataflows.files.locked/replace_file, resolve_summary, cli/run.py, publication verification internals) could not be inspected, so claims like 'operational_observations excluded from publication identity' rest on the acceptance document, not direct evidence.",
+      "Test and lint results cited in the acceptance record (3,032-test default suite, Ruff, git diff --check) were not independently reproduced; no commands were run against the repository per the no-write/no-install constraint.",
+      "ContextVar propagation of the capture context into threaded tool execution under LangGraph/LangChain could not be verified from the diff alone; a propagation gap would silently drop tool-level observations rather than corrupt them.",
+      "Coverage of sentiment prefetch and any acquisition occurring outside observed graph nodes could not be confirmed; record_operation is a silent no-op outside an active node context.",
+      "Representative synthetic exports referenced by the plan's milestone 6 were not part of the frozen manifest, so artifact-level visual/portable-folder inspection was not possible."
+    ],
+    "findings": [
+      {
+        "severity": "medium",
+        "title": "Intentional vendor-configuration skip lowers operational score: VendorNotConfiguredError is counted in failed_vendors, grading a successful fallback 4/5 (vendor_fallback_recovered) and an unconfigured chain 3/5 (vendor_unavailable), contradicting the plan rule that an intentional skip does not lower the score",
+        "path": "tradingagents/dataflows/router.py"
+      },
+      {
+        "severity": "medium",
+        "title": "Structured-output exhaustion with free-text fallback recorded as model_retry_recovered (5/5, produces no finding) instead of fallback_recovered (4/5), making exhausted recovery indistinguishable from a clean run despite the plan requiring that distinction",
+        "path": "tradingagents/agents/structured.py"
+      },
+      {
+        "severity": "low",
+        "title": "Direct HTML render reports Report integrity as 'verified' for states without a publication record although no export or publication check runs on that path; plan requires observed results or explicit unknown/not-applicable per rating input",
+        "path": "tradingagents/report_html.py"
+      },
+      {
+        "severity": "low",
+        "title": "Milestone-2 verify items not evidenced in frozen diff tests: no test exercises model_output_truncated capture, checkpoint partial-restart observation carryover, or a second independent same-ticker/date run through the real graph (identity rejection covered only at unit level)",
+        "path": "tests/test_operational_capture.py"
+      },
+      {
+        "severity": "low",
+        "title": "Latent run-abort risk: merge_observations/observation raise ValueError during live graph state reduction on identity or digest inconsistency (e.g., run_settings mutated mid-run), so an audit-only feature could crash a real run; no current trigger visible in diff",
+        "path": "tradingagents/operational_audit.py"
+      },
+      {
+        "severity": "low",
+        "title": "Goal not closed at head: independent Claude audit, visual/portable-folder inspection and closure (milestones 6–7) remain pending, as honestly disclosed in the acceptance record; this review presumably constitutes the pending independent audit",
+        "path": "docs/reviews/2026-11-07-operational-report-audit-acceptance.md"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "extra medium",
+      "effective_build_size": "unknown",
+      "escalation_reasons": []
+    },
+    "progress": {
+      "observed_events": 645,
+      "last_activity_at": "2026-11-07T16:12:06.114Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 2,
+      "hard_budget_usd": 4,
+      "soft_turn_limit": null,
+      "turn_limit": 25,
+      "wall_clock_limit_minutes": 45,
+      "actual_cost_usd": 0.8300682500000001,
+      "actual_elapsed_ms": 286874,
+      "soft_limit_reached": false
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

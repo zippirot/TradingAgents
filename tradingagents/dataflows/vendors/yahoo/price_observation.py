@@ -378,6 +378,11 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
         raw["adjustment_verification"] = _verify_adjustment_basis(raw)
         return _project(raw)
     except Exception as exc:
+        from tradingagents.dataflows.errors import VendorUnavailableError
+        from tradingagents.operational_capture import record_operation
+
+        if isinstance(exc, VendorUnavailableError):
+            record_operation('vendor_unavailable', scope='Yahoo price retrieval')
         # Provider exceptions can embed URLs or secrets; expose bounded types only.
         reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
         return {

@@ -276,7 +276,7 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts=N
 
     try:
         assessment = _operational_assessment(final_state, summary,
-                    "unverified" if final_state.get("publication_record") else "verified")
+                    "unverified" if final_state.get("publication_record") else "not_applicable")
     except Exception:
         assessment = _unavailable_assessment("The operational audit could not be completed for this export.")
     return _render_prepared_report(ticker, prepared, display_settings, parts, summary,

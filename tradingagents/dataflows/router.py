@@ -247,7 +247,10 @@ def route_to_vendor(method: str, *args, **kwargs):
             last_unavailable = e
             continue
         except VendorNotConfiguredError as e:
-            failed_vendors.append(vendor)
+            # Default discovery may include optional providers without credentials.
+            # An explicitly selected provider is expected to be configured.
+            if explicit:
+                failed_vendors.append(vendor)
             logger.warning("Vendor %r not configured for %s; trying next vendor.", vendor, method)
             if first_error is None:
                 first_error = e  # Surface it if no other vendor can serve the call.
@@ -266,6 +269,8 @@ def route_to_vendor(method: str, *args, **kwargs):
             failed = e
             continue
 
+    if not failed_vendors and isinstance(first_error, VendorNotConfiguredError):
+        record_operation('vendor_unavailable', scope=method)
     if failed_vendors:
         record_operation('vendor_unavailable', scope=f'{method} {" ".join(failed_vendors)}')
     elif last_no_data is not None:

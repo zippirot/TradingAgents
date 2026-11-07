@@ -197,7 +197,7 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
         findings.append({"score": 1, "code": "compromised_export", "stage": "Report integrity",
                          "text": "The export conflicts with independently checked authoritative content.",
                          "locator": "publication_record"})
-    elif integrity != "verified":
+    elif integrity not in {"verified", "not_applicable"}:
         findings.append({"score": 2, "code": "unknown_integrity", "stage": "Report integrity",
                          "text": "Export integrity could not be established.", "locator": "publication_record"})
     summary = state.get("executive_summary") if isinstance(state, Mapping) else None
@@ -220,7 +220,8 @@ def _assessment(score, state, rows, expected, missing, integrity, consequence, i
         "Stages": stages,
         "Models/tools": "unknown" if score is None else (model_issues[0]["code"].replace("_", " ") if model_issues else "no material failure observed"),
         "Run identity": "unknown" if score is None else ("mismatched or malformed record" if invalid else "matched"),
-        "Report integrity": "unknown" if score is None else integrity,
+        "Report integrity": "unknown" if score is None else (
+            "not applicable (in-memory rendering)" if integrity == "not_applicable" else integrity),
         "Audit coverage": "unavailable" if score is None else ("partial" if invalid or missing else "sufficient"),
     }
     publication = state.get("publication_record") if isinstance(state, Mapping) else None

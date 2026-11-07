@@ -109,6 +109,12 @@ def test_unverified_export_is_low_confidence_and_compromised_export_is_critical(
     assert assess_audit(observed(), integrity="compromised")["score"] == 1
 
 
+def test_in_memory_assessment_names_integrity_check_as_not_applicable():
+    result = assess_audit(observed(), integrity="not_applicable")
+    assert result["score"] == 5
+    assert result["inputs"]["Report integrity"] == "not applicable (in-memory rendering)"
+
+
 def test_editorial_failure_affects_only_summary_and_review_is_intentional():
     state = observed()
     state["executive_summary"] = {"status": "unavailable"}

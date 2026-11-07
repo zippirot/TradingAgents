@@ -96,5 +96,5 @@ def invoke_structured_or_freetext(
         return render(result)
     text = plain_llm.invoke(prompt).content
     if structured_llm is not None:
-        record_operation('model_retry_recovered')
+        record_operation('fallback_recovered')
     return text

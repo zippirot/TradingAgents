@@ -115,3 +115,126 @@ def test_real_finalization_exports_clean_or_degraded_assessment(tmp_path, monkey
     for path in (output, output.with_suffix('.html'), output.parent / 'operational_audit.md'):
         assert expected in path.read_text(), path.name
     assert output.read_text().rstrip().endswith('(./operational_audit.md)')
+
+
+@pytest.mark.unit
+def test_default_vendor_discovery_skips_unconfigured_provider_without_penalty(monkeypatch):
+    from tradingagents.dataflows import router
+    from tradingagents.dataflows.config import run_config
+    from tradingagents.dataflows.errors import VendorNotConfiguredError
+    from tradingagents.operational_capture import observed_node
+
+    def unconfigured(*args, **kwargs):
+        raise VendorNotConfiguredError('optional credential absent')
+    monkeypatch.setitem(router.VENDOR_METHODS, 'get_stock_data',
+                        {'yfinance': unconfigured, 'alpha_vantage': lambda *a, **kw: 'usable'})
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    with run_config({'data_vendors': {'core_stock_apis': 'default'}}):
+        result = observed_node(lambda s: {'answer': router.route_to_vendor('get_stock_data', 'NVDA')},
+                               'Market Analyst')(state, {})
+    assert {r['code'] for r in result['operational_observations'].values()} == {'completed'}
+
+
+@pytest.mark.unit
+def test_failed_structured_call_records_successful_fallback():
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+    from tradingagents.operational_capture import observed_node
+
+    class BrokenStructured:
+        def invoke(self, *args):
+            raise ValueError('malformed structured response')
+
+    class Plain:
+        def invoke(self, *args):
+            from langchain_core.messages import AIMessage
+            return AIMessage(content='complete report')
+
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    def node(s):
+        return {'report': invoke_structured_or_freetext(BrokenStructured(), Plain(), [], str, 'Analyst')}
+    result = observed_node(node, 'Market Analyst')(state, {})
+    assert 'fallback_recovered' in {r['code'] for r in result['operational_observations'].values()}
+
+
+@pytest.mark.unit
+def test_provider_truncation_is_observed_from_actual_model_callback():
+    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+    from langchain_core.messages import AIMessage
+
+    from tradingagents.operational_capture import observed_node
+
+    model = FakeMessagesListChatModel(responses=[AIMessage(content='partial', response_metadata={'finish_reason': 'length'})])
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    result = observed_node(lambda s: {'report': model.invoke('fixture').content}, 'Market Analyst')(state, {})
+    assert 'model_output_truncated' in {r['code'] for r in result['operational_observations'].values()}
+
+
+@pytest.mark.unit
+def test_checkpoint_resume_and_second_run_keep_separate_observations(tmp_path, monkeypatch, offline):  # noqa: F811
+    import json
+
+    from tradingagents.operational_audit import assess_audit
+
+    model = ScriptedModel(fail_at=12)
+    graph = _graph(tmp_path, monkeypatch, model, checkpoint_enabled=True)
+    with pytest.raises(RuntimeError, match='provider unavailable'):
+        graph.propagate('NVDA', TRADE_DATE)
+    checkpoint_id = graph.begin_checkpoint('NVDA', TRADE_DATE)
+    saved = graph.graph.get_state({'configurable': {'thread_id': checkpoint_id}})
+    original_rows = dict(saved.values.get('operational_observations') or {})
+    original_run = saved.values['run_id']
+    graph.end_checkpoint()
+    assert original_rows
+    resumed, _ = graph.propagate('NVDA', TRADE_DATE)
+    assert resumed['run_id'] == original_run
+    assert original_rows.items() <= resumed['operational_observations'].items()
+    # The next invocation starts a new run after successful checkpoint clearing.
+    another, _ = graph.propagate('NVDA', TRADE_DATE)
+    assert another['run_id'] != original_run
+    assert all(row['run_id'] == another['run_id'] for row in another['operational_observations'].values())
+    assert assess_audit(another)['inputs']['Run identity'] == 'matched'
+    log = tmp_path / 'results/NVDA/TradingAgentsStrategy_logs' / f'full_states_log_{TRADE_DATE}.json'
+    assert json.loads(log.read_text())['operational_observations'] == another['operational_observations']
+
+
+@pytest.mark.unit
+def test_direct_price_failure_is_retained_even_when_fetch_returns_placeholder(monkeypatch):
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    from tradingagents.operational_capture import observed_node
+
+    def failed(*args, **kwargs):
+        raise VendorUnavailableError('private transport details')
+    monkeypatch.setattr(price_observation, 'yf_retry', failed)
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    result = observed_node(lambda s: {'price': price_observation.get_price_observation('NVDA', TRADE_DATE)},
+                           'Source Acquisition')(state, {})
+    assert result['price']['status'] == 'unavailable'
+    rows = result['operational_observations']
+    assert 'vendor_unavailable' in {r['code'] for r in rows.values()}
+    assert 'private transport details' not in str(rows)
+
+
+@pytest.mark.unit
+def test_application_visible_yahoo_retry_records_recovery():
+    from yfinance.exceptions import YFRateLimitError
+
+    from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+    from tradingagents.operational_capture import observed_node
+
+    attempts = 0
+    def transient():
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise YFRateLimitError()
+        return 'complete'
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    result = observed_node(lambda s: {'data': yf_retry(transient, base_delay=0)}, 'Source Acquisition')(state, {})
+    assert attempts == 3
+    assert 'recovered_retry' in {r['code'] for r in result['operational_observations'].values()}

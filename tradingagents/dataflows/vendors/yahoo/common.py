@@ -8,6 +8,7 @@ from yfinance.exceptions import YFPricesMissingError, YFRateLimitError
 
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.net import vendor_reachable
+from tradingagents.operational_capture import record_operation
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
     """
     for attempt in range(max_retries + 1):
         try:
-            return func()
+            result = func()
+            if attempt:
+                record_operation('recovered_retry', scope='Yahoo Finance')
+            return result
         except YFRateLimitError as exc:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
