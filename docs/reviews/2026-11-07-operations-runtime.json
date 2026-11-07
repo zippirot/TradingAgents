@@ -1,5 +1,6 @@
 {
-  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-6jvijlrp",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-uy8zktwy",
+  "results_configuration": "relative results; Enter returns displayed default",
   "recorded_source_sha256": "1a0d35d1b6644f44041aa7e2241b4d4011a2ba414eaa8575fc12aeea3f7a5868",
   "copied_source_unchanged": true,
   "split_actions": "simulated zero actions; no live absence claim",
@@ -29,6 +30,54 @@
     "completed"
   ],
   "attempts": [
+    {
+      "events": [
+        "started",
+        "interrupted"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "run.log"
+      ],
+      "run_log_bytes": 0,
+      "message_log_bytes": 349
+    },
+    {
+      "events": [
+        "started",
+        "completed"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports-retry/.report-export.lock",
+        "reports-retry/1_analysts/market.md",
+        "reports-retry/2_research/bear.md",
+        "reports-retry/2_research/bull.md",
+        "reports-retry/2_research/manager.md",
+        "reports-retry/3_trading/trader.md",
+        "reports-retry/4_risk/aggressive.md",
+        "reports-retry/4_risk/conservative.md",
+        "reports-retry/4_risk/neutral.md",
+        "reports-retry/5_portfolio/decision.md",
+        "reports-retry/6_evidence/summary.md",
+        "reports-retry/complete_report.html",
+        "reports-retry/complete_report.md",
+        "reports-retry/diagnostics.json",
+        "reports-retry/evidence.json",
+        "reports-retry/executive_summary.json",
+        "reports-retry/operational_audit.md",
+        "reports-retry/quality.json",
+        "reports/final_trade_decision.md",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "reports/trader_investment_plan.md",
+        "run.log"
+      ],
+      "run_log_bytes": 356,
+      "message_log_bytes": 823
+    },
     {
       "events": [
         "started",
@@ -66,20 +115,6 @@
     {
       "events": [
         "started",
-        "interrupted"
-      ],
-      "files": [
-        "message_tool.log",
-        "reports/investment_plan.md",
-        "reports/market_report.md",
-        "run.log"
-      ],
-      "run_log_bytes": 0,
-      "message_log_bytes": 349
-    },
-    {
-      "events": [
-        "started",
         "completed"
       ],
       "files": [
@@ -110,40 +145,6 @@
       ],
       "run_log_bytes": 0,
       "message_log_bytes": 687
-    },
-    {
-      "events": [
-        "started",
-        "completed"
-      ],
-      "files": [
-        "message_tool.log",
-        "reports-retry/.report-export.lock",
-        "reports-retry/1_analysts/market.md",
-        "reports-retry/2_research/bear.md",
-        "reports-retry/2_research/bull.md",
-        "reports-retry/2_research/manager.md",
-        "reports-retry/3_trading/trader.md",
-        "reports-retry/4_risk/aggressive.md",
-        "reports-retry/4_risk/conservative.md",
-        "reports-retry/4_risk/neutral.md",
-        "reports-retry/5_portfolio/decision.md",
-        "reports-retry/6_evidence/summary.md",
-        "reports-retry/complete_report.html",
-        "reports-retry/complete_report.md",
-        "reports-retry/diagnostics.json",
-        "reports-retry/evidence.json",
-        "reports-retry/executive_summary.json",
-        "reports-retry/operational_audit.md",
-        "reports-retry/quality.json",
-        "reports/final_trade_decision.md",
-        "reports/investment_plan.md",
-        "reports/market_report.md",
-        "reports/trader_investment_plan.md",
-        "run.log"
-      ],
-      "run_log_bytes": 356,
-      "message_log_bytes": 823
     }
   ],
   "completed_reports": 2,
@@ -153,14 +154,14 @@
   "state_archives": 3,
   "distinct_published_runs": 3,
   "reopened_report_hashes": [
-    "c8201ca3f2d0",
-    "a75656c3c6b6",
-    "c47bcbf9e43e"
+    "f693312299de",
+    "d207822b4f1f",
+    "4bf96f934f97"
   ],
   "html_pages": [
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-6jvijlrp/results/DOCN/2026-11-06/150309-05e09b9f/reports/complete_report.html",
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-6jvijlrp/results/DOCN/2026-11-06/150309-2563de26/reports/complete_report.html",
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-6jvijlrp/results/DOCN/2026-11-06/150309-36e86254/reports-retry/complete_report.html"
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-uy8zktwy/results/DOCN/2026-11-06/154633-60c9e525/reports-retry/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-uy8zktwy/results/DOCN/2026-11-06/154633-c87fada5/reports/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-uy8zktwy/results/DOCN/2026-11-06/154634-d63e0c6d/reports/complete_report.html"
   ],
   "latest_rating": "Hold",
   "source_hash_matches_state": true,
@@ -169,18 +170,18 @@
   "resumed_message": true,
   "summary": [
     "Analysis Complete!",
-    "Run log: ",
+    "Run log: results/DOCN/2026-11-06/154633-c87fada5/run.log",
     "Tokens: unavailable (usage was not observed)",
     "Analysis Complete!",
-    "Run log: ",
+    "Run log: results/DOCN/2026-11-06/154633-60c9e525/run.log",
     "Tokens: unavailable (usage was not observed)",
     "Analysis Complete!",
-    "Run log: ",
+    "Run log: results/DOCN/2026-11-06/154634-d63e0c6d/run.log",
     "Tokens: unavailable (usage was not observed)"
   ],
   "network_blocked": true,
   "credentials_isolated": true,
   "secret_found": false,
-  "tested_commit": "da6f1876adc5ac37b015baa1f8e5f7244421c34e",
-  "stage": "hardened native CLI replay"
+  "tested_commit": "156570502e124d710c2daa0447f898086f09fd9d",
+  "stage": "final corrected native CLI replay with relative results and Enter defaults"
 }
