@@ -265,6 +265,15 @@ def test_bounded_extraction_keeps_late_numerical_expectation():
     assert gaps
 
 
+def test_numerical_expectation_boilerplate_cannot_displace_source_statements():
+    boilerplate = "In 2026 we expect revenue cash flow capital debt outlook changes. " + "x" * 900
+    html = ("<p>" + boilerplate + "</p>") * 60
+    html += ("<h2>CONSOLIDATED STATEMENTS OF OPERATIONS</h2>"
+             "<table><tr><td>Revenue</td><td>777 million</td></tr></table>")
+    blocks, _, _ = docs.extract_sections(html, max_chars=len(boilerplate) * 20)
+    assert any("Revenue | 777 million" in block.text for block in blocks)
+
+
 def test_sec_table_nested_paragraphs_keep_columns_headers_and_units():
     html = """<h2>Equipment obligations</h2><table>
     <caption><p>Amounts in millions</p></caption>

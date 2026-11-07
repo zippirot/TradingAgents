@@ -528,15 +528,16 @@ def extract_sections(
                 else 4
                 if prioritize_guidance and numerical_guidance
                 else 3
-                if statement_table or obligation_table or numerical_guidance
+                if statement_table or obligation_table
                 else 2
                 if financing_scope.search(block.text)
                 else 1
-                if hits
+                if hits or numerical_guidance
                 else 0
             )
             return (
                 tier,
+                bool(numerical_guidance),
                 hits + bool(re.search(r"\d", block.text)) * bool(hits),
                 bool(financial.search(block.section)),
             )
