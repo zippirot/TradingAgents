@@ -1,6 +1,6 @@
 # Build C — Settlement and publication reliability
 
-Current status, 2026-11-07: original independent audit completed; vendor correction 7839c9d9 verified locally; required independent delta closure pending. No Build B start, C integration/push, production advancement, installation or cleanup is authorized.
+Current status, 2026-11-07: Build C complete locally. Original independent audit and focused closure completed; all confirmed material findings closed. Source7839c9d9 verified; audited evidence candidate8b01dfa2. Final handoff adds records only. No Build B start, C integration/push, production advancement, installation or cleanup is authorized.
 
 ## Authority, stage and source
 
@@ -60,3 +60,15 @@ Exact correction7839c9d9: full default pytest **3193 passed,10 skipped,1 deselec
 Independent delta closure is required on c703fe50→the clean evidence candidate. Original audit covers unchanged C1–C5 source; closure focuses on producer/error classification, provenance, stale-check validation, regressions and evidence consistency. Initial run manifest validated successfully before HEAD advanced, with status incomplete and a material closure plan. Required independent review has not yet accepted the correction.
 
 Corrected full-suite stdout SHA-256: `70c398c5e072d7eb915d15aefcec9600809efa1d361c8e07181c11492926b0cb`.
+
+## Final local acceptance
+
+Independent Claude delta audit c703fe50→`8b01dfa26136845c9e3aecf29ff345748cfbe3fc` completed,21 turns,$1.363108,512000ms,reviewer_completed. It confirms the material C2 reachability correction and stale-check fix closed, supports local feature acceptance and reports no Critical/High/Medium. Four Low observations concern live-echo/vendor-version dependence, incompatible-install import diagnostics and negative test scope; all verified and recorded in the findings review. Live vendor delivery and remote CI remain unverified, as authorized offline proof/release boundaries require. No unsafe inference was added to avoid that limitation.
+
+Combined C independent audit cost: $6.84075325 (initial$5.47764525 + closure$1.363108). Requested/served model both Claude Fable. Both runs reached soft convergence guidance, neither exhausted a hard limit. Executor scope inventory is not a claim that every supplied file was read. These are static independent reviews, not independently rerun tests. Full terminal reports retained alongside this record.
+
+Initial manifest validated while HEAD was c703fe50, incomplete with a material closure plan. Delta manifest validated while HEAD was8b01dfa2: verification_status verified, final_status complete. Validation receipt `/tmp/settlement-closure-validation.json`; external artifacts under `/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-07-settlement-reliability-closure`. Application source/tests are unchanged from exact full-suite/replay source7839c9d9; final follow-up changes only acceptance/audit/plan records. Remote CI, integration, release and installation remain outside this local handoff.
+
+Deferred nonmaterial findings: pre-existing overloaded failure tuple shape; misleading persistence label when cached prospective timezone is missing; future provider-version compatibility diagnostics. Hash-valid records lacking usable settlement identity are visibly omitted by tolerant scans; strict history/publication writes stay protected. Calendar terminal proof remains SPY2026 only. No C integration/push or B start has occurred. Next step requires the user's separate approval for exact C handoff staging integration/push and Build B start.
+
+Validated delta manifest SHA-256: `7b804de28e53c0a6938119e80a2602eef5885f4a0f8172b15598956f00eac5cc`.
