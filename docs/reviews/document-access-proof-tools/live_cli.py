@@ -31,7 +31,10 @@ APPROVAL = PRIVATE / "document-access-proof-approval.json"
 CANDIDATE = PRIVATE / "document-access-proof-candidate.json"
 LEDGER = PRIVATE / "document-access-proof-ledger.jsonl"
 RUNTIME = PRIVATE / "document-access-live"
-sys.path[:0] = [str(WT), str(WT / "docs/reviews/valuation-reference-proof-tools")]
+# Import the shipped helpers from this checkout; paid execution remains bound
+# to WT by assert_environment and the existing approval/candidate guards.
+SOURCE_ROOT = Path(__file__).resolve().parents[3]
+sys.path[:0] = [str(SOURCE_ROOT), str(SOURCE_ROOT / "docs/reviews/valuation-reference-proof-tools")]
 
 import live_adapter  # noqa: E402
 from pilot import B_DEEP, A, BudgetGuard, PilotLedger  # noqa: E402

@@ -719,3 +719,32 @@ def test_fresh_endpoint_price_increase_requires_new_approval(tmp_path):
     with pytest.raises(ValueError, match="price exceeds"):
         live_adapter.claim_document_access_proof(ledger, record, "DOCN")
     assert not ledger.path.exists()
+
+
+def test_harness_imports_helpers_from_its_checkout_without_live_authority(tmp_path):
+    """A checkout away from M1 must import without using M1's helper source."""
+    import shutil
+    import subprocess
+    import sys
+
+    checkout = tmp_path / "checkout"
+    tools = checkout / "docs/reviews"
+    harness_dir = tools / "document-access-proof-tools"
+    helper_dir = tools / "valuation-reference-proof-tools"
+    harness_dir.mkdir(parents=True)
+    helper_dir.mkdir()
+    shutil.copy2(HARNESS, harness_dir / "live_cli.py")
+    original_helpers = HARNESS.parents[1] / "valuation-reference-proof-tools"
+    for name in ("live_adapter.py", "pilot.py"):
+        shutil.copy2(original_helpers / name, helper_dir / name)
+    probe = (
+        "import pathlib,runpy,sys; "
+        "data=runpy.run_path(sys.argv[1],run_name='portability_probe'); "
+        "root=pathlib.Path(sys.argv[1]).resolve().parents[3]; "
+        "assert pathlib.Path(data['live_adapter'].__file__).is_relative_to(root); "
+        "assert pathlib.Path(sys.modules['pilot'].__file__).is_relative_to(root); "
+        "assert data['WT'] != root; "
+        "assert not list(root.rglob('*.jsonl'))"
+    )
+    subprocess.run([sys.executable, "-I", "-c", probe, str(harness_dir / "live_cli.py")],
+                   cwd=tmp_path, check=True, capture_output=True, text=True)
