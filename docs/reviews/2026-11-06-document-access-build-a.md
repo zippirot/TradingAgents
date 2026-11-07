@@ -16,7 +16,7 @@ No release acceptance is claimed.
 
 ## Delivered behavior
 
-The existing bounded accounting brief remains unchanged. A separate full-source corpus includes latest periodic filings, prior-quarter 10-Q, intervening 8-K exhibits and 424B supplements. Limits are 24 filings, 32 documents, four exhibits per 8-K, 33 requests and 240 seconds; omissions are retained and reported.
+The existing bounded accounting brief remains unchanged. A separate full-source corpus includes latest periodic filings, prior-quarter 10-Q, intervening 8-K exhibits and 424B supplements. Limits are 24 filings, 32 documents, four exhibits per 8-K, 16 MB per full document, 33 requests and 240 seconds; omissions are retained and reported.
 
 Fundamentals and News each receive three deterministic search calls, at most three complete passages and 12,000 source characters per call, with queries at most 200 characters. Full tables are either returned intact or explicitly omitted. The run pins exact corpus/block hashes and returned text. Only returned SEC passages enter the existing quote/metric/period/unit/qualification validator; retrieval alone grants no accepted-evidence authority. Source metadata is registered even if the bounded brief was unavailable.
 
@@ -36,6 +36,10 @@ An explicit intraday cutoff cannot establish a same-day filing's publication tim
 - Full Ruff, dependency and diff evidence plus final affected-test results are recorded in task-root evidence. Passing broad results are reused only for source and dependencies unchanged after the review. Affected source/search/report/recovery tests were rerun; no dependency/configuration changes were made. Combined evidence is not a full suite on one revision.
 - Final affected checks: 115 passed after source/search/report/recovery corrections; the new actual-node saved-state replay and JPM/CAT checks also passed 4/4. Full Ruff and pip check passed.
 - Private evidence: document-build-a-independent-audit.md, document-retained-replay.json, document-replay-output/, document-replay-nodes-output/, build-a-final-affected.log, build-a-final-render-recovery.log, build-a-search-recovery.log and build-a-audit-fix-checks.log.
+
+## Cross-company reader correction before proof
+
+A later independent proof review measured the full retained JPM annual filing at 12,927,444 bytes and its quarterly filing at 11,540,738 bytes; CAT filings were 4,618,372–6,100,588 bytes. Excerpt fixtures had not exercised the original 2.5 MB transport default. The new search client now has a finite 16 MB document cap; the bounded brief keeps its existing default. A regression streams a body larger than the observed JPM annual source through the real reader, proves the full-search result, and rejects an over-16 MB stream. No paid proof was attempted before correcting this setup gap.
 
 ## Limits and held authority
 

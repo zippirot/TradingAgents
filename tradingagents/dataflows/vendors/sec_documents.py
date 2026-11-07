@@ -944,6 +944,7 @@ def get_current_quarter_rpo_evidence(current: DisclosurePackage) -> DisclosurePa
 _SEARCH_FILING_LIMIT = 24
 _SEARCH_DOCUMENT_LIMIT = 32
 _SEARCH_EXHIBITS_PER_8K = 4
+_SEARCH_DOCUMENT_MAX_BYTES = 16_000_000
 
 
 def select_search_filings(
@@ -1021,7 +1022,8 @@ def get_filing_search_evidence(
     pins = {document.url: document.content_hash for document in (
         bounded_package.documents if bounded_package else ()
     )}
-    client = DocumentClient(max_requests=1 + _SEARCH_DOCUMENT_LIMIT, max_seconds=240)
+    client = DocumentClient(max_bytes=_SEARCH_DOCUMENT_MAX_BYTES,
+                            max_requests=1 + _SEARCH_DOCUMENT_LIMIT, max_seconds=240)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
         filings, gaps = select_search_filings(json.loads(metadata["text"]), cik, as_of_date)

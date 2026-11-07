@@ -147,3 +147,45 @@ def test_unsupported_exhibit_link_is_explicit_gap(monkeypatch):
         "0001582961-26-000003" in gap and "ex991.pdf" in gap
         for gap in package.gaps
     )
+
+
+def test_full_search_streams_large_issuer_filing_under_its_own_finite_byte_budget(monkeypatch, tmp_path):
+    metadata = {"cik": "0001582961", "filings": {"files": [], "recent": {
+        "form": ["10-Q"], "filingDate": ["2026-08-05"], "reportDate": ["2026-06-30"],
+        "accessionNumber": ["0001582961-26-000002"], "primaryDocument": ["large.htm"], "items": [""],
+    }}}
+    # JPM's retained annual filing is 12,927,444 UTF-8 bytes. Exercise the real
+    # streaming reader above that observed size, not a stub bypassing its cap.
+    body = ("<!--" + " " * 12_927_444 + "--><p>Capacity commitment retained.</p>").encode()
+    monkeypatch.setattr(docs, "cik_for", lambda _: "0001582961")
+    monkeypatch.setattr(docs, "_user_agent", lambda: "fixture@example.invalid")
+    monkeypatch.setattr(docs, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    class Response:
+        status_code = 200
+        def __init__(self, raw):
+            self.raw = raw
+        def raise_for_status(self):
+            pass
+        def iter_content(self, chunk_size):
+            for i in range(0, len(self.raw), chunk_size):
+                yield self.raw[i:i + chunk_size]
+        def close(self):
+            pass
+    monkeypatch.setattr(docs.requests, "get", lambda url, **kwargs:
+        Response(json.dumps(metadata).encode() if "submissions" in url else body))
+    full = docs.get_filing_search_evidence("JPM", "2026-11-06")
+    assert len(full.documents) == 1
+    assert any("Capacity commitment retained" in block.text for block in full.documents[0].blocks)
+    # Bounded brief keeps the original transport budget; neither path is unbounded.
+    bounded = docs.get_filing_evidence("JPM", "2026-11-06")
+    assert not bounded.documents
+    assert any("byte limit" in gap for gap in bounded.gaps)
+    import pytest
+
+    from tradingagents.dataflows.errors import VendorUnavailableError
+
+    with pytest.raises(VendorUnavailableError, match="byte limit"):
+        monkeypatch.setattr(docs.requests, "get", lambda *a, **k: Response(b"x" * 16_000_001))
+        docs.DocumentClient(max_bytes=16_000_000).fetch(
+            "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000002/too-big.htm"
+        )
