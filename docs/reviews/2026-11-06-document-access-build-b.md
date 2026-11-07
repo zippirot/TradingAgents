@@ -120,3 +120,14 @@ Final affected checks: 203 passed, with full Ruff and diff checks passing. Final
 The last printed-precision correction affects only new supplemental lease-total acceptance. Retained Microsoft component/total cells are integral millions and reconcile exactly; both old and corrected quantums are identical there. The actual-source positive mapping test and independent 11-test mapping review confirm unchanged values. Final v3 raw-input replays remain valid for their observed source facts and critical statuses with that impact justification; they are not another live run. Original DOCN/HTML observations remain reusable for unchanged retrieval, cutoff, labels, completed-price fallback and role routing, while new audit inputs, income derivation, source context and standard-log behavior have fresh offline evidence only.
 
 The independent audit records and closes both strict-lineage period relabeling and printed-precision findings, plus the final package-budget semantics review. No confirmed material code finding remains in this local extension. Remaining unavailable accounting scope and missing live observations are explicit acceptance limitations, not successful proof.
+
+
+## User decision — use the two existing results for now
+
+The user instructed: “Let’s just use the 2 for now.” Current review therefore uses the existing DigitalOcean (DOCN) and Microsoft (MSFT) results; Caterpillar (CAT) is skipped for now. No additional paid call is authorized or planned. The private receipt is existing-two-results-user-decision.json.
+
+The two results retain their actual outcomes: DOCN completed its CLI analysis and supplied positive document/transcript/macro observations, with the original failing proof postcheck and read-only recovery preserved; Microsoft ended in REVIEW before the late debate/audit/Portfolio Manager path. They are not relabeled as two successful full proofs. Corrected-source offline verification and independent review remain the basis for the subsequent local fixes. Missing live observations and the financial coverage limits above remain disclosed.
+
+The unused CAT attempt is held, not spent, reassigned or carried into an automatic future run. Known settled usage remains $11.46117315, unknown reservations $5.450528, committed exposure $16.91170115. No ledger entry, original report or original job status is changed by this decision.
+
+This resolves the request for direction at the current review checkpoint. It does not authorize publication, installation, valuation Build2/A3, comparison or a revised paid-proof plan, and does not establish exact-head release acceptance.
