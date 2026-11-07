@@ -1,0 +1,99 @@
+{
+  "run_id": "b3616152-a7a0-4801-b901-6f96c24cbbbd",
+  "status": "completed",
+  "started_at": "2026-11-07T16:18:02.064Z",
+  "deadline_at": "2026-11-07T17:03:02.064Z",
+  "completed_at": "2026-11-07T16:25:42.551Z",
+  "report": {
+    "base_commit": "fd010a03ba33091860e3baf03c92eb5fb4c91e8c",
+    "head_commit": "0eb8bbef9893a0655424868f85c98fb703f04956",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 26,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-operational-report-audit-acceptance.md",
+      "docs/reviews/2026-11-07-operational-report-audit-claude-initial.json",
+      "docs/reviews/2026-11-07-operational-report-audit-synthetic-proof.json",
+      "docs/superpowers/plans/2026-11-06-operational-report-audit.md",
+      "tests/test_operational_audit.py",
+      "tests/test_operational_capture.py",
+      "tests/test_operational_export.py",
+      "tradingagents/agents/evidence_validation.py",
+      "tradingagents/agents/state.py",
+      "tradingagents/agents/structured.py",
+      "tradingagents/dataflows/router.py",
+      "tradingagents/dataflows/vendors/reddit.py",
+      "tradingagents/dataflows/vendors/stocktwits.py",
+      "tradingagents/dataflows/vendors/yahoo/common.py",
+      "tradingagents/dataflows/vendors/yahoo/price_observation.py",
+      "tradingagents/graph/setup.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/operational_audit.py",
+      "tradingagents/operational_capture.py",
+      "tradingagents/report_html.py",
+      "tradingagents/reporting.py"
+    ],
+    "summary": "Closure audit of frozen change fd010a03→0eb8bbef (21 paths) for the operational report audit goal. All six findings from the initial Claude audit (run 3bc83cff, against fd010a03..d3cb1e0e) have verified dispositions in the head diff: (1) VendorNotConfiguredError now penalizes only explicitly selected vendors, with a default-discovery no-penalty regression; (2) structured-output exhaustion with free-text fallback records fallback_recovered (4/5) with a dedicated test; (3) direct HTML render reports integrity as 'not applicable (in-memory rendering)' or 2/5 'unverified' for an uncheckable claimed publication, both pinned by tests; (4) the missing milestone-2 proofs now exist — real-callback truncation capture, interrupted-graph resume with observation carryover, a second independent same-ticker/date run, and saved-state binding; (5) the reducer's identity rejection is retained as the deliberate mixed-run boundary with resume idempotence proven; (6) the procedural open-goal state is honestly documented, with the correction build, portable/rendered output proof and a 3,040-test suite on the corrected source recorded in the acceptance evidence. Independent tracing of both committed synthetic proofs confirms the deterministic rule reproduces the clean 5/5 (18 valid run-bound completed observations, matched identity, verified export) and the degraded 3/5 (two vendor_unavailable rows for get_news yfinance driving the most-serious finding into footer, HTML and linked audit with correct locators). Scoring never averages, source severity is never rating authority, foreign or stale observations cap at 2/5, reused destinations get digest-suffixed companions, audit-only failure yields Unrated with no stale link, and publication identity, decisions and history are untouched. No critical, high or medium defects found; remaining items are low-severity residual risks and manifest-boundary verification gaps. On this evidence, every confirmed material gap has verified closure and the closure gate can be satisfied for head 0eb8bbef, subject to the listed limitations.",
+    "limitations": [
+      "Frozen-manifest review only: no commands were run against the repository; the reported suite results (3,040 passed, 10 skips on the corrected source), Ruff and git diff --check outcomes were not reproduced.",
+      "Unchanged dependencies (dataflows.files.locked/replace_file, evidence_snapshot allowlist, resolve_summary, cli/run.py streaming path, publication verification internals, the router's pre-existing 'explicit' flag) are outside the frozen diff and were accepted on the strength of the acceptance record and passing-test claims.",
+      "The synthetic-proof SHA-256 artifact hashes and the external rendered proof directory (PDF/PNG portable-folder inspection under /Users/zipp/Documents/ChatGPT/Tauric/output/...) could not be recomputed or opened; their description in the acceptance record is the sole evidence of visual/print verification.",
+      "ContextVar propagation of record_operation into threaded tool execution under LangGraph could not be verified from the diff; a propagation gap would silently drop tool-level observations rather than corrupt scoring.",
+      "The two traced scores come from the committed synthetic offline fixtures (injected faults through the real graph/finalizer), not from live provider runs; this matches the plan's acceptance basis."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Residual by-design risk: merge_observations/observation raise ValueError inside the LangGraph reducer, so a mid-run identity or run_settings digest change would abort a live run; disposition 'no current defect' is reasonable and resume/replay are tested, but the abort path itself has no test demonstrating graceful behavior",
+        "path": "tradingagents/operational_audit.py"
+      },
+      {
+        "severity": "low",
+        "title": "Events recorded inside a node that later raises are discarded (observed_node writes rows only on successful completion); coverage relies on re-execution after resume, and this blind spot is not explicitly disclosed as partial coverage in the audit text",
+        "path": "tradingagents/operational_capture.py"
+      },
+      {
+        "severity": "low",
+        "title": "Key closure claim 'operational_observations excluded from evidence_snapshot/publication identity' rests on the acceptance record; the allowlist file is unchanged and outside the frozen diff, so it could not be independently confirmed from the manifest",
+        "path": "docs/reviews/2026-11-07-operational-report-audit-acceptance.md"
+      },
+      {
+        "severity": "low",
+        "title": "The vendor-skip fix depends on a pre-existing 'explicit' flag whose definition is not visible in the frozen diff hunks; its semantics (explicitly selected vs default-discovered chain) are inferred from tests and the acceptance record, not from inspected source",
+        "path": "tradingagents/dataflows/router.py"
+      },
+      {
+        "severity": "low",
+        "title": "Rating input 'Models/tools' surfaces only the first (most serious, alphabetically first) model/tool issue code; a run with multiple distinct failure classes compresses to one label in the footer, though the full audit lists all material findings",
+        "path": "tradingagents/operational_audit.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "extra medium",
+      "effective_build_size": "unknown",
+      "escalation_reasons": []
+    },
+    "progress": {
+      "observed_events": 1188,
+      "last_activity_at": "2026-11-07T16:25:42.272Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 2,
+      "hard_budget_usd": 4,
+      "soft_turn_limit": null,
+      "turn_limit": 25,
+      "wall_clock_limit_minutes": 45,
+      "actual_cost_usd": 1.3904144999999999,
+      "actual_elapsed_ms": 460323,
+      "soft_limit_reached": false
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

@@ -272,6 +272,8 @@ def render_audit(assessment) -> str:
         lines += ["", "## Material findings", ""]
         lines.extend(f"- {item['text']} Record: `{item['locator']}`." for item in assessment["findings"])
     lines += ["", "## Observation limits", "",
+              "Observations cover completed nodes. Events from an interrupted attempt before its last "
+              "successful checkpoint are not retained, so their count and causes remain unknown after resume. "
               "Provider-internal retries and optional timing are unknown unless separately observed. "
               "This assessment describes execution and export integrity, not investment merit or financial evidence quality."]
     return "\n".join(lines) + "\n"

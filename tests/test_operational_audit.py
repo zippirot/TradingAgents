@@ -123,3 +123,11 @@ def test_editorial_failure_affects_only_summary_and_review_is_intentional():
     assert "executive summary" in result["consequence"].lower()
     state["executive_summary"] = {"status": "review"}
     assert assess_audit(state)["score"] == 5
+
+
+def test_detailed_audit_discloses_interrupted_attempt_coverage():
+    from tradingagents.operational_audit import assess_audit, render_audit
+
+    text = render_audit(assess_audit({}))
+    assert "Observations cover completed nodes" in text
+    assert "count and causes remain unknown after resume" in text
