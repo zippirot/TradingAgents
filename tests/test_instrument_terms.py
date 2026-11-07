@@ -4,6 +4,8 @@ import hashlib
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from tradingagents.dataflows.instrument_terms import discover_convertible_terms
 from tradingagents.dataflows.vendors.sec_documents import (
     DisclosurePackage,
@@ -173,3 +175,16 @@ def test_conflicting_current_principal_or_truncated_unit_cannot_be_accepted():
     blocks = (doc.blocks[0].model_copy(update={'truncated': True}), *doc.blocks[1:])
     bad = p.model_copy(update={'documents': (doc.model_copy(update={'blocks': blocks}),)})
     assert discover_convertible_terms(bad, date(2026, 11, 7)) == ()
+
+
+@pytest.mark.parametrize('continuation', ['another instrument', 'Another instrument'])
+def test_conversion_price_never_crosses_a_sentence_even_with_lowercase(continuation):
+    p = package()
+    doc = p.documents[0]
+    text = ('The 2026 Convertible Notes remain outstanding. ' + continuation +
+            ' is equivalent to an initial conversion price of approximately $ 999 per share.')
+    blocks = tuple(block.model_copy(update={'text': text}) if block.locator == 'block-204'
+                   else block for block in doc.blocks)
+    p = p.model_copy(update={'documents': (doc.model_copy(update={'blocks': blocks}),)})
+    (record,) = discover_convertible_terms(p, date(2026, 11, 7))
+    assert record.conversion_price is None

@@ -1,0 +1,108 @@
+{
+  "run_id": "b28a3ee1-2e51-4361-9150-d21d600a2af2",
+  "status": "completed",
+  "started_at": "2026-11-07T20:52:55.916Z",
+  "deadline_at": "2026-11-07T23:22:55.916Z",
+  "completed_at": "2026-11-07T20:58:40.923Z",
+  "report": {
+    "base_commit": "bd27b742e6346ff7e6bd22f1823e263934f3e1aa",
+    "head_commit": "57e954fe24eef0720d0ddb7829682a82fc7de536",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 27,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-filing-facts-acceptance.md",
+      "docs/reviews/2026-11-07-filing-facts-runtime-early.json",
+      "docs/reviews/2026-11-07-filing-facts-runtime-final.json",
+      "docs/reviews/filing-facts-proof.py",
+      "docs/superpowers/plans/2026-11-07-filing-facts.md",
+      "tests/test_accounting_checks.py",
+      "tests/test_build2_continuation_proof.py",
+      "tests/test_commitments.py",
+      "tests/test_filing_terms_delivery.py",
+      "tests/test_filing_terms_graph.py",
+      "tests/test_instrument_terms.py",
+      "tests/test_sec_edgar.py",
+      "tradingagents/agents/accounting_checks.py",
+      "tradingagents/agents/context.py",
+      "tradingagents/agents/evidence_validation.py",
+      "tradingagents/agents/filing_terms.py",
+      "tradingagents/agents/state.py",
+      "tradingagents/dataflows/commitments.py",
+      "tradingagents/dataflows/filing_terms.py",
+      "tradingagents/dataflows/instrument_terms.py",
+      "tradingagents/dataflows/vendors/sec_edgar.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/reporting.py"
+    ],
+    "summary": "Audited frozen range bd27b742\u219257e954fe (23 files, matching frozen changed_paths) against the frozen Build B plan. B1 convertible-note extraction, B2 uncommenced-lease commitments, and B3 cash-plus-current-marketable-securities are implemented as deterministic, fail-closed, source-bound extractors: single-vintage primary selection (issuer/accession/URL/primary-doc/hash pinned), explicit unit/currency locators, maturity-before-as_of rejection (Review Focus 3), conversion-price conflict/cross-note (2030) bleed suppression, rounding-interval lease dedup at displayed MD&A precision, and balance-sheet-presentation-gated current classification with alias/ambiguity/vintage fail-closed paths. The 844,741,000 USD calculation is labeled statement liquidity with cited input fact IDs, the EV bridge provably keeps cash-only (substitution test), and vendor exception text never reaches prompts/state. Delivery occurs in SourceAcquisition before analyst fan-out; render replays against the pinned corpus and hard-fails on issuer/cutoff/hash/record tamper (all four tested); records persist through state log, evidence.json and report appendix; the shared_source_brief=4 signature bump separates predecessor checkpoint identity. Test coverage matches every named required test plus substantial extra adversarial cases. Acceptance/runtime receipts are internally consistent (same corpus hash 24d12b34\u2026, 12 prompt receipts containing the required phrases, zero network/paid calls, locator-removal independence drill) and honestly disclose the first-attempt canonical source-ID collision fix and the Build2 fixture signature patch. No in-scope Critical/High/Medium gaps found; five Low observations documented. This audit grants no integration or release authority.",
+    "limitations": [
+      "Read-only audit of the frozen manifest only: tests, ruff, the DOCN proof script and the full suite were not re-executed; the reported 3236 passed/10 skipped result, prompt receipts and runtime JSONs are builder-run evidence verified only for internal consistency.",
+      "The frozen evidence contains only the diff and the governing plan text; unchanged HEAD files referenced by the change (document_access.py, evidence_presentation.py, filing_search.py, sec_documents.py, financial_evidence.py, _facts/_same/_money helpers, canonical-context renderer, CI workflow, audit skill templates) were not available, so behaviors they own (e.g., prepare_document_sources idempotency on the second call, _same/_money period/unit checks, C-row label rendering) are inferred from tests and receipts rather than inspected.",
+      "The test fixture tests/fixtures/docn_2026q3/live02_filing_package.json used by the B3 presentation-gate tests is not in the frozen diff, so the exact balance-sheet block serialization the _displayed_current_balance regex depends on could not be inspected.",
+      "Private proof inputs (saved November 7 DOCN state, cached SEC bytes, raw prompts) are by design not audit inputs; only sanitized hashes/receipts were checked.",
+      "Base-commit context for modified hunks was limited to diff context lines; surrounding unchanged logic in evidence_validation.py, context.py, sec_edgar.py and trading_graph.py was not fully visible."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Liquidity check does not require instant (period_start is None) securities input; relies on the upstream classifier being the only producer of 'Current Marketable Securities'",
+        "path": "tradingagents/agents/accounting_checks.py"
+      },
+      {
+        "severity": "low",
+        "title": "_PRICE tempered 350-char window blocks '. <Uppercase>' and other note-series mentions but could cross a lowercase sentence continuation, a residual (untested) cross-sentence price-bleed path",
+        "path": "tradingagents/dataflows/instrument_terms.py"
+      },
+      {
+        "severity": "low",
+        "title": "Current-securities presentation gate hardcodes the '(unaudited)' and '(in thousands, except share amounts)' heading triple, so 10-K or other legitimate layouts can never classify (fail-closed narrowness beyond the stated DOCN 10-Q target; not documented as a general limitation in code)",
+        "path": "tradingagents/dataflows/vendors/sec_edgar.py"
+      },
+      {
+        "severity": "low",
+        "title": "Historical Build2 continuation fixture now monkeypatches production TradingAgentsGraph._run_signature back to shared_source_brief=3, slightly weakening that regression; mitigated by the separate identity-separation test and documented in the acceptance record",
+        "path": "tests/test_build2_continuation_proof.py"
+      },
+      {
+        "severity": "low",
+        "title": "Rendered instrument line deviates cosmetically from the plan template ('approximately' vs '\u2248', '312322' vs '312,322' thousands separator); semantics and all plan-specified assertions are preserved",
+        "path": "tradingagents/agents/filing_terms.py"
+      },
+      {
+        "severity": "low",
+        "title": "_displayed_current_balance anchors labels with (?:^|;) without re.MULTILINE, so recognition depends on the ';'-delimited block serialization; mismatch fails closed (no false classification) but silently blocks classification for newline-serialized tables",
+        "path": "tradingagents/dataflows/vendors/sec_edgar.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "extra medium",
+      "escalation_reasons": [
+        "Frozen scope changes more than 10 files or more than 500 lines."
+      ]
+    },
+    "progress": {
+      "observed_events": 672,
+      "last_activity_at": "2026-11-07T20:58:40.674Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 18,
+      "hard_budget_usd": 30,
+      "soft_turn_limit": 40,
+      "turn_limit": 70,
+      "wall_clock_limit_minutes": 150,
+      "actual_cost_usd": 1.2228902499999998,
+      "actual_elapsed_ms": 344861,
+      "soft_limit_reached": false
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

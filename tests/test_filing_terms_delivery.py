@@ -122,3 +122,17 @@ def test_current_securities_cannot_replace_valuation_cash():
     result = validate_target(substituted, augmented)
     assert result.status == 'unsupported' and 'cash' in result.reasons[0]
     assert baseline.target == Decimal(35)
+
+
+def test_liquidity_duration_security_is_rejected_by_existing_period_guard():
+    from tests.test_valuation import evidence
+    from tradingagents.agents.accounting_checks import check_cash_plus_marketable_securities
+    package = evidence()
+    security = package.facts[2].model_copy(update={
+        'fact_id': 'duration-security', 'metric': 'Current Marketable Securities',
+        'period_start': package.facts[0].period_start,
+    })
+    result = check_cash_plus_marketable_securities(package.model_copy(update={
+        'facts': (*package.facts, security)}))
+    assert result.status == 'unavailable' and result.reason_code == 'incompatible_inputs'
+    assert 'period mismatch' in result.message
