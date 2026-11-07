@@ -94,6 +94,61 @@ def list_records(config: dict, ticker: str | None = None) -> list[dict]:
     return sorted(records, key=lambda r: r['sequence'])
 
 
+def scan_records(config: dict, ticker: str | None = None) -> dict:
+    """Read verified records for a listing, reporting damaged files in this scan.
+
+    Never use this partial view to choose a publication sequence, primary, or
+    revision link. Canonical writes and exact reads use the strict readers.
+    """
+    selected_ticker = normalize_symbol(ticker) if ticker is not None else None
+    records, skipped = [], []
+    for path in (record_root(config) / 'records').glob('*.json'):
+        try:
+            record = _checked_record(path)
+            _scan_usable_record(record)
+            if selected_ticker is None or record['ticker'] == selected_ticker:
+                records.append(record)
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError, KeyError) as exc:
+            skipped.append({'path': path.name, 'reason': type(exc).__name__})
+    return {'records': sorted(records, key=lambda r: r['sequence']),
+            'skipped': sorted(skipped, key=lambda item: item['path'])}
+
+
+def _scan_usable_record(record: dict) -> None:
+    """Check fields needed to sort, list, and settle a scanned publication."""
+    if (type(record.get('sequence')) is not int or record['sequence'] < 1
+            or not isinstance(record.get('ticker'), str) or not record['ticker']
+            or not isinstance(record.get('benchmark'), str) or not record['benchmark']
+            or not isinstance(record.get('canonical_rating'), str)
+            or record.get('evaluation_mode') not in {'prospective', 'historical', 'legacy'}
+            or 'thesis_version_id' not in record):
+        raise ValueError('Unusable publication record')
+    normalize_symbol(record['ticker'])
+    date.fromisoformat(record['requested_as_of'])
+    if record['evaluation_mode'] == 'prospective':
+        published = datetime.fromisoformat(record['published_at'])
+        if published.utcoffset() is None:
+            raise ValueError('Unusable publication timestamp')
+    eligibility = record.get('eligibility')
+    if (not isinstance(eligibility, dict)
+            or type(eligibility.get('directional')) is not bool
+            or type(eligibility.get('primary')) is not bool):
+        raise ValueError('Unusable publication eligibility')
+    endpoints = record.get('endpoints')
+    if not isinstance(endpoints, dict) or not endpoints:
+        raise ValueError('Unusable publication endpoints')
+    for endpoint in endpoints.values():
+        if (not isinstance(endpoint, dict)
+                or endpoint.get('status') not in {'pending', 'ineligible'}
+                or not isinstance(endpoint.get('benchmark'), str) or not endpoint['benchmark']
+                or ('exit_policy' in endpoint and not isinstance(endpoint['exit_policy'], str))):
+            raise ValueError('Unusable publication endpoint')
+        kind = endpoint.get('horizon_type', 'trading_sessions')
+        count = endpoint.get('calendar_months') if kind == 'calendar_months' else endpoint.get('holding_days')
+        if kind not in {'trading_sessions', 'calendar_months'} or type(count) is not int or count < 1:
+            raise ValueError('Unusable publication horizon')
+
+
 def load_evidence(config: dict, record: dict) -> dict:
     """Read the content-addressed snapshot, verifying its recorded hash."""
     ref = record['evidence_snapshot']

@@ -559,9 +559,18 @@ class TradingAgentsGraph:
         try:
             # Another run settling the same log does the work; this one goes on.
             done = self.settle_all_pending(wait=False)
+            notes = []
             if done.failed:
-                note = (f"{len(done.failed)} past decision(s) could not be settled this run "
-                        "and stay pending.")
+                notes.append(f"{len(done.failed)} settlement(s) could not be settled this run and stay pending.")
+            if done.endpoint_immature:
+                notes.append(f"{len(done.endpoint_immature)} outcome(s) await maturity.")
+            if done.endpoint_terminal:
+                notes.append(f"{len(done.endpoint_terminal)} outcome(s) are unresolvable; reasons are retained in outcome history.")
+            if done.endpoint_deferred:
+                notes.append(f"{len(done.endpoint_deferred)} zero-coverage recheck(s) are not yet due.")
+            if done.skipped_publications:
+                notes.append(f"{len(done.skipped_publications)} unreadable publication file(s) skipped in this settlement scan.")
+            note = ' '.join(notes)
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."

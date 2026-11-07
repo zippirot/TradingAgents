@@ -46,7 +46,10 @@ def test_short_endpoint_persists_without_consuming_longer_windows(setup, monkeyp
     saved = outcomes.load_outcomes(config, record)
     assert saved['endpoints']['5_sessions']['status'] == 'resolved'
     assert saved['endpoints']['21_sessions']['status'] == 'pending'
-    assert calls[0][1] == {'published_at': record['published_at'], 'prices_before': '2026-11-04', 'benchmark_alignment': 'exact_sessions'}
+    assert {key: value for key, value in calls[0][1].items() if key != 'price_fetcher'} == {
+        'published_at': record['published_at'], 'prices_before': '2026-11-04',
+        'benchmark_alignment': 'exact_sessions'}
+    assert callable(calls[0][1]['price_fetcher'])
     calls.clear()
     assert outcomes.settle_publications(config)['settled'] == []
     assert [c[0] for c in calls] == [21, 63, None, None]
@@ -79,6 +82,8 @@ def test_price_failure_does_not_hide_other_endpoints(setup, monkeypatch):
     result = outcomes.settle_publications(config)
     assert result['settled'] == [(record['decision_id'], '21_sessions')]
     assert len(result['failed']) == 1
+    assert sum('TimeoutError' in reason for _, reason in result['failed']) == 1
+    assert len(result['immature']) == 3  # Earliest possible horizon is still beyond the cutoff.
     assert 'private' not in str(result)
     assert outcomes.load_outcomes(config, record)['endpoints']['5_sessions']['status'] == 'pending'
 
@@ -126,7 +131,8 @@ def test_review_is_audited_but_not_scored(setup, monkeypatch):
     state = {'run_id': str(uuid4()), 'final_rating': 'REVIEW', 'final_trade_decision': 'REVIEW'}
     review = publication.publish(config, state, 'OTHER', '2026-10-19')
     monkeypatch.setattr(outcomes, 'fetch_outcome', lambda *a, **k: pytest.fail('ineligible'))
-    assert outcomes.settle_publications(config, ticker='OTHER') == {'settled': [], 'failed': []}
+    assert outcomes.settle_publications(config, ticker='OTHER') == {
+        'settled': [], 'failed': [], 'immature': [], 'terminal': [], 'deferred': [], 'skipped': []}
     assert all(e['status'] == 'ineligible' for e in outcomes.load_outcomes(config, review)['endpoints'].values())
 
 
@@ -155,7 +161,10 @@ def test_real_price_window_calculator_settles_short_window_and_keeps_current_bar
     index = pd.bdate_range('2026-10-20', periods=23, tz='America/New_York')
     stock = pd.Series([100. + i for i in range(23)], index=index)
     benchmark = pd.Series([400. + i for i in range(23)], index=index)
-    monkeypatch.setattr(settlement, 'get_closes', lambda ticker, *a: stock if ticker == 'DOCN' else benchmark)
+    def price_source(ticker, *args):
+        return stock if ticker == 'DOCN' else benchmark
+    monkeypatch.setattr(settlement, 'get_closes', price_source)
+    monkeypatch.setattr(settlement, 'get_settlement_closes', price_source)
     result = outcomes.settle_publications(config)
     assert result['failed'] == []
     assert result['settled'] == [(record['decision_id'], '5_sessions')]
@@ -169,7 +178,11 @@ def test_unfinished_current_day_cannot_be_resolved_even_if_provider_returns_it(s
     config, record = setup
     monkeypatch.setattr(outcomes, 'get_current_date', lambda: '2026-10-27')
     monkeypatch.setattr(outcomes, 'fetch_outcome', lambda *a, **k: measured(a[2]))
-    assert outcomes.settle_publications(config) == {'settled': [], 'failed': []}
+    result = outcomes.settle_publications(config)
+    assert result['settled'] == []
+    assert result['terminal'] == [] and result['skipped'] == []
+    assert {name for _, name in result['immature']} == set(record['endpoints'])
+    assert result['failed'] == []
     assert outcomes.load_outcomes(config, record)['endpoints']['5_sessions']['status'] == 'pending'
 
 
@@ -188,7 +201,7 @@ def test_existing_graph_settlement_scans_publications_after_memory_is_empty(setu
     monkeypatch.setattr(outcomes, 'fetch_outcome', lambda *a, **k: measured() if a[2] == 5 else None)
     result = graph.settle_all_pending()
     assert result.endpoint_settled == [(record['decision_id'], '5_sessions')]
-    assert result.failed == []
+    assert result.failed == [] and len(result.endpoint_immature) == 4
     assert graph.settle_all_pending().endpoint_settled == []
     saved = outcomes.load_outcomes(config, record)
     assert saved['endpoints']['21_sessions']['status'] == 'pending'

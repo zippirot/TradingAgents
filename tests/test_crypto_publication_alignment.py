@@ -44,6 +44,7 @@ def test_crypto_weekend_windows_settle_and_feed_one_labeled_lesson(
         return value[(value.index >= start) & (value.index < end)]
 
     monkeypatch.setattr(settlement, "get_closes", get_closes)
+    monkeypatch.setattr(settlement, "get_settlement_closes", get_closes)
     state = {
         "run_id": str(uuid4()),
         "asset_type": "crypto",

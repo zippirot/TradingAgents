@@ -93,8 +93,12 @@ def test_bounded_summary_discloses_omission_and_corruption_is_not_hidden(publish
     path = publication.record_root(config) / 'outcomes' / f"{second['decision_id']}.json"
     path.parent.mkdir()
     path.write_text('{}')
+    text = outcomes.render_outcome_summary(config)
+    assert first['decision_id'] in text and second['decision_id'] in text
+    assert 'outcome integrity unavailable' in text
     with pytest.raises(ValueError, match='integrity'):
-        outcomes.render_outcome_summary(config)
+        outcomes.load_outcomes(config, second)
+    assert path.read_text() == '{}'
 
 
 def test_legacy_visibility_uses_import_time_without_inventing_publication_time(published):

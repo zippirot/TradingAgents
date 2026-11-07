@@ -134,7 +134,8 @@ def test_publication_retry_memory_and_reflection_exclude_grid(monkeypatch, tmp_p
     snapshot = publication.load_evidence(app.config, record)
     assert snapshot["mechanical_valuation_grid"]["reason"] == "B1_GRID_EXCLUSION_SENTINEL"
     # Fixture outcomes isolate the real publication/memory/reflection routing.
-    monkeypatch.setattr(publication_outcomes, "settle_publications", lambda *a, **k: {"settled": [], "failed": []})
+    monkeypatch.setattr(publication_outcomes, "settle_publications", lambda *a, **k: {
+        "settled": [], "failed": [], "immature": [], "terminal": [], "deferred": [], "skipped": []})
     monkeypatch.setattr(settlement, "_returns_for_entry", lambda *a, **k: (0.1, 0.05, 5, "2026-10-27", "SPY"))
     seen = []
     reflector = SimpleNamespace(reflect_on_final_decision=lambda **kwargs: seen.append(kwargs["final_decision"]) or "Fixture reflection")

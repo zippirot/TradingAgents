@@ -2,12 +2,13 @@ import logging
 from datetime import datetime
 from typing import Annotated
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 from stockstats import wrap
 
-from tradingagents.dataflows.errors import NoMarketDataError, VendorError
+from tradingagents.dataflows.errors import NoMarketDataError, VendorError, VendorUnavailableError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
 from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv, market_provenance_lines
@@ -267,6 +268,64 @@ def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     canonical = normalize_symbol(symbol)
     history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date, auto_adjust=True))
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
+
+
+def get_settlement_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
+    """Read settlement closes without treating an unknown empty as zero coverage.
+
+    The exclusive end date and adjustment basis match ``get_closes``. A
+    successful, well-formed empty history is distinguished from a failed read;
+    the caller must still establish its own eligibility and horizon conditions.
+    """
+    canonical = normalize_symbol(symbol)
+    start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    if start >= end:
+        raise ValueError("settlement price window must have a positive length")
+
+    try:
+        # yfinance 1.7.0 accepts raise_errors in PriceHistory.history. Without
+        # it, transport and Yahoo errors can become a plausible empty frame.
+        history = yf.Ticker(canonical).history(
+            start=start_date, end=end_date, auto_adjust=True, raise_errors=True
+        )
+    except Exception as exc:
+        # Even YFPricesMissingError also represents HTTP/service failures, so
+        # its type alone cannot safely establish an explicit no-data answer.
+        raise VendorUnavailableError(
+            f"Yahoo Finance settlement request failed: {type(exc).__name__}"
+        ) from exc
+
+    required = ("Open", "High", "Low", "Close", "Volume")
+    if (
+        not isinstance(history, pd.DataFrame)
+        or not isinstance(history.index, pd.DatetimeIndex)
+        or history.index.hasnans
+        or not history.index.is_unique
+        or not history.index.is_monotonic_increasing
+        or any(column not in history for column in required)
+        or any(not pd.api.types.is_numeric_dtype(history[column]) for column in required)
+    ):
+        raise VendorUnavailableError("Yahoo Finance settlement history has invalid shape")
+
+    if history.empty:
+        closes = history["Close"].copy()
+        closes.attrs["settlement_verified_empty"] = True
+        closes.attrs["settlement_request_start"] = start_date
+        closes.attrs["settlement_request_end"] = end_date
+        return closes
+
+    if (
+        any(day < start or day >= end for day in history.index.date)
+        or not np.isfinite(history["Close"].to_numpy(dtype=float)).all()
+        or not (history["Close"] > 0).all()
+    ):
+        raise VendorUnavailableError("Yahoo Finance settlement history has invalid prices or dates")
+    closes = history["Close"].copy()
+    closes.attrs.pop("settlement_verified_empty", None)
+    closes.attrs["settlement_request_start"] = start_date
+    closes.attrs["settlement_request_end"] = end_date
+    return closes
 
 
 def get_stock_stats(

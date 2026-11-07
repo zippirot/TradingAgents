@@ -129,6 +129,61 @@ class TestTradingMemoryLogCore:
         assert entries[0]["ticker"] == "NVDA"
         assert entries[1]["ticker"] == "AAPL"
 
+    def test_partial_append_cannot_swallow_next_entry(self, tmp_path):
+        log = make_log(tmp_path)
+        path = tmp_path / "trading_memory.md"
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
+        complete = path.read_text(encoding="utf-8")
+        partial = "[2026-01-06 | MSFT | Buy | pending]\n\nDECISION:\nRating: Buy\nunfinished"
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write(partial)
+
+        log.store_decision("AAPL", "2026-01-07", "Rating: Hold\nHold AAPL.")
+
+        entries = log.load_entries()
+        assert [(entry["ticker"], entry["date"]) for entry in entries] == [
+            ("NVDA", "2026-01-05"), ("AAPL", "2026-01-07")
+        ]
+        assert path.read_text(encoding="utf-8").startswith(complete)
+        assert partial not in path.read_text(encoding="utf-8")
+        quarantines = list(tmp_path.glob("trading_memory.md.partial-*.md"))
+        assert len(quarantines) == 1
+        assert quarantines[0].read_text(encoding="utf-8") == partial
+
+    def test_partial_identity_does_not_block_recovered_decision(self, tmp_path):
+        log = make_log(tmp_path)
+        path = tmp_path / "trading_memory.md"
+        partial = "[2026-01-07 | AAPL | Hold | pending]\n\nDECISION:\nRating: Hold"
+        path.write_text(partial, encoding="utf-8")
+
+        log.store_decision("AAPL", "2026-01-07", "Rating: Hold\nComplete decision.")
+
+        assert [entry["decision"] for entry in log.load_entries()] == [
+            "Rating: Hold\nComplete decision."
+        ]
+        quarantines = list(tmp_path.glob("trading_memory.md.partial-*.md"))
+        assert len(quarantines) == 1
+        assert quarantines[0].read_text(encoding="utf-8") == partial
+
+    def test_failed_atomic_store_keeps_original_log(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        path = tmp_path / "trading_memory.md"
+        log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
+        original = path.read_text(encoding="utf-8")
+
+        def failed_replace(_source, _destination):
+            raise OSError("simulated replacement failure")
+
+        monkeypatch.setattr("tradingagents.dataflows.files.os.replace", failed_replace)
+        with pytest.raises(OSError, match="simulated replacement failure"):
+            log.store_decision("AAPL", "2026-01-07", "Rating: Hold\nHold AAPL.")
+
+        assert path.read_text(encoding="utf-8") == original
+        assert list(tmp_path.glob("trading_memory.md.*.tmp")) == []
+        assert [(entry["ticker"], entry["date"]) for entry in log.load_entries()] == [
+            ("NVDA", "2026-01-05")
+        ]
+
     def test_store_decision_idempotent(self, tmp_path):
         """Calling store_decision twice with same (ticker, date) stores only one entry."""
         log = make_log(tmp_path)

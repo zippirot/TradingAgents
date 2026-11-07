@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from tradingagents.agents.evidence_presentation import compact_prior_decision
 from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
-from tradingagents.dataflows.files import locked
+from tradingagents.dataflows.files import locked, replace_file
 
 
 def is_trading_entry(entry: dict) -> bool:
@@ -46,7 +46,7 @@ class TradingMemoryLog:
         rating: str | None = None,
         decision_id: str | None = None,
     ) -> None:
-        """Append pending entry at end of propagate(). No LLM call.
+        """Atomically add a pending entry at end of propagate(). No LLM call.
 
         ``rating`` is the decision's own rating when the caller has it; without
         one it is read from the decision text.
@@ -57,24 +57,48 @@ class TradingMemoryLog:
         if not self._log_path or rating not in RATINGS_5_TIER:
             return
         with locked(self._log_path):
+            raw = self._log_path.read_text(encoding="utf-8") if self._log_path.exists() else ""
+            complete = raw
+            partial = ""
+            if raw and not raw.endswith(self._SEPARATOR):
+                # An interrupted append has no closing delimiter. Keep only
+                # delimited entries so its tag cannot mask or consume this one.
+                before, separator, tail = raw.rpartition(self._SEPARATOR)
+                if tail.strip():
+                    complete, partial = before + separator, tail
             # Idempotency guard: fast raw-text scan instead of full parse. Any entry
             # for this ticker and date blocks another, pending or settled: a re-run
             # after the outcome landed would otherwise count the same decision twice
             # in past context and in every aggregate over the log.
-            if self._log_path.exists():
-                raw = self._log_path.read_text(encoding="utf-8")
-                for line in raw.splitlines():
-                    if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
-                        fields = [field.strip() for field in line[1:-1].split("|")]
-                        if len(fields) >= 4 and is_trading_entry({"rating": fields[2]}):
-                            return
+            for line in complete.splitlines():
+                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
+                    fields = [field.strip() for field in line[1:-1].split("|")]
+                    if len(fields) >= 4 and is_trading_entry({"rating": fields[2]}):
+                        return
             # Historical REVIEW entries remain readable but never block a
             # corrected decision for the same ticker/date.
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
             link = f"<!-- PUBLICATION_ID: {decision_id} -->\n\n" if decision_id else ""
             entry = f"{tag}\n\n{link}DECISION:\n{final_trade_decision}{self._SEPARATOR}"
-            with open(self._log_path, "a", encoding="utf-8") as f:
-                f.write(entry)
+            if partial:
+                stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+                quarantine = self._log_path.with_name(f"{self._log_path.name}.partial-{stamp}.md")
+                suffix = 1
+                while quarantine.exists():
+                    quarantine = self._log_path.with_name(
+                        f"{self._log_path.name}.partial-{stamp}-{suffix}.md"
+                    )
+                    suffix += 1
+                replace_file(
+                    quarantine,
+                    lambda temp: Path(temp).write_text(partial, encoding="utf-8"),
+                    strict=True,
+                )
+            replace_file(
+                self._log_path,
+                lambda temp: Path(temp).write_text(complete + entry, encoding="utf-8"),
+                strict=True,
+            )
 
     def settling(self, wait: bool = True):
         """Hold the log for one settlement pass at a time, across threads and processes.
