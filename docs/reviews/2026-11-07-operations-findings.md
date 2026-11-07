@@ -58,3 +58,60 @@ Actual logging/installed-adapter probe (builder run; no provider invocation):
 ```
 
 Initial audit input omissions are resolved by explicit full current PM/research manager, decision-context, shared valuation and valuation modules in final closure governing inputs. These deterministic helpers contain no LLM invocation between the structured reply and truncation marking. Nonselected pipeline/broker/live provider paths remain out of scope.
+
+# Build D independent closure findings
+
+Completed/reviewer_completed; Claude Fable requested/served;37 actual turns,$2.4690587500000007,952491ms. Configured18soft/35hard/$6soft/$10hard/90min. Executor reports37 against35 and reviewer_completed; no limit increase requested. Do not claim strict turn-cap compliance. This repeats the already recorded B audit-runner count/termination discrepancy and is deferred outside D. Cost remains below hard cap. No Critical/High/Medium; material D7 correction and builder D5 correction independently confirmed.
+
+## 1. Sanitized unsupported-indicator sentinel no longer names the rejected indicator or the vendor's supported list; the model/operator cannot tell from the sentinel which LLM-chosen indicator was refused (the name survives only as a suppressed lazy log arg). Bounded-literal trade-off is consistent with D7 but slightly reduces recoverability versus the prior local message
+
+confirmed; material=False; action=defer. Bounded literal intentionally omits arbitrary requested indicator text and vendor lists. Tool call retains request identity. Distinction unsupported-vs-calculation-vs-coverage is preserved; no required behavior remains missing.
+
+## 2. New module-level pytest tests are appended after the `if __name__ == "__main__": unittest.main()` guard in a unittest-style file; pytest collects them but direct `python tests/test_vendor_routing.py` execution silently skips them
+
+partially_confirmed; material=False; action=no_action. Pytest collects and executes all new cases, as required. Module-level pytest functions would not run under unittest.main regardless of their placement before/after the guard. Direct script execution is not an acceptance path; no code movement merely for style.
+
+## 3. Receipt binds tested_commit 15657050 while the audited head is dce9bba1; the claim that following commits add only evidence (identical application/test code at head) cannot be verified from the frozen aggregate base→head diff, which contains no per-commit attribution
+
+not_reproducible; material=False; action=no_action. No candidate mismatch: exact cli/tradingagents/tests Git trees at tested15657050 and auditeddce9bba1 are identical, verified after closure. Auditor aggregate packet lacked per-commit view; its limitation is preserved, not passed off as independent verification.
+
+## 4. `Path(default).resolve()` in _prompt_save_path also resolves symlinks, so the displayed/saved default can textually differ from the configured results_dir (e.g. macOS /var → /private/var); cosmetic only, physical destination unchanged
+
+confirmed; material=False; action=no_action. Resolving displayed default chooses the same physical destination and supports equality checks for retry/escape. Symlink spelling difference is cosmetic; no product requirement requires preserving configured textual spelling.
+
+## Coverage and exact-source probes
+
+Complete PM/research/decision-context/shared-valuation/valuation and run-logging modules were supplied: exact body matching against frozen request confirms availability. Closure auditor did not re-verify them; do not claim otherwise. Initial D8 delivery audit and actual next-prompt regressions cover current behavior; deterministic intermediate helpers were builder-verified, and future contextvar coupling remains a nonmaterial deferral. No new material missing requirement was identified.
+
+```json
+{
+  "exact_git_tree_identity": {
+    "cli": {
+      "tested_tree": "ac699a35701c5f35a15865ed1fc86d35b303229e",
+      "audited_tree": "ac699a35701c5f35a15865ed1fc86d35b303229e",
+      "identical": true
+    },
+    "tradingagents": {
+      "tested_tree": "929386290e42ca3c5e840a2413ea8ccec69005aa",
+      "audited_tree": "929386290e42ca3c5e840a2413ea8ccec69005aa",
+      "identical": true
+    },
+    "tests": {
+      "tested_tree": "b6f371c80492fff1edbae3c12a74283eee6454aa",
+      "audited_tree": "b6f371c80492fff1edbae3c12a74283eee6454aa",
+      "identical": true
+    }
+  },
+  "full_module_contents_present_in_frozen_requirements": {
+    "tradingagents/agents/managers/portfolio_manager.py": true,
+    "tradingagents/agents/managers/research_manager.py": true,
+    "tradingagents/agents/decision_context.py": true,
+    "tradingagents/agents/shared_valuation.py": true,
+    "tradingagents/agents/valuation.py": true,
+    "cli/run_logging.py": true
+  },
+  "note": "Availability is verified, not independent inspection. Auditor chose not to re-verify these unchanged bodies in closure; D8 delivery was covered by initial audit and next-prompt regression evidence. No third audit is claimed."
+}
+```
+
+The final probes were run after the frozen audit and are builder evidence, not hashed independent inputs. Full source/test trees are identical; subsequent final records do not change implementation. Remote CI/install/live provider compliance remain unverified.

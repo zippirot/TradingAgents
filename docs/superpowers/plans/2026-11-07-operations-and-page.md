@@ -45,55 +45,55 @@ Cross-cutting cases; each is proved by the named owning task.
 
 **Files:** `cli/run.py::run_analysis` (before the `Live` context); `tests/test_cli_headless.py` (new tests beside the existing headless-run tests).
 - Produces: `_configure_run_logging(results_dir: Path) -> Path` installing one `logging.FileHandler(results_dir / "run.log")` at `WARNING` on the root logger (removing a previous run's handler first), format `%(asctime)s %(levelname)s %(name)s: %(message)s`. After "Analysis Complete!" print `Run log: <path>`. In `_offer_reports`, log a sanitized diagnostic with stack location. On an interactive save failure offer one retry with a fresh path; unattended mode reports failure without prompting. Do not persist raw provider diagnostics or credentials in this handler.
-- [ ] `test_warnings_reach_run_log`, `test_report_save_failure_is_logged_with_traceback_and_retried_once`. Implement, run, commit.
+- [x] `test_warnings_reach_run_log`, `test_report_save_failure_is_logged_with_traceback_and_retried_once`. Implement, run, commit.
 
 ### Task D3: A run directory per attempt
 
 **Files:** `cli/run.py::_run_directory` and the `message_tool.log`/`reports` wiring (~line 136–141); `tradingagents/graph/trading_graph.py::_log_state` (~line 702).
 - Produces: `_run_directory(config, ticker, trade_date, attempt_id)` → `results_dir/<T>/<date>/<HHMMSS>-<attempt_id[:8]>/`. `_log_state` writes `full_states_log_<date>_<run_id[:8]>.json` and also rewrites `full_states_log_<date>.json` as the latest (so existing snapshots and the replay technique keep working).
-- [ ] `test_two_runs_same_day_keep_both_report_sets`, `test_state_log_is_written_per_run_and_as_latest`. Implement, run, commit.
+- [x] `test_two_runs_same_day_keep_both_report_sets`, `test_state_log_is_written_per_run_and_as_latest`. Implement, run, commit.
 
 ### Task D4: Cost line and source revision
 
 **Files:** `cli/run.py` (after "Analysis Complete!"), `cli/stats_handler.py::get_stats`, `tradingagents/graph/trading_graph.py::run_settings`, `tradingagents/report_html.py::_run_details`, `tradingagents/reporting.py` header, `tradingagents/default_config.py` and `cli/updates.py`.
 - Print observed `Tokens: <in> in / <out> out (<coverage>)`; never turn unavailable usage into zero or label a partial estimate as the whole run. Show an estimate at configured per-million prices only when both prices are present and valid and usage is observed. Save source fingerprint and provider effort as producing-run metadata; use the existing `publication_versions["code"]` fingerprint and label it as a source hash, not a Git SHA. Re-export uses retained provenance, not today's installation. Parse `TRADINGAGENTS_NO_UPDATE_CHECK` with the existing boolean convention so `0` means the check is enabled. The launcher’s `.env` suppression is already complete; no tracked launcher override or second configuration change.
-- [ ] `test_cost_line_prints_only_with_configured_prices`, `test_run_settings_include_source_revision_and_effort`, `test_no_update_check_zero_means_enabled`. Implement, run, commit.
+- [x] `test_cost_line_prints_only_with_configured_prices`, `test_run_settings_include_source_revision_and_effort`, `test_no_update_check_zero_means_enabled`. Implement, run, commit.
 
 ### Task D5: Save-path prompt cannot take "y" as a folder
 
 **Files:** `cli/run.py::_offer_reports` (~line 452).
 - Produces: `_resolve_save_path(answer: str, default: Path, results_dir: Path) -> Path`: empty → default; `answer.strip().lower()` in `{"y", "yes", "n", "no"}` or shorter than three characters → re-prompt once, then default; a relative path resolves under `results_dir / "reports"`.
-- [ ] `test_save_path_y_is_rejected_and_default_used`, `test_relative_save_path_lands_under_results_reports`. Implement, run, commit. The original stray directory was already removed; no cleanup action belongs to D5.
+- [x] `test_save_path_y_is_rejected_and_default_used`, `test_relative_save_path_lands_under_results_reports`. Implement, run, commit. The original stray directory was already removed; no cleanup action belongs to D5.
 
 ### Task D6: Reasoning effort on OpenRouter
 
 **Files:** `tradingagents/llm_clients/factory.py::build_llm_kwargs`, `tradingagents/llm_clients/openai_client.py` (`_PASSTHROUGH_KWARGS` loop ~line 398), `cli/selections.py` (~line 343), `tests/test_openrouter_model_select.py`.
 - Produces: for provider `openrouter`, `openai_reasoning_effort` is forwarded as `extra_body={"reasoning": {"effort": <value>}}` (verify the parameter name against OpenRouter's reasoning documentation at build time and record the URL in the commit); the native-OpenAI model regex gate is skipped for OpenRouter; the CLI shows the Step 8 effort prompt for OpenRouter; any configured effort that a provider adapter drops logs `logger.warning("reasoning effort %r not forwarded to provider %r")`.
-- [ ] `test_openrouter_forwards_reasoning_effort_in_extra_body`, `test_dropped_effort_is_warned_not_silent`. Implement, run, commit.
+- [x] `test_openrouter_forwards_reasoning_effort_in_extra_body`, `test_dropped_effort_is_warned_not_silent`. Implement, run, commit.
 
 ### Task D7: Keep raw vendor exceptions out of downstream messages
 
 **Owner:** `tradingagents/dataflows/router.py` (vendor errors returned as text, including optional categories), `tradingagents/graph/setup.py` (escaped tool exceptions), `tests/test_analyst_execution.py` and router tests. Keep safe, bounded typed reason codes; do not interpolate vendor exception messages into sentinels, retained tool evidence, logs introduced here or model prompts. Preserve actionable, locally generated no-data reasons and existing vendor fallback behavior.
 
-- [ ] With a dummy secret in an exception, exercise **both** a raised tool exception and a router-returned unavailable sentinel through the real graph. Verify the run continues, the next agent receives the unavailable message, and the raw diagnostic is absent from retained messages, evidence and the new log.
+- [x] With a dummy secret in an exception, exercise **both** a raised tool exception and a router-returned unavailable sentinel through the real graph. Verify the run continues, the next agent receives the unavailable message, and the raw diagnostic is absent from retained messages, evidence and the new log.
 
 ### Task D8: Mark the output actually delivered when it was truncated
 
 **Owner:** `tradingagents/operational_capture.py`, `agents/analysts/turn.py`, `agents/structured.py` and their research/trader/risk/portfolio callers where a raw response becomes text. Reuse the existing finish/stop-reason detection (including generation metadata) at the point where raw metadata is still available; the structured helper returns a parsed model, not a raw message. Keep typed contracts and rating parsing intact; tag the narrative presented downstream, not JSON used for validation.
 
-- [ ] With offline responses, inspect the **next prompt** or advisory audit input for the truncation note on analyst, wrap-up, structured and free-text fallback paths. Verify a complete fallback after a truncated failed attempt is not labeled truncated, a truncated fallback is labeled, an ordinary stop is unmarked, and the operational footer does not count an event twice.
+- [x] With offline responses, inspect the **next prompt** or advisory audit input for the truncation note on analyst, wrap-up, structured and free-text fallback paths. Verify a complete fallback after a truncated failed attempt is not labeled truncated, a truncated fallback is labeled, an ordinary stop is unmarked, and the operational footer does not count an event twice.
 
 ### Task D9: Identify reports for which all requested tools returned no usable data
 
 **Owner:** `tradingagents/graph/setup.py::_analyst_graph.finish` and retained tool evidence. For at least one actual request and no usable result across its matching tool outputs (typed errors and returned `DATA_UNAVAILABLE:` / `NO_DATA_AVAILABLE:` sentinels), prefix the report with a plain warning and set `all_tools_failed` in the evidence. State precisely that these tool calls supplied no support; distinguish any independently supplied shared filing evidence.
 
-- [ ] Exercise all failed, mixed success, zero calls and separately supplied evidence. Inspect the next prompt, retained report and evidence flag, not only the footer event count.
+- [x] Exercise all failed, mixed success, zero calls and separately supplied evidence. Inspect the next prompt, retained report and evidence flag, not only the footer event count.
 
 ### Task D10: Verify historical split basis before removing later rows
 
 **Owner:** `tradingagents/dataflows/vendors/yahoo/ohlcv.py::load_ohlcv`; `tests/test_ohlcv_latest_bar.py`. On historical requests verify split actions and sufficient coverage **before** filtering to `as_of`, on both the download and cache-hit paths. Request actions; an old cache without trustworthy action data must take the existing refetch/verification path or return typed unavailable. Follow `price_observation._verify_adjustment_basis` for failure semantics. Never pass future rows, split ratios or later action dates into historical model inputs.
 
-- [ ] Test a later split (unavailable), split only before cutoff (comparable), verified absence, and a legacy/missing-actions cache with successful and failed verification. Inspect the resulting tool response and cutoff on the data actually delivered.
+- [x] Test a later split (unavailable), split only before cutoff (comparable), verified absence, and a legacy/missing-actions cache with successful and failed verification. Inspect the resulting tool response and cutoff on the data actually delivered.
 
 ### Build D proof
 - `pytest -q` green; `ruff check`.
@@ -132,3 +132,7 @@ Independent audit: required
 - Cash plus marketable securities is statement liquidity, not unrestricted valuation cash.
 - "Changed since the prior run" rows describe the model's assumptions, not new evidence.
 
+
+## Execution checkpoint — final local handoff
+
+D2–D10 complete locally. Corrected application/tests15657050; full3309 tests,10 skips,1 deselection,100 subtests; full Ruff clean, actual offline CLI normal/retry/resume and preserved Safari/Chrome copy proof. Initial and closure Claude audits completed; material D7 and D5 corrections closed, lower findings/turn-counter discrepancy recorded in docs/reviews/2026-11-07-operations-and-page-acceptance.md. Closure manifest validated verified/complete atdce9bba1; final records only. All25 Goal tasks reconciled, D11 excluded. No D integration/push, production advancement, install or cleanup authority.
