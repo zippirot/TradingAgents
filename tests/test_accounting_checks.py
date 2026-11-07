@@ -9,6 +9,7 @@ from tradingagents.agents.accounting_checks import (
     calculate_obligations,
     check_adjusted_bridge,
     check_balance_sheet,
+    check_cash_plus_marketable_securities,
     check_eps,
     check_equity_rollforward,
 )
@@ -273,6 +274,31 @@ def test_recorded_docn_balance_sheet_is_exact(monkeypatch):
         {},
     )
     assert result.status == "pass" and result.residual == 0 and result.result == 3123053000
+
+
+def test_cash_plus_current_marketable_is_statement_liquidity_only():
+    p = package(fact("cash", 666_096_000, "Cash and Equivalents"),
+                fact("sec", 178_645_000, "Current Marketable Securities"))
+    result = check_cash_plus_marketable_securities(p)
+    assert result.method == "cash_plus_marketable_securities_v1"
+    assert result.status == "pass" and result.result == 844_741_000
+    assert result.unit == "USD" and result.input_fact_ids == ("cash", "sec")
+    assert "not unrestricted valuation cash" in result.message
+    assert calculate_obligations(p, {"borrowings": ("sec",)}, "cash")[0].status == "unavailable"
+
+
+def test_cash_plus_marketable_fails_closed_for_missing_or_incompatible_securities():
+    cash = fact("cash", 666_096_000, "Cash and Equivalents")
+    assert check_cash_plus_marketable_securities(package(cash)).status == "unavailable"
+    for securities in (
+        fact("sec", 178_645_000, "Marketable Securities"),
+        fact("sec", 178_645_000, "Current Marketable Securities", unit="EUR"),
+        fact("sec", 178_645_000, "Current Marketable Securities", period_end="2025-12-31"),
+    ):
+        assert check_cash_plus_marketable_securities(package(cash, securities)).status == "unavailable"
+    newer_cash = fact("newcash", 10, "Cash and Equivalents", period_end="2026-09-30")
+    old_securities = fact("oldsec", 20, "Current Marketable Securities")
+    assert check_cash_plus_marketable_securities(package(cash, newer_cash, old_securities)).status == "unavailable"
 
 
 def test_cash_generation_rejects_non_cash_and_operating_lease_inputs():

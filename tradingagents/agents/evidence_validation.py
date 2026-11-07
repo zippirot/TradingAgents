@@ -351,8 +351,13 @@ def create_source_acquisition(selected_analysts):
                         from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
 
                         record["rpo_comparison"] = retrieve_rpo_comparison(scope["ticker"], disclosures)
+                    from tradingagents.agents.document_access import prepare_document_sources
+
+                    if disclosures is not None:
+                        update["filing_evidence"] = disclosures.model_dump(mode="json")
+                    update.update(prepare_document_sources({**state, **update}, selected_analysts))
                     prepared = assess_financial_package(
-                        state, package, disclosures, record["disclosure_error"],
+                        {**state, **update}, package, disclosures, record["disclosure_error"],
                         rpo_comparison=record["rpo_comparison"], source_only=True,
                     )
                     record["source_checks"] = prepared.pop("source_checks")
@@ -385,6 +390,9 @@ def create_source_acquisition(selected_analysts):
         from tradingagents.agents.document_access import prepare_document_sources
 
         update.update(prepare_document_sources({**state, **update}, selected_analysts))
+        from tradingagents.agents.filing_terms import prepare_filing_terms
+
+        update.update(prepare_filing_terms({**state, **update}))
         from tradingagents.agents.transcript_access import prepare_transcript_sources
 
         update.update(prepare_transcript_sources({**state, **update}, selected_analysts))
@@ -446,6 +454,10 @@ def assess_financial_package(
     state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None, source_only=False
 ) -> dict:
     """Assess available canonical evidence; unfinished critical bridges remain unavailable."""
+    from tradingagents.agents.document_access import validated_document_corpus
+    from tradingagents.dataflows.vendors.sec_edgar import confirm_current_marketable_securities
+
+    package = confirm_current_marketable_securities(package, validated_document_corpus(state))
     if rpo_comparison is not None:
         from tradingagents.agents.kpi_comparisons import replay_rpo_comparison
 
@@ -602,6 +614,9 @@ def assess_financial_package(
     calculations.extend(operating)
     checks.extend({"code": "optional_operating_" + c.method, "status": c.status,
                    "message": c.message} for c in operating)
+    from tradingagents.agents.accounting_checks import check_cash_plus_marketable_securities
+
+    calculations.append(check_cash_plus_marketable_securities(package))
     disclosure_summary = ""
     disclosure_references = []
     if quote_packages:
@@ -765,6 +780,11 @@ def assess_financial_package(
         update["canonical_financial_context"] += "\n\n" + supplement["financing_text"]
     if supplement["text"]:
         update["canonical_financial_context"] += "\n\n" + supplement["text"]
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(state)
+    if terms:
+        update["canonical_financial_context"] += "\n\n" + terms
     if source_only:
         if extraction is not None:
             update["filing_fact_extraction"] = extraction.model_dump(mode="json")

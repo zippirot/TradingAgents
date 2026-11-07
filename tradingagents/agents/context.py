@@ -239,6 +239,11 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
     except (ValueError, TypeError, KeyError):
         reason = (state.get("price_observation") or {}).get("reason", "No verifiable completed price retained")
         lines.append("Canonical completed price unavailable: " + str(reason)[:500])
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(state)
+    if terms:
+        lines.extend(terms.splitlines())
     lines.append("Source scope: " + str(acquisition.get("status", "unavailable")) + "; " + str(acquisition.get("reason") or "")[:500])
     checks = acquisition.get("source_checks") or []
     for check in checks[:12]:
@@ -273,10 +278,23 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
     if package is None:
         lines.append("Financial source facts unavailable or source integrity not established; do not infer missing values.")
     else:
+        from tradingagents.agents.evidence_presentation import fact_reference_labels
+
+        liquidity = next((c for c in state.get("financial_calculations", ())
+                          if c.get("method") == "cash_plus_marketable_securities_v1"), None)
+        if liquidity:
+            labels = fact_reference_labels(state.get("canonical_financial_context", ""))
+            input_labels = {labels[ident] for ident in liquidity.get("input_fact_ids", ()) if ident in labels}
+            canonical_lines = str(state.get("canonical_financial_context", "")).splitlines()
+            lines.extend(line for line in canonical_lines if (
+                "cash plus marketable securities:" in line
+                or any(line.startswith(f"- [{label}]") for label in input_labels)))
         # Latest records from each metric, plus annual earnings/revenue baselines.
         # Round-robin selection avoids rich history crowding out other definitions.
         groups = {}
         for fact in package.facts:
+            if fact.metric.startswith("Unclassified Marketable Securities ["):
+                continue  # Raw aliases remain in evidence, never duplicated as accepted liquidity.
             groups.setdefault(fact.metric, []).append(fact)
         for group in groups.values():
             group.sort(key=lambda f: (f.period_end, f.origin == "reported"), reverse=True)

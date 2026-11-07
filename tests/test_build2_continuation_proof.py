@@ -331,7 +331,22 @@ def private_drill(tmp):
     def deny(*args, **kwargs):
         raise AssertionError("Unmocked network transport in offline drill")
 
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    current_signature = TradingAgentsGraph._run_signature
+
+    def frozen_build2_signature(graph, *args, **kwargs):
+        # This is a historical Build2 proof against an exact private checkpoint,
+        # already isolated from live checkout provenance above. B changes the
+        # pre-analyst brief and intentionally gives fresh runs a different ID.
+        # Keep the original graph-shape token ONLY inside this offline fixture;
+        # every native checkpoint ID, pending-node and retained-input assertion
+        # below remains live. This does not assert current B resume compatibility.
+        return current_signature(graph, *args, **kwargs).replace(
+            "shared_source_brief=4", "shared_source_brief=3")
+
     with ExitStack() as stack:
+        stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))
         for module in (httpx, httpx2):
             stack.enter_context(
                 patch.object(module.HTTPTransport, "handle_request", transport(module))

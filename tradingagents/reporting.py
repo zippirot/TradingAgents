@@ -418,6 +418,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "financial_evidence",
         "filing_evidence",
         "filing_fact_extraction",
+        "filing_terms_evidence",
         "financial_calculations",
         "disclosure_evidence",
         "target_validation",
@@ -477,6 +478,11 @@ def evidence_appendix(final_state: dict) -> str:
                   f"Model submissions: {count('model_accepted')} accepted, {count('model_rejected')} rejected.",
                   f"Deterministic discovery: {count('deterministic_accepted')} accepted, {count('deterministic_rejected')} rejected.",
                   "Accepted sets may overlap; raw rejected records and source locators remain in evidence.json.", ""]
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(final_state)
+    if terms:
+        lines += ["#### Source-bound instrument terms and commitments", "", terms, ""]
     checks = quality.get("checks") or []
     if checks:
         lines += ["#### Evidence checks", "", "Check | Status | Finding", "--- | --- | ---"]

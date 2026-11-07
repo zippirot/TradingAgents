@@ -89,6 +89,7 @@ class AgentState(MessagesState):
     document_search_trace: Annotated[dict, merge_search_traces]
     document_search_role: Annotated[str, "Private analyst subgraph role, never model supplied"]
     document_followups: Annotated[dict, "Retained deterministic post-debate source lookups; unvalidated interpretation"]
+    filing_terms_evidence: Annotated[dict, "Pre-analyst typed note and lease records bound to full source corpus"]
     filing_fact_extraction: Annotated[dict, "Verified filing cells and table coverage"]
     evidence_acquisition: Annotated[dict, "Retained pre-analyst source vintage and scope; not final evidence authority"]
     shared_source_brief: Annotated[str, "Bounded common primary-source brief consumed by every analyst"]

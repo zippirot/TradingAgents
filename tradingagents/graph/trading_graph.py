@@ -364,7 +364,7 @@ class TradingAgentsGraph:
             "advisory_audit=5",
             "run_metrics=2",
             "financing_evidence=2",
-            "shared_source_brief=3",
+            "shared_source_brief=4",
             "financial_claim_prompt=1",
             "document_search=2",
             "document_followup=2",
@@ -824,7 +824,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "filing_terms_evidence", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 
