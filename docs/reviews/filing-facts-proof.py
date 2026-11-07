@@ -148,6 +148,7 @@ with ExitStack() as stack, run_config(config):
     write_report_tree(state, 'DOCN', root / 'reports')
     evidence = json.loads((root / 'reports/evidence.json').read_text())
     assert evidence['filing_terms_evidence'] == records
+    assert reopened_state['shared_source_brief'] == evidence['shared_source_brief'] == state['shared_source_brief']
     assert '844741000' in (root / 'reports/complete_report.md').read_text()
     for extension in ('md', 'html'):
         text = (root / 'reports' / f'complete_report.{extension}').read_text()

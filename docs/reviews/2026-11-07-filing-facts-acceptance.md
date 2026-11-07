@@ -1,6 +1,6 @@
 # Build B: source-bound filing facts
 
-Current status, 2026-11-07: local B1–B3 implementation and required offline proof complete; independent Claude audit pending. This is local feature acceptance preparation, not integration/release acceptance. No B integration/push, D start, release, installation or cleanup is authorized.
+Current status, 2026-11-07: local B1–B3 implementation and offline proof complete; initial independent audit completed; focused independent source-context follow-up pending. This is local feature acceptance preparation, not integration/release acceptance. No B integration/push, D start, release, installation or cleanup is authorized.
 
 ## Authority and baseline
 
@@ -49,3 +49,15 @@ Required Claude route uses the frozen manifest/diff and full HEAD contents of ex
 Attention: binding principal/price/units to one vintage; exact rounding and obligation identity; table date-column/current classification vs aliases; canonical source metadata collision/replay; no new Cash/EV authority; SourceAcquisition before shared prompt with no extra fetch; saved source hash and record tamper rejection; graph state retention and report fresh/saved projection. Required independent review and confirmed-material gap closure remain pending. No final B handoff yet.
 
 Full-suite stdout SHA-256: `3957bb7061bc1a8345ecb519755069cc283373ef65349ec762e90889648df6a5`. Log `/tmp/filing-facts-pytest-candidate.log`; replay `/tmp/filing-facts-proof-final.log`.
+
+## Post-audit verification follow-up (current status)
+
+Initial Claude audit bd27b742→57e954fe completed27turns,$1.22289025,344861ms,reviewer_completed, no soft/hard cap reached. No Critical/High/Medium and six Low entries (summary says five). Individual dispositions and original result retained. Two claims are disproved by existing source guards plus new public probes: `_same` rejects duration securities paired with instant cash, and case-insensitive `_PRICE` blocks lowercase sentence continuation too. Other Low observations concern supported-layout/serialization scope, historical fixture context and cosmetic formatting; no application correction is needed.
+
+The original audit incorrectly reported unchanged source unavailable. Whole-body comparison shows exact supplied module contents present in frozen.requirements; availability did not ensure inspection. B is therefore held incomplete for one focused independent source-context follow-up. The findings report supplies clearly attributed complete relevant body excerpts (schema, SEC reader/serialization/byte hashes, corpus validation/reuse, accounting helpers, pre-analyst acquisition/common context and canonical C/F renderer) and the relevant repository balance-table fixture excerpt. First audit covers changed B logic; follow-up must explicitly inspect these actual source guards/producer context. No material-code closure plan is asserted. Initial manifest validated at57e954fe with incomplete/pending status before HEAD moved.
+
+Test candidate9223b2260b5e581c818fe80664ecd947bfe6b8f4: full default pytest **3239 passed,10 skipped,1 deselected,24 warnings,100 subtests passed in54.58s**, exit0. Full Ruff and diff checks clean. New code is tests/evidence only; production source unchanged from3294b05a. Existing final DOCN runtime evidence remains valid for unchanged source/dependencies. An additional read of those same disposable outputs confirms the reopened state and evidence.json retain identical shared_source_brief with sourced note and844741000USD calculation; receipt updated and proof assertion retained. This is reuse of valid output, not a new product run.
+
+Current liquidity classification supports the explicit retained quarterly presentation only; other annual/layout variants remain unavailable. No broader coverage guarantee or valuation-cash change is introduced. Remote exact-B CI and installation remain unverified. No B integration/push or D start.
+
+Follow-up full-suite stdout SHA-256: `6d2ee1f96b5a9fea5244c73973d69f259dfa78588be6f8456edf62e646cb29ed`. Log `/tmp/filing-facts-pytest-audit-followup.log`.

@@ -87,5 +87,6 @@
     "Factories invoked in application order; compiled graph scheduling is covered separately."
   ],
   "companyfacts_sha256": "31811413bd5a0353e87640102a5796ab88deda276d982fd709b5839feb4a8b11",
-  "application_source_commit": "3294b05a93ad55773db778b2139411133bd3c0cd"
+  "application_source_commit": "3294b05a93ad55773db778b2139411133bd3c0cd",
+  "reopened_shared_brief_equal": true
 }

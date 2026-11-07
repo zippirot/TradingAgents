@@ -1379,3 +1379,131 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
 ## Verified case probes
 
 Focused public calculation and parser probes:23 passed. They confirm duration securities return unavailable through `_same`, and both lowercase/uppercase sentence continuations omit conversion_price because re.I applies to the `[A-Z]` guard. Application source is unchanged; only these test cases and evidence are new. Current liquidity template remains intentionally narrow and unsupported layouts unavailable. No material source correction is required by the six Low observations. Original initial manifest validated at57e954fe, incomplete pending this focused context verification; no material-finding closure plan is claimed.
+
+### tradingagents/dataflows/financial_evidence.py
+
+Module SHA-256 `9875a2aae544955fc6c58f995d8bb8d978476be144e46be2a2524cc8c5db556f`. Complete named source bodies:
+
+```python
+class SourceRecord(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    source_id: str
+    cik: str
+    url: str
+    filed_date: date
+    retrieved_at: datetime
+    content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    locator: str
+    accession: str | None = None
+    form: str
+```
+
+```python
+class FinancialFact(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    fact_id: str
+    metric: str
+    value: Decimal | None
+    unit: str
+    cik: str
+    period_start: date | None = None
+    period_end: date
+    as_of: date
+    basis: str = "US-GAAP"
+    source_ids: tuple[str, ...] = ()
+    locator: str
+    origin: Literal["reported", "derived"] = "reported"
+    missing_reason: str | None = None
+    input_fact_ids: tuple[str, ...] = ()
+    formula_id: str | None = None
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if self.period_end > self.as_of:
+            raise ValueError("fact period ends after the evidence cutoff")
+        if self.period_start and self.period_start > self.period_end:
+            raise ValueError("fact period is reversed")
+        if self.value is None and not self.missing_reason:
+            raise ValueError("missing facts require an explicit reason")
+        if self.value is not None and (not self.source_ids or self.missing_reason):
+            raise ValueError("reported values need sources and cannot be missing")
+        if self.origin == "derived" and (not self.formula_id or not self.input_fact_ids):
+            raise ValueError("derived facts require formula and input lineage")
+        if self.origin == "reported" and (self.formula_id or self.input_fact_ids):
+            raise ValueError("reported facts cannot claim a derivation")
+        return self
+```
+
+```python
+class EvidencePackage(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    schema_version: Literal[1] = 1
+    cik: str
+    as_of: date
+    scope: str = "SEC US-GAAP statements"
+    sources: tuple[SourceRecord, ...] = ()
+    facts: tuple[FinancialFact, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def references(self):
+        sources = {s.source_id: s for s in self.sources}
+        facts = {f.fact_id: f for f in self.facts}
+        if len(sources) != len(self.sources) or len(facts) != len(self.facts):
+            raise ValueError("duplicate evidence identifiers")
+        for source in self.sources:
+            if source.cik != self.cik or source.filed_date > self.as_of:
+                raise ValueError("source issuer or filing cutoff mismatch")
+        for fact in self.facts:
+            if fact.cik != self.cik or fact.as_of != self.as_of:
+                raise ValueError("fact issuer or vintage mismatch")
+            if any(s not in sources for s in fact.source_ids):
+                raise ValueError("fact refers to missing source")
+            if any(i not in facts or i == fact.fact_id for i in fact.input_fact_ids):
+                raise ValueError("derivation refers to missing or self input")
+        return self
+```
+
+
+### tradingagents/dataflows/filing_search.py
+
+Module SHA-256 `78fe03d039c05351886fc4875e036b2b8a8c9b221ab5871823aa8ad1fe56a18a`. Complete named source bodies:
+
+```python
+def corpus_hash(corpus: DisclosurePackage) -> str:
+    """Hash the exact retained package, including source hashes and block text."""
+    data = json.dumps(corpus.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(data.encode()).hexdigest()
+```
+
+
+### B3 recorded repository fixture excerpt
+
+`tests/fixtures/docn_2026q3/live02_filing_package.json` at3294b05a, full file SHA-256 `5181dd06992a05e58d33d6537c0e026b4e685efe85d75892312a1a21b78087dc`. The following is the complete block-41 plus filing metadata from this committed fixture. Unrelated statements/disclosures omitted; adjacent scale/heading blocks in tests are the exact contexts retained in the separate saved full corpus, identified in the successful private proof. This fixture excerpt is supplied, not assumed accessible from its path.
+
+```json
+{
+  "filing": {
+    "cik": "0001582961",
+    "accession": "0001628280-26-069141",
+    "form": "10-Q",
+    "filed_date": "2026-11-03",
+    "report_date": "2026-09-30",
+    "primary_document": "docn-20260930.htm",
+    "items": "",
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+  },
+  "content_hash": "9be0f47101ab44bb6fd06fd91e9182c59e50cf197e99cd71c50c603e29f951a7",
+  "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+  "blocks": [
+    {
+      "locator": "block-41",
+      "section": "Document",
+      "text": "| | | | | | | | | | | ; | September 30, 2026 | | December 31, 2025 ; ; Current assets: | | | ; Cash and cash equivalents | $ | 666,096 | | | $ | 254,475 | ; Marketable securities | 178,645 | | | \u2014 | ; Accounts receivable, less allowance for credit losses of $7,289 and $6,374, respectively | 139,811 | | | 90,908 | ; Prepaid expenses and other current assets | 86,234 | | | 81,598 | ; Total current assets | 1,070,786 | | | 426,981 | ; Property and equipment, net | 1,407,705 | | | 589,094 | ; Restricted cash | 156 | | | 158 | ; Goodwill | 350,651 | | | 348,674 | ; Intangible assets, net | 88,303 | | | 99,504 | ; Operating lease right-of-use assets, net | 704,847 | | | 270,854 | ; Deferred tax assets | 88,097 | | | 90,310 | ; Other assets | 24,969 | | | 12,130 | ; Total assets | $ | 3,735,514 | | | $ | 1,837,705 | ; | | | ; Current liabilities: | | | ; Accounts payable | $ | 44,660 | | | $ | 38,836 | ; Accrued other expenses | 92,994 | | | 42,679 | ; Deferred revenue | 52,707 | | | 5,882 | ; Debt, current | 312,052 | | | 325,109 | ; Operating lease liabilities, current | 147,078 | | | 108,037 | ; Finance lease liabilities and equipment financing obligations, current | 204,778 | | | 31,411 | ; Other current liabilities | 72,908 | | | 67,510 | ; Total current liabilities | 927,177 | | | 619,464 | ; Deferred tax liabilities | 3,949 | | | 4,092 | ; Debt, long-term | 149,578 | | | 970,653 | ; Operating lease liabilities, long-term | 519,533 | | | 166,895 ; Finance lease liabilities and equipment financing obligations, long-term | 718,821 | | | 99,103 | ; Other non-current liabilities | \u2014 | | | 6,188 ; Total liabilities | 2,319,058 | | | 1,866,395 | ; Commitments and contingencies (Note 10) | | | ; | | | ; ; ; Preferred stock ($0.000025 par value per share; 10,000,000 shares authorized; 0 shares issued and outstanding as of September 30, 2026 and December 31, 2025) | \u2014 | | | \u2014 | ; Common stock ($0.000025 par value per share; 750,000,000 shares authorized; 117,920,731 and 91,947,614 issued and outstanding as of September 30, 2026 and December 31, 2025, respectively) | 2 | | | 2 | ; ; Additional paid-in capital | 1,453,589 | | | 16,005 | ; Accumulated other comprehensive loss | (1,997) | | | (960) | ; Accumulated deficit | (35,138) | | | (43,737) | ; Total stockholders\u2019 equity (deficit) | 1,416,456 | | | (28,690) | ; Total liabilities and stockholders\u2019 equity | $ | 3,735,514 | | | $ | 1,837,705 |",
+      "truncated": false,
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+    }
+  ]
+}
+```
