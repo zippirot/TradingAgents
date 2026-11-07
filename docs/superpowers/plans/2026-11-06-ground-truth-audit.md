@@ -1,6 +1,6 @@
 # Optional Ground Truth Audit for research reports
 
-November 6, 2026 · Proposed implementation plan
+November 6, 2026 · Implementation authorized November 7, 2026
 
 ## What the reader gets
 
@@ -27,7 +27,9 @@ Build this as one per-run option, a final factual review, and its report output.
 
 ## Product decision for the build
 
-**When a confirmed correction undermines the recommendation, should the Portfolio Manager reconsider it?** My recommendation is **one reassessment using the corrected evidence, followed by an audit of the revised conclusion**, before a new decision is committed. This was the approach proposed in the discussion. The alternative is to keep the original rating and put a prominent “Recommendation needs review” finding beside it. Both options preserve the original reasoning for inspection. Select one policy when approving the build. The setup screen still has just the one Yes/No question.
+The user selected **one Portfolio Manager reassessment before publication**, followed by validation and re-audit, on November 7. Apply it when a verified factual correction undermines the recommendation. Preserve the original reasoning in the audit detail. The setup screen has one Yes/No question.
+
+The user authorized **$50 total** for the paid DOCN pilot and independent Claude review, including retries and closure. Track provider-confirmed costs and conservative reservations against this aggregate cap. Unknown cost remains reserved until reconciled. Obtain further authorization before exceeding $50. Reserve funds for the required initial and closure audits.
 
 An unsupported claim and a demonstrated error have different consequences. A source gap alone cannot establish a replacement number, a new rating, or a buy/sell instruction. Keep the existing evidence, target, sizing and trading-memory safeguards. An incomplete audit can accompany a usable research report, with the limitation visible at the top.
 

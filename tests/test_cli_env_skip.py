@@ -143,3 +143,9 @@ class TestReasoningEffortSkippedFromEnv(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.fixture(autouse=True)
+def answer_optional_ground_truth_question(monkeypatch):
+    """These fixtures exercise the pre-existing setup choices."""
+    monkeypatch.setattr(cli_selections, "select_ground_truth_audit", lambda flags: flags.get("ground_truth_audit") is True)

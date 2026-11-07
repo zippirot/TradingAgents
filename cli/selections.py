@@ -2,6 +2,7 @@
 
 import datetime
 import os
+import sys
 from pathlib import Path
 
 import typer
@@ -47,6 +48,16 @@ def get_user_selections(flags=None):
     selections = _prompt_selections(load_last_run(), flags or {})
     save_last_run(selections)
     return selections
+
+
+def select_ground_truth_audit(flags: dict) -> bool:
+    """Offer a fresh default-No choice without changing unattended runs."""
+    if flags.get("ground_truth_audit") is not None:
+        return flags["ground_truth_audit"] is True
+    if not (sys.stdin and sys.stdin.isatty()):
+        return False
+    console.print("[dim]Check the finished report against its sources. Adds time and may increase model charges.[/dim]")
+    return typer.confirm("Ground Truth Audit? (Yes/No)", default=False)
 
 
 def depth_from_env() -> bool:
@@ -354,7 +365,10 @@ def _prompt_selections(prefs, flags):
             "Configure Claude effort level", ask_anthropic_effort,
         )
 
+    ground_truth_audit = select_ground_truth_audit(flags)
+
     return {
+        "ground_truth_audit": ground_truth_audit,
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
         "analysis_date": analysis_date,

@@ -173,3 +173,9 @@ def test_explicit_development_prefs_path_preserves_normal_preferences(monkeypatc
     assert load_last_run() == SAVED
     assert isolated.exists()
     assert normal.read_text() == '{"output_language": "Spanish"}'
+
+
+@pytest.fixture(autouse=True)
+def answer_optional_ground_truth_question(monkeypatch):
+    """These fixtures exercise the pre-existing setup choices."""
+    monkeypatch.setattr(cli_selections, "select_ground_truth_audit", lambda flags: flags.get("ground_truth_audit") is True)

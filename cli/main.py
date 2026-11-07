@@ -64,6 +64,10 @@ def analyze(
     show: bool | None = typer.Option(
         None, "--show/--no-show", help="Show the full report at the end without asking"
     ),
+    ground_truth_audit: bool | None = typer.Option(
+        None, "--ground-truth-audit/--no-ground-truth-audit",
+        help="Check the finished report against sources. Adds time and may increase model charges. Default: no.",
+    ),
     html: bool | None = typer.Option(
         None, "--html/--no-html",
         help="Save the report as one HTML page too, complete_report.html, without asking (default: yes)",
@@ -90,6 +94,8 @@ def analyze(
 
     try:
         flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show, "html": html}
+        if ground_truth_audit is not None:
+            flags["ground_truth_audit"] = ground_truth_audit
         run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.

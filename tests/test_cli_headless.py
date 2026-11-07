@@ -362,3 +362,9 @@ def test_a_page_the_browser_cannot_open_is_pointed_to(monkeypatch, tmp_path, cap
     run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
 
     assert "complete_report.html" in capsys.readouterr().out.split("the page is at:")[-1]
+
+
+@pytest.fixture(autouse=True)
+def answer_optional_ground_truth_question(monkeypatch):
+    """These fixtures exercise the pre-existing setup choices."""
+    monkeypatch.setattr(selections, "select_ground_truth_audit", lambda flags: flags.get("ground_truth_audit") is True)
