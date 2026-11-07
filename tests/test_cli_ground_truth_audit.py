@@ -2,6 +2,7 @@
 from types import SimpleNamespace
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from cli import main, prefs, selections
@@ -57,3 +58,27 @@ def test_selection_flow_ignores_remembered_yes_and_can_opt_in(monkeypatch):
     assert selections._prompt_selections(previous, FLAGS)['ground_truth_audit'] is False
     assert selections._prompt_selections(previous, FLAGS)['ground_truth_audit'] is True
     assert defaults == [False, False]
+
+
+def test_real_enter_after_interactive_yes_selects_no(monkeypatch):
+    from tests.test_cli_headless import FLAGS, UNATTENDED_ENV
+
+    for name, value in UNATTENDED_ENV.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(selections, '_check_tier_providers', lambda *a: None)
+    monkeypatch.setattr(selections.updates, 'enabled', lambda: False)
+    monkeypatch.setattr(selections, 'sys', SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
+    app = typer.Typer()
+
+    @app.command()
+    def choose_twice():
+        first = selections._prompt_selections({}, FLAGS)
+        second = selections._prompt_selections(first, FLAGS)
+        typer.echo(f"choices:{first['ground_truth_audit']},{second['ground_truth_audit']}")
+
+    result = CliRunner().invoke(app, [], input='yes\n\n')
+    assert result.exit_code == 0, result.output
+    assert 'choices:True,False' in result.output
+    assert result.output.count('Ground Truth Audit?') == 2
+    displayed = ' '.join(result.output.split())
+    assert 'Adds time' in displayed and 'model charges' in displayed

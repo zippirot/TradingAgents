@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scope": "legacy export",
+  "status": "unvalidated",
+  "checks": [],
+  "warnings": [
+    "Legacy export — financial evidence was not validated"
+  ]
+}

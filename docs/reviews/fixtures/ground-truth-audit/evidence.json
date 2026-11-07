@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "quality_status": "unvalidated",
+  "issuer_identity": {
+    "cik": "9999999999"
+  },
+  "filing_evidence": {
+    "schema_version": 1,
+    "cik": "9999999999",
+    "as_of": "2026-11-06",
+    "documents": [
+      {
+        "source_id": "synthetic-sec-shaped-source",
+        "url": "https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm",
+        "filing": {
+          "cik": "9999999999",
+          "accession": "9999999999-26-000001",
+          "form": "10-Q",
+          "filed_date": "2026-11-03",
+          "report_date": "2026-09-30",
+          "primary_document": "synthetic-verification-fixture.htm",
+          "items": "",
+          "url": "https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm"
+        },
+        "retrieved_at": "2026-11-06T15:00:00Z",
+        "content_hash": "8a4493a98acaa24f2134a26873a29e0707668f6a0a86e99c4447eb5b5e54d952",
+        "blocks": [
+          {
+            "locator": "synthetic-quarterly-figures",
+            "section": "Synthetic example",
+            "text": "Synthetic verification fixture — not investment research.\nRevenue was 120 USD.\nCash was 20 USD.\nGross margin was 25%.",
+            "truncated": false
+          }
+        ],
+        "gaps": [],
+        "rpo_facts": []
+      }
+    ],
+    "gaps": [],
+    "selected_accessions": []
+  }
+}

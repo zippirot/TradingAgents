@@ -222,6 +222,8 @@ A saved report starts with an executive summary and a visible table of contents,
 
 At setup, **Ground Truth Audit?** defaults to **No** for every report. Selecting Yes (or passing `--ground-truth-audit`, or `config["ground_truth_audit"] = True` in Python) adds a factual review of the report and its final recommendation against dated evidence. The assessment shows coverage and unresolved claims, with source details in a linked companion. It adds time and model charges. A material source-backed correction can prompt one Portfolio Manager reassessment before publication. Partial or unavailable reviews are disclosed. `--no-ground-truth-audit` skips the extra review. Saved results are reused when the exact matching report is exported offline.
 
+For official use, read the reported coverage and unresolved findings: source interpretation uses model judgment. Long reports can reach the request, time or token allowance and remain partial. Offline re-export preserves that recorded coverage.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

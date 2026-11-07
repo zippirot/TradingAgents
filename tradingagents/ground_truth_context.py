@@ -1,14 +1,13 @@
 """Literal coverage of one retained input field, without financial authority."""
 import hashlib
 import json
-import re
 from datetime import date
 
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
 
 
 def context_sources(state):
-    """Expose the exact brief's vocabulary, scoped to its recorded run."""
+    """Expose the complete retained brief only for claims about that input field."""
     brief = state.get('shared_source_brief')
     if brief is None:
         return {}, []
@@ -25,18 +24,20 @@ def context_sources(state):
         return {}, ['Retained brief context cannot be tied to this run.']
     field_hash = hashlib.sha256(brief.encode('utf-8')).hexdigest()
     identity = {'run_id': run_id, 'ticker': ticker, 'as_of': as_of, 'field_sha256': field_hash,
-                'cik': (state.get('issuer_identity') or {}).get('cik')}
+                'cik': (state.get('issuer_identity') or {}).get('cik'),
+                'analysis_cutoff_utc': (state.get('analysis_clock') or {}).get('cutoff_utc')}
     source_id = 'brief-context-' + hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
-    tokens = sorted(set(re.findall(r'\b[^\W\d_]+\b', brief.casefold())))
     coverage = {**identity, 'field': 'shared_source_brief', 'characters': len(brief),
-                'token_index_complete': True, 'full_text_included': False, 'tokens': tokens}
-    text = ('Retained shared_source_brief context coverage. The following casefolded word-token index '
-            'covers every character of this exact retained field. Literal word absence cannot establish '
-            'absence of synonymous facts. This does not establish which input a particular analyst received '
-            'or whether upstream source selection was complete. This record supplies no financial authority.\n'
-            + json.dumps(coverage, sort_keys=True, ensure_ascii=False))
-    record = {'source_id': source_id, 'locator': 'shared_source_brief/full-retained-token-index',
-              'text': text, 'url': '', 'known_at': as_of,
+                'full_text_included': True, 'complete_retained_field': True}
+    record = {'source_id': source_id, 'locator': 'shared_source_brief/full-retained-text',
+              'text': brief, 'url': '', 'known_at': as_of,
               'kind': 'retained report context; no financial authority', 'truncated': False,
-              'coverage': {key: value for key, value in coverage.items() if key != 'tokens'}}
+              'coverage': coverage,
+              'scope': ('This is the exact retained input field. It supports claims about what the brief '
+                        'contains, including synonymous wording. It does not establish which input a '
+                        'particular analyst received or completeness of upstream source selection. '
+                        'Financial and rating claims require independently validated primary evidence.')}
+    if len(json.dumps(record, ensure_ascii=False)) > 24000:
+        return {}, ['The complete retained shared_source_brief exceeds the 24000-character source packet; '
+                    'brief-content and absence claims cannot be established from a truncated excerpt.']
     return {(source_id, record['locator']): record}, []

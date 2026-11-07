@@ -1,0 +1,94 @@
+{
+  "label": "Synthetic verification fixture \u2014 not investment research.",
+  "provenance": "Wholly fabricated software-verification inputs, never fetched or authenticated as SEC financial data. The SEC-shaped URL is deliberately fictional.",
+  "provider": "Deterministic local fake reviewer. No paid or network calls.",
+  "source": {
+    "source_id": "synthetic-sec-shaped-source",
+    "url": "https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm",
+    "filing": {
+      "cik": "9999999999",
+      "accession": "9999999999-26-000001",
+      "form": "10-Q",
+      "filed_date": "2026-11-03",
+      "report_date": "2026-09-30",
+      "primary_document": "synthetic-verification-fixture.htm",
+      "items": "",
+      "url": "https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm"
+    },
+    "retrieved_at": "2026-11-06T15:00:00Z",
+    "content_hash": "8a4493a98acaa24f2134a26873a29e0707668f6a0a86e99c4447eb5b5e54d952",
+    "blocks": [
+      {
+        "locator": "synthetic-quarterly-figures",
+        "section": "Synthetic example",
+        "text": "Synthetic verification fixture \u2014 not investment research.\nRevenue was 120 USD.\nCash was 20 USD.\nGross margin was 25%.",
+        "truncated": false
+      }
+    ],
+    "gaps": [],
+    "rpo_facts": []
+  },
+  "expected_findings": [
+    {
+      "quoted_claim": "Revenue was 100 USD.",
+      "outcome": "contradicted",
+      "correction": "Revenue was 120 USD."
+    },
+    {
+      "quoted_claim": "Cash was 20 USD.",
+      "outcome": "supported",
+      "correction": null
+    },
+    {
+      "quoted_claim": "The final paragraph claims gross margin was 99%.",
+      "outcome": "contradicted",
+      "correction": "Gross margin was 25%."
+    }
+  ],
+  "audit_status": "completed with findings",
+  "coverage": {
+    "total_chunks": 4,
+    "reviewed_chunks": 4,
+    "reviewed_chunk_ids": [
+      "summary/summary.md@0:381",
+      "5_portfolio/decision.md@0:215",
+      "1_analysts/market.md@0:147",
+      "6_evidence/summary.md@0:264"
+    ],
+    "reused_chunk_ids": [],
+    "remaining_chunks": [],
+    "sections": [
+      {
+        "section_id": "summary/summary.md",
+        "characters": 381
+      },
+      {
+        "section_id": "5_portfolio/decision.md",
+        "characters": 215
+      },
+      {
+        "section_id": "1_analysts/market.md",
+        "characters": 147
+      },
+      {
+        "section_id": "6_evidence/summary.md",
+        "characters": 264
+      }
+    ],
+    "source_gaps": []
+  },
+  "offline_reexport_added_provider_calls": 0,
+  "changed_last_paragraph_audit_status": "unavailable",
+  "additional_behavior_tests": [
+    "tests/test_ground_truth_reporting.py::test_matching_saved_audit_survives_export_and_changed_claim_invalidates_it",
+    "tests/test_ground_truth_audit.py::test_inventory_preserves_all_characters_and_binds_report_sources_run_and_summary"
+  ],
+  "files": {
+    "complete_report.md": "4bdaacbac6ea27f558f0f6fc649da109472d2768696a6febcc3fcc1410c17836",
+    "complete_report.html": "d78946ca15b218c1800c42dc7ca12a3b8dfa53f9a0223eb9d213939017ccbe2e",
+    "evidence.json": "84b2b891313f546b3ac2065b39f3d9e630d918d9d82e9ecbc12126e5b9fdb81b",
+    "quality.json": "8dda7dca8b16ceb19f035771d27d876f336c8e0b6b898e376b35f7c37b1d3f42",
+    "ground_truth_audit-868b3302a2dd5f20df03.md": "868b3302a2dd5f20df03e766ae1a9ac7eaa388619cfd4faeb351728f45843050",
+    "operational_audit.md": "4ecec55b8d76d43e8f659cb5a2eacf7de05b6a4fac1f16741a5e840fafe01684"
+  }
+}

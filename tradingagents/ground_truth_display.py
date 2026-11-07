@@ -58,7 +58,7 @@ def project_report(state, parts, summary):
 
     summary = {**summary, "_ground_truth_text": corrected_text(
         "summary/summary.md", _diagnostic_text(state, _summary_markdown(summary)), record)}
-    text = render_audit(record)
+    text = audit_assessment(record, state) + "\n\n" + render_audit(record)
     unresolved_material = _recommendation_needs_review(record, state)
     if unresolved_material:
         text += "\n\n**Recommendation needs review.** Material factual questions remain in the delivered conclusion or its premises."
@@ -88,6 +88,26 @@ def audit_assessment(record, state):
     text += "\n\nSource quotations and calculations are checked in code. Interpretation of source meaning uses model review."
     if _recommendation_needs_review(record, state):
         text += "\n\n**Recommendation needs review.** Material factual questions remain or reassessment was unavailable."
+    issues = _unresolved_material_claims(record, state)
+    if issues:
+        from urllib.parse import quote
+
+        text += "\n\nMaterial unresolved findings\n"
+        for issue in issues[:3]:
+            passage = str(issue.get("quoted_claim") or "")
+            snippet = passage[:257] + "…" if len(passage) > 260 else passage
+            text += "\n- **" + _plain_markdown(str(issue.get("outcome"))) + "** — “" + _plain_markdown(snippet) + "”"
+            text += " — " + _plain_markdown(str(issue.get("chunk_id") or issue.get("section_id") or "location unavailable"))
+            for source in issue.get("evidence") or []:
+                url = source.get("url") or ""
+                if isinstance(url, str) and url.startswith("https://"):
+                    text += " [Source](" + quote(url, safe=":/?&=#%") + ")"
+                    break
+        remainder = len(issues) - min(3, len(issues))
+        if remainder:
+            text += f"\n\n{remainder} additional material unresolved finding(s) appear in the Full Ground Truth Audit."
+        else:
+            text += "\n\nThe Full Ground Truth Audit contains all findings and source details."
     if record.get("reason"):
         text += "\n\n" + _plain_markdown(str(record["reason"]))
     for limit in [*coverage.get("source_gaps", []), *record.get("limits", [])][:3]:
@@ -110,14 +130,22 @@ def _recommendation_needs_review(record, state):
     corrections = reassessment.get("corrections", [])
     if not isinstance(corrections, list) or any(not isinstance(c, dict) for c in corrections):
         return True
-    handled = {_correction_key(c) for c in corrections}
+    return bool(_unresolved_material_claims(record, state))
+
+
+def _unresolved_material_claims(record, state):
+    reassessment = state.get("ground_truth_reassessment") or {}
+    corrections = reassessment.get("corrections", []) if isinstance(reassessment, dict) else []
+    handled = set()
+    if (isinstance(reassessment, dict) and reassessment.get("status") == "completed"
+            and isinstance(corrections, list) and all(isinstance(c, dict) for c in corrections)):
+        handled = {_correction_key(c) for c in corrections}
+    issues = []
     for claim in record.get("claims", []):
         if claim.get("decision_material") is not True:
             continue
-        if claim.get("outcome") == "unsupported":
-            return True
-        if claim.get("outcome") == "contradicted" and (
+        if claim.get("outcome") == "unsupported" or claim.get("outcome") == "contradicted" and (
                 not claim.get("correction") or claim.get("ambiguous_location")
                 or _correction_key(claim) not in handled):
-            return True
-    return False
+            issues.append(claim)
+    return sorted(issues, key=lambda claim: claim.get("outcome") != "contradicted")

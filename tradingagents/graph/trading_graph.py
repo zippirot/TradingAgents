@@ -655,6 +655,27 @@ class TradingAgentsGraph:
             return settlement.settle_all_pending(self.memory_log, self.reflector, self.config, wait=wait)
 
     def record_decision(self, company_name, trade_date, final_state):
+        """Serialize opted-in completion so concurrent callers share one audit."""
+        if self.config.get("ground_truth_audit") is True:
+            from tradingagents.ground_truth_recovery import has_progress, restore, run_scope
+            final_state.setdefault("run_id", str(uuid4()))
+            with run_scope(final_state, self.config):
+                restored = False
+                if not final_state.get("publication_record") and has_progress(final_state, self.config):
+                    # A terminal graph checkpoint predates audit finalization.
+                    # Rebuild its baseline using the same validators before recovery.
+                    final_state.update(enforce_publication(
+                        {**final_state, "company_of_interest": company_name, "trade_date": str(trade_date)},
+                        publication_config=self.config))
+                    final_state.setdefault("run_settings", self.run_settings())
+                    if "publication_versions" not in final_state:
+                        final_state["publication_versions"] = publication.runtime_versions()
+                    restore(final_state, self.config)
+                    restored = True
+                return self._record_decision(company_name, trade_date, final_state, ground_truth_restored=restored)
+        return self._record_decision(company_name, trade_date, final_state)
+
+    def _record_decision(self, company_name, trade_date, final_state, *, ground_truth_restored=False):
         """Record a finished run: its state log, and its decision in the memory log
         for reflection on the next same-ticker run. propagate() and the CLI both end here."""
         frozen = verified_publication(self.config, final_state, company_name, trade_date)
@@ -674,6 +695,10 @@ class TradingAgentsGraph:
             if self.config.get("ground_truth_audit") is True:
                 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
                 from tradingagents.ground_truth_flow import audit_before_publication
+                from tradingagents.ground_truth_recovery import restore
+
+                if not ground_truth_restored:
+                    restore(final_state, self.config)
 
                 def reassess(candidate, corrections, model):
                     # Source-backed material corrections request an independent PM assessment.
