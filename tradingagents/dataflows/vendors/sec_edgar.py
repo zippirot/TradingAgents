@@ -63,6 +63,9 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
         ("Gross Profit", ("GrossProfit",)),
         ("Operating Income", ("OperatingIncomeLoss",)),
         ("Net Income", ("NetIncomeLoss",)),
+        ("Consolidated Profit (Loss)", ("ProfitLoss",)),
+        ("Net Income Attributable to Noncontrolling Interests",
+         ("NetIncomeLossAttributableToNoncontrollingInterest",)),
         ("Diluted EPS", ("EarningsPerShareDiluted",)),
     ],
     "cashflow": [
@@ -376,6 +379,7 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
         FinancialFact,
         SourceRecord,
         add_period_calculations,
+        derive_parent_net_income,
     )
 
     # The broader reported-revenue definition is permitted only for peer
@@ -442,6 +446,40 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
             records[identity] = FinancialFact(fact_id=identity, metric=metric, value=Decimal(str(record["val"])),
                 unit=record["unit"], cik=cik, period_start=record.get("start"), period_end=record["end"],
                 as_of=cutoff, source_ids=(source_id,), locator=locator)
+    # NetIncomeLoss is the direct parent-income tag. When absent, retain the
+    # separate consolidated/NCI values and bridge only one exact filing vintage.
+    direct_periods = {
+        (fact.period_start, fact.period_end)
+        for fact in records.values()
+        if fact.metric == "Net Income" and fact.value is not None
+    }
+    profits = [fact for fact in records.values()
+               if fact.metric == "Consolidated Profit (Loss)" and fact.value is not None]
+    nci_facts = [fact for fact in records.values()
+                 if fact.metric == "Net Income Attributable to Noncontrolling Interests"
+                 and fact.value is not None]
+    bridged = False
+    for profit in profits:
+        if (profit.period_start, profit.period_end) in direct_periods:
+            continue
+        for nci in nci_facts:
+            if (profit.period_start, profit.period_end) != (nci.period_start, nci.period_end):
+                continue
+            try:
+                derived = derive_parent_net_income(
+                    profit, nci, sources[profit.source_ids[0]],
+                    sources[nci.source_ids[0]],
+                )
+            except ValueError:
+                continue
+            records[derived.fact_id] = derived
+            bridged = True
+            break
+    if bridged:
+        # A value with exact source lineage supersedes the generic missing row.
+        records.pop(hashlib.sha256(
+            f"{cik}:{as_of_date}:Net Income:missing".encode()
+        ).hexdigest(), None)
     if not sources:
         raise NoMarketDataError(ticker, ticker, f"no statement evidence filed by {as_of_date}")
     return add_period_calculations(EvidencePackage(cik=cik, as_of=cutoff, facts=tuple(records.values()), sources=tuple(sources.values()),

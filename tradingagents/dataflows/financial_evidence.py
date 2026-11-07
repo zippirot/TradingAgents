@@ -164,7 +164,7 @@ def _compatible(inputs: tuple[FinancialFact, ...]):
         raise ValueError("duplicate derivation inputs")
 
 
-def _derived(inputs, start, end, value, formula):
+def _derived(inputs, start, end, value, formula, *, metric=None):
     ids = tuple(f.fact_id for f in inputs)
     identity = hashlib.sha256(
         json.dumps([formula, ids, str(value), str(start), str(end)]).encode()
@@ -172,7 +172,7 @@ def _derived(inputs, start, end, value, formula):
     first = inputs[0]
     return FinancialFact(
         fact_id=identity,
-        metric=first.metric,
+        metric=metric or first.metric,
         value=value,
         unit=first.unit,
         cik=first.cik,
@@ -187,6 +187,60 @@ def _derived(inputs, start, end, value, formula):
         formula_id=formula,
     )
 
+
+
+def derive_parent_net_income(
+    profit: FinancialFact,
+    noncontrolling: FinancialFact,
+    profit_source: SourceRecord,
+    noncontrolling_source: SourceRecord,
+) -> FinancialFact:
+    """Derive parent income only from one filing's distinct consolidated/NCI facts."""
+    if (
+        profit.metric != "Consolidated Profit (Loss)"
+        or noncontrolling.metric != "Net Income Attributable to Noncontrolling Interests"
+        or profit.origin != "reported" or noncontrolling.origin != "reported"
+        or profit.value is None or noncontrolling.value is None
+        or profit.period_start is None or noncontrolling.period_start is None
+        or profit.unit != "USD" or noncontrolling.unit != "USD"
+        or profit.basis != "US-GAAP" or noncontrolling.basis != "US-GAAP"
+        or (profit.cik, profit.as_of, profit.period_start, profit.period_end)
+        != (noncontrolling.cik, noncontrolling.as_of,
+            noncontrolling.period_start, noncontrolling.period_end)
+    ):
+        raise ValueError("parent income inputs differ in definition, period, unit, issuer or basis")
+    if (
+        profit.source_ids != (profit_source.source_id,)
+        or noncontrolling.source_ids != (noncontrolling_source.source_id,)
+        or profit_source.locator != (
+            f"us-gaap/ProfitLoss/USD/{profit.period_start}/{profit.period_end}/{profit_source.filed_date}"
+        )
+        or noncontrolling_source.locator != (
+            "us-gaap/NetIncomeLossAttributableToNoncontrollingInterest/USD/"
+            f"{noncontrolling.period_start}/{noncontrolling.period_end}/{noncontrolling_source.filed_date}"
+        )
+    ):
+        raise ValueError("parent income inputs lack exact reported source tags")
+    def vintage(source):
+        return (
+            source.cik, source.url, source.filed_date, source.retrieved_at,
+            source.content_hash, source.accession, source.form,
+        )
+    if (
+        vintage(profit_source) != vintage(noncontrolling_source)
+        or not profit_source.accession
+        or profit_source.form not in {"10-Q", "10-K"}
+        or profit_source.cik != profit.cik
+        or profit_source.filed_date > profit.as_of
+    ):
+        raise ValueError("parent income source vintage differs")
+    with localcontext() as ctx:
+        ctx.prec = 50
+        value = profit.value - noncontrolling.value
+    return _derived(
+        (profit, noncontrolling), profit.period_start, profit.period_end,
+        value, "consolidated_profit_less_nci_v1", metric="Net Income",
+    )
 
 def derive_quarter(cumulative: FinancialFact, preceding: FinancialFact) -> FinancialFact:
     """Annual minus nine months, or adjacent YTD totals, with explicit lineage."""

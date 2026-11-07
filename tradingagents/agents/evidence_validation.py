@@ -108,10 +108,12 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
     """Replay only named supported derivations; unresolved cycles never pass."""
     from tradingagents.dataflows.financial_evidence import (
         derive_cash_outflow,
+        derive_parent_net_income,
         derive_quarter,
         derive_ttm,
     )
 
+    sources = {source.source_id: source for source in package.sources}
     ready = {fact.fact_id: fact for fact in package.facts if fact.origin == "reported"}
     pending = [fact for fact in package.facts if fact.origin == "derived"]
     reasons = []
@@ -127,6 +129,13 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     expected = derive_quarter(*inputs)
                 elif fact.formula_id == "reported_cash_outflow_magnitude_v1" and len(inputs) == 1:
                     expected = derive_cash_outflow(inputs[0])
+                elif fact.formula_id == "consolidated_profit_less_nci_v1" and len(inputs) == 2:
+                    if any(len(item.source_ids) != 1 or item.source_ids[0] not in sources
+                           for item in inputs):
+                        raise ValueError("parent income needs exact source references")
+                    expected = derive_parent_net_income(
+                        *inputs, *(sources[item.source_ids[0]] for item in inputs)
+                    )
                 elif fact.formula_id == "four_quarter_sum_v1":
                     expected = derive_ttm(inputs)
                 else:
@@ -1334,7 +1343,17 @@ def canonical_accounting_context(package, calculations):
     }
     coverage = []
     for metric in sorted(core):
-        rows = [f for f in package.facts if f.metric == metric and f.origin == "reported"]
+        rows = [
+            f for f in package.facts if f.metric == metric
+            and (f.origin == "reported" or (
+                metric == "Net Income" and f.formula_id == "consolidated_profit_less_nci_v1"
+            ))
+        ]
+        # The definition bridge is source-replayed and remains explicitly
+        # derived; a missing direct-tag placeholder must not hide it. Do not
+        # broaden this to arbitrary calculated quarters or TTM values.
+        if any(f.formula_id == "consolidated_profit_less_nci_v1" for f in rows):
+            rows = [f for f in rows if f.value is not None]
         latest = max((f.period_end for f in rows), default=None)
         rows = [f for f in rows if f.period_end == latest]
         # Retain the latest reported quarter and YTD bases where available.

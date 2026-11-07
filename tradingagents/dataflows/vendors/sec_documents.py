@@ -278,11 +278,20 @@ class _Sections(HTMLParser):
             if end and re.fullmatch(r"\(?unaudited\)?", prior[end - 1].text, re.I):
                 end -= 1
             if end >= 2:
-                heading, scale = prior[end - 2].text, prior[end - 1].text
-                if re.search(r"\bSTATEMENTS? OF\b", heading, re.I) and re.match(
-                    r"^\(?in (?:thousands|millions|billions)\b", scale, re.I
-                ):
-                    statement = [heading, scale]
+                scale = prior[end - 1].text
+                heading_index = end - 2
+                if re.fullmatch(r"\(?unaudited\)?", prior[heading_index].text, re.I):
+                    heading_index -= 1
+                if heading_index >= 0:
+                    heading = prior[heading_index].text
+                    earlier = prior[heading_index - 1].text if heading_index else ""
+                    if (
+                        re.search(r"\bSTATEMENTS? OF\b", heading, re.I)
+                        and not re.search(r"\b(?:19|20)\d{2}\b", heading + " " + scale)
+                        and not re.search(r"\bSTATEMENTS? OF\b", earlier, re.I)
+                        and re.match(r"^\(?(?:in|Dollars in) (?:thousands|millions|billions)\b", scale, re.I)
+                    ):
+                        statement = [heading, scale]
         self.table_statement_context = statement if not self.notes_heading else None
         if self.notes_heading and self.notes_scale:
             context = [self.notes_heading, self.notes_scale]
@@ -682,11 +691,22 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
             if url in seen:
                 continue
             seen.add(url)
+            if remaining <= 0:
+                gaps.append(
+                    f"{filing.accession}: Package text limit 120000 reached; {url} omitted"
+                )
+                continue
             try:
                 source = client.fetch(url)
+                available_chars = min(40000, remaining)
                 blocks, links, extraction_gaps = extract_sections(
-                    source["text"], max_chars=min(40000, remaining)
+                    source["text"], max_chars=available_chars
                 )
+                if available_chars < 40000 and any(block.truncated for block in blocks):
+                    extraction_gaps.append(
+                        "Document text limit reached; package remaining "
+                        f"{available_chars} characters; full source section/table not retained"
+                    )
                 remaining -= sum(len(b.text) for b in blocks)
                 documents.append(
                     FilingDocument(

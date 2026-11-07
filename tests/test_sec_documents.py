@@ -492,3 +492,157 @@ def test_bounded_selection_keeps_debt_facility_and_investing_scope_evidence():
     assert "No drawdowns" in selected
     assert "acquisition of equipment" in selected
     assert gaps
+
+
+def test_cat_public_statement_tables_keep_nearest_title_and_scale_under_cap():
+    """Actual full CAT 2026 Q3 SEC tables; headings are adjacent source text."""
+    from pathlib import Path
+
+    fixture = Path(__file__).parent / "fixtures/document_access/cat_10q_statement_context.html"
+    html = fixture.read_text()
+    full, _, gaps = docs.extract_sections(html, max_chars=200000)
+    assert not gaps
+    tables = [block for block in full if " | " in block.text and len(block.text) > 2000]
+    assert len(tables) == 2
+    equity, cash_flow = tables
+    assert "Consolidated Statement of Changes in Shareholders" in equity.section
+    assert "Consolidated Statement of Cash Flow" in cash_flow.section
+    assert "(Dollars in millions)" in equity.section
+    assert "(Dollars in millions)" in cash_flow.section
+    assert "Three Months Ended September 30" in equity.text
+    assert "Nine Months Ended September 30" in cash_flow.text
+
+    capped, _, gaps = docs.extract_sections(
+        html + "<p>" + "unrelated " * 9000 + "</p>",
+        max_chars=sum(len(block.text) for block in tables) + 5,
+    )
+    retained = [block for block in capped if block.locator in {equity.locator, cash_flow.locator}]
+    assert len(retained) == 2
+    assert [(block.locator, block.text, block.section, block.truncated) for block in retained] == [
+        (block.locator, block.text, block.section, False) for block in tables
+    ]
+    assert sum(len(block.text) for block in capped) <= sum(len(block.text) for block in tables) + 5
+    assert any("limit" in gap for gap in gaps)
+
+
+def test_statement_context_rejects_duplicate_or_dated_conflicting_titles():
+    table = "<table><tr><th>Nine Months Ended September 30, 2026</th></tr><tr><td>Cash</td><td>100</td></tr></table>"
+    html = (
+        "<div>Consolidated Statement of Cash Flow</div>"
+        "<div>Consolidated Statement of Changes in Shareholders’ Equity</div>"
+        "<div>(Unaudited)</div><div>(Dollars in millions)</div>" + table
+    )
+    blocks, _, _ = docs.extract_sections(html)
+    assert "STATEMENT" not in blocks[-1].section.upper()
+    html = (
+        "<div>Consolidated Statement of Cash Flow for 2025</div>"
+        "<div>(Unaudited)</div><div>(Dollars in millions)</div>" + table
+    )
+    blocks, _, _ = docs.extract_sections(html)
+    assert "2025" not in blocks[-1].section
+    assert blocks[-1].text.endswith("Cash | 100")
+    html = (
+        "<div>Consolidated Statement of Cash Flow</div>"
+        "<div>(Unaudited)</div><div>(Dollars in millions for 2025)</div>" + table
+    )
+    blocks, _, _ = docs.extract_sections(html)
+    assert "2025" not in blocks[-1].section
+
+
+def _bounded_package_case(monkeypatch, payloads):
+    """Feed exact synthetic HTML bytes through the real package selector offline."""
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    filings = [
+        docs.FilingReference(
+            cik="0001582961", accession=f"0001582961-26-{index:06d}",
+            form="10-Q", filed_date=date(2026, 11, 4),
+            report_date=date(2026, 9, 30), primary_document=f"doc{index}.htm",
+            items="", url=f"https://www.sec.gov/Archives/edgar/data/1582961/{index}/doc{index}.htm",
+        )
+        for index in range(1, len(payloads) + 1)
+    ]
+    monkeypatch.setattr(docs, "cik_for", lambda ticker: "0001582961")
+    monkeypatch.setattr(docs, "select_filings", lambda *_args: (filings, []))
+    calls = []
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def fetch(self, url):
+            calls.append(url)
+            text = "{}" if "data.sec.gov" in url else payloads[int(url.split("/")[-2]) - 1]
+            return {
+                "url": url, "text": text,
+                "content_hash": hashlib.sha256(text.encode()).hexdigest(),
+                "retrieved_at": datetime(2026, 11, 4, tzinfo=UTC).isoformat(),
+            }
+
+    monkeypatch.setattr(docs, "DocumentClient", Client)
+    return filings, calls
+
+
+def test_package_exhaustion_omits_visible_later_filing_with_budget_reason(monkeypatch):
+    filings, calls = _bounded_package_case(
+        monkeypatch,
+        ["<p>" + "x" * 40000 + "</p>"] * 3
+        + ["<p>Visible Microsoft 8-K debt offering.</p>"],
+    )
+    package = docs.get_filing_evidence("DOCN", "2026-11-06")
+    assert len(package.documents) == 3
+    assert all(sum(len(block.text) for block in doc.blocks) == 40000 for doc in package.documents)
+    assert not any(doc.filing.accession == filings[-1].accession for doc in package.documents)
+    assert not any(url == filings[-1].url for url in calls)
+    assert any(filings[-1].accession in gap and "package text limit" in gap.lower()
+               for gap in package.gaps)
+    assert not any("no usable visible sections" in gap.lower() for gap in package.gaps)
+    from datetime import date
+    from types import SimpleNamespace
+
+    from tradingagents.agents.evidence_validation import disclosure_coverage_check
+
+    financial = SimpleNamespace(
+        cik=package.cik, as_of=package.as_of,
+        facts=(SimpleNamespace(metric="Total Assets", value=1, period_end=date(2026, 9, 30)),),
+    )
+    assert disclosure_coverage_check(financial, package)["status"] == "unavailable"
+
+
+def test_small_remaining_package_budget_labels_partial_table_not_empty_html(monkeypatch):
+    filings, _ = _bounded_package_case(
+        monkeypatch,
+        ["<p>" + "x" * 40000 + "</p>"] * 2
+        + ["<p>" + "x" * 39995 + "</p>"]
+        + ["<table><tr><td>Cash</td><td>100</td></tr></table>"],
+    )
+    package = docs.get_filing_evidence("DOCN", "2026-11-06")
+    table_doc = next(doc for doc in package.documents
+                     if doc.filing.accession == filings[-1].accession)
+    assert any(block.truncated for block in table_doc.blocks)
+    assert any(gap.startswith("Document text limit reached; package remaining")
+               and "source section/table" in gap for gap in table_doc.gaps)
+    assert not any("no usable visible sections" in gap.lower() for gap in table_doc.gaps)
+    assert sum(len(block.text) for doc in package.documents for block in doc.blocks) <= 120000
+    from datetime import date
+    from types import SimpleNamespace
+
+    from tradingagents.agents.evidence_validation import disclosure_coverage_check
+    from tradingagents.dataflows.filing_facts import discover_filing_cells
+
+    financial = SimpleNamespace(
+        cik=package.cik, as_of=package.as_of,
+        facts=(SimpleNamespace(metric="Total Assets", value=1, period_end=date(2026, 9, 30)),),
+    )
+    assert disclosure_coverage_check(financial, package)["status"] == "pass"
+    assert not any(selection.source_id == table_doc.source_id
+                   for selection in discover_filing_cells(package))
+
+
+def test_genuinely_hidden_only_html_keeps_no_visible_sections_reason(monkeypatch):
+    _bounded_package_case(monkeypatch, ["<div style='display:none'>secret</div>"])
+    package = docs.get_filing_evidence("DOCN", "2026-11-06")
+    assert len(package.documents) == 1
+    assert not package.documents[0].blocks
+    assert "Document contains no usable visible sections" in package.documents[0].gaps
