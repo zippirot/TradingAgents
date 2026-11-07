@@ -953,6 +953,9 @@ class TestLegacyRemoval:
         mock_graph.record_decision = functools.partial(
             TradingAgentsGraph.record_decision, mock_graph
         )
+        mock_graph._record_decision = functools.partial(
+            TradingAgentsGraph._record_decision, mock_graph
+        )
         TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
         entries = mock_graph.memory_log.load_entries()
         assert len(entries) == 1

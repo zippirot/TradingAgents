@@ -33,7 +33,7 @@ _EVIDENCE_KEYS = (
     "audit_news_tool_evidence", "audit_social_tool_evidence", "audit_fundamentals_tool_evidence",
 )
 _NUMBER = re.compile(
-    r"(?<![\w.])[-+]?(?:[$€£¥]\s*)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+    r"(?<![\w.])[-+−]?(?:[$€£¥]\s*[-+−]?)?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
     r"(?:\s*(?:billion|million|thousand|[MBK]))?%?(?!\w)", re.I,
 )
 # Explicit output fields carry a decision even when their value has no number.
@@ -277,14 +277,16 @@ def _source_index(state):
             gaps.append("A retained filing has invalid issuer, date, intraday availability or SEC source address.")
             return
         introductions = []
-        for block in document.get("blocks") or []:
+        for block_index, block in enumerate(document.get("blocks") or []):
             locator, text = block.get("locator"), block.get("text")
             if isinstance(locator, str) and isinstance(text, str) and text:
                 key = (ident, locator)
                 record = {"source_id": ident, "locator": locator, "text": text, "url": url,
                           "known_at": str(filed), "date_precision": "filing day",
                           "kind": "filing passage", "truncated": bool(block.get("truncated")),
-                          "context": {"preceding_introductions": deepcopy(introductions[-2:][::-1]),
+                          "context": {"preceding_introductions": deepcopy([
+                                          intro for index, section, intro in introductions[::-1]
+                                          if block_index - index <= 8 and section == block.get("section")]),
                                       "source_section": block.get("section"),
                                       "filing_report_date": filing.get("report_date"),
                                       "filing_form": filing.get("form"),
@@ -297,7 +299,7 @@ def _source_index(state):
                 # Preserve literal introductory context in document order. This
                 # is an excerpt with a locator, never an inferred period/basis.
                 if text.rstrip().endswith(":") and len(text) <= 400 and "\n" not in text:
-                    introductions.append({"locator": locator, "text": text})
+                    introductions.append((block_index, block.get("section"), {"locator": locator, "text": text}))
                     introductions = introductions[-2:]
 
     def documents(value):
@@ -395,10 +397,18 @@ _STOP_WORDS = frozenset(["the", "and", "for", "that", "with", "this", "from", "w
 def _numeric_values(text):
     """Normalize displayed decimals and explicit financial magnitude suffixes."""
     values = set()
-    for match in re.finditer(r"(?<![\w])([-+]?\d[\d,]*(?:\.\d+)?)(?:\s*(billion|million|thousand|[MBK])\b)?", text, re.I):
+    pattern = (
+        r"(?<![\w.])(?P<open>\()?(?P<sign>[-+−])?(?:[$€£¥]\s*(?P<currency_sign>[-+−])?)?"
+        r"(?P<number>(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
+        r"(?:\s*(?P<suffix>billion|million|thousand|[MBK])\b)?(?P<close>\))?"
+    )
+    for match in re.finditer(pattern, text, re.I):
         try:
-            value = Decimal(match[1].replace(",", ""))
-            suffix = (match[2] or "").casefold()
+            value = Decimal(match["number"].replace(",", ""))
+            if (match["sign"] in {"-", "−"} or match["currency_sign"] in {"-", "−"}
+                    or match["open"] and match["close"]):
+                value = -value
+            suffix = (match["suffix"] or "").casefold()
             scale = {"billion": 9, "b": 9, "million": 6, "m": 6, "thousand": 3, "k": 3}.get(suffix, 0)
             values.add(value * (Decimal(10) ** scale))
         except InvalidOperation:
@@ -427,7 +437,7 @@ def _relevance(text, source):
                   for n in numbers if n not in available)
     terms = sum(len(word) for word in words if re.search(r"\b" + re.escape(word) + r"\b", body))
     market = 80 if source.get("kind") == "validated retained market observation" and (
-        literal_numbers or any(word in lowered for word in ("close", "price", "stock"))) else 0
+        literal_numbers or any(word in lowered for word in ("close", "price"))) else 0
     context_scope = 600 if source.get("kind", "").startswith("retained report context") and _brief_scope_claim(text) else 0
     reference = 0
     if (source.get("kind") == "reproduced valuation reference" and _valuation_reference_question(text)
@@ -453,7 +463,7 @@ def _source_priority(text, source):
     """Prefer scoped typed observations over broad recorded vendor payloads."""
     query = text.casefold()
     kind = source.get("kind", "")
-    if kind == "validated retained market observation" and re.search(r"\b(?:price|close|stock|closed)\b", query):
+    if kind == "validated retained market observation" and re.search(r"\b(?:price|close|closed)\b", query):
         return 0
     fact = source.get("fact") or {}
     metric = fact.get("metric", "").casefold()
@@ -654,9 +664,11 @@ def _arithmetic(claim, sources):
             if result.quantize(Decimal(1).scaleb(-digits)) != expected:
                 return False
             text = claim.get("correction") if claim["outcome"] == "contradicted" else claim["quoted_claim"]
-            tokens = [re.sub(r"[$€£¥\s]", "", token)
-                      for token in _NUMBER.findall((text or "").replace(",", ""))]
-            return str(expected) in tokens
+            # Scaling and signs affect numeric equivalence. Percent notation
+            # is applicable to percentage operations, not a currency sum/ratio.
+            if operation != "percentage_change":
+                text = re.sub(r"[-+−]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*%", "", text or "")
+            return expected in _numeric_values(text or "")
     except (InvalidOperation, ValueError, TypeError, KeyError, IndexError, ZeroDivisionError):
         return False
 
@@ -796,7 +808,12 @@ def _review_prompt(chunk, sources):
         "occurrence uniquely. Do not use a bare repeated amount as the quotation. "
         "evidence (list of source_id, locator, quote copied exactly from source text). Identify unsupported "
         "causal explanations. Review numbers, dates, table entries, units and financial definitions. "
-        "ALL supported statements require source citations, including standard financial definitions. "
+        "Supported financial premises require source citations. Definitions of nonstandard adjustments "
+        "or differing accounting measures require source support. For ordinary arithmetic such as "
+        "same-period, same-basis net income / revenue times 100 for net margin, a separate textbook "
+        "definition citation is not required: cite the dated, issuer-scoped inputs and explicitly state "
+        "the operation, units, period and accounting basis. Do not invent a missing operand, silently "
+        "substitute a differently scoped measure, or treat a correct ratio as support for causal wording. "
         "A supported outcome must cover the entire asserted claim, including its financial definitions, "
         "qualifiers, causal content and implications. Matching figures alone do not support a mixed claim. "
         "If an amount is supported but an implication is unsupported or contradicted, split the assertion "
@@ -894,7 +911,7 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
     max_seconds = _positive(config, "ground_truth_max_seconds", DEFAULT_MAX_SECONDS, 7200)
     token_limit = _positive(config, "ground_truth_max_tokens", DEFAULT_MAX_TOKENS, 20_000_000)
     output_reservation = _positive(config, "ground_truth_output_token_reservation", DEFAULT_OUTPUT_TOKEN_RESERVATION, 100000)
-    source_cap = _positive(config, "ground_truth_max_source_characters", 60000, 120000)
+    source_cap = _positive(config, "ground_truth_max_source_characters", 90000, 120000)
     error_limit = max(1, _positive(config, "ground_truth_max_consecutive_errors", 3, 20))
     started = time.monotonic()
     sources, gaps = _source_index(state)

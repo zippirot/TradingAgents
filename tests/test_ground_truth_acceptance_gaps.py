@@ -698,3 +698,80 @@ def test_review_prompt_explicitly_requires_disposition_of_empty_decision_fields(
     assert result["status"] in {"partial", "unavailable"}
     assert "explicit recommendation, rating, target and sizing fields" in model.calls[0]
     assert "not provided" in model.calls[0]
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("−$42.6M", "-42600000"), ("-$42.6M", "-42600000"),
+    ("$-42.6M", "-42600000"), ("(42,609)", "-42609"),
+    ("($42.6 million)", "-42600000"), ("+$36M", "36000000"),
+])
+def test_numeric_lookup_preserves_financial_sign_currency_and_accounting_parentheses(text, expected):
+    from decimal import Decimal
+
+    from tradingagents.ground_truth import _numeric_values
+
+    assert _numeric_values(text) == {Decimal(expected)}
+
+
+def test_stock_compensation_does_not_promote_a_market_price_above_issuer_evidence():
+    from tradingagents.ground_truth import _source_priority
+
+    price = {"source_id": "price", "locator": "close", "kind": "validated retained market observation",
+             "text": "Completed close 70.70 USD."}
+    filing = {"source_id": "issuer", "locator": "reconciliation", "kind": "filing passage",
+              "text": "Stock-based compensation | 36,045; in thousands."}
+    query = "Quarterly stock compensation was approximately $36M."
+    assert _source_priority(query, filing) < _source_priority(query, price)
+    assert _source_priority("The completed close was 70.70 USD.", price) == 0
+
+
+@pytest.mark.parametrize("different_section", [False, True])
+def test_introductory_context_does_not_leak_across_distant_blocks_or_sections(different_section):
+    from tradingagents.ground_truth import _source_index
+
+    original = state()
+    blocks = [{"locator": "guidance", "section": "Outlook", "text": "For full-year 2026, we expect:"}]
+    if not different_section:
+        blocks.extend({"locator": f"gap-{index}", "section": "Outlook", "text": "Unrelated filing text."}
+                      for index in range(8))
+    blocks.append({"locator": "reconciliation", "section": "Net income" if different_section else "Outlook",
+                   "text": "Quarterly net loss was 42,609 USD thousands."})
+    original["filing_evidence"]["documents"][0]["blocks"] = blocks
+    sources, _ = _source_index(original)
+    row = next(source for source in sources.values() if source["locator"] == "reconciliation")
+    assert row["context"]["preceding_introductions"] == []
+
+
+def test_standard_scoped_margin_identity_does_not_require_an_extra_definition_source():
+    model = Model({"claims": [], "no_material_claims": True})
+    run_audit(state(), model, inventory=inventory())
+    assert "same-period, same-basis net income / revenue" in model.calls[0]
+    assert "separate textbook definition citation is not required" in model.calls[0]
+    assert "nonstandard adjustments" in model.calls[0]
+
+
+def test_computation_matches_displayed_financial_magnitudes_without_granting_prose_authority():
+    from tradingagents.ground_truth import _arithmetic
+
+    sources, _, calculation = indexed_cash_flow_arithmetic()
+    for source in sources.values():
+        if "fact" in source:
+            source["fact"]["value"] = str(int(source["fact"]["value"]) * 1_000_000)
+    claim = {"quoted_claim": "Operating cash and investing cash totaled $110M.", "outcome": "supported",
+             "calculation": {**calculation, "value": "110000000"}}
+    assert _arithmetic(claim, sources) is True
+
+
+def test_percentage_computation_matches_percent_notation_but_currency_sum_does_not():
+    from tradingagents.ground_truth import _arithmetic
+
+    sources, _, calculation = indexed_cash_flow_arithmetic()
+    facts = [source["fact"] for source in sources.values() if "fact" in source]
+    facts[0]["metric"] = facts[1]["metric"] = "Revenue"
+    facts[0]["value"], facts[1]["value"] = "8673", "10000"
+    claim = {"quoted_claim": "Revenue changed −13.27%.", "outcome": "supported",
+             "calculation": {**calculation, "operation": "percentage_change", "value": "-13.27", "decimal_places": 2}}
+    assert _arithmetic(claim, sources) is True
+    facts[0]["value"], facts[1]["value"] = "90", "20"
+    claim = {"quoted_claim": "Margin was 110%.", "outcome": "supported", "calculation": calculation}
+    assert _arithmetic(claim, sources) is False
