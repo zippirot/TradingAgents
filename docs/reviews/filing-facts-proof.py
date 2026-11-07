@@ -138,6 +138,13 @@ with ExitStack() as stack, run_config(config):
     # Freeze only this disposable run. No historical publication is edited.
     state.pop('publication_record', None)
     state['run_settings'] = {'proof': 'Offline B provider doubles'}
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    application = object.__new__(TradingAgentsGraph)
+    application.config = config
+    application.run_settings = lambda: state['run_settings']
+    application._log_state(state['trade_date'], state)
+    reopened_state = json.loads(next((root / 'results').rglob('full_states_log_*.json')).read_text())
+    assert reopened_state['filing_terms_evidence'] == records
     write_report_tree(state, 'DOCN', root / 'reports')
     evidence = json.loads((root / 'reports/evidence.json').read_text())
     assert evidence['filing_terms_evidence'] == records
@@ -154,7 +161,7 @@ with ExitStack() as stack, run_config(config):
         'leases': len(records['leases']), 'lease_locator': lease['locator'],
         'liquidity_usd': calculation['result'], 'liquidity_input_fact_ids': calculation['input_fact_ids'],
         'prompt_receipts': captures, 'full_corpus_blocks': sum(len(d.blocks) for d in corpus.documents),
-        'short_package_removed_locators_replay': sorted(absent), 'evidence_export_reopened': True,
+        'short_package_removed_locators_replay': sorted(absent), 'evidence_export_reopened': True, 'application_state_log_reopened': True,
         'saved_validated_corpus_replayed': True, 'saved_corpus_hash': replay['document_sources']['corpus_hash'],
         'source_acquisition_after_replay_forbidden': True,
         'network_calls': 0, 'paid_model_calls': 0,

@@ -1,0 +1,85 @@
+{
+  "stage": "early",
+  "source_state_sha256": "f1fe3b2a81131b1c6ded29e91e564494c1a646a1a0c104116b1cfac45b8a6809",
+  "source_files_unchanged": 20,
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/filing-facts-proof-_35a25il",
+  "source_corpus_hash": "24d12b3401a6d7e3a88e9b1f9fb6ba09746fce498a81ce064dc5c827b541760e",
+  "notes": 1,
+  "note_locators": [
+    "block-205",
+    "block-204",
+    "block-430"
+  ],
+  "leases": 1,
+  "lease_locator": "block-218",
+  "liquidity_usd": "844741000",
+  "liquidity_input_fact_ids": [
+    "e38f76c791cfe4578c59e00023b57aff99dca73b3575982e479520ff7e605a65",
+    "82606a9961bf9e2fb67e38fda81d135d7dd73e7f7cf2b0c67dbe0e256ad8d9b2"
+  ],
+  "prompt_receipts": {
+    "market": {
+      "sha256": "fd94b7b81f75f2948f7e95b4a6943b14b817341100cde08864fffa6c989da70d",
+      "chars": 24447
+    },
+    "news": {
+      "sha256": "a76efca86737e7bac3583d5bbea85ffa648b488e74407aa6a0e300dbef8d3669",
+      "chars": 21288
+    },
+    "fundamentals": {
+      "sha256": "67354d83e4edefeeec999c75193483562c4f454848f971a63d403a120c711c63",
+      "chars": 32788
+    },
+    "social": {
+      "sha256": "82b28d3d7d67bc637f380fab9069ec25586104b3d351e7cdac50290618bf32a4",
+      "chars": 54986
+    },
+    "bull": {
+      "sha256": "020ecd4e885c02fb396da519ffcdd3e1ab17f1d707cdd6edee07650a65cabc8c",
+      "chars": 60272
+    },
+    "bear": {
+      "sha256": "a8e8340644ee73db376725d3f6d4b0c8cdd3e70cdf29a71316902043f04c7327",
+      "chars": 60421
+    },
+    "research_manager": {
+      "sha256": "34fd3a8bb48e7e67ed50e9718566f126d48eb64c4a0cbfbc8102c7a477f1acad",
+      "chars": 60535
+    },
+    "trader": {
+      "sha256": "a3b137a1ca2e7652e473ed5af99881e10219a7ef4d7507b86dfe322fae94b290",
+      "chars": 58409
+    },
+    "aggressive": {
+      "sha256": "6ecac27622fbaa48d7c98689c64e1d1369868bc7f7f2ef73c2be3c656634b5fc",
+      "chars": 58278
+    },
+    "conservative": {
+      "sha256": "cfae5c2e2755ea4468d6eaaa3862d2f69be97128904baca8b026edcdcdf73f64",
+      "chars": 58235
+    },
+    "neutral": {
+      "sha256": "418d1eb0b3adcb5ad06040b9e2cf9beda2276eaedefe2aff738ecf765fd4f6e3",
+      "chars": 58227
+    },
+    "portfolio_manager": {
+      "sha256": "d22102a0e762da8b23d0f4f51b8f30e0335cadd944077ed99405658a2045133a",
+      "chars": 126024
+    }
+  },
+  "full_corpus_blocks": 3418,
+  "short_package_removed_locators_replay": [
+    "block-204",
+    "block-205",
+    "block-218",
+    "block-430"
+  ],
+  "evidence_export_reopened": true,
+  "network_calls": 0,
+  "paid_model_calls": 0,
+  "limitations": [
+    "Model/provider replies are offline doubles; no live model compliance proven.",
+    "Actual source acquisition, each role factory, evidence gate and report export execute.",
+    "Factories invoked in application order; compiled graph scheduling is covered separately."
+  ]
+}
