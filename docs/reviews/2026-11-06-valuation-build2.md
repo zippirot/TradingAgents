@@ -136,3 +136,46 @@ holds and fresh account/session/provider observations. No new allowance is
 created. The corrective prompt and this linkage receive focused independent
 review before commitment and launch. Second-attempt execution remains pending
 at this corrective checkpoint; no release action is authorized.
+
+## Final local checkpoint: live acceptance incomplete
+
+The reviewed corrective candidate is
+`486586ab94f5a395f80ecc4bc31a6a9a42f14406`. Its second and final authorized
+attempt produced a complete analyst block with two supported FY2027
+borrowings-only cases. Independent source and 60-digit arithmetic checks gave
+$68.5546875 for the base and $38.721804511278… for the downside. Both use filed
+September 30 common shares as the reference for explicitly estimated future
+closing counts. Guided weighted-average shares remain separate sensitivities.
+The November 6 completed close, $72.4800033569336, is above both values. These
+are conditional arithmetic, not verified forecasts or a fair-value conclusion.
+
+The downside multiple rationale analogizes a borrowings-only forward multiple
+with a historical equity/trailing multiple. That is unverified model reasoning,
+not a comparable market benchmark or a code-computed above/below comparison.
+The financing record's denomination remains unavailable, so no hypothetical
+proceeds arithmetic was inferred for it in the live report.
+
+The budget guard then stopped before the first risk role. The preserved second
+checkpoint contains the completed analysts, six debate turns, RM and Trader,
+two v1 cases and no RM revision. Its pending branch is `Aggressive Analyst`,
+checkpoint `1f1da76d-ce97-670a-800c-324363d6c577`, run ID
+`b7e2f75f-98c8-48b2-a09f-633c88319c44`. No audit, final PM response, adopted case
+or decision card was published by that attempt. Neither a reconstructed report
+nor the earlier synthetic cases substitutes for those missing observations.
+
+The second attempt recorded $5.11632610 observed charges plus $3.980064 in
+unknown-cost holds. Combined with the first attempt, observed charges are
+**$13.30591990**, unknown reservations **$7.698176**, and committed exposure
+**$21.00409590**. The account-usage deltas corroborate the observed charges;
+the four unresolved HTTP 400 responses retain their reservations. $2.99590410
+of aggregate authority is uncommitted, but both CLI attempts are consumed.
+No further start, restart, resume or top-up is authorized.
+
+Local implementation, focused corrections, combined offline inventory and
+independent review are complete. End-to-end live acceptance remains incomplete.
+The next recommended decision is a separately approved bounded continuation
+from the second checkpoint, preserving completed work, rates and cost holds.
+That route must be qualified offline and bound to explicit new paid authority
+before any call. No further publication, installation, comparison, scheduler or
+broker action has occurred. Machine 1 remains on the accepted production
+release `3d1b8f329f53b98daaecf05df4e522bc5491c87c`.
