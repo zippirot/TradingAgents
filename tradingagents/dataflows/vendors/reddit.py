@@ -31,6 +31,7 @@ from urllib.request import Request, urlopen
 
 from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.symbols import crypto_base
+from tradingagents.operational_capture import record_operation
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,7 @@ def fetch_reddit_posts(
     label = ", ".join(f"r/{s}" for s in subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:
+        record_operation("vendor_unavailable", scope="Reddit")
         return f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>"
 
     window = bool(start_date and end_date)

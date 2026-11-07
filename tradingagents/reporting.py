@@ -22,7 +22,7 @@ from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
 from tradingagents.agents.schemas import label_legacy_trader_price
 from tradingagents.agents.valuation_comparison import display_number
-from tradingagents.dataflows.files import replace_file
+from tradingagents.dataflows.files import locked, replace_file
 
 
 def render_token_usage(metrics: dict | None) -> str:
@@ -535,6 +535,41 @@ def _write_json(path: Path, value: dict) -> None:
     )
 
 
+def _write_text(path: Path, payload: str) -> None:
+    """Replace an export strictly and confirm the actual bytes on disk."""
+    replace_file(path, lambda temporary: Path(temporary).write_text(payload, encoding="utf-8"), strict=True)
+    if path.read_text(encoding="utf-8") != payload:
+        raise OSError(f"Export verification failed: {path.name}")
+
+
+def _operational_assessment(original: dict, summary: dict, integrity: str):
+    from tradingagents import operational_audit as audit
+
+    source = dict(original)
+    source["executive_summary"] = summary
+    return audit.assess_audit(source, integrity=integrity)
+
+
+def _unavailable_assessment(reason: str) -> dict:
+    from tradingagents.operational_audit import DEFINITIONS, INPUT_NAMES
+
+    return {"score": None, "name": DEFINITIONS[None][0], "definition": DEFINITIONS[None][1],
+            "consequence": reason, "inputs": dict.fromkeys(INPUT_NAMES, "unknown")}
+
+
+def _audit_filename(save_path: Path, content: str) -> Path:
+    """Never replace a different audit already linked from an older report."""
+    import hashlib
+
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    for name in ("operational_audit.md", f"operational_audit-{digest[:16]}.md",
+                 f"operational_audit-{digest}.md"):
+        candidate = save_path / name
+        if not candidate.exists() or candidate.read_text(encoding="utf-8") == content:
+            return candidate
+    raise OSError("Operational audit filename collision")
+
+
 def verified_publication(config: dict, state: dict, ticker: str, asof: str):
     """Verify an existing disk publication against the complete original state.
 
@@ -566,6 +601,19 @@ def write_report_tree(
     to the report's header. ``html`` also writes ``complete_report.html``, one
     self-contained page of the same report (#1419).
     """
+    save_path = Path(save_path)
+    save_path.mkdir(parents=True, exist_ok=True)
+    with locked(save_path / ".report-export"):
+        return _write_report_tree_locked(final_state, ticker, save_path, settings, html,
+                                         publication_config=publication_config)
+
+
+def _write_report_tree_locked(
+    final_state: dict, ticker: str, save_path: Path, settings: dict | None, html: bool,
+    *, publication_config: dict | None,
+) -> Path:
+    """Build and publish one report while holding its destination lock."""
+    original_state = final_state
     frozen = (verified_publication(publication_config, final_state, ticker, final_state.get("trade_date"))
               if publication_config is not None else None)
     if publication_config is not None and final_state.get("publication_record") and frozen is None:
@@ -582,8 +630,6 @@ def write_report_tree(
     elif final_state.get("publication_record"):
         final_state["report_view_note"] = ("Historical publication identity not verified against a configured store. "
             "This export is a current validated projection, not an immutable publication snapshot.")
-    save_path = Path(save_path)
-    save_path.mkdir(parents=True, exist_ok=True)
     _write_json(save_path / "quality.json", original_quality if frozen else evidence_quality_snapshot(final_state))
     _write_json(save_path / "evidence.json", original_snapshot if frozen else evidence_snapshot(final_state))
     if frozen:
@@ -611,20 +657,44 @@ def write_report_tree(
                                 for index, (agent, _filename, text) in enumerate(written, 1))
         sections.append(f'<a id="{anchors[folder]}"></a>\n## {heading}\n\n{content}')
 
-    (save_path / "complete_report.md").write_text(
+    markdown_base = (
         f"# Trading Analysis Report: {_plain_markdown(ticker)}\n\n"
         + (f"- Analysis date: {_plain_markdown(final_state['trade_date'])}\n\n"
            if final_state.get("trade_date") else "")
         + _summary_markdown(summary) + "\n" + _contents_markdown(parts) + "\n"
         + _header(ticker, final_state, display_settings, metadata_only=True) + "\n\n".join(sections)
-        + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n", encoding="utf-8"
+        + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n"
     )
+    # Assess the original run record after the prepared presentation is known.
+    # A claimed historical publication needs the configured store to establish
+    # its identity, even if the report can still be exported without one.
+    integrity = "unverified" if original_state.get("publication_record") and not frozen else "verified"
+    from tradingagents import operational_audit as audit
+
+    audit_path = None
+    try:
+        assessment = _operational_assessment(original_state, summary, integrity)
+        audit_text = audit.render_audit(assessment)
+        destination = _audit_filename(save_path, audit_text)
+        if not destination.exists():
+            _write_text(destination, audit_text)
+        elif destination.read_text(encoding="utf-8") != audit_text:
+            raise OSError("Operational audit content changed during export")
+        audit_path = f"./{destination.name}"
+    except Exception:
+        assessment = _unavailable_assessment("The operational audit could not be completed for this export.")
+    footer = audit.render_assessment(assessment, audit_path)
+    markdown = markdown_base.rstrip() + "\n\n---\n\n" + footer + "\n"
+    _write_text(save_path / "complete_report.md", markdown)
     if html:
         from tradingagents.report_html import _render_prepared_report
 
-        (save_path / "complete_report.html").write_text(
-            _render_prepared_report(ticker, final_state, display_settings, parts, summary,
-                                    diagnostics_sidecar=bool(frozen)),
-            encoding="utf-8"
-        )
+        page = _render_prepared_report(ticker, final_state, display_settings, parts, summary,
+                                       diagnostics_sidecar=bool(frozen), assessment=assessment,
+                                       audit_path=audit_path)
+        _write_text(save_path / "complete_report.html", page)
+    # A report is successful only when its final contents and linked companion
+    # still match the bytes constructed from this prepared presentation.
+    if audit_path and (save_path / audit_path).read_text(encoding="utf-8") != audit_text:
+        raise OSError("Operational audit changed during export")
     return save_path / "complete_report.md"

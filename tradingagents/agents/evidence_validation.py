@@ -302,8 +302,9 @@ def _acquisition_scope(state, selected_analysts):
 
 def create_source_acquisition(selected_analysts):
     """Acquire one source vintage before analyst fan-out; never authorize publication."""
-    from tradingagents.dataflows.errors import VendorError
+    from tradingagents.dataflows.errors import NoMarketDataError, VendorError
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
+    from tradingagents.operational_capture import record_operation
 
     def acquire(state):
         scope = _acquisition_scope(state, selected_analysts)
@@ -339,6 +340,7 @@ def create_source_acquisition(selected_analysts):
                         if disclosures.cik != package.cik or str(disclosures.as_of) != scope["as_of"]:
                             raise ValueError("SEC filing package issuer or cutoff differs from requested instrument")
                     except (VendorError, ValidationError, ValueError) as exc:
+                        record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC filings")
                         record["disclosure_error"] = str(exc)
                         disclosures = None
                     if disclosures is not None:
@@ -352,6 +354,7 @@ def create_source_acquisition(selected_analysts):
                     record["source_checks"] = prepared.pop("source_checks")
                     update.update(prepared)
             except (VendorError, ValidationError, ValueError) as exc:
+                record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC financial acquisition")
                 record["status"] = "unavailable"
                 record["reason"] = str(exc)
         # Price is independent of financial scope and critical-accounting status.

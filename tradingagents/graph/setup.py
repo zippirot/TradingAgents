@@ -28,6 +28,7 @@ from tradingagents.agents.document_questions import lookup_document_questions
 from tradingagents.agents.evidence_validation import create_evidence_gate, create_source_acquisition
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.state import AgentState
+from tradingagents.operational_capture import observed_node
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
@@ -181,9 +182,22 @@ class GraphSetup:
 
         workflow = StateGraph(AgentState)
 
+        expected = ['Source Acquisition', *[spec.agent_node for spec in plan.specs],
+                    'Evidence Check', 'Bull Researcher', 'Bear Researcher', 'Document Followup',
+                    'Research Manager', 'Trader', 'Aggressive Analyst', 'Conservative Analyst',
+                    'Neutral Analyst', 'Advisory Audit', 'Portfolio Manager', 'Run Metrics']
+        if memory_node is not None:
+            expected.append('Memory Log')
+
+        def add_node(name, node, report_key=None):
+            workflow.add_node(name, observed_node(
+                node, name, report_key=report_key,
+                expected_stages=expected if name == 'Source Acquisition' else None))
+
         for spec in plan.specs:
-            workflow.add_node(spec.agent_node,
-                              _analyst_graph(spec, analyst_factories[spec.key](), self.max_tool_rounds))
+            add_node(spec.agent_node,
+                     _analyst_graph(spec, analyst_factories[spec.key](), self.max_tool_rounds),
+                     report_key=spec.report_key)
 
         def final_question_turn(node, role):
             def invoke(state):
@@ -192,16 +206,16 @@ class GraphSetup:
                 return node({**state, "_document_question_final_turn": count >= threshold})
             return invoke
 
-        workflow.add_node("Bull Researcher", final_question_turn(bull_researcher_node, "bull"))
-        workflow.add_node("Bear Researcher", final_question_turn(bear_researcher_node, "bear"))
-        workflow.add_node("Document Followup", lookup_document_questions)
+        add_node("Bull Researcher", final_question_turn(bull_researcher_node, "bull"))
+        add_node("Bear Researcher", final_question_turn(bear_researcher_node, "bear"))
+        add_node("Document Followup", lookup_document_questions)
         workflow.add_edge("Document Followup", "Research Manager")
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        add_node("Research Manager", research_manager_node, report_key="investment_plan")
+        add_node("Trader", trader_node, report_key="trader_investment_plan")
+        add_node("Aggressive Analyst", aggressive_analyst)
+        add_node("Neutral Analyst", neutral_analyst)
+        add_node("Conservative Analyst", conservative_analyst)
+        add_node("Portfolio Manager", portfolio_manager_node, report_key="final_trade_decision")
         raw_audit = create_advisory_audit(
             self.audit_llm, deep_model_id=self.deep_model_id,
             quick_model_id=self.quick_model_id,
@@ -226,17 +240,17 @@ class GraphSetup:
                 }
             return result
 
-        workflow.add_node("Advisory Audit", audit_node)
-        workflow.add_node("Run Metrics", metrics_node)
+        add_node("Advisory Audit", audit_node)
+        add_node("Run Metrics", metrics_node)
 
         # One retained source vintage precedes parallel analyst reasoning. The
         # memory log retains its independent start and joins every analyst before
         # evidence validation, preserving prior-thesis cutoff dependencies.
         first_steps = [spec.agent_node for spec in plan.specs]
         if memory_node is not None:
-            workflow.add_node("Memory Log", memory_node)
+            add_node("Memory Log", memory_node)
             first_steps.append("Memory Log")
-        workflow.add_node("Source Acquisition", create_source_acquisition(selected_analysts))
+        add_node("Source Acquisition", create_source_acquisition(selected_analysts))
         workflow.add_edge(START, "Source Acquisition")
         for spec in plan.specs:
             workflow.add_edge("Source Acquisition", spec.agent_node)
@@ -262,7 +276,7 @@ class GraphSetup:
             scenarios = prepare_shared_valuation({**state, **checked})
             return {**checked, "shared_valuation_scenarios": scenarios, "event_comparison": event}
 
-        workflow.add_node("Evidence Check", evidence_with_scenarios)
+        add_node("Evidence Check", evidence_with_scenarios)
         workflow.add_edge(first_steps, "Evidence Check")
         workflow.add_conditional_edges(
             "Evidence Check",

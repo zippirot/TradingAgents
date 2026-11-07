@@ -4,6 +4,7 @@ from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
 
 from tradingagents.agents.document_access import merge_search_traces
+from tradingagents.operational_audit import merge_observations
 
 
 # Researcher team state
@@ -46,6 +47,7 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    operational_observations: Annotated[dict, merge_observations]
     analysis_clock: Annotated[dict, "Resolved IANA analysis timezone and UTC known-at cutoff"]
     run_id: Annotated[str, "Invocation identity preserved across checkpoint resume"]
     evaluation_mode: Annotated[str, "Explicit prospective publication or historical simulation"]

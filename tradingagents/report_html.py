@@ -272,12 +272,20 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts=N
 
     summary = resolve_summary(summary_input_for_report(prepared, display_settings, parts),
                               prepared.get("executive_summary"))
+    from tradingagents.reporting import _operational_assessment, _unavailable_assessment
+
+    try:
+        assessment = _operational_assessment(final_state, summary,
+                    "unverified" if final_state.get("publication_record") else "verified")
+    except Exception:
+        assessment = _unavailable_assessment("The operational audit could not be completed for this export.")
     return _render_prepared_report(ticker, prepared, display_settings, parts, summary,
-                                   diagnostics_sidecar=diagnostics_sidecar)
+                                   diagnostics_sidecar=diagnostics_sidecar, assessment=assessment)
 
 
 def _render_prepared_report(ticker: str, final_state: dict, settings: dict | None, parts,
-                            summary: dict, *, diagnostics_sidecar: bool = False) -> str:
+                            summary: dict, *, diagnostics_sidecar: bool = False,
+                            assessment: dict | None = None, audit_path: str | None = None) -> str:
     """Render one already prepared and resolved presentation."""
     anchors = historical_anchors(parts)
     md = _markdown()
@@ -327,6 +335,14 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
         f'<p>{escape(" ".join(summary.get("sentences") or []))}</p></section>'
     )
 
+    if assessment is None:
+        from tradingagents.reporting import _unavailable_assessment
+
+        assessment = _unavailable_assessment("The operational audit was not available for this export.")
+    from tradingagents.operational_audit import render_assessment
+
+    audit_html = _markdown().render(render_assessment(assessment, audit_path))
+
     page_title = " ".join(x for x in (ticker, date, rating) if x)
     return f"""<!doctype html>
 <html lang="en">
@@ -356,8 +372,9 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 </main>
 <p class="credit">{escape(render_token_usage(final_state.get("run_metrics")))}</p>
 <footer class="credit"><a href="{_PROJECT}" rel="noopener">TradingAgents</a> powered by <a class="brand" href="{_ORG}" rel="noopener">Tauric Research</a></footer>
-</div>
 <a class="to-top" href="#top">Top</a>
+<section class="operational-assessment" aria-label="Operational quality assessment">{audit_html}</section>
+</div>
 </body>
 </html>
 """

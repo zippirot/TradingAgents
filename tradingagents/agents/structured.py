@@ -24,6 +24,8 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from tradingagents.operational_capture import record_operation
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
@@ -92,4 +94,7 @@ def invoke_structured_or_freetext(
     result = invoke_structured(structured_llm, prompt, agent_name)
     if result is not None:
         return render(result)
-    return plain_llm.invoke(prompt).content
+    text = plain_llm.invoke(prompt).content
+    if structured_llm is not None:
+        record_operation('model_retry_recovered')
+    return text
