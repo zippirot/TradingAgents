@@ -102,7 +102,7 @@ class DisclosurePackage(BaseModel):
     selected_accessions: tuple[str, ...] = ()
 
 
-def _filing_rows(data: dict, cik: str, as_of: str):
+def _filing_rows(data: dict, cik: str, as_of: str, *, include_prospectus=False):
     """Validate recent submissions once for both bounded selection paths."""
     cutoff = date.fromisoformat(as_of)
     if not isinstance(data, dict) or str(data.get("cik", "")).zfill(10) != cik:
@@ -127,7 +127,7 @@ def _filing_rows(data: dict, cik: str, as_of: str):
         )
     for i in range(count):
         form = recent["form"][i]
-        if form not in {"10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "8-K/A"}:
+        if form not in {"10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "8-K/A"} and not (include_prospectus and re.fullmatch(r"424B[1-9]?", str(form))):
             continue
         try:
             filed = date.fromisoformat(recent["filingDate"][i])
@@ -938,3 +938,168 @@ def get_current_quarter_rpo_evidence(current: DisclosurePackage) -> DisclosurePa
                                           'scope': 'Current-quarter RPO source supplement; same filing bytes'})
     except VendorUnavailableError as exc:
         return current.model_copy(update={'documents': (), 'gaps': (str(exc),), 'selected_accessions': (document.filing.accession,)})
+
+# Search acquisition has its own limits. The accepted-evidence brief above keeps
+# its original selection, extraction and request budgets.
+_SEARCH_FILING_LIMIT = 24
+_SEARCH_DOCUMENT_LIMIT = 32
+_SEARCH_EXHIBITS_PER_8K = 4
+
+
+def select_search_filings(
+    data: dict, cik: str, as_of: str, *, limit: int = _SEARCH_FILING_LIMIT
+):
+    """Select full-source periodic baselines and financing/event documents."""
+    if not 1 <= limit <= _SEARCH_FILING_LIMIT:
+        raise ValueError(f"Search filing limit must be 1-{_SEARCH_FILING_LIMIT}")
+    rows, gaps = _filing_rows(data, cik, as_of, include_prospectus=True)
+    periodic = []
+    for form in ("10-K", "10-Q"):
+        originals = [row for row in rows if row.form == form and row.report_date]
+        if not originals:
+            gaps.append(f"No eligible {form} primary filing in recent metadata")
+            continue
+        latest = max(originals, key=lambda row: (row.report_date, row.filed_date))
+        periodic.append(latest)
+        periodic.extend(
+            row for row in rows if row.form == form + "/A"
+            and row.report_date == latest.report_date
+            and row.filed_date >= latest.filed_date
+        )
+    current_quarters = [row for row in periodic if row.form == "10-Q"]
+    if current_quarters:
+        current = max(current_quarters, key=lambda row: row.report_date or date.min)
+        prior, prior_gaps = select_prior_quarter_filings(
+            data, cik, as_of, str(current.report_date)
+        )
+        periodic.extend(prior)
+        gaps.extend(prior_gaps)
+    else:
+        gaps.append("Prior-quarter 10-Q unavailable without current-quarter anchor")
+    baseline = max(
+        (row.report_date for row in periodic if row.report_date),
+        default=date.fromisoformat(as_of),
+    )
+    events = [
+        row for row in rows
+        if (row.form.startswith("8-K") or row.form.startswith("424B"))
+        and row.filed_date >= baseline
+    ]
+    # Keep all periodic anchors first; then newest event/prospectus filings.
+    priority = list(dict.fromkeys(row.accession for row in periodic))
+    by_accession = {row.accession: row for row in (*periodic, *events)}
+    priority.extend(
+        row.accession for row in sorted(
+            events, key=lambda row: (row.filed_date, row.accession), reverse=True
+        ) if row.accession not in priority
+    )
+    for accession in priority[limit:]:
+        row = by_accession[accession]
+        gaps.append(f"Filing count limit {limit}: omitted {accession} {row.url}")
+    selected = [by_accession[accession] for accession in priority[:limit]]
+    selected.sort(key=lambda row: (row.filed_date, row.accession))
+    return selected, gaps
+
+
+def get_filing_search_evidence(
+    ticker: str, as_of_date: str, *, bounded_package: DisclosurePackage | None = None
+) -> DisclosurePackage:
+    """Acquire full visible filing blocks, separately from the bounded brief.
+
+    If a bounded brief was already read, matching URLs must have the identical
+    source hash. Changed cache/network content is omitted rather than replacing
+    the source vintage previously supplied to the analysis.
+    """
+    cutoff = date.fromisoformat(as_of_date)
+    cik = cik_for(ticker)
+    if cik is None:
+        raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
+    if bounded_package is not None and (
+        bounded_package.cik != cik or bounded_package.as_of != cutoff
+    ):
+        raise ValueError("Bounded filing package issuer or cutoff mismatch")
+    pins = {document.url: document.content_hash for document in (
+        bounded_package.documents if bounded_package else ()
+    )}
+    client = DocumentClient(max_requests=1 + _SEARCH_DOCUMENT_LIMIT, max_seconds=240)
+    metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
+    try:
+        filings, gaps = select_search_filings(json.loads(metadata["text"]), cik, as_of_date)
+    except ValueError as exc:
+        raise VendorUnavailableError("Unreadable SEC submissions JSON") from exc
+    documents = []
+    for filing in filings:
+        pending = [filing.url]
+        seen = set()
+        exhibit_count = 0
+        while pending:
+            url = pending.pop(0)
+            if url in seen:
+                continue
+            seen.add(url)
+            if len(documents) >= _SEARCH_DOCUMENT_LIMIT:
+                gaps.append(
+                    f"Document count limit {_SEARCH_DOCUMENT_LIMIT}: omitted "
+                    f"{filing.accession} {url}"
+                )
+                for rest in pending:
+                    gaps.append(
+                        f"Document count limit {_SEARCH_DOCUMENT_LIMIT}: omitted "
+                        f"{filing.accession} {rest}"
+                    )
+                continue
+            try:
+                source = client.fetch(url)
+                if url in pins and source["content_hash"] != pins[url]:
+                    gaps.append(f"{filing.accession} {url}: content changed from bounded source; omitted")
+                    continue
+                blocks, links, extraction_gaps = extract_sections(
+                    source["text"], max_chars=max(1, len(source["text"]) * 2)
+                )
+                if any("Document text limit reached" in gap for gap in extraction_gaps):
+                    gaps.append(f"{filing.accession} {url}: full source extraction limit reached; omitted")
+                    continue
+                documents.append(FilingDocument(
+                    source_id="sec-document-" + hashlib.sha256(url.encode()).hexdigest(),
+                    filing=filing, url=url, retrieved_at=source["retrieved_at"],
+                    content_hash=source["content_hash"], blocks=tuple(blocks),
+                    gaps=tuple(extraction_gaps),
+                ))
+                gaps.extend(f"{filing.accession} {url}: {gap}" for gap in extraction_gaps)
+                if filing.form.startswith("8-K") and url == filing.url:
+                    exhibits = []
+                    for href, label in links:
+                        if re.search(
+                            r"(?:ex(?:hibit)?[-\s]?(?:1|4|5|10|23|99)[._-]?\d*|"
+                            r"\b(?:1|4|5|10|23|99)[._-]\d+\b)",
+                            href + " " + label, re.I,
+                        ) or (
+                            "2.02" in filing.items and re.search(
+                                r"press release", label, re.I
+                            )
+                        ):
+                            candidate = exhibit_url(filing, href)
+                            if candidate and candidate != filing.url and candidate not in exhibits:
+                                exhibits.append(candidate)
+                            elif candidate is None:
+                                gaps.append(
+                                    f"{filing.accession}: unsupported exhibit link omitted "
+                                    f"{urljoin(filing.url, href)[:300]}"
+                                )
+                    pending.extend(exhibits[:_SEARCH_EXHIBITS_PER_8K])
+                    exhibit_count = len(exhibits)
+                    for omitted in exhibits[_SEARCH_EXHIBITS_PER_8K:]:
+                        gaps.append(
+                            f"{filing.accession}: exhibit count limit "
+                            f"{_SEARCH_EXHIBITS_PER_8K}; omitted {omitted}"
+                        )
+                    if "2.02" in filing.items and not exhibit_count:
+                        gaps.append(f"{filing.accession}: earnings exhibit unavailable")
+            except VendorUnavailableError as exc:
+                gaps.append(f"{filing.accession} {url}: {exc}")
+    return DisclosurePackage(
+        cik=cik, as_of=cutoff, documents=tuple(documents),
+        gaps=tuple(dict.fromkeys(gaps)),
+        selected_accessions=tuple(filing.accession for filing in filings),
+        scope="Full visible SEC filing source blocks for deterministic search; unvalidated source text",
+    )

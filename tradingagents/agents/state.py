@@ -1,7 +1,9 @@
-from typing import Annotated
+from typing import Annotated, NotRequired
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
+
+from tradingagents.agents.document_access import merge_search_traces
 
 
 # Researcher team state
@@ -15,6 +17,7 @@ class InvestDebateState(TypedDict):
     history: Annotated[str, "Conversation history"]
     current_response: Annotated[str, "Latest response"]
     count: Annotated[int, "Length of the current conversation"]
+    document_questions: NotRequired[dict]
 
 
 # Risk management team state
@@ -79,6 +82,10 @@ class AgentState(MessagesState):
     disclosure_evidence: Annotated[dict, "Dated filing excerpts, grounded extraction and retrieval gaps; not a coverage guarantee"]
 
     filing_evidence: Annotated[dict, "Canonical dated filing documents for this run"]
+    document_sources: Annotated[dict, "Immutable full filing corpus; untrusted source text, not accepted facts"]
+    document_search_trace: Annotated[dict, merge_search_traces]
+    document_search_role: Annotated[str, "Private analyst subgraph role, never model supplied"]
+    document_followups: Annotated[dict, "Retained deterministic post-debate source lookups; unvalidated interpretation"]
     filing_fact_extraction: Annotated[dict, "Verified filing cells and table coverage"]
     evidence_acquisition: Annotated[dict, "Retained pre-analyst source vintage and scope; not final evidence authority"]
     shared_source_brief: Annotated[str, "Bounded common primary-source brief consumed by every analyst"]

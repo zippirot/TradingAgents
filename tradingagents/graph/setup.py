@@ -1,6 +1,6 @@
 import logging
 from collections import Counter
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
@@ -23,6 +23,8 @@ from tradingagents.agents import (
 from tradingagents.agents.analysts.turn import WRAP_UP
 from tradingagents.agents.audit_evidence import AUDIT_TOOL_FIELDS, collect_tool_outputs
 from tradingagents.agents.audit_pass import create_advisory_audit
+from tradingagents.agents.document_access import merge_search_traces
+from tradingagents.agents.document_questions import lookup_document_questions
 from tradingagents.agents.evidence_validation import create_evidence_gate, create_source_acquisition
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.state import AgentState
@@ -39,7 +41,7 @@ logger = logging.getLogger(__name__)
 DEBATE_PATH_MAP = {
     "Bull Researcher": "Bull Researcher",
     "Bear Researcher": "Bear Researcher",
-    "Research Manager": "Research Manager",
+    "Research Manager": "Document Followup",
 }
 RISK_ANALYSIS_PATH_MAP = {
     "Aggressive Analyst": "Aggressive Analyst",
@@ -65,13 +67,18 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     """
     evidence_field = AUDIT_TOOL_FIELDS[spec.key]
     output_fields = {spec.report_key: str, evidence_field: dict}
+    if spec.key in {"fundamentals", "news"}:
+        output_fields["document_search_trace"] = Annotated[dict, merge_search_traces]
     if spec.key == "fundamentals":
         output_fields["disclosure_evidence"] = dict
     if spec.key == "news":
         output_fields["news_coverage"] = dict
     output = TypedDict(f"{spec.key.capitalize()}Report", output_fields)
     graph = StateGraph(AgentState, output_schema=output)
-    graph.add_node("agent", agent)
+    def run_agent(state):
+        return {"document_search_role": spec.key, **agent({**state, "document_search_role": spec.key})}
+
+    graph.add_node("agent", run_agent)
     graph.add_edge(START, "agent")
 
     def finish(state):
@@ -178,8 +185,17 @@ class GraphSetup:
             workflow.add_node(spec.agent_node,
                               _analyst_graph(spec, analyst_factories[spec.key](), self.max_tool_rounds))
 
-        workflow.add_node("Bull Researcher", bull_researcher_node)
-        workflow.add_node("Bear Researcher", bear_researcher_node)
+        def final_question_turn(node, role):
+            def invoke(state):
+                count = (state.get("investment_debate_state") or {}).get("count", 0)
+                threshold = 2 * self.conditional_logic.max_debate_rounds - (2 if role == "bull" else 1)
+                return node({**state, "_document_question_final_turn": count >= threshold})
+            return invoke
+
+        workflow.add_node("Bull Researcher", final_question_turn(bull_researcher_node, "bull"))
+        workflow.add_node("Bear Researcher", final_question_turn(bear_researcher_node, "bear"))
+        workflow.add_node("Document Followup", lookup_document_questions)
+        workflow.add_edge("Document Followup", "Research Manager")
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
