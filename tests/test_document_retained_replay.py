@@ -183,7 +183,7 @@ def test_retained_docn_followup_and_report_replay(tmp_path):
     html = (target / "complete_report.html").read_text()
     assert "Debate document follow-up" in markdown and "Debate document follow-up" in html
     assert "cited in final decision" in markdown and cited in markdown
-    assert "unresolved" in markdown
+    assert 'source passages retrieved; final-decision citation not verified.' in markdown
     assert "docn" in markdown.lower()
     assert "Retrieved source text, not accepted evidence" in markdown
     assert (target / "5_portfolio/decision.md").is_file()
@@ -273,7 +273,7 @@ def test_retained_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatc
     html = (target / "complete_report.html").read_text()
     assert ref in markdown and ref in html
     assert "cited in final decision" in markdown
-    assert "unresolved" in markdown and "unresolved" in html
+    assert 'source passages retrieved; final-decision citation not verified.' in markdown and 'source passages retrieved; final-decision citation not verified.' in html
     assert "Retrieved source text, not accepted evidence" in markdown
 
     # The CLI complete-report path prepares the same state before display.
@@ -293,4 +293,4 @@ def test_retained_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatc
         (target / "complete_report_cli.txt").write_text(visible)
     assert "Portfolio Manager Decision" in visible
     assert "Debate document follow-up" in visible
-    assert "unresolved" in visible
+    assert 'source passages retrieved; final-decision citation not verified.' in visible

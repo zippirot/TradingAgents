@@ -124,7 +124,7 @@ def test_context_and_report_require_actual_pm_reference():
     assert ref in context
     assert "not found in retained filings" in context
     unresolved = render_document_followups(state, "No citation")
-    assert "unresolved" in unresolved
+    assert 'source passages retrieved; final-decision citation not verified.' in unresolved
     assert ref not in unresolved
     cited = render_document_followups(state, "I considered " + ref)
     assert ref in cited
@@ -160,3 +160,73 @@ def test_resume_detects_question_set_change_without_new_search():
     state["investment_debate_state"]["document_questions"]["bull"]["questions"][0]["query"] = "changed"
     with pytest.raises(ValueError, match="questions"):
         lookup_document_questions(state)
+
+
+def test_named_note_no_match_reason_is_visible_in_followup_report():
+    state = state_with_corpus()
+    state["investment_debate_state"]["document_questions"]["bull"] = parse_document_questions(
+        '```document_questions\n["How will the 2026 Convertible Notes settle?"]\n```', "bull"
+    )
+    state["investment_debate_state"]["document_questions"]["bear"] = parse_document_questions(
+        '```document_questions\n[]\n```', "bear"
+    )
+    state.update(lookup_document_questions(state))
+    result = state["document_followups"]["results"][0]
+    assert result["status"] == "not_found"
+    assert "no passage names the 2026 Convertible Notes" in result["reason"]
+    assert "no passage names the 2026 Convertible Notes" in render_document_followups(state)
+
+
+def test_partial_named_note_coverage_is_visible_even_with_a_found_passage():
+    state = state_with_corpus()
+    state["document_sources"]["corpus"]["documents"][0]["blocks"].append({
+        "locator": "block-3", "section": "Notes", "text": "The 2030 Convertible Notes affect diluted shares.",
+        "truncated": False, "currency": None, "currency_locator": None,
+    })
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    state["document_sources"]["corpus_hash"] = corpus_hash(
+        DisclosurePackage.model_validate(state["document_sources"]["corpus"])
+    )
+    state["investment_debate_state"]["document_questions"]["bull"] = parse_document_questions(
+        '```document_questions\n["Which 2026 and 2030 Convertible Notes affect diluted shares?"]\n```', "bull"
+    )
+    state["investment_debate_state"]["document_questions"]["bear"] = parse_document_questions(
+        '```document_questions\n[]\n```', "bear"
+    )
+    state.update(lookup_document_questions(state))
+    result = state["document_followups"]["results"][0]
+    assert result["status"] == "found"
+    assert "no passage names the 2026 Convertible Notes" in result["gaps"]
+    assert "no passage names the 2026 Convertible Notes" in render_document_followups(state)
+    assert "no passage names the 2026 Convertible Notes" in document_followup_context(state)
+
+
+@pytest.mark.parametrize("truncated", [False, True])
+def test_partial_named_note_omission_is_visible_without_claiming_absence(truncated):
+    state = state_with_corpus()
+    state["document_sources"]["corpus"]["documents"][0]["blocks"].extend((
+        {"locator": "block-3", "section": "Notes", "text": "The 2030 Convertible Notes affect diluted shares.",
+         "truncated": False, "currency": None, "currency_locator": None},
+        {"locator": "block-4", "section": "Notes", "text": "The 2026 Convertible Notes " + "x" * 12000,
+         "truncated": truncated, "currency": None, "currency_locator": None},
+    ))
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    state["document_sources"]["corpus_hash"] = corpus_hash(
+        DisclosurePackage.model_validate(state["document_sources"]["corpus"])
+    )
+    state["investment_debate_state"]["document_questions"]["bull"] = parse_document_questions(
+        '```document_questions\n["Which 2026 and 2030 Convertible Notes affect diluted shares?"]\n```', "bull"
+    )
+    state["investment_debate_state"]["document_questions"]["bear"] = parse_document_questions(
+        '```document_questions\n[]\n```', "bear"
+    )
+    state.update(lookup_document_questions(state))
+    result = state["document_followups"]["results"][0]
+    assert result["status"] == "found"
+    expected = "incomplete source block omitted" if truncated else "passage omitted by search size limit"
+    assert f"2026 Convertible Notes: {expected}" in result["gaps"]
+    assert f"2026 Convertible Notes: {expected}" in render_document_followups(state)
+    assert f"2026 Convertible Notes: {expected}" in document_followup_context(state)
+    assert "no passage names the 2026 Convertible Notes" not in result["gaps"]

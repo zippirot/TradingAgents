@@ -55,14 +55,14 @@ def test_filings_and_transcript_share_parallel_three_call_budget(monkeypatch):
         search_retained_document_sources(state, "transcript:" + "x" * 200)
 
 
-def test_debate_transcript_lookup_labeled_and_unresolved_on_no_pm_citation(monkeypatch):
+def test_debate_transcript_lookup_labels_unverified_final_citation(monkeypatch):
     state = ready(monkeypatch)
     state["investment_debate_state"] = {"document_questions": {
         "bull": parse_document_questions('\x60\x60\x60document_questions\n["transcript:capacity"]\n\x60\x60\x60', "bull")}}
     state.update(lookup_document_questions(state))
     assert state["document_followups"]["results"][0]["status"] == "found"
     assert "vendor transcript, wording unverified" in document_followup_context(state)
-    assert "unresolved" in render_document_followups(state, "Hold without a citation")
+    assert "source passages retrieved; final-decision citation not verified." in render_document_followups(state, "Hold without a citation")
     assert lookup_document_questions(state) == {}
 
 

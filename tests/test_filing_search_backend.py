@@ -92,3 +92,56 @@ def test_section_name_search_returns_heading_and_following_source_block():
     ))
     result = search_filing_evidence(package, "leases")
     assert [p["locator"] for p in result["passages"]][:2] == ["block-1", "block-2"]
+
+
+def test_named_2026_notes_exclude_2030_near_miss_and_retrieve_terms():
+    package = corpus((
+        SourceBlock(locator="block-1", section="Notes", text="The 2030 Convertible Notes may be settled in cash, shares, or a combination. As of September 30, 2026."),
+        SourceBlock(locator="block-2", section="Notes", text="The 2026 Convertible Notes have an initial conversion price of $178.51."),
+        SourceBlock(locator="block-3", section="Notes", text="The 2026 Convertible Notes mature December 1, 2026 and may be settled in cash, shares, or a combination."),
+    ))
+    result = search_filing_evidence(package, "How will the 2026 convertible notes settle in cash or shares, and what are the conversion price and maturity date?")
+    assert {p["locator"] for p in result["passages"]} == {"block-2", "block-3"}
+
+
+def test_named_notes_missing_and_incidental_year_are_not_answers():
+    package = corpus((SourceBlock(locator="block-1", section="Notes", text="The 2030 Convertible Notes may settle in cash or shares at September 30, 2026."),))
+    result = search_filing_evidence(package, "How will the 2026 Convertible Notes settle?")
+    assert result["passages"] == []
+    assert "no passage names the 2026 Convertible Notes" in result["gaps"]
+    assert search_filing_evidence(package, "How will convertible notes settle at September 30, 2026?")["passages"]
+
+
+def test_two_named_notes_keep_both_identities_and_report_missing_one():
+    package = corpus((
+        SourceBlock(locator="block-1", section="Notes", text="The 2026 Convertible Notes affect diluted shares."),
+        SourceBlock(locator="block-2", section="Notes", text="The 2030 Convertible Notes affect diluted shares."),
+    ))
+    result = search_filing_evidence(package, "Which 2026 and 2030 convertible notes affect diluted shares?", max_passages=1)
+    assert len(result["passages"]) == 1
+    assert any("omitted by search passage limit" in gap for gap in result["gaps"])
+    result = search_filing_evidence(package, "Which 2026 and 2030 convertible notes affect diluted shares?")
+    assert {p["locator"] for p in result["passages"]} == {"block-1", "block-2"}
+
+
+def test_named_note_oversize_and_truncated_material_report_omission():
+    large = corpus((SourceBlock(locator="block-1", section="Notes", text="2026 Convertible Notes " + "x" * 12000),))
+    result = search_filing_evidence(large, "2026 Convertible Notes")
+    assert any("size limit" in gap for gap in result["gaps"])
+    assert not any("no passage names" in gap for gap in result["gaps"])
+    partial = corpus((SourceBlock(locator="block-1", section="Notes", text="2026 Convertible Notes settlement", truncated=True),))
+    result = search_filing_evidence(partial, "2026 Convertible Notes")
+    assert any("incomplete" in gap for gap in result["gaps"])
+    assert not any("no passage names" in gap for gap in result["gaps"])
+
+
+def test_named_notes_prefer_latest_eligible_filing_and_respect_cutoff_and_issuer():
+    old = corpus((SourceBlock(locator="block-1", section="Notes", text="The 2026 Convertible Notes cash shares conversion price and maturity date are discussed here."),), filed=date(2026, 8, 5))
+    latest = corpus((SourceBlock(locator="block-2", section="Notes", text="The 2026 Convertible Notes have a conversion price of $178.51."),), filed=date(2026, 8, 6))
+    query = "2026 Convertible Notes cash shares conversion price and maturity date"
+    combined = old.model_copy(update={"documents": old.documents + latest.documents})
+    assert search_filing_evidence(combined, query, max_passages=1)["passages"][0]["locator"] == "block-2"
+    future = corpus((SourceBlock(locator="block-1", section="Notes", text="2026 Convertible Notes settle in cash."),), filed=date(2026, 9, 2))
+    assert search_filing_evidence(future, query)["passages"] == []
+    wrong = old.model_copy(update={"cik": "0000000001"})
+    assert search_filing_evidence(wrong, query)["passages"] == []

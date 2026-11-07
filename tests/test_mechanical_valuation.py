@@ -73,6 +73,19 @@ def test_guided_weighted_average_period_is_distinct_from_outstanding(monkeypatch
     assert "2027" in text and "source_id" in text
 
 
+def test_repeated_source_keeps_one_management_growth_floor_and_both_share_bases(monkeypatch):
+    state, _ = prepared(monkeypatch)
+    package = state["disclosure_evidence"]["packages"][0]
+    state["disclosure_evidence"]["packages"] = [package, deepcopy(package)]
+    result = grid.mechanical_valuation_grid(state)
+    management = result["blocks"]["management"]
+    assert management["status"] == "available"
+    assert [o["label"] for o in management["outlooks"]] == [
+        "guidance low", "guidance high", "at the guidance floor"]
+    assert {r["shares"]["kind"] for r in management["rows"]} == {
+        "outstanding", "guided diluted weighted average"}
+
+
 def test_vendor_next_fiscal_year_is_separate_unverified_dates(monkeypatch):
     state, _ = prepared(monkeypatch)
     monkeypatch.setattr(flow, "validate_vendor_expectations", lambda state: {
