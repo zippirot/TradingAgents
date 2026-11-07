@@ -2,7 +2,7 @@
 
 Status **completed with findings**. Reviewed 4 of 4 report chunks. Contradicted claims 2, unsupported claims 0.
 
-Source quotations and calculations are checked in code. Interpretation of source meaning uses model review.
+Code checks source quotations and the calculation proofs shown in the detail. Other arithmetic and source interpretation use model review.
 
 **Recommendation needs review.** Material factual questions remain or reassessment was unavailable.
 

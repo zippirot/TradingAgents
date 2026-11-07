@@ -6,7 +6,7 @@
 
 Status **completed with findings**. Reviewed 4 of 4 report chunks. Contradicted claims 2, unsupported claims 0.
 
-Source quotations and calculations are checked in code. Interpretation of source meaning uses model review.
+Code checks source quotations and the calculation proofs shown in the detail. Other arithmetic and source interpretation use model review.
 
 **Recommendation needs review.** Material factual questions remain or reassessment was unavailable.
 
@@ -19,7 +19,7 @@ The Full Ground Truth Audit contains all findings and source details.
 
 Review used retained sources; independent source retrieval was not performed by this pass.
 
-[Full Ground Truth Audit](./ground_truth_audit-868b3302a2dd5f20df03.md)
+[Full Ground Truth Audit](./ground_truth_audit-be8a744e5d464af76ca8.md)
 
 ## Executive summary
 
@@ -38,7 +38,7 @@ REVIEW means no actionable rating was established. The retained decision did not
 
 - Rating: REVIEW
 - Evidence: Legacy export — financial evidence unvalidated
-- Generated: 2026-11-07 15:51:39
+- Generated: 2026-11-07 16:41:17
 - TradingAgents ?: ?, deep ?, quick ?
 - Analysts: ; research debate rounds ?, risk debate rounds ?
 

@@ -85,7 +85,8 @@ def audit_assessment(record, state):
     text = "### Ground Truth Audit\n\nStatus **" + _plain_markdown(str(record.get("status", "unavailable"))) + "**. "
     text += f"Reviewed {coverage.get('reviewed_chunks', 0)} of {coverage.get('total_chunks', 0)} report chunks. "
     text += f"Contradicted claims {counts['contradicted']}, unsupported claims {counts['unsupported']}."
-    text += "\n\nSource quotations and calculations are checked in code. Interpretation of source meaning uses model review."
+    text += ("\n\nCode checks source quotations and the calculation proofs shown in the detail. "
+             "Other arithmetic and source interpretation use model review.")
     if _recommendation_needs_review(record, state):
         text += "\n\n**Recommendation needs review.** Material factual questions remain or reassessment was unavailable."
     issues = _unresolved_material_claims(record, state)
