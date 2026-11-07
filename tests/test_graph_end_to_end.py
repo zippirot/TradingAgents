@@ -503,8 +503,8 @@ def test_shared_scenarios_survive_checkpoint_without_recalculation(tmp_path, mon
     monkeypatch.setattr(setup, "create_bull_researcher", bull_factory)
     graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True), checkpoint_enabled=True)
     signature = graph._run_signature("stock")
-    assert "shared_valuation=6" in signature
-    legacy = signature.replace("|shared_valuation=6", "")
+    assert "shared_valuation=7" in signature
+    legacy = signature.replace("|shared_valuation=7", "")
     assert legacy != signature
     assert thread_id("DOCN", evidence["trade_date"], legacy) != thread_id("DOCN", evidence["trade_date"], signature)
     with pytest.raises(RuntimeError, match="controlled post-evidence"):
@@ -515,3 +515,53 @@ def test_shared_scenarios_survive_checkpoint_without_recalculation(tmp_path, mon
     assert final["shared_valuation_scenarios"] == seen[0]
     path = next((tmp_path / "results/DOCN/TradingAgentsStrategy_logs").glob("full_states_log_*.json"))
     assert json.loads(path.read_text())["shared_valuation_scenarios"] == seen[0]
+
+
+@pytest.mark.parametrize("interrupt_role", ["research", "trader"])
+def test_revision_checkpoint_preserves_exact_cases_before_and_after_manager(
+    tmp_path, monkeypatch, offline, interrupt_role
+):
+    from tests.test_case_valuation import revenue_case
+    from tests.test_shared_valuation import state as scenario_state
+    from tradingagents.graph import setup
+
+    original = revenue_case()
+    revised = copy.deepcopy(original)
+    revised["request"]["multiple"] = "4"
+    evidence = scenario_state([original])
+    monkeypatch.setattr(setup, "create_evidence_gate", lambda selected: lambda state: {
+        k: evidence[k] for k in ("financial_evidence", "financial_claim_validation", "evidence_quality")})
+    monkeypatch.setitem(STRUCTURED, schemas.ResearchPlan, STRUCTURED[schemas.ResearchPlan].model_copy(
+        update={"revised_cases": [revised]}))
+    original_manager, original_trader = setup.create_research_manager, setup.create_trader
+    completed_manager = []
+    interrupted = []
+
+    def wrap(factory, role):
+        def factory_with_interrupt(llm):
+            node = factory(llm)
+
+            def run(state):
+                if role == interrupt_role and not interrupted:
+                    interrupted.append(copy.deepcopy(state["shared_valuation_scenarios"]))
+                    raise RuntimeError("controlled revision checkpoint interruption")
+                if role == "trader":
+                    assert state["shared_valuation_scenarios"]["rows"][0]["version"] == 2
+                update = node(state)
+                if role == "research":
+                    completed_manager.append(copy.deepcopy(update["shared_valuation_scenarios"]))
+                return update
+            return run
+        return factory_with_interrupt
+
+    monkeypatch.setattr(setup, "create_research_manager", wrap(original_manager, "research"))
+    monkeypatch.setattr(setup, "create_trader", wrap(original_trader, "trader"))
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(structured=True), checkpoint_enabled=True)
+    with pytest.raises(RuntimeError, match="controlled revision"):
+        graph.propagate("DOCN", evidence["trade_date"])
+    final, _ = graph.propagate("DOCN", evidence["trade_date"])
+    assert interrupted[0]["rows"][0]["version"] == (1 if interrupt_role == "research" else 2)
+    assert len(completed_manager) == 1
+    assert final["shared_valuation_scenarios"] == completed_manager[0]
+    assert completed_manager[0]["revision_status"] == "accepted"
+    assert completed_manager[0]["rows"][0]["result"]["target"] != completed_manager[0]["analyst_rows"][0]["result"]["target"]

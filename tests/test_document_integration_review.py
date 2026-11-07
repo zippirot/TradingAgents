@@ -84,7 +84,10 @@ def test_final_bull_bear_turns_capture_questions_and_research_manager_keeps_them
     assert questions["bear"]["questions"][0]["query"] == "lease commitments"
 
     monkeypatch.setattr(module, "bind_structured", lambda *args: object())
-    monkeypatch.setattr(module, "invoke_structured_or_freetext", lambda *args: "Recommendation: Hold")
+    from tradingagents.agents.schemas import ResearchPlan
+
+    monkeypatch.setattr(module, "invoke_structured", lambda *args: ResearchPlan(
+        recommendation="Hold", rationale="Test decision", strategic_actions="Wait"))
     manager = module.create_research_manager(object())({
         **run, "investment_debate_state": bear["investment_debate_state"],
     })

@@ -148,3 +148,44 @@ def _financing_records(document, cutoff):
             'url': document.url, 'content_hash': document.content_hash, 'locator': block.locator,
             'known_at': str(document.filing.filed_date), 'quote': text})
     return records
+
+
+def financing_sensitivities(state):
+    """Re-extract accepted authorizations; never add hypothetical issuance to cases."""
+    from decimal import localcontext
+
+    from tradingagents.agents.valuation_comparison import comparable_quote
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+
+    try:
+        package = EvidencePackage.model_validate(state.get("financial_evidence"))
+        if str(package.as_of) != state.get("trade_date") or (state.get("issuer_identity") or {}).get("cik") != package.cik:
+            return []
+        records = issuer_supplement({}, state.get("filing_evidence"), cik=package.cik,
+                                    as_of=str(package.as_of))["financing_records"]
+    except (ValueError, TypeError):
+        return []
+    result = []
+    for record in records:
+        row = {key: record[key] for key in ("event_date", "authorized_amount", "currency", "remaining_capacity",
+                                             "issuance", "source_id", "locator", "known_at")}
+        result.append(row)
+        try:
+            if record["currency"] is None:
+                raise ValueError("Agreement denomination unknown")
+            snapshot = max((f.period_end for f in package.facts if f.metric == "Common Shares Outstanding"
+                            and f.origin == "reported" and f.period_start is None and f.value and f.value > 0), default=None)
+            if snapshot is None or snapshot >= date.fromisoformat(record["event_date"]):
+                raise ValueError("Starting snapshot may already include issuance; no incremental calculation")
+            quote = comparable_quote(state, package, record["currency"] + "/shares", snapshot)
+            if quote["session_date"] < record["known_at"]:
+                raise ValueError("Completed close predates financing disclosure")
+            with localcontext() as ctx:
+                ctx.prec = 60
+                gross = Decimal(record["authorized_amount"])
+                row.update(close=quote["close"], close_date=quote["session_date"], gross_proceeds=str(gross),
+                           fee_assumption_percent="0", conditional_net_proceeds=str(gross),
+                           conditional_shares=str(gross / Decimal(quote["close"])), starting_snapshot=str(snapshot))
+        except (ValueError, TypeError, KeyError, ArithmeticError) as exc:
+            row["reason"] = str(exc)
+    return result

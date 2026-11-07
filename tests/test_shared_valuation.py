@@ -18,8 +18,13 @@ def state(rows):
 
 
 def test_shared_rows_calculate_independently_and_do_not_choose_target():
-    low, high = ev_request(), ev_request()
-    high["scenarios"][0]["multiple"] = "4"
+    from tests.test_case_valuation import revenue_case
+    low, high = revenue_case()["request"], revenue_case()["request"]
+    for raw in (low, high):
+        raw["capital"]["cash"]["value"] = "100"
+        raw["capital"]["closing_shares"]["value"] = "100"
+        raw["capital"]["obligations"]["borrowings"]["value"] = "200"
+    high["multiple"] = "4"
     inputs = state([{"name": "Lower", "request": low}, {"name": "Higher", "request": high}])
     original = deepcopy(inputs)
     result = prepare_shared_valuation(inputs)
@@ -67,8 +72,9 @@ def test_mixed_methods_are_not_presented_as_a_price_range():
         {"name": "Revenue", "request": ev_request()},
         {"name": "Earnings", "request": pe_request()},
     ]))
-    assert result["status"] == "unavailable" and not result["rows"]
-    assert "incomparable" in " ".join(result["reasons"])
+    assert result["status"] == "partial" and len(result["rows"]) == 1
+    assert result["rows"][0]["diagnostic_only"]
+    assert "Legacy revenue case lacks" in " ".join(result["reasons"])
 
 
 def test_multiple_ev_scenarios_cannot_create_an_early_weighted_target():
@@ -270,10 +276,9 @@ def test_shared_rows_with_different_decision_dates_are_not_comparable():
 
 def test_undated_shared_arithmetic_keeps_comparison_explicitly_unavailable():
     record = prepare_shared_valuation(state([{'name': 'Legacy', 'request': ev_request()}]))
-    assert record['status'] == 'available'
-    assert record['rows'][0]['comparison']['status'] == 'unavailable'
-    text = render_shared_valuation(record)
-    assert 'undated' in text.lower() and 'Conditional scenario comparison' in text
+    assert record['status'] == 'unavailable' and not record['rows']
+    assert record['requests'][0]['request'] == ev_request()
+    assert 'Legacy revenue case lacks' in render_shared_valuation(record)
 
 
 def test_explicit_empty_proposal_is_distinct_from_malformed_payload():

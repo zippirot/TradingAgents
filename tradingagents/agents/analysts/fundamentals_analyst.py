@@ -157,11 +157,25 @@ FINANCIAL_CLAIM_EXTRACTION = (
 SHARED_VALUATION_INPUTS = (
     " Always finish with exactly one named valuation_scenarios fence. Propose up to three justified conditional scenarios when complete source inputs and defensible assumptions exist:"
     "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having exactly name and request."
-    ' Structure example only (replace placeholders with supported inputs, or omit forecast to use historical EPS):\n[\n  {\n    "name": "Case A",\n    "request": {\n      "method": "pe",\n      "eps_fact_id": "<exact annual EPS fact ID>",\n      "eps_basis": "diluted",\n      "accounting_basis": "US-GAAP",\n      "multiple": "<justified positive decimal>",\n      "multiple_rationale": "<explanation>",\n      "forecast": {\n        "value": "<justified positive decimal>",\n        "unit": "USD/shares",\n        "period_start": "<YYYY-MM-DD>",\n        "period_end": "<YYYY-MM-DD>",\n        "basis": "US-GAAP",\n        "kind": "analyst_forecast",\n        "rationale": "<explicit assumptions>"\n      }\n    }\n  }\n]\n'
+    ' Revenue case shape: {"name":"Base","request":{"method":"revenue_case","revenue_fact_id":"<annual fact ID>",'
+    '"forecast":{"value":"<amount>","unit":"USD","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
+    '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption>"},"multiple":"<decimal>",'
+    '"multiple_basis":"borrowings_only","multiple_period":"forward","multiple_assumption_date":"<analysis date>",'
+    '"multiple_rationale":"<why this forward multiple on this basis>","capital":{"valuation_date":"<forecast period end>",'
+    '"currency":"USD","closing_shares":{"value":"<positive shares>","fact_ids":["<common shares outstanding ID>"],'
+    '"reason":"<why this closing count, considering dilution>","assumption":"estimated"},'
+    '"cash":{"value":"<cash>","fact_ids":["<cash ID>"],"reason":"<why>","assumption":"estimated"},'
+    '"obligations":{"borrowings":{"value":"<debt>","fact_ids":["<total borrowings ID>"],"reason":"<why>","assumption":"estimated"}}}}}.'
+    " Provide per-value estimates or use unchanged_from_snapshot with the exact source amount and a specific reason."
+    " Never use guided diluted weighted-average shares as closing shares. Funding feasibility remains unassessed."
+    " Include complete evidenced additional obligation categories for labeled sensitivities, especially finance_equipment and operating_leases."
+    " Use equity, borrowings_only, finance_equipment or all_leases for multiple_basis. Equity applies no cash or debt adjustment."
+    " Multiple period forward means forward from the analysis date. Trailing means trailing at the future valuation date, on the forecast year ending then; no historical revenue may substitute."
+    " Never compare an assumed forward EV multiple as above/below an equity or trailing benchmark."
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
     " Emit indented, valid JSON rather than compressed rows: close forecast, request, and the outer row separately."
     " Check the complete JSON list is syntactically valid before finishing your normal response."
-    " All entries MUST use the same method; do not mix EV/revenue and P/E even as a secondary check."
+    " Only revenue_case with explicit capital can supply a decision-card value. Legacy P/E remains separately assessed diagnostic arithmetic. All entries MUST use the same method; do not mix EV/revenue and P/E even as a secondary check."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
     " These calculations do not require a current stock price or return-to-price comparison."
     " Inspect the annual Revenue, Basic EPS and Diluted EPS facts in the evidence tool before declaring baselines missing."
@@ -172,17 +186,11 @@ SHARED_VALUATION_INPUTS = (
     " A P/E request has method='pe', eps_fact_id, eps_basis ('basic' or 'diluted'), accounting_basis"
     " ('US-GAAP' or 'management-adjusted'), multiple, multiple_rationale, and optional forecast."
     " Use a sourced annual EPS baseline; do not silently annualize quarterly EPS."
-    " An EV/revenue request has method='ev_revenue', revenue_fact_id (annual baseline), shares_fact_id"
-    " (reported common shares outstanding), cash_fact_id, obligation_ids_by_category (category to fact-ID list),"
-    " perimeter and multiple_perimeter (both the same: borrowings_only, finance_equipment, or all_leases),"
-    " capital_structure_assumption='unchanged_from_snapshot', capital_structure_rationale, and scenarios."
-    " The scenarios field contains exactly one object with name, weight='1', forecast, multiple and multiple_rationale."
-    " Weight 1 is only an independent-row calculation convention, not a likelihood. Do not propose scenario probabilities."
     " Borrowings must reference a sourced Total Borrowings fact, OR Short-term Borrowings together with"
     " Long-term Borrowings (including current), OR Short-term Borrowings plus both Current and Noncurrent Long-term Borrowings."
     " A long-term borrowing fact alone is insufficient; missing short-term borrowings must not be assumed zero."
     " Do not relabel Long-term Borrowings as Total Borrowings. An incomplete debt perimeter cannot be made valid by a caveat."
-    " If the tool has neither Total Borrowings nor Short-term Borrowings, EV/revenue is unavailable: choose suitable P/E or []."
+    " If the tool has neither Total Borrowings nor Short-term Borrowings, borrowings-based EV/revenue is unavailable: use justified equity/revenue, suitable P/E, or []."
     " If this bridge cannot be sourced completely, use justified P/E assumptions if suitable, or omit scenarios."
     " Obligation categories must be complete for the perimeter: borrowings; add finance_equipment or separate"
     " finance_leases and equipment when included; add operating_leases for all_leases. Reference exact source fact IDs."

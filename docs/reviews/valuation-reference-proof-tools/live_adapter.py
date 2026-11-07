@@ -39,6 +39,30 @@ from pilot import (
 DOCUMENT_PROOF_SCOPE = "document-access:BuildB"
 DOCUMENT_PROOF_TICKERS = ("DOCN", "MSFT", "CAT")
 DOCUMENT_PROOF_PREFIX = "DocumentAccess-"
+BUILD2_SCOPE = "valuation:Build2+A3"
+BUILD2_ATTEMPTS = ("Build2-DOCN-1", "Build2-DOCN-2")
+BUILD2_ROOT = Path("/Users/zipp/Developer/tradingagents-valuation-build2-20261106")
+BUILD2_LEDGER = BUILD2_ROOT / "private/build2-ledger.jsonl"
+BUILD2_BUDGET_SCOPES = {f"proof:{name}" for name in BUILD2_ATTEMPTS}
+
+
+def build2_machine():
+    cpu, ram = subprocess.check_output(["/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string",
+                                        "hw.memsize"], text=True).splitlines()
+    if (cpu, ram) != ("Apple M2 Pro", "34359738368"):
+        raise RuntimeError("Approved Machine 2 required")
+    return [cpu, ram]
+
+def build2_cutoff(session):
+    """An observed post-close instant, never a future local day end."""
+    from zoneinfo import ZoneInfo
+    end = datetime.combine(date.fromisoformat(session["session_date"]), datetime.max.time(),
+                           ZoneInfo("America/New_York")).astimezone(UTC)
+    observed = datetime.fromisoformat(session["observed_at"])
+    if observed.tzinfo is None:
+        raise ValueError("Session observation requires a timezone")
+    return min(end, observed.astimezone(UTC)).isoformat()
+
 
 EXTRA_A_PIN_REASON = (
     "User-approved temporary peer pin for accepted-row live proof; "
@@ -156,9 +180,10 @@ class OpenRouterWireGuard:
         self.request_count = 0
         self.stopped = False
         if type(serialize_paid_requests) is not bool or (serialize_paid_requests and (
-                kind != "run" or (budget.scope not in {"proof:B3", "proof:Build1"} and
+                kind != "run" or (budget.scope not in {"proof:B3", "proof:Build1"} | BUILD2_BUDGET_SCOPES and
                 budget.scope not in {f"proof:DocumentAccess:{ticker}" for ticker in DOCUMENT_PROOF_TICKERS}))):
             raise ValueError("Paid-request serialization is only approved for B3 and Build1 proofs")
+        self.build2 = budget.scope in BUILD2_BUDGET_SCOPES
         self.serialize_paid_requests = serialize_paid_requests
         self._paid_turn_lock = threading.Lock()
 
@@ -212,6 +237,16 @@ class OpenRouterWireGuard:
         model = payload.get("model")
         if model not in self.rates:
             raise RuntimeError("Unapproved serialized model")
+        if self.build2 and (payload.get("models") or payload.get("transforms") or payload.get("audio")
+                or payload.get("modalities") not in (None, [], ["text"])
+                or payload.get("n", 1) != 1
+                or any(not isinstance(tool, dict) or tool.get("type") != "function"
+                       for tool in payload.get("tools", []))
+                or any(not isinstance(m, dict) or not isinstance(m.get("content"), (str, type(None)))
+                       and not (isinstance(m.get("content"), list) and all(
+                           isinstance(part, dict) and part.get("type") == "text"
+                           for part in m["content"])) for m in payload.get("messages", []))):
+            raise RuntimeError("Unexpected Build2 request modality, quantity or model override")
         if payload.get("plugins") or payload.get("web_search_options") or payload.get("provider"):
             raise RuntimeError("Unbudgeted request add-on or route override")
         caps = [payload[key] for key in ("max_tokens", "max_completion_tokens") if key in payload]
@@ -255,6 +290,14 @@ class OpenRouterWireGuard:
             if data.get("model") not in self.allowed_resolved_models[reservation["model"]]:
                 raise ValueError("Resolved model differs")
             usage = data["usage"]
+            if self.build2:
+                meta = next(e for e in self.budget.ledger.events()
+                            if e.get("ticket") == ticket and e["type"] == "request_meta")
+                if (type(usage.get("prompt_tokens")) is not int
+                        or usage["prompt_tokens"] > meta["input_bound_tokens"]
+                        or any(usage.get(k) is not None and not isinstance(usage[k], dict)
+                               for k in ("completion_tokens_details", "prompt_tokens_details"))):
+                    raise ValueError("Usage differs from the bounded text request")
             prompt, completion = usage["prompt_tokens"], usage["completion_tokens"]
             if (type(prompt) is not int or type(completion) is not int or prompt < 0 or completion < 0
                     or completion > self.max_output_tokens):
@@ -274,6 +317,11 @@ class OpenRouterWireGuard:
         except (KeyError, TypeError, ValueError, InvalidOperation, StopIteration, json.JSONDecodeError) as exc:
             self.budget.ledger.append({"type": "unknown", "ticket": ticket,
                                        "status": response.status_code, "reason": type(exc).__name__})
+            if self.build2:
+                # Unknowable usage is held, never treated as a verified priced
+                # response. An unexpected resolved model must not inform the CLI.
+                self.stopped = True
+                raise BudgetStoppedError("Unverified Build2 model or billing response") from exc
 
     def failed(self, ticket, error: BaseException):
         if ticket is not None:
@@ -293,6 +341,8 @@ def installed_http_guard(wire: OpenRouterWireGuard):
             def guarded_sync(client, request, *args, _send=sync, **kwargs):
                 with wire.paid_turn(request):
                     ticket = wire.before(request)
+                    if wire.build2 and ticket is not None:
+                        kwargs["follow_redirects"] = False
                     try:
                         if wire.network_gate is None:
                             response = _send(client, request, *args, **kwargs)
@@ -304,12 +354,15 @@ def installed_http_guard(wire: OpenRouterWireGuard):
                         wire.after(ticket, response)
                         return response
                     except BaseException as exc:
-                        wire.failed(ticket, exc)
+                        if not (wire.build2 and isinstance(exc, BudgetStoppedError)):
+                            wire.failed(ticket, exc)
                         raise
 
             async def guarded_async(client, request, *args, _send=async_send, **kwargs):
                 async with wire.async_paid_turn(request):
                     ticket = wire.before(request)
+                    if wire.build2 and ticket is not None:
+                        kwargs["follow_redirects"] = False
                     try:
                         if wire.network_gate is None:
                             response = await _send(client, request, *args, **kwargs)
@@ -321,7 +374,8 @@ def installed_http_guard(wire: OpenRouterWireGuard):
                         wire.after(ticket, response)
                         return response
                     except BaseException as exc:
-                        wire.failed(ticket, exc)
+                        if not (wire.build2 and isinstance(exc, BudgetStoppedError)):
+                            wire.failed(ticket, exc)
                         raise
 
             stack.enter_context(patch.object(module.Client, "send", guarded_sync))
@@ -558,12 +612,14 @@ def _validate_b3_approval(record):
     return _validate_after_close_receipt(record, now)
 
 
-def _validate_after_close_receipt(record, now):
+def _validate_after_close_receipt(record, now, *, weekend=False):
     """Validate retained close metadata against the actual clock; no fetch."""
     from zoneinfo import ZoneInfo
 
     analysis_date = date.fromisoformat(record["analysis_date"])
-    if now.astimezone(ZoneInfo("America/New_York")).date() != analysis_date:
+    ny_today = now.astimezone(ZoneInfo("America/New_York")).date()
+    required_date = ny_today - timedelta(days=ny_today.weekday() - 4) if weekend and ny_today.weekday() >= 5 else ny_today
+    if required_date != analysis_date:
         raise ValueError("B3 proof must use the current New York session date")
     session = record["session"]
     if not isinstance(session, dict) or session.get("session_date") != str(analysis_date):
@@ -585,7 +641,7 @@ def _validate_after_close_receipt(record, now):
                 or type(source.get("http_status")) is not int or source["http_status"] != 200):
             raise ValueError("B3 requires successful retained official calendar and source metadata")
         observed = _b3_aware_time(source["retrieved_at"], now)
-        if observed < close or observed.astimezone(ZoneInfo("America/New_York")).date() != analysis_date:
+        if observed < close or (not weekend and observed.astimezone(ZoneInfo("America/New_York")).date() != analysis_date):
             raise ValueError("B3 close metadata must be observed after this session's close")
         path = Path(source["path"])
         if (not path.is_absolute() or path.is_symlink() or not path.is_file()
@@ -780,6 +836,21 @@ class ExecutionClaim:
 
 def verify_execution_claim(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
     events = ledger.events()
+    if spec.proof_scope == BUILD2_SCOPE or claim.name in BUILD2_ATTEMPTS:
+        spec.validate()
+        claims = [e for e in events if e["type"] == "attempt_claim"]
+        entry = next((e for e in claims if e["phase"] == claim.name), None)
+        allowance = [e for e in events if e["type"] == "allowance"]
+        if (claim.kind != "proof" or spec.proof_scope != BUILD2_SCOPE or entry is None
+                or [e["phase"] for e in claims] != list(BUILD2_ATTEMPTS[:len(claims)])
+                or entry["approval_sha256"] != claim.approval_sha256
+                or entry["analysis_date"] != spec.analysis_date or spec.analysis_cutoff_utc != build2_cutoff(entry["session"])
+                or len(allowance) != 1 or allowance[0]["approval_sha256"] != claim.approval_sha256
+                or ledger.path != BUILD2_LEDGER or ledger.path.resolve() != ledger.path
+                or manifest_hash(entry["approval_record"]) != claim.approval_sha256
+                or any(e.get("type") == "attempt_end" and e.get("name") == claim.name for e in events)):
+            raise RuntimeError("Build2 proof execution or candidate claim differs")
+        return
     if claim.kind == "proof" and claim.name.startswith(DOCUMENT_PROOF_PREFIX):
         ticker = claim.name[len(DOCUMENT_PROOF_PREFIX):]
         entry = next((e for e in events if e.get("type") == "attempt_claim"
@@ -851,6 +922,12 @@ def verify_budget_binding(claim: ExecutionClaim, budget: BudgetGuard,
     events = budget.ledger.events()
     if claim.kind == "proof":
         entry = next(e for e in events if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
+        if claim.name in BUILD2_ATTEMPTS:
+            if (approval is not None or budget.scope != f"proof:{claim.name}"
+                    or budget.ceiling != Decimal("24") or budget.max_calls != 64
+                    or budget.scope_ceiling != Decimal(entry["attempt_cap_usd"])):
+                raise RuntimeError("Build2 budget differs from its claim")
+            return
         if claim.name.startswith(DOCUMENT_PROOF_PREFIX):
             record = _validate_document_access_approval(entry["approval_record"])
             if (approval is not None or budget.scope != f"proof:DocumentAccess:{spec.ticker}"
@@ -883,7 +960,8 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
                  "name": claim.name, "ticker": spec.ticker,
                  "analysis_date": spec.analysis_date, "depth": spec.depth,
                  "approval_sha256": claim.approval_sha256}
-        if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
+        if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name in BUILD2_ATTEMPTS
+                                      or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
             entry = next(e for e in ledger.events() if e["type"] == "attempt_claim" and e.get("phase") == claim.name)
             record = entry["approval_record"]
             worktree = Path(record["worktree_root"])
@@ -891,8 +969,17 @@ def start_execution(claim: ExecutionClaim, ledger: PilotLedger, spec: CliSpec):
             # A legitimate start consumes the attempt even if its candidate
             # subsequently fails the final check. No CLI/paid call precedes it.
             ledger.append(event)
-            if claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX):
-                _verify_run_fixes_machine()
+            if claim.name in BUILD2_ATTEMPTS:
+                build2_machine()
+                if worktree != BUILD2_ROOT / "source" or Path(sys.prefix) != worktree / ".venv":
+                    raise RuntimeError("Build2 execution root or runtime changed")
+                branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=worktree, text=True).strip()
+                if branch != "codex/valuation-cases-build2-a3":
+                    raise RuntimeError("Build2 execution branch changed")
+                _validate_after_close_receipt(entry, datetime.now(UTC), weekend=True)
+            if claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX) or claim.name in BUILD2_ATTEMPTS:
+                if claim.name not in BUILD2_ATTEMPTS:
+                    _verify_run_fixes_machine()
                 origin = subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=worktree, text=True).strip()
                 if origin != record["repository_origin"]:
                     raise RuntimeError("Build1 candidate repository origin differs")
@@ -942,16 +1029,19 @@ class CliSpec:
         ).astimezone(UTC) > datetime.now(UTC):
             raise ValueError("Frozen market observation cutoff cannot be in the future")
         expected_models = (B_DEEP, A) if self.proof_scope == "run-fixes:Build1" else (A, A)
-        if self.proof_scope not in {None, "run-fixes:Build1", DOCUMENT_PROOF_SCOPE}:
+        if self.proof_scope not in {None, "run-fixes:Build1", DOCUMENT_PROOF_SCOPE, BUILD2_SCOPE}:
             raise ValueError("Unknown CLI proof scope")
-        if self.proof_scope == DOCUMENT_PROOF_SCOPE:
+        if self.proof_scope == BUILD2_SCOPE and (self.ticker != "DOCN" or self.analysis_timezone != "America/New_York"
+                or self.analysis_cutoff_utc is None or datetime.fromisoformat(self.analysis_cutoff_utc) > datetime.now(UTC)):
+            raise ValueError("Build2 requires DOCN and the New York analysis clock")
+        if self.proof_scope in {BUILD2_SCOPE, DOCUMENT_PROOF_SCOPE}:
             if (self.ticker not in DOCUMENT_PROOF_TICKERS or self.depth != 3
                     or (self.quick_model, self.deep_model) != (B_DEEP, A)
                     or self.max_output_tokens != 16384 or self.max_tool_rounds != 4
                     or self.extra_peer_pins is not None or self.context_cap is not None
-                    or self.analysis_cutoff_utc is not None
+                    or self.proof_scope == DOCUMENT_PROOF_SCOPE and self.analysis_cutoff_utc is not None
                     or self.market_observation_cutoff is not None):
-                raise ValueError("Document-access proof scope differs")
+                raise ValueError("Medium proof scope differs")
         elif self.depth == 3:
             raise ValueError("Depth 3 is reserved for document-access proof")
         if self.depth == 1 and (self.quick_model, self.deep_model) != expected_models:
@@ -990,7 +1080,7 @@ def configure_isolated_env(spec: CliSpec, work: Path, *, openrouter_key: str, se
     spec.validate()
     if not openrouter_key or not sec_user_agent or work.is_symlink():
         raise ValueError("Proof workdir or required credentials invalid")
-    if spec.proof_scope == DOCUMENT_PROOF_SCOPE:
+    if spec.proof_scope in {BUILD2_SCOPE, DOCUMENT_PROOF_SCOPE}:
         if (not isinstance(source_credentials, dict)
                 or set(source_credentials) != {"FRED_API_KEY", "ALPHA_VANTAGE_API_KEY"}
                 or any(not isinstance(value, str) or not value for value in source_credentials.values())):
@@ -1253,7 +1343,7 @@ def frozen_market_cutoff(spec: CliSpec):
 @contextmanager
 def one_document_audit_attempt(spec: CliSpec):
     """Document proof keeps the application retry bound at two model calls."""
-    if spec.proof_scope != DOCUMENT_PROOF_SCOPE:
+    if spec.proof_scope not in {BUILD2_SCOPE, DOCUMENT_PROOF_SCOPE}:
         yield
         return
     import tradingagents.graph.setup as setup_module
@@ -1286,9 +1376,18 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         raise ValueError("A7 requires frozen sources and no unfrozen source allowance")
     if claim.kind == "proof" and (source_replay is not None or not wire.allow_unfrozen_sources):
         raise ValueError("Live proof requires real bounded sources, not A7 fixtures")
-    if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name.startswith(DOCUMENT_PROOF_PREFIX)) and not wire.serialize_paid_requests:
+    if claim.kind == "proof" and (claim.name in {"B3", "Build1"} or claim.name in BUILD2_ATTEMPTS or claim.name.startswith(DOCUMENT_PROOF_PREFIX)) and not wire.serialize_paid_requests:
         raise ValueError("B3 proof requires serialized paid requests at its unchanged output cap")
     verify_budget_binding(claim, wire.budget, spec, approval)
+    if claim.name in BUILD2_ATTEMPTS:
+        entry = next(e for e in wire.budget.ledger.events() if e.get("phase") == claim.name)
+        receipt = entry["provider_receipt"]
+        expected_rates = {model: (max(_rate(rate[k]) for k in ("input_per_token",
+                          "cache_read_per_token", "cache_write_per_token")), _rate(rate["output_per_token"]))
+                          for model, rate in receipt["rates"].items()}
+        if (wire.rates != expected_rates or wire.kind != "run"
+                or wire.allowed_resolved_models != {m: set(ids) for m, ids in receipt["aliases"].items()}):
+            raise RuntimeError("Build2 wire rates or model aliases differ from claimed receipt")
     start_execution(claim, wire.budget.ledger, spec)
     configure_isolated_env(spec, work, openrouter_key=openrouter_key,
                            sec_user_agent=sec_user_agent, claim=claim, ledger=wire.budget.ledger,
@@ -1353,6 +1452,8 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
                                   for ticker in spec.extra_peer_pins]):
                 raise RuntimeError("Actual CLI pinned peer scope differs from approved extra proof")
         price_verification = None
+        if claim.name in BUILD2_ATTEMPTS:
+            price_verification = verify_document_access_completed_state(state, spec, entry)
         if claim.kind == "proof" and (claim.name == "Build1" or claim.name.startswith(DOCUMENT_PROOF_PREFIX)):
             entry = next(e for e in wire.budget.ledger.events()
                          if e["type"] == "attempt_claim" and e.get("phase") == claim.name)

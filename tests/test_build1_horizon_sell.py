@@ -82,7 +82,7 @@ def test_fresh_explicit_horizon_stays_separate_from_supported_target_date():
     record = prepare_decision_context(value)
     assert record['horizon']['text'] == '3–6 months'
     assert record['target']['status'] == 'supported'
-    assert record['basis'] == 'valuation'
+    assert record['basis'] == 'risk assessment'  # direct legacy arithmetic, no case adoption
     assert enforce_publication(value)['target_validation']['status'] == 'supported'
 
 

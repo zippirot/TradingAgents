@@ -29,15 +29,20 @@ def test_display_precision_never_rounds_nonzero_to_zero(value, expected):
 
 
 def test_shared_render_rounds_only_display_and_keeps_traceable_inputs():
-    request = ev_request()
-    request["scenarios"][0]["multiple"] = "3.123456789123456789"
-    record = prepare_shared_valuation(scenario_state([{"name": "Base", "request": request}]))
+    from tests.test_case_valuation import revenue_case
+
+    row = revenue_case()
+    request = row["request"]
+    request["multiple"] = "3.123456789123456789"
+    for label, amount in (("closing_shares", "100"), ("cash", "100")):
+        request["capital"][label]["value"] = amount
+    request["capital"]["obligations"]["borrowings"]["value"] = "200"
+    record = prepare_shared_valuation(scenario_state([row]))
     original = deepcopy(record)
     text = render_shared_valuation(record)
-    assert "36.48 USD/shares" in text and "3.12" in text
-    assert "× multiple 3.12 =" in text
-    assert "multiple 3.123456789123456789. Unvalidated rationale" in text  # prose retained verbatim
-    assert "Revenue" in text and "evidence.json" in text
+    assert "36.48 USD/shares" in text and "1200.00 × 3.12" in text
+    assert record["rows"][0]["request"]["multiple"] == "3.123456789123456789"
+    assert "references shares" in text and "evidence.json" in text
     assert record == original
 
 

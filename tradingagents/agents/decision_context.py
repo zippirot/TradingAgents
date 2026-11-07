@@ -1,13 +1,18 @@
 """A bounded research decision card; model prose never supplies factual authority."""
 from __future__ import annotations
 
+import calendar
 import re
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 from html import escape
 
+from tradingagents.agents.issuer_events import financing_sensitivities
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
-from tradingagents.agents.shared_valuation import prepare_shared_valuation
+from tradingagents.agents.shared_valuation import replay_cases
 from tradingagents.agents.valuation import TargetResult, validate_target
+from tradingagents.agents.valuation_cases import CaseSelection, obligation_bases
+from tradingagents.agents.valuation_comparison import display_number
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 from tradingagents.memory.thesis import (
@@ -72,6 +77,128 @@ def horizon_incomplete(state: dict) -> bool:
     return decision_horizon(state)['status'] == 'incomplete'
 
 
+def _within_horizon(start, day, horizon):
+    if day <= start:
+        return False
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", horizon):
+        return day <= date.fromisoformat(horizon)
+    values = [int(n) for n in re.findall(r"\d+", horizon)]
+    if not values:
+        return False
+
+    def end(n):
+        if "month" in horizon.lower():
+            year, month = divmod(start.year * 12 + start.month - 1 + n, 12)
+            return date(year, month + 1, min(start.day, calendar.monthrange(year, month + 1)[1]))
+        return start + timedelta(days=n * (7 if "week" in horizon.lower() else 1))
+
+    return (len(values) == 1 or day >= end(values[0])) and day <= end(values[-1])
+
+
+def final_request(state):
+    pm = _mapping(_mapping(state.get("unvalidated_outputs")).get("portfolio_manager"))
+    cached = _mapping(state.get("target_validation")).get("request")
+    if pm.get("case_contract") or _mapping(cached).get("method") == "case" or _mapping(pm.get("valuation_request")).get("method") == "case":
+        return pm.get("valuation_request")
+    return cached
+
+
+def validate_final_case(state, request, cases=None):
+    """Resolve final identity against freshly replayed active inputs."""
+    try:
+        package = EvidencePackage.model_validate(state.get("financial_evidence"))
+        cutoff = state.get("trade_date")
+        case_contract = _mapping(_mapping(state.get("unvalidated_outputs")).get("portfolio_manager")).get("case_contract")
+        if (cutoff is not None or case_contract or _mapping(request).get("method") == "case") and str(package.as_of) != cutoff:
+            raise ValueError("Financial evidence date differs from analysis date")
+        if horizon_incomplete(state):
+            raise ValueError("Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.")
+        if not isinstance(request, dict) or request.get("method") != "case":
+            legacy = validate_target(request, package, grounded_outlooks(state))
+            if (legacy.status == "supported" and legacy.decision_use.final_target_eligible and
+                    (state.get("unvalidated_outputs") or {}).get("portfolio_manager", {}).get("case_contract")):
+                raise ValueError("No active valuation case selected by identity and version")
+            return legacy
+        if not request.get("rerating_assumption"):
+            raise ValueError("Explicit rerating assumption or 'none' required")
+        selection = CaseSelection.model_validate(request)
+        if decision_horizon(state)["status"] != "explicit":
+            raise ValueError("Explicit decision horizon required for case adoption")
+        if cases is None:
+            cases = replay_cases(state)
+        row = next((r for r in cases["rows"] if (r["case_id"], r["version"]) ==
+                    (selection.case_id, selection.version)), None)
+        if not row or row["diagnostic_only"]:
+            raise ValueError("Unknown, stale or ineligible case ID/version")
+        result = TargetResult.model_validate(row["result"])
+        if not result.decision_use.final_target_eligible:
+            raise ValueError("Selected case does not meet final suitability")
+        assumption = selection.rerating_assumption.strip()
+        if not assumption:
+            raise ValueError("Blank rerating assumption")
+        if assumption.casefold() == "none":
+            if selection.decision_date:
+                raise ValueError("Decision date requires a substantive rerating assumption")
+            return result.model_copy(update={"decision_date": None, "rerating_assumption": None})
+        if not selection.decision_date:
+            raise ValueError("Rerating assumption requires a decision date")
+        if not _within_horizon(package.as_of, selection.decision_date, decision_horizon(state)["text"]):
+            raise ValueError("Decision date outside the stated decision horizon")
+        if result.multiple_assumption_date is None:
+            raise ValueError("Dated link requires a dated multiple")
+        comparison = row.get("comparison") or {}
+        if comparison.get("status") != "available":
+            raise ValueError("Dated link needs a comparable completed close: " + str(comparison.get("reason") or "unavailable"))
+        capital = row["request"].get("capital")
+        if capital and date.fromisoformat(capital["valuation_date"]) > selection.decision_date:
+            used = [capital["closing_shares"]]
+            if row["request"]["multiple_basis"] != "equity":
+                obligations = capital["obligations"]
+                categories = obligation_bases(obligations)[row["request"]["multiple_basis"]]
+                used.extend([capital["cash"], *(obligations[k] for k in categories)])
+            if any(v["assumption"] != "unchanged_from_snapshot" for v in used):
+                raise ValueError("Projected capital occurs after the decision date")
+        return result.model_copy(update={"decision_date": selection.decision_date, "rerating_assumption": assumption})
+    except (ValueError, TypeError, OverflowError) as exc:
+        return TargetResult(status="unsupported", reasons=(str(exc).split("\n")[0],))
+
+
+def _case_groups(rows):
+    groups = {}
+    for row in rows:
+        result, request = row["result"], row["request"]
+        if row["diagnostic_only"] or not result["decision_use"]["final_target_eligible"]:
+            continue
+        if request["method"] == "revenue_case":
+            clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"
+            basis = request["multiple_basis"] + " / revenue (" + clock + ")"
+            share_basis = "closing common shares"
+            share_ref = tuple(request["capital"]["closing_shares"]["fact_ids"])
+        else:
+            basis, share_basis = "forward P/E", request["eps_basis"] + " EPS"
+            share_ref = (request["eps_fact_id"],)
+        key = (result["valuation_period_start"], result["valuation_period_end"], basis, share_basis,
+               share_ref, result["accounting_basis"], result["unit"])
+        group = groups.setdefault(key, {"period_start": key[0], "period_end": key[1], "multiple_basis": basis,
+            "share_basis": share_basis, "accounting_basis": key[5], "unit": key[6], "cases": []})
+        capital = request.get("capital") or {}
+        fixed = [k for k,v in {**capital.get("obligations", {}),
+                 **{k:capital[k] for k in ("closing_shares","cash") if k in capital}}.items()
+                 if v["assumption"] == "unchanged_from_snapshot"]
+        group["cases"].append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
+                               "value": result["target"], "unchanged_from_snapshot": fixed})
+        comparison = row.get("comparison") or {}
+        if comparison.get("status") == "available":
+            group["completed_close"] = {k: comparison["price"][k] for k in ("close", "session_date", "currency")}
+    for group in groups.values():
+        values = [Decimal(c["value"]) for c in group["cases"]]
+        group.update(low=str(min(values)), high=str(max(values)))
+        if "completed_close" in group:
+            close = Decimal(group["completed_close"]["close"])
+            group["close_position"] = "below" if close < min(values) else "above" if close > max(values) else "at" if len(values) == 1 else "within"
+    return list(groups.values())
+
+
 def _trader(value):
     if not isinstance(value, str):
         return 'unavailable'
@@ -94,33 +221,24 @@ def prepare_decision_context(state: dict) -> dict:
     if rating not in (*RATINGS_5_TIER, 'REVIEW'):
         rating = 'REVIEW'
     eligible = not legacy and quality.get('status') in {'sufficient', 'limited'} and rating != 'REVIEW'
-    saved = _mapping(state.get('target_validation'))
-    request = saved.get('request')
+    request = final_request(state)
     target = TargetResult(status='unsupported', reasons=('Canonical evidence or supported valuation request unavailable.',))
+    replayed = replay_cases(state) if eligible else {"status": "unavailable", "rows": []}
     if eligible:
-        try:
-            package = EvidencePackage.model_validate(state.get('financial_evidence'))
-            if str(package.as_of) != state.get('trade_date'):
-                raise ValueError('Evidence date differs from analysis date')
-            target = validate_target(request, package, grounded_outlooks(state))
-        except (ValueError, TypeError):
-            target = TargetResult(status='unsupported', reasons=('Canonical financial evidence unavailable.',))
-    if horizon_incomplete(state):
-        target = TargetResult(status='unsupported', reasons=('Explicit decision horizon missing or invalid; decision incomplete, valuation unavailable.',))
-    scenarios = _mapping(state.get('shared_valuation_scenarios'))
-    replayed = prepare_shared_valuation(state, scenarios.get('requests', [])) if eligible else {'status': 'unavailable', 'rows': []}
-    supported_scenarios = sum((_mapping(row.get('result')).get('status') == 'supported'
+        target = validate_final_case(state, request, replayed)
+    selected = isinstance(request, dict) and request.get("method") == "case" and target.status == "supported"
+    supported_scenarios = sum(not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
                                and _mapping(_mapping(row.get('result')).get('decision_use')).get('suitability') == 'conditional')
                               for row in replayed.get('rows', []) if isinstance(row, dict))
     if not eligible:
         basis, note = 'insufficient evidence', 'Current canonical evidence does not support a completed research conclusion.'
-    elif target.status == 'supported' and target.decision_use.final_target_eligible:
+    elif selected and target.decision_use.final_target_eligible:
         basis, note = 'valuation', 'Conditional valuation arithmetic is available; assumptions and the rating remain research judgments.'
     else:
         basis, note = 'risk assessment', 'The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.'
     originals = _mapping(state.get('unvalidated_outputs'))
     horizon = decision_horizon(state)
-    if (horizon['status'] != 'incomplete' and target.decision_date is not None
+    if (not selected and horizon['status'] != 'incomplete' and target.decision_date is not None
             and _mapping(originals.get('portfolio_manager')).get('contract_version') != DECISION_HORIZON_CONTRACT):
         horizon = {'text': str(target.decision_date), 'status': 'explicit', 'authority': 'explicit conditional decision date; forecast period is separate'}
     checks = quality.get('checks', [])
@@ -171,6 +289,14 @@ def prepare_decision_context(state: dict) -> dict:
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
             'mechanical_position': mechanical_position,
             'horizon': horizon, 'coverage': coverage,
+            'financing': financing_sensitivities(state) if eligible and quality.get('scope') == 'Selected US SEC-filer fundamentals' and state.get('asset_type','stock') == 'stock' else [],
+            'case_groups': _case_groups(replayed['rows']) if horizon['status'] == 'explicit' else [],
+            'adopted_case': ({'case_id': request['case_id'], 'version': request['version'], 'value': str(target.target),
+                              'unit': target.unit, 'decision_date': str(target.decision_date) if target.decision_date else None,
+                              'rerating_assumption': target.rerating_assumption} if selected else None),
+            'no_case_reason': (_text(_mapping(_mapping(originals.get('portfolio_manager')).get('structured')).get('no_case_reason'))
+                               or ('reason not supplied' if _mapping(originals.get('portfolio_manager')).get('case_contract') else ''))
+                              if eligible and not selected else '',
             'target': {'status': target.status, 'decision_use': target.decision_use.model_dump(mode='json'),
                        'reasons': [_text(r) for r in (*target.reasons, *target.decision_use.reasons)[:3]]},
             'scenarios': {'status': replayed['status'], 'supported_count': supported_scenarios,
@@ -196,6 +322,42 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True) -
         lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
                      f"{_display(row.get('status_label') or condition_status_label(row))}; "
                      f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+    for group in record.get("case_groups", []):
+        values = group["cases"]
+        amount = display_number(group["low"]) if len(values) == 1 else display_number(group["low"]) + "–" + display_number(group["high"])
+        label = "Conditional case value" if len(values) == 1 else "Conditional case range"
+        lines.append(f"**{label}**: {amount} {_display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
+                     f"{_display(group['multiple_basis'])}; {_display(group['share_basis'])}; {_display(group['accounting_basis'])}.")
+        for case in values:
+            fixed = ", ".join(case["unchanged_from_snapshot"])
+            lines.append(f"- {_display(case['name'])} ({case['case_id']} v{case['version']}): {display_number(case['value'])}" +
+                         ("; unchanged from snapshot: " + _display(fixed) if fixed else ""))
+        quote = group.get("completed_close")
+        lines.append(f"Completed close {display_number(quote['close'])} {quote['currency']} on {quote['session_date']}: "
+                     f"{group['close_position']} the conditional value{'s' if len(values) > 1 else ''}." if quote else "Comparable completed close unavailable.")
+    for financing in record.get("financing", []):
+        lines.append(f"Financing authorization {financing['event_date']}: up to {display_number(financing['authorized_amount'])} "
+                     f"{financing['currency'] or 'source $ (denomination unknown)'}; remaining capacity unknown; actual issuance unknown. "
+                     f"Source {_display(financing['source_id'])}, {_display(financing['locator'])}.")
+        if financing.get("conditional_shares") is not None:
+            lines.append(f"Illustration only if the entire authorization were sold after the {financing['starting_snapshot']} snapshot "
+                         f"at the completed {financing['close_date']} close of {display_number(financing['close'])}: "
+                         f"{display_number(financing['conditional_shares'])} new shares; gross proceeds {display_number(financing['gross_proceeds'])} "
+                         f"{financing['currency']}; illustrative fees 0%; net {display_number(financing['conditional_net_proceeds'])}. "
+                         "Actual fees and program use are unknown. Neither shares nor proceeds are added to any case.")
+        else:
+            lines.append("Financing sensitivity unavailable: " + _display(financing.get("reason")))
+    adopted = record.get("adopted_case")
+    if adopted:
+        lines.append(f"Adopted {adopted['case_id']} v{adopted['version']}.")
+        if adopted["decision_date"]:
+            lines.append(f"{adopted['decision_date']}: {display_number(adopted['value'])} {_display(adopted['unit'])} — assumption, not a forecast: "
+                         + _display(adopted["rerating_assumption"]))
+        else:
+            lines.append("no dated assumption supplied")
+    elif record.get("no_case_reason"):
+        lines.append("PM reason for adopting no case (unvalidated): " + _display(record["no_case_reason"]))
+    lines.append("Conditional case values are arithmetic on assumptions, not fair value or forecasts. An absent range is not a negative signal. Predictive value requires a track record.")
     if include_mechanical and record.get('mechanical_position', {}).get('status') == 'available':
         from tradingagents.agents.mechanical_valuation import render_history_median_position
         lines += ['', '**Completed-price position — advisory decision-card context**',

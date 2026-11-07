@@ -286,6 +286,12 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
                            and 330 <= (f.period_end - f.period_start).days <= 400 and f.value is not None), None)
             if annual:
                 ordered.append(annual)
+        for metric in ("Common Shares Outstanding", "Cash and Equivalents", "Total Borrowings",
+                       "Short-term Borrowings", "Long-term Borrowings (including current)",
+                       "Finance Lease and Equipment Obligations", "Finance Lease Liabilities",
+                       "Equipment Financing Obligations", "Operating Lease Liabilities"):
+            if metric in groups:
+                ordered.append(groups[metric][0])
         ordered.extend(group[0] for group in groups.values())
         lines.append("Retained financial facts: preserve metric, period, unit, accounting basis and reported/derived definition.")
         seen = set()
@@ -439,9 +445,9 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
             context += "\n\nProvider price observation unavailable or not verifiable; do not infer a current price."
     scenarios = state.get("shared_valuation_scenarios")
     if scenarios:
-        from tradingagents.agents.shared_valuation import render_shared_valuation
+        from tradingagents.agents.shared_valuation import render_shared_valuation, replay_cases
 
-        rendered = render_shared_valuation(scenarios)
+        rendered = render_shared_valuation(replay_cases(state))
         if rendered:
             context += "\n\n" + rendered
     if state.get("document_followups"):
