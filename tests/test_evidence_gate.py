@@ -1,5 +1,7 @@
 """The evidence boundary preserves asset scope and readable failure results."""
 
+import pytest
+
 from tradingagents.agents.evidence_validation import create_evidence_gate
 
 
@@ -38,15 +40,32 @@ def test_unavailable_sec_lookup_is_readable_review(monkeypatch):
     assert "fundamentals_report" not in result
 
 
-def test_non_sec_instrument_is_explicitly_outside_scope(monkeypatch):
+@pytest.mark.parametrize("price_reason", ["No completed price", "Foreign listing; country=Canada; exchange=TSX"])
+def test_unmapped_stock_is_reviewed_through_acquisition_gate_and_publication(monkeypatch, price_reason):
+    from tradingagents.agents.evidence_validation import create_source_acquisition
+    from tradingagents.agents.output_validation import enforce_publication
+    from tradingagents.dataflows.config import run_config
     from tradingagents.dataflows.vendors import sec_edgar
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    from tradingagents.default_config import DEFAULT_CONFIG
 
     monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: None)
-    result = create_evidence_gate(["fundamentals"])(
-        {"asset_type": "stock", "company_of_interest": "OTHER", "trade_date": "2026-10-19"}
-    )
-    assert result["evidence_quality"]["scope"] == "not_applicable"
-    assert "final_rating" not in result
+    monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda *args: (_ for _ in ()).throw(AssertionError("unmapped SEC fetch")))
+    monkeypatch.setattr(price_observation, "get_price_observation", lambda *args: {
+        "status": "unavailable", "reason": price_reason})
+    state = {"asset_type": "stock", "company_of_interest": "OTHER", "trade_date": "2026-10-19",
+             "fundamentals_report": "Buy this foreign stock", "final_rating": "Overweight",
+             "final_trade_decision": "Buy this foreign stock"}
+    with run_config(DEFAULT_CONFIG):
+        acquired = create_source_acquisition(["fundamentals"])(state)
+    assert acquired["evidence_acquisition"]["status"] == "unavailable"
+    checked = create_evidence_gate(["fundamentals"])({**state, **acquired})
+    assert checked["final_rating"] == "REVIEW"
+    assert checked["evidence_quality"]["status"] == "insufficient"
+    assert "SEC issuer map" in checked["final_trade_decision"]
+    published = enforce_publication({**state, **acquired, **checked})
+    assert published["final_rating"] == "REVIEW"
+    assert "SEC issuer map" in published["final_trade_decision"]
 
 
 def test_graph_routes_missing_evidence_to_end_before_debate(monkeypatch):

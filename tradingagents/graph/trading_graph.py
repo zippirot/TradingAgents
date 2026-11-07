@@ -158,6 +158,7 @@ class TradingAgentsGraph:
             metrics_observer=self._observe_run_metrics,
             audit_llm=self.audit_llm,
             audit_sdk_retries_disabled=True,
+            publication_config=self.config,
         )
 
         self.propagator = Propagator(
@@ -642,7 +643,10 @@ class TradingAgentsGraph:
         if frozen is not None:
             record, _snapshot = frozen
         else:
-            final_state.update(enforce_publication(final_state))
+            final_state.setdefault("run_id", str(uuid4()))
+            final_state.update(enforce_publication(
+                {**final_state, "company_of_interest": company_name, "trade_date": str(trade_date)},
+                publication_config=self.config))
             # An actual new publication uses current validators; a forged saved
             # marker cannot turn this path into a historical re-export.
             final_state.setdefault("run_id", str(uuid4()))

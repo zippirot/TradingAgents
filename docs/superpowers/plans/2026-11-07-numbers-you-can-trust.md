@@ -145,7 +145,7 @@ def test_same_day_conflicting_guidance_grounds_neither():  # Review Focus 2
 ### Build A proof
 - `pytest -q` green on the branch; `ruff check`.
 - Replay November 7 DOCN against a disposable copy of the publication store with the producing cutoff; verify the actual November 6 predecessor and condition IDs. For post-debate behavior absent from that pre-Build-2 run, use the accepted/rejected Build 2 fixtures. Reopen both report formats after a later publication and verify comparison stability.
-- Offline replay of the 11-07 evidence package through A2 grounds the same FY2026 revenue guidance it grounded live (no regression), and A3 keeps the Q3 press release's guidance blocks.
+- Offline replay of the 11-07 evidence package preserves the source-only FY2026 revenue guidance ($1.208–$1.211 billion), and A3 keeps the Q3 press release's guidance blocks. Baseline/candidate inspection establishes that the valuation-outlook adapter returns no annual outlook for this particular saved state on either version: its period/basis context does not meet that stricter adapter contract. Prove A2's new discovery/supersession behavior with source-bound fixtures rather than inventing missing fiscal/calendar or accounting context for DOCN. This corrects the original proof's attribution; it does not relax grounding rules.
 
 ---
 

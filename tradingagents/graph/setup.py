@@ -130,6 +130,7 @@ class GraphSetup:
         metrics_observer=None,
         audit_llm=None,
         audit_sdk_retries_disabled=False,
+        publication_config=None,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -141,6 +142,7 @@ class GraphSetup:
         self.metrics_observer = metrics_observer
         self.audit_llm = audit_llm if audit_llm is not None else deep_thinking_llm
         self.audit_sdk_retries_disabled = audit_sdk_retries_disabled
+        self.publication_config = publication_config
 
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
@@ -238,6 +240,11 @@ class GraphSetup:
                     "rejection_reasons": [], "independence_by_role": {},
                     "error": "not run: insufficient evidence; risk debate and Portfolio Manager were bypassed",
                 }
+            # Retain the display comparison before the terminal checkpoint, so
+            # crash recovery verifies the same canonical publication payload.
+            if self.publication_config is not None:
+                result.update(enforce_publication(
+                    {**state, **result}, publication_config=self.publication_config))
             return result
 
         add_node("Advisory Audit", audit_node)

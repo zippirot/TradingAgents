@@ -18,6 +18,7 @@ from decimal import Decimal, localcontext
 from pydantic import ValidationError
 
 from tradingagents.agents.valuation import GroundedOutlook
+from tradingagents.dataflows.disclosure_discovery import discover_disclosures
 from tradingagents.dataflows.disclosure_evidence import parse_disclosure_report
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
@@ -94,8 +95,8 @@ def _unit(claim, context, metric):
     return None
 
 
-def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
-    """Return only precisely dated annual Revenue/Basic EPS/Diluted EPS outlooks.
+def _grounded(state: dict) -> tuple[tuple[GroundedOutlook, ...], tuple[str, ...]]:
+    """Replay both claim paths against uniquely matched, complete source blocks.
 
     The raw disclosure extraction is read from the financial claim record when
     the gate has replaced fundamentals prose with its canonical summary.
@@ -109,20 +110,23 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
             or package.as_of != disclosures.as_of
             or str(package.as_of) != state.get("trade_date")
         ):
-            return ()
+            return (), ()
         validation = state.get("financial_claim_validation") or {}
         report = validation.get("raw_report") if isinstance(validation, dict) else None
         report = report if isinstance(report, str) else state.get("fundamentals_report", "")
         if not isinstance(report, str):
-            return ()
+            report = ""
         counts = {}
         for doc in disclosures.documents:
             counts[doc.source_id] = counts.get(doc.source_id, 0) + 1
+        source_counts = {}
+        for source in package.sources:
+            source_counts[source.source_id] = source_counts.get(source.source_id, 0) + 1
         sources = {source.source_id: source for source in package.sources}
-        blocks, documents = {}, {}
+        blocks, documents, valid_docs = {}, {}, []
         for doc in disclosures.documents:
             source = sources.get(doc.source_id)
-            if counts[doc.source_id] != 1 or source is None:
+            if counts[doc.source_id] != 1 or source_counts.get(doc.source_id) != 1 or source is None:
                 continue
             if (
                 doc.filing.cik != package.cik
@@ -148,23 +152,34 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
             block_counts = {}
             for block in doc.blocks:
                 block_counts[block.locator] = block_counts.get(block.locator, 0) + 1
+            valid_blocks = []
             for block in doc.blocks:
                 if block_counts[block.locator] == 1 and not block.truncated:
                     blocks[(doc.source_id, block.locator)] = block.section + "\n" + block.text
                     documents[(doc.source_id, block.locator)] = doc
-        extraction = parse_disclosure_report(report, blocks, packages=(disclosures,))
+                    valid_blocks.append(block)
+            valid_docs.append(doc.model_copy(update={"blocks": tuple(valid_blocks)}))
+        verified = disclosures.model_copy(update={"documents": tuple(valid_docs)})
+        extraction = parse_disclosure_report(report, blocks, packages=(verified,))
+        discovered = discover_disclosures((verified,))
         results = {}
-        for claim in extraction.claims:
+        for claim in (*extraction.claims, *discovered.claims):
             if claim.kind not in {"guidance", "ambition"} or claim.comparator != "exact":
                 continue
+            source_text = blocks[(claim.source_id, claim.locator)]
+            period = _period(claim.period)
+            if period is None and (match := re.fullmatch(r"full year ((?:19|20)\d{2})", claim.period, re.I)):
+                years = set(re.findall(r"\bcalendar year ((?:19|20)\d{2})\b", source_text, re.I))
+                if years == {match.group(1)}:
+                    period = _period(f"calendar year {match.group(1)}")
             metric, period, basis = (
                 _metric(claim.metric),
-                _period(claim.period),
-                _basis(claim.quote),
+                period,
+                _basis(source_text),
             )
             if metric is None or period is None or basis is None or period[1] <= package.as_of:
                 continue
-            unit = _unit(claim, blocks[(claim.source_id, claim.locator)], metric)
+            unit = _unit(claim, source_text, metric)
             if unit is None:
                 continue
             doc = documents[(claim.source_id, claim.locator)]
@@ -211,11 +226,16 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
                 result.kind,
             )
             groups.setdefault(key, []).append((result, filed_date))
-        selected = []
-        for group in groups.values():
+        selected, warnings = [], []
+        for key, group in groups.items():
             latest_date = max(filed_date for _, filed_date in group)
             latest = [result for result, filed_date in group if filed_date == latest_date]
             if len({(result.low, result.high) for result in latest}) != 1:
+                warnings.append(
+                    f"Conflicting same-date {key[5]} {key[0]} outlook ranges for "
+                    f"{key[3]} to {key[4]} ({key[1]}, {key[2]}) filed {latest_date}; "
+                    "no grounded outlook selected."
+                )
                 continue  # same-vintage conflicting ranges are not a grounded interval
             selected.append((min(latest, key=lambda result: result.record_id), latest_date))
         # Match the valuation input bound; prefer current filings if the source
@@ -223,6 +243,16 @@ def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
         selected.sort(
             key=lambda item: (item[1], item[0].period_end, item[0].record_id), reverse=True
         )
-        return tuple(result for result, _ in selected[:30])
+        return tuple(result for result, _ in selected[:30]), tuple(sorted(warnings))
     except (ValidationError, ValueError, TypeError, ArithmeticError):
-        return ()
+        return (), ()
+
+
+def grounded_outlooks(state: dict) -> tuple[GroundedOutlook, ...]:
+    """Return source-validated, precisely dated annual management outlooks."""
+    return _grounded(state)[0]
+
+
+def grounded_outlook_warnings(state: dict) -> tuple[str, ...]:
+    """Return stable diagnostics for conflicting latest-date source ranges."""
+    return _grounded(state)[1]

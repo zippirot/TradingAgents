@@ -70,7 +70,8 @@ def price_case(request, package, outlooks):
     if (revenue.metric != "Revenue" or revenue.value <= 0 or not _annual(revenue.period_start, revenue.period_end)
             or revenue.basis != "US-GAAP" or not re_currency(revenue.unit) or revenue.unit != capital.currency):
         raise ValueError("An annual reported revenue baseline in the case currency is required")
-    forecast, warnings = _forecast(request.forecast, package, "Revenue", revenue.unit, revenue.basis, _outlooks(package, outlooks))
+    forecast, warnings = _forecast(request.forecast, package, "Revenue", revenue.unit, revenue.basis,
+                                  _outlooks(package, outlooks), baseline=revenue.value)
     if capital.valuation_date != request.forecast.period_end:
         raise ValueError("Closing capital valuation date must match the revenue case period end")
     if request.multiple_assumption_date != package.as_of or not request.multiple_rationale.strip():

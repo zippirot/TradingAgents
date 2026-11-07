@@ -100,6 +100,51 @@ def pe_request():
     }
 
 
+@pytest.mark.parametrize("value", [Decimal("1.2"), Decimal("1200000")])
+def test_ev_forecast_a_thousand_times_off_is_unsupported(value):
+    request = ev_request()
+    request["scenarios"][0]["forecast"] = forecast(value)
+    result = validate_target(request, evidence())
+    assert result.status == "unsupported" and result.target is None
+    assert "unit scale mismatch" in result.reasons[0]
+
+
+@pytest.mark.parametrize("value", [Decimal("100"), Decimal("10000")])
+def test_ev_forecast_band_endpoints_are_inclusive(value):
+    request = ev_request()
+    request["scenarios"][0]["forecast"] = forecast(value)
+    result = validate_target(request, evidence())
+    assert result.status == "supported" and result.scenario_results[0].revenue == value
+
+
+def test_ev_forecast_within_band_keeps_observed_target():
+    assert validate_target(ev_request(), evidence()).target == Decimal("35")
+
+
+def test_ev_forecast_unit_mismatch_rejected_before_magnitude():
+    request = ev_request()
+    request["scenarios"][0]["forecast"] = {**forecast(Decimal("1200000")), "unit": "EUR"}
+    result = validate_target(request, evidence())
+    assert result.status == "unsupported"
+    assert "unit" in result.reasons[0] and "scale" not in result.reasons[0]
+
+
+def test_pe_forecast_a_thousand_times_off_is_unsupported():
+    request = pe_request()
+    request["forecast"] = {**forecast(Decimal("2000")), "unit": "USD/shares"}
+    result = validate_target(request, evidence())
+    assert result.status == "unsupported" and result.target is None
+    assert "unit scale mismatch" in result.reasons[0]
+
+
+@pytest.mark.parametrize("eps", [0, -2])
+def test_pe_nonpositive_source_eps_does_not_apply_magnitude_guard(eps):
+    request = pe_request()
+    request["forecast"] = {**forecast(Decimal("2000")), "unit": "USD/shares"}
+    result = validate_target(request, evidence(eps={"value": eps}))
+    assert result.status == "supported" and result.target == Decimal("40000")
+
+
 def test_ev_revenue_has_exact_equity_bridge_and_explicit_assumptions():
     result = validate_target(ev_request(), evidence())
     assert result.status == "supported" and result.target == Decimal("35")

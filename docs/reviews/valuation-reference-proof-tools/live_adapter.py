@@ -1546,8 +1546,24 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
         metrics = state.get("run_metrics") or {}
         # Published run metrics stop before editorial generation. The wire
         # ledger still counts and budgets every physical editorial request.
-        editorial_calls = verify_cli_model_calls(metrics, spec.depth, wire.request_count,
-                                                 editorial_intervals)
+        unmapped_review = (claim.kind == "comparison"
+                           and state.get("final_rating") == "REVIEW"
+                           and (state.get("evidence_quality") or {}).get("status") == "insufficient"
+                           and any(check.get("code") == "source_integrity"
+                                   and check.get("status") == "unavailable"
+                                   and "not identified in SEC issuer map" in check.get("message", "")
+                                   for check in (state.get("evidence_quality") or {}).get("checks", [])))
+        if unmapped_review:
+            if (metrics.get("research_rounds_completed") != 0
+                    or metrics.get("risk_rounds_completed") != 0
+                    or metrics.get("model_calls") != wire.request_count
+                    or editorial_intervals != [(wire.request_count, wire.request_count)]
+                    or (state.get("advisory_audit") or {}).get("status") != "unavailable"):
+                raise RuntimeError("Unmapped issuer REVIEW does not reconcile with wire evidence")
+            editorial_calls = 0
+        else:
+            editorial_calls = verify_cli_model_calls(metrics, spec.depth, wire.request_count,
+                                                     editorial_intervals)
         if not all(state.get(key) for key in ("market_report", "sentiment_report", "news_report",
                                                  "fundamentals_report", "advisory_audit")):
             raise RuntimeError("Saved CLI output is missing an analyst or audit pass")

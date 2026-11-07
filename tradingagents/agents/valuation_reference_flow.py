@@ -234,7 +234,13 @@ def _fetch_peer(ticker, state):
             raise ValueError("Peer is not identified in the SEC issuer map")
         if cik == (state.get("issuer_identity") or {}).get("cik"):
             raise ValueError("Peer resolves to the subject issuer under another ticker")
-        package = add_period_calculations(sec_edgar.get_financial_evidence(ticker, scope["as_of"], peer_revenue_definitions=True))
+        as_of = date.fromisoformat(scope["as_of"])
+        try:
+            period_floor = as_of.replace(year=as_of.year - 3)
+        except ValueError:  # February 29 has no anniversary in a non-leap year.
+            period_floor = as_of.replace(year=as_of.year - 3, day=28)
+        package = add_period_calculations(sec_edgar.get_financial_evidence(
+            ticker, scope["as_of"], peer_revenue_definitions=True, period_floor=period_floor))
         if package.cik != cik or str(package.as_of) != scope["as_of"]:
             raise ValueError("Peer financial issuer or cutoff mismatch")
         dates = [f.period_end for f in package.facts if f.metric == "Common Shares Outstanding"

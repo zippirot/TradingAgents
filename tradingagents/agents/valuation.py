@@ -208,9 +208,21 @@ def _outlooks(package, outlooks):
     return validated
 
 
-def _forecast(assumption, package, metric, unit, basis, outlooks):
+def _magnitude_check(label: str, forecast: Decimal, baseline: Decimal) -> None:
+    with localcontext() as context:
+        context.prec = 60
+        if forecast < baseline * Decimal("0.1") or forecast > baseline * Decimal("10"):
+            raise ValueError(
+                f"{label} forecast {forecast} is outside 0.1×–10× of the source baseline "
+                f"{baseline}; unit scale mismatch suspected"
+            )
+
+
+def _forecast(assumption, package, metric, unit, basis, outlooks, *, baseline: Decimal | None = None):
     if (assumption.unit, assumption.basis) != (unit, basis):
         raise ValueError("forecast unit or accounting basis differs from source measure")
+    if baseline is not None:
+        _magnitude_check(metric, assumption.value, baseline)
     if not _annual(assumption.period_start, assumption.period_end):
         raise ValueError("valuation forecast must be an explicit annual period")
     if assumption.period_end <= package.as_of:
@@ -359,7 +371,8 @@ def _ev(request, package, outlooks):
         if not scenario.multiple_rationale.strip():
             raise ValueError("scenario multiple needs an explicit rationale")
         description, comparisons = _forecast(
-            scenario.forecast, package, "Revenue", revenue.unit, revenue.basis, outlooks
+            scenario.forecast, package, "Revenue", revenue.unit, revenue.basis, outlooks,
+            baseline=revenue.value,
         )
         assumptions.extend(
             (
@@ -469,7 +482,8 @@ def _pe(request, package, outlooks):
     warnings = []
     if request.forecast is not None:
         description, warnings = _forecast(
-            request.forecast, package, expected_metric, eps.unit, eps.basis, outlooks
+            request.forecast, package, expected_metric, eps.unit, eps.basis, outlooks,
+            baseline=eps.value if eps.value > 0 else None,
         )
         assumptions.append(description)
         value = request.forecast.value

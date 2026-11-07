@@ -574,12 +574,21 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
         openrouter_key="fake", sec_user_agent="offline-test",
         claim=live_adapter.ExecutionClaim("comparison", pilot.SLOTS[0].name), approval=approval)
     assert result["state"]["company_of_interest"] == ticker
-    assert result["model_calls"] > 10
+    assert result["model_calls"] > (10 if mapped else 0)
     assert result["model_calls"] == (result["state"]["run_metrics"]["model_calls"]
                                      + result["editorial_model_calls"])
-    assert result["editorial_model_calls"] == 1
+    assert result["editorial_model_calls"] == (1 if mapped else 0)
     assert len([entry for entry in ledger.events() if entry["type"] == "request_meta"]) == result["model_calls"]
     assert result["state"]["market_observation_cutoff"] == market_cutoff
+    if not mapped:
+        assert result["state"]["final_rating"] == "REVIEW"
+        assert result["state"]["evidence_quality"]["status"] == "insufficient"
+        assert "SEC issuer map" in result["state"]["final_trade_decision"]
+        assert result["state"]["run_metrics"]["research_rounds_completed"] == 0
+        assert result["state"]["run_metrics"]["risk_rounds_completed"] == 0
+        assert result["editorial_model_calls"] == 0
+        assert not {"get_financial_evidence", "get_filing_evidence"} & {
+            call["name"] for call in result["source_calls"]}
     files = capture.write(memory=b"", prior_publication={"files": {}})
     manifest = {"ticker": ticker, "analysis_date": date, "cutoff_utc": market_cutoff,
                 "depth": 2, "source_version": "offline", "prompt_version": "offline",
@@ -605,6 +614,9 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
     assert replay_result["model_calls"] == result["model_calls"]
     assert replay_result["editorial_model_calls"] == result["editorial_model_calls"]
     assert replay_result["state"]["trade_date"] == date
+    if not mapped:
+        assert replay_result["state"]["final_rating"] == "REVIEW"
+        assert "SEC issuer map" in replay_result["state"]["final_trade_decision"]
     if mapped:
         assert result["state"]["valuation_reference"]["phase"] == "final"
         assert result["state"]["valuation_reference"]["own_history"]["status"] == "available"

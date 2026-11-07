@@ -459,7 +459,10 @@ class _Sections(HTMLParser):
                 self.link_text.append(data)
 
 
-def extract_sections(text: str, max_chars: int = 60000, *, prioritize_rpo: bool = False):
+def extract_sections(
+    text: str, max_chars: int = 60000, *, prioritize_rpo: bool = False,
+    prioritize_guidance: bool = False,
+):
     unit_currencies = {
         ref: code.upper()
         for ref, code in re.findall(
@@ -512,14 +515,20 @@ def extract_sections(text: str, max_chars: int = 60000, *, prioritize_rpo: bool 
                 block.section,
                 re.I,
             )
+            numerical_guidance = (
+                re.search(r"\b(?:guidance|outlook|forecast|expect|expects|expected)\b", block.text, re.I)
+                and re.search(r"\d", block.text)
+            )
             # Source statements and obligation tables establish the numbers;
             # adjacent financing/acquisition prose establishes their scope.
             tier = (
                 4
                 if prioritize_rpo and re.search(r"remaining performance obligations", block.text, re.I)
                 and re.search(r"aggregate transaction price|recognize.*revenue", block.text, re.I)
+                else 4
+                if prioritize_guidance and numerical_guidance
                 else 3
-                if statement_table or obligation_table
+                if statement_table or obligation_table or numerical_guidance
                 else 2
                 if financing_scope.search(block.text)
                 else 1
@@ -683,7 +692,22 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     except ValueError as exc:
         raise VendorUnavailableError("Unreadable SEC submissions JSON") from exc
     documents, remaining = [], 120000
-    for filing in filings:
+    latest_earnings = max(
+        (filing for filing in filings if filing.form.startswith("8-K") and "2.02" in filing.items),
+        key=lambda filing: (filing.filed_date, filing.accession), default=None,
+    )
+    # Acquire the two baseline statements and the latest release before notices
+    # can consume the shared document and text budgets.
+    ordered = sorted(
+        filings,
+        key=lambda filing: (
+            0 if filing.form == "10-K" else
+            1 if filing.form == "10-Q" else
+            2 if filing == latest_earnings else 3,
+            filing.filed_date, filing.accession,
+        ),
+    )
+    for filing in ordered:
         pending = [filing.url]
         seen = set()
         while pending and len(documents) < 8:
@@ -698,9 +722,13 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                 continue
             try:
                 source = client.fetch(url)
-                available_chars = min(40000, remaining)
+                # The primary 8-K supplies exhibit links; its release needs a
+                # separate allocation. Keep the existing per-document ceiling.
+                is_latest_primary = filing == latest_earnings and url == filing.url
+                available_chars = min(4000 if is_latest_primary else 40000, remaining)
                 blocks, links, extraction_gaps = extract_sections(
-                    source["text"], max_chars=available_chars
+                    source["text"], max_chars=available_chars,
+                    prioritize_guidance=filing == latest_earnings and not is_latest_primary,
                 )
                 if available_chars < 40000 and any(block.truncated for block in blocks):
                     extraction_gaps.append(
@@ -721,8 +749,8 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                 )
                 gaps.extend(f"{filing.accession}: {g}" for g in extraction_gaps)
                 if filing.form.startswith("8-K") and url == filing.url:
-                    exhibits = [
-                        exhibit_url(filing, href)
+                    exhibit_links = [
+                        (exhibit_url(filing, href), href, label)
                         for href, label in links
                         if re.search(r"(?:99[._-]?\d|ex99)", href + " " + label, re.I)
                         or (
@@ -733,7 +761,16 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                             )
                         )
                     ]
-                    exhibits = list(dict.fromkeys(u for u in exhibits if u and u != filing.url))
+                    if filing == latest_earnings:
+                        exhibit_links.sort(
+                            key=lambda entry: not bool(re.search(
+                                r"(?:99[._-]?1|ex99[._-]?1)\b|press release",
+                                entry[1] + " " + entry[2], re.I,
+                            ))
+                        )
+                    exhibits = list(dict.fromkeys(
+                        url for url, _, _ in exhibit_links if url and url != filing.url
+                    ))
                     pending.extend(exhibits[:2])
                     if len(exhibits) > 2:
                         gaps.append(f"{filing.accession}: exhibit count limit reached")

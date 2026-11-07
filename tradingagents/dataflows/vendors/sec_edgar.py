@@ -211,7 +211,7 @@ def _span_index(fact: dict, spans: tuple[tuple[int, int], ...]) -> int | None:
 
 def _eligible_records(facts: dict, tag: str, cutoff: date,
                       spans: tuple[tuple[int, int], ...], forms: tuple[str, ...],
-                      allowed_ends: set[str] | None = None) -> dict:
+                      allowed_ends: set[str] | None = None, period_floor: date | None = None) -> dict:
     """Group eligible source records without resolving conflicting meanings."""
     candidates = {}
     covered = set()
@@ -230,7 +230,8 @@ def _eligible_records(facts: dict, tag: str, cutoff: date,
                 value = fact["val"]
                 if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
                     continue
-                if not Decimal(str(value)).is_finite() or end > cutoff or filed > cutoff:
+                if (not Decimal(str(value)).is_finite() or end > cutoff or filed > cutoff
+                        or (period_floor is not None and end < period_floor)):
                     continue
                 index = _span_index(fact, spans)
             except (KeyError, ValueError, TypeError, InvalidOperation):
@@ -252,7 +253,7 @@ def _eligible_records(facts: dict, tag: str, cutoff: date,
 
 def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
                    spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = (),
-                   *, allowed_ends: set[str] | None = None) -> dict:
+                   *, allowed_ends: set[str] | None = None, period_floor: date | None = None) -> dict:
     """Select consolidated facts with their original filing context and exact value.
 
     Tag preference is applied per period, never summed. Reject ambiguity rather
@@ -263,7 +264,7 @@ def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
     cutoff = date.fromisoformat(as_of_date)
     chosen = {}
     for tag in tags:
-        candidates = _eligible_records(facts, tag, cutoff, spans, forms, allowed_ends)
+        candidates = _eligible_records(facts, tag, cutoff, spans, forms, allowed_ends, period_floor)
         for key, eligible in candidates.items():
             if key in chosen:
                 continue
@@ -368,7 +369,8 @@ def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = 
     return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")
 
 
-def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definitions: bool = False):
+def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definitions: bool = False,
+                           period_floor: date | None = None):
     """Bounded exact SEC facts, retaining the source fragment for each value.
 
     This path never substitutes undated vendor snapshots for filed evidence.
@@ -414,18 +416,18 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
         for _, tags in rows:
             for tag in tags:
                 quarterly_ends.update(key[0] for key in _eligible_records(
-                    facts, tag, cutoff, quarterly_spans, ()))
+                    facts, tag, cutoff, quarterly_spans, (), period_floor=period_floor))
                 annual_ends.update(key[0] for key in _eligible_records(
-                    facts, tag, cutoff, (_SPANS["annual"],), _ANNUAL_FORMS))
+                    facts, tag, cutoff, (_SPANS["annual"],), _ANNUAL_FORMS, period_floor=period_floor))
     allowed_quarters = set(sorted(quarterly_ends)[-12:])
     allowed_annual = set(sorted(annual_ends)[-5:])
     selected = {}
     for rows in statements.values():
         for metric, tags in rows:
             quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
-                                     allowed_ends=allowed_quarters)
+                                     allowed_ends=allowed_quarters, period_floor=period_floor)
             annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
-                                    allowed_ends=allowed_annual)
+                                    allowed_ends=allowed_annual, period_floor=period_floor)
             selected[metric] = (quarter, annual)
     sources, records = {}, {}
     for metric, (quarter, annual) in selected.items():

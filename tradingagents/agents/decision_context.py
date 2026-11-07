@@ -287,6 +287,7 @@ def prepare_decision_context(state: dict) -> dict:
     mechanical_position = (mechanical_position_from_state(state) if eligible else
                            {'status': 'unavailable', 'rows': [], 'reason': 'Current decision is not evidence-eligible'})
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
+            'assumption_changes': _mapping(_mapping(state.get('decision_context')).get('assumption_changes')),
             'mechanical_position': mechanical_position,
             'horizon': horizon, 'coverage': coverage,
             'financing': financing_sensitivities(state) if eligible and quality.get('scope') == 'Selected US SEC-filer fundamentals' and state.get('asset_type','stock') == 'stock' else [],
@@ -322,6 +323,18 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True) -
         lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
                      f"{_display(row.get('status_label') or condition_status_label(row))}; "
                      f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+    history = _mapping(record.get('assumption_changes'))
+    if history.get('status') == 'available':
+        for change in history.get('rows', [])[:31]:
+            lines.append(f"Changed since {_display(history['prior_as_of'])}: "
+                         f"{_display(change['scenario'])} {_display(change['field'])} "
+                         f"{_display(change['previous'])} → {_display(change['current'])}")
+        if history.get('new_filings_between') is False:
+            lines.append('No new filing was retained between the two runs.')
+    elif history.get('status') == 'no_prior':
+        lines.append('Assumption changes: no prior directional publication was available at this run’s cutoff.')
+    else:
+        lines.append('Assumption changes unavailable: no verified comparison was recorded for this run.')
     for group in record.get("case_groups", []):
         values = group["cases"]
         amount = display_number(group["low"]) if len(values) == 1 else display_number(group["low"]) + "–" + display_number(group["high"])

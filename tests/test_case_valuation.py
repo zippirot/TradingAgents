@@ -21,6 +21,14 @@ def revenue_case(basis="borrowings_only"):
                        "obligations": {"borrowings": value(160, "debt")}}}}
 
 
+def test_case_revenue_a_thousand_times_off_is_unsupported():
+    row = revenue_case()
+    row["request"]["forecast"]["value"] = "1200000"
+    record = prepare_shared_valuation(state([row]))
+    assert record["status"] == "unavailable" and not record["rows"]
+    assert "unit scale mismatch" in record["reasons"][0]
+
+
 def test_price_on_own_basis_and_reject_missing_or_incompatible_inputs():
     for basis, expected in (("equity", Decimal(3600)), ("borrowings_only", Decimal(3520))):
         row = revenue_case(basis)

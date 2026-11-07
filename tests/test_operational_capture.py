@@ -11,7 +11,7 @@ def test_completed_graph_retains_actual_run_bound_stages(tmp_path, monkeypatch, 
     state, _ = graph.propagate('NVDA', TRADE_DATE)
     rows = list(state.get('operational_observations', {}).values())
     stages = {r['stage'] for r in rows}
-    assert {'Source Acquisition', 'Market Analyst', 'Evidence Check', 'Portfolio Manager', 'Run Metrics'} <= stages
+    assert {'Source Acquisition', 'Market Analyst', 'Portfolio Manager', 'Run Metrics'} <= stages
     assert all(r['run_id'] == state['run_id'] for r in rows)
     assert all(r['ticker'] == 'NVDA' and r['trade_date'] == TRADE_DATE for r in rows)
     source = next(r for r in rows if r['stage'] == 'Source Acquisition' and r['code'] == 'completed')
@@ -52,7 +52,8 @@ def test_caught_acquisition_outage_is_retained_on_intentional_review(tmp_path, m
         raise VendorUnavailableError('private request details')
 
     monkeypatch.setattr(sec_edgar, 'cik_for', unavailable)
-    graph = _graph(tmp_path, monkeypatch, ScriptedModel())
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(),
+                   selected_analysts=('market', 'social', 'news', 'fundamentals'))
     state, signal = graph.propagate('NVDA', TRADE_DATE)
     assert signal == 'REVIEW'
     assessment = assess_audit(state)
@@ -178,7 +179,7 @@ def test_checkpoint_resume_and_second_run_keep_separate_observations(tmp_path, m
 
     from tradingagents.operational_audit import assess_audit
 
-    model = ScriptedModel(fail_at=12)
+    model = ScriptedModel(fail_at=10)
     graph = _graph(tmp_path, monkeypatch, model, checkpoint_enabled=True)
     with pytest.raises(RuntimeError, match='provider unavailable'):
         graph.propagate('NVDA', TRADE_DATE)

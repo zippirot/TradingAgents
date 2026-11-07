@@ -81,7 +81,17 @@ def _thesis_update(state):
     return {"thesis": item, "thesis_version_id": item["version_id"]}
 
 
-def enforce_publication(state: dict) -> dict:
+def _decision_card(state, publication_config):
+    card = prepare_decision_context(state)
+    if publication_config is not None and not card.get('assumption_changes'):
+        from tradingagents.agents.assumption_history import assumption_changes
+
+        card['assumption_changes'] = assumption_changes(
+            publication_config, state.get('company_of_interest', ''), {**state, 'horizon': card['horizon']})
+    return card
+
+
+def enforce_publication(state: dict, *, publication_config: dict | None = None) -> dict:
     """Project new runs into canonical decisions, retaining raw prose separately.
 
     A language heuristic cannot prove that arbitrary prose agrees with a numeric
@@ -100,7 +110,7 @@ def enforce_publication(state: dict) -> dict:
             from tradingagents.memory.thesis import render_thesis
             review.update(continuity)
             review["final_trade_decision"] += "\n\n" + render_thesis(continuity["thesis"])
-        card = prepare_decision_context({**state, **review})
+        card = _decision_card({**state, **review}, publication_config)
         review["decision_context"] = card
         review["final_trade_decision"] += "\n\n" + render_decision_context(card, include_mechanical=False)
         review["final_trade_decision"] += "\n\n" + render_price_implied_valuation(review["price_implied_valuation"])
@@ -214,7 +224,7 @@ def enforce_publication(state: dict) -> dict:
             "**Investment Thesis — canonical evidence**:",
             render_thesis(continuity["thesis"]) + "\n\n**Investment Thesis — canonical evidence**:", 1)
     updates["unvalidated_outputs"] = originals
-    card = prepare_decision_context({**state, **updates})
+    card = _decision_card({**state, **updates}, publication_config)
     updates["decision_context"] = card
     updates["final_trade_decision"] = updates["final_trade_decision"].replace(
         "**Executive Summary**:", render_decision_context(card, include_mechanical=False) + "\n\n**Executive Summary**:", 1)

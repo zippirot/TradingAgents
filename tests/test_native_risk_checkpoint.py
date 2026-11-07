@@ -91,6 +91,8 @@ def publish_fixture_twice(graph, ticker, day, final, report_path):
     with graph.checkpoint_scope(ticker, day) as tid:
         saved = graph.graph.get_state({"configurable": {"thread_id": tid}})
         assert not saved.next and saved.values["run_id"] == final["run_id"]
+        assert saved.values["decision_context"]["assumption_changes"] == final["decision_context"]["assumption_changes"]
+        assert saved.values["decision_context"]["assumption_changes"]["status"] == "no_prior"
         # A crash after the immutable record commit can precede the state log.
         record, _ = verified_publication(graph.config, saved.values, ticker, day)
         assert record["record_sha256"] == first["record_sha256"]

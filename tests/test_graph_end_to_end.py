@@ -106,10 +106,8 @@ class _Client:
 @pytest.fixture
 def offline(monkeypatch, tmp_path):
     """Every vendor answers offline; returns the set of router methods called."""
-    # These legacy graph/stream/recovery fixtures supply generic strings,
-    # not SEC financial evidence. Exercise their full decision path under an
-    # explicitly unmapped issuer scope. US-filer REVIEW/complete-evidence paths
-    # are tested separately; complete-source acceptance remains required.
+    # These graph/stream/recovery fixtures supply generic vendor strings, not
+    # SEC financial evidence. Their directional path leaves fundamentals unselected.
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
     monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: None)
     monkeypatch.setattr(sec_documents, "cik_for", lambda ticker: None)
@@ -134,12 +132,12 @@ def offline(monkeypatch, tmp_path):
     return called
 
 
-def _graph(tmp_path, monkeypatch, model, debug=False, **config):
+def _graph(tmp_path, monkeypatch, model, debug=False, *, selected_analysts=("market", "social", "news"), **config):
     cfg = copy.deepcopy(DEFAULT_CONFIG)
     cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
                memory_log_path=str(tmp_path / "log.md"), **config)
     monkeypatch.setattr(trading_graph, "create_tier_client", lambda config, tier, **k: _Client(model))
-    return trading_graph.TradingAgentsGraph(config=cfg, debug=debug)
+    return trading_graph.TradingAgentsGraph(config=cfg, debug=debug, selected_analysts=selected_analysts)
 
 
 @pytest.mark.unit
@@ -151,13 +149,12 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
 
     assert signal == state["final_rating"] == "Overweight"
     assert state["evidence_quality"]["scope"] == "not_applicable"
-    for key in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
+    for key in ("market_report", "sentiment_report", "news_report",
                 "investment_plan", "trader_investment_plan", "final_trade_decision"):
         assert state[key].strip(), key
     tool_methods = {"get_stock_data", "get_indicators", "get_news", "get_global_news",
-                    "get_macro_indicators", "get_prediction_markets", "get_fundamentals",
-                    "get_balance_sheet", "get_cashflow", "get_income_statement",
-                    "get_insider_transactions", "ohlcv"}
+                    "get_macro_indicators", "get_prediction_markets",
+                    "ohlcv"}
     assert offline == tool_methods
     assert state["news_coverage"]["independent_news"]["status"] == "available"
     assert state["news_coverage"]["optional_macro"]["status"] == "available"
@@ -166,7 +163,7 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
 
 @pytest.mark.unit
 def test_an_interrupted_run_resumes_from_its_checkpoint(tmp_path, monkeypatch, offline):
-    model = ScriptedModel(fail_at=12)            # past the analysts, before the decision
+    model = ScriptedModel(fail_at=10)            # past the analysts, before the decision
     graph = _graph(tmp_path, monkeypatch, model, checkpoint_enabled=True)
     with pytest.raises(RuntimeError, match="provider unavailable"):
         graph.propagate("NVDA", TRADE_DATE)
@@ -214,9 +211,9 @@ def test_a_debug_run_prints_the_analysts_work_and_reaches_the_same_decision(tmp_
     state, signal = graph.propagate("NVDA", TRADE_DATE)
 
     assert signal == "Overweight"
-    assert state["market_report"].strip() and state["fundamentals_report"].strip()
+    assert state["market_report"].strip() and state["news_report"].strip()
     printed = capsys.readouterr().out
-    assert "get_stock_data" in printed and "get_balance_sheet" in printed
+    assert "get_stock_data" in printed and "get_news" in printed
 
 
 @pytest.mark.unit
@@ -224,7 +221,7 @@ def test_each_report_streams_as_soon_as_its_analyst_files_it(tmp_path, monkeypat
     """The main state takes the analysts' reports only when the slowest one is
     done; the CLI shows each report, and stops each clock, as it lands."""
     graph = _graph(tmp_path, monkeypatch, ScriptedModel())
-    reports = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
+    reports = ("market_report", "sentiment_report", "news_report")
 
     first = next(state for _, state in graph.stream_run(graph.create_run_state("NVDA", TRADE_DATE),
                                                         **graph.propagator.get_graph_args())
@@ -278,8 +275,8 @@ def test_an_analyst_that_keeps_calling_tools_writes_its_report_at_the_limit(tmp_
 
     final_state, rating = graph.propagate("NVDA", TRADE_DATE)
 
-    assert len(model.tool_turns) == 3 * 3   # three tool-using analysts, three rounds each
-    for key in ("market_report", "news_report", "fundamentals_report"):
+    assert len(model.tool_turns) == 2 * 3   # two tool-using analysts, three rounds each
+    for key in ("market_report", "news_report"):
         assert final_state["unvalidated_outputs"][key] == TEXT
         assert final_state[key].startswith("**Unvalidated model narrative")
     assert rating == "Overweight"
@@ -295,7 +292,7 @@ def test_the_last_turn_is_offered_no_tools_and_reads_its_tool_results_as_text(tm
     graph.propagate("NVDA", TRADE_DATE)
 
     wrap_ups = [h for h in model.last_turns if isinstance(h[-1], HumanMessage) and "tool round" in h[-1].content]
-    assert len(wrap_ups) == 3
+    assert len(wrap_ups) == 2
     for history in wrap_ups:
         assert not any(isinstance(m, ToolMessage) or getattr(m, "tool_calls", None) for m in history)
         assert any("returned]" in str(m.content) for m in history)
@@ -419,7 +416,8 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
         raise VendorUnavailableError("SEC source unavailable in controlled proof")
 
     monkeypatch.setattr(sec_edgar, "cik_for", unavailable)
-    graph = _graph(tmp_path, monkeypatch, ScriptedModel())
+    graph = _graph(tmp_path, monkeypatch, ScriptedModel(),
+                   selected_analysts=("market", "social", "news", "fundamentals"))
     state, signal = graph.propagate("NVDA", TRADE_DATE)
     assert signal == "REVIEW"
     assert state["investment_plan"] == state["trader_investment_plan"] == ""

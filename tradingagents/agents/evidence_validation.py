@@ -325,7 +325,11 @@ def create_source_acquisition(selected_analysts):
             try:
                 mapped_cik = sec_edgar.cik_for(scope["ticker"])
                 if mapped_cik is None:
-                    record["reason"] = "Instrument not identified in SEC issuer map; no US accounting validation performed"
+                    record["status"] = "unavailable"
+                    record["reason"] = (
+                        "Stock not identified in SEC issuer map; issuer filing status cannot be verified "
+                        "and US accounting validation was not performed"
+                    )
                 else:
                     package = sec_edgar.get_financial_evidence(scope["ticker"], scope["as_of"])
                     if package.cik != mapped_cik or str(package.as_of) != scope["as_of"]:
@@ -740,6 +744,14 @@ def assess_financial_package(
         )
     if disclosures is not None:
         update["filing_evidence"] = disclosures.model_dump(mode="json")
+        from tradingagents.agents.valuation_outlooks import grounded_outlook_warnings
+
+        conflicts = grounded_outlook_warnings({**state, **update, "trade_date": str(package.as_of)})
+        if conflicts and "disclosure_evidence" in update:
+            update["disclosure_evidence"]["warnings"] = list(conflicts)
+            update["canonical_financial_context"] += "\n\nOutlook grounding warnings:\n" + "\n".join(
+                "- " + warning for warning in conflicts
+            )
     from tradingagents.agents.issuer_events import issuer_supplement
     supplement = issuer_supplement(
         state.get("news_coverage", {}), disclosures, cik=package.cik, as_of=str(package.as_of),

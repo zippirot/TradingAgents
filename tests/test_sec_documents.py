@@ -254,6 +254,17 @@ def test_bounded_extraction_keeps_late_financial_notes():
     assert gaps
 
 
+def test_bounded_extraction_keeps_late_numerical_expectation():
+    boilerplate = "Revenue 2026 " + "x" * 987
+    html = ("<p>" + boilerplate + "</p>") * 80
+    html += "<p>We expect revenue of $900 million to $920 million.</p>"
+    blocks, _, gaps = docs.extract_sections(html, max_chars=20000)
+    assert any("We expect revenue of $900 million to $920 million" in block.text
+               for block in blocks)
+    assert sum(len(block.text) for block in blocks) <= 20000
+    assert gaps
+
+
 def test_sec_table_nested_paragraphs_keep_columns_headers_and_units():
     html = """<h2>Equipment obligations</h2><table>
     <caption><p>Amounts in millions</p></caption>
@@ -646,3 +657,52 @@ def test_genuinely_hidden_only_html_keeps_no_visible_sections_reason(monkeypatch
     assert len(package.documents) == 1
     assert not package.documents[0].blocks
     assert "Document contains no usable visible sections" in package.documents[0].gaps
+
+
+def test_crowded_package_preserves_statements_and_latest_release_guidance(monkeypatch):
+    import hashlib
+    import json
+
+    data = crowded_submissions()
+    recent = {key: list(value) for key, value in data["filings"]["recent"].items()}
+    latest = ("8-K", "2026-09-20", "2026-09-20", "0001582961-26-000020", "latest.htm", "2.02,9.01")
+    for key, value in zip(recent, latest, strict=True):
+        recent[key].append(value)
+    data["filings"]["recent"] = recent
+    monkeypatch.setattr(docs, "cik_for", lambda _: "0001582961")
+    statements = {
+        "annual.htm": "<h2>Consolidated Statements of Operations</h2><table><tr><th>FY2025</th></tr><tr><td>Revenue</td><td>777 million</td></tr></table>" + ("<p>Annual financial discussion " + "x" * 1000 + "</p>") * 50,
+        "quarter.htm": "<h2>Consolidated Statements of Cash Flows</h2><table><tr><th>Q2 2026</th></tr><tr><td>Operating cash flow</td><td>88 million</td></tr></table>" + ("<p>Quarterly financial discussion " + "x" * 1000 + "</p>") * 50,
+    }
+    primary = ("<p>Item 2.02 Results of Operations</p>" + ("<p>Business update and operations. " + "x" * 2000 + "</p>") * 30
+               + '<p>Item 9.01 Exhibits</p><a href="ex992.htm">EX-99.2 Supplemental data</a>'
+               + '<a href="ex991.htm">EX-99.1 Earnings release</a>')
+    release = ("<h2>Q3 Earnings Release</h2>" + ("<p>Revenue and earnings overview. " + "x" * 500 + "</p>") * 80
+               + "<p>We expect revenue of $900 million to $920 million.</p>")
+    bodies = {**statements, "latest.htm": primary, "ex991.htm": release,
+              "ex992.htm": ("<p>Supplemental data " + "x" * 1000 + "</p>") * 50,
+              "financing.htm": '<a href="financingex.htm">EX-99.3 Debt notice</a>',
+              "financingex.htm": "<p>Debt notice</p>",
+              "earnings.htm": '<a href="old991.htm">EX-99.1</a>',
+              "old991.htm": "<p>Old earnings outlook $500 million.</p>"}
+
+    def fetch(self, url):
+        body = json.dumps(data) if "submissions" in url else bodies.get(url.rsplit("/", 1)[-1], "<p>" + "Notice " * 6000 + "</p>")
+        return {"url": url, "text": body,
+                "content_hash": hashlib.sha256(body.encode()).hexdigest(),
+                "retrieved_at": "2026-11-04T12:00:00+00:00"}
+
+    monkeypatch.setattr(docs.DocumentClient, "fetch", fetch)
+    package = docs.get_filing_evidence("DOCN", "2026-10-19")
+    text_by_name = {doc.url.rsplit("/", 1)[-1]: " ".join(b.text for b in doc.blocks)
+                    for doc in package.documents}
+    assert "Revenue | 777 million" in text_by_name["annual.htm"]
+    assert "Operating cash flow | 88 million" in text_by_name["quarter.htm"]
+    assert "We expect revenue of $900 million to $920 million" in text_by_name["ex991.htm"]
+    release_doc = next(doc for doc in package.documents if doc.url.endswith("ex991.htm"))
+    assert release_doc.content_hash == hashlib.sha256(release.encode()).hexdigest()
+    assert all(doc.content_hash and all(block.locator for block in doc.blocks)
+               for doc in package.documents if doc.blocks)
+    assert sum(len(block.text) for doc in package.documents for block in doc.blocks) <= 120000
+    assert len(package.documents) <= 8
+    assert any("limit" in gap.lower() for gap in package.gaps)

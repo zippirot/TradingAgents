@@ -250,6 +250,105 @@ def combine(first, second, filed_date):
     return merged
 
 
+def with_discovered_release(first, *, low="800", high="900", filed_date="2026-09-01"):
+    """Add a source-bound annual heading and bullet, without a model claim for it."""
+    result = copy.deepcopy(first)
+    accession = "0001582961-26-000002"
+    url = "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000002/new.htm"
+    source_id = "sec-document-" + hashlib.sha256(url.encode()).hexdigest()
+    heading = "For the full year 2027, we now expect:"
+    bullet = f"• Revenue was {low} to {high} million."
+    content_hash = hashlib.sha256((heading + bullet).encode()).hexdigest()
+    result["financial_evidence"]["sources"].append({
+        **result["financial_evidence"]["sources"][0], "source_id": source_id,
+        "url": url, "accession": accession, "filed_date": filed_date,
+        "content_hash": content_hash,
+    })
+    result["filing_evidence"]["documents"].append({
+        **result["filing_evidence"]["documents"][0], "source_id": source_id,
+        "url": url, "content_hash": content_hash,
+        "filing": {**result["filing_evidence"]["documents"][0]["filing"],
+                   "url": url, "accession": accession, "filed_date": filed_date},
+        "blocks": [
+            {"locator": "block-1", "section": "US-GAAP USD calendar year 2027", "text": heading},
+            {"locator": "block-2", "section": "US-GAAP USD calendar year 2027", "text": bullet},
+        ],
+    })
+    return result
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_newer_discovered_guidance_supersedes_old_model_quote(reverse):
+    s = with_discovered_release(state())
+    if reverse:
+        s["filing_evidence"]["documents"].reverse()
+        s["financial_evidence"]["sources"].reverse()
+    result = grounded_outlooks(s)
+    assert len(result) == 1
+    assert result[0].low == Decimal("800000000")
+    assert result[0].high == Decimal("900000000")
+
+
+def test_same_day_discovered_conflict_has_stable_warning_and_no_outlook():
+    from tradingagents.agents.valuation_outlooks import grounded_outlook_warnings
+
+    s = with_discovered_release(state(), filed_date="2026-08-04")
+    s = with_discovered_release(s, low="700", high="750", filed_date="2026-08-04")
+    # A third document needs its own canonical source identity.
+    doc = s["filing_evidence"]["documents"].pop()
+    source = s["financial_evidence"]["sources"].pop()
+    url = doc["url"].replace("new.htm", "other.htm")
+    source_id = "sec-document-" + hashlib.sha256(url.encode()).hexdigest()
+    doc.update(source_id=source_id, url=url)
+    doc["filing"]["url"] = url
+    source.update(source_id=source_id, url=url)
+    s["filing_evidence"]["documents"].append(doc)
+    s["financial_evidence"]["sources"].append(source)
+    assert grounded_outlooks(s) == ()
+    warnings = grounded_outlook_warnings(s)
+    assert len(warnings) == 1 and "conflicting" in warnings[0].lower()
+    s["filing_evidence"]["documents"].reverse()
+    s["financial_evidence"]["sources"].reverse()
+    assert grounded_outlook_warnings(s) == warnings
+
+
+def test_cached_extraction_cannot_add_or_repair_discovered_guidance():
+    s = with_discovered_release(state())
+    s["disclosure_evidence"] = {"deterministic_extraction": {"status": "verified", "claims": [
+        {"source_id": s["filing_evidence"]["documents"][1]["source_id"], "value": "9000"}
+    ]}}
+    assert grounded_outlooks(s)[0].low == Decimal("800000000")
+    s["filing_evidence"]["documents"][1]["blocks"][1]["truncated"] = True
+    assert grounded_outlooks(s)[0].low == Decimal("1170000000")
+
+
+def test_discovery_works_without_model_report_but_duplicate_source_is_excluded():
+    s = with_discovered_release(state())
+    s["financial_claim_validation"] = {"raw_report": None}
+    s["fundamentals_report"] = None
+    assert grounded_outlooks(s)[0].low == Decimal("800000000")
+    s["financial_evidence"]["sources"].append(copy.deepcopy(s["financial_evidence"]["sources"][1]))
+    assert grounded_outlooks(s) == ()
+
+
+def test_discovered_guidance_does_not_replace_distinct_ambition():
+    s = with_discovered_release(state(kind="ambition"))
+    result = grounded_outlooks(s)
+    assert {(o.kind, o.low) for o in result} == {
+        ("guidance", Decimal("800000000")),
+        ("ambition", Decimal("1170000000")),
+    }
+
+
+@pytest.mark.parametrize("missing", ["calendar year 2027", "US-GAAP", "USD"])
+def test_discovered_annual_range_needs_explicit_period_basis_and_currency(missing):
+    s = with_discovered_release(state())
+    doc = s["filing_evidence"]["documents"][1]
+    for block in doc["blocks"]:
+        block["section"] = block["section"].replace(missing, "")
+    assert grounded_outlooks(s)[0].low == Decimal("1170000000")
+
+
 def test_latest_filed_outlook_replaces_old_same_period_range():
     s = combine(state(), state(value="1.2", upper="1.3"), "2026-09-01")
     result = grounded_outlooks(s)
@@ -260,6 +359,21 @@ def test_latest_filed_outlook_replaces_old_same_period_range():
 def test_conflicting_same_vintage_ranges_remain_unavailable():
     s = combine(state(), state(value="1.2", upper="1.3"), "2026-08-04")
     assert grounded_outlooks(s) == ()
+
+
+def test_accounting_gate_retains_outlook_conflict_warning_without_mutating_input():
+    from tradingagents.agents.evidence_validation import assess_financial_package
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    s = combine(state(), state(value="1.2", upper="1.3"), "2026-08-04")
+    original = copy.deepcopy(s)
+    package = EvidencePackage.model_validate(s["financial_evidence"])
+    s["fundamentals_report"] = s["financial_claim_validation"]["raw_report"]
+    expected_input = copy.deepcopy(s)
+    update = assess_financial_package(s, package, DisclosurePackage.model_validate(s["filing_evidence"]))
+    assert any("conflicting" in w.lower() for w in update["disclosure_evidence"].get("warnings", []))
+    assert s == expected_input
+    assert original["financial_evidence"] == s["financial_evidence"]
 
 
 def test_guidance_and_ambition_are_not_collapsed_to_same_forecast():
