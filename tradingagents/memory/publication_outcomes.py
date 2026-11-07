@@ -65,6 +65,8 @@ def _validate_retry_endpoint(endpoint, original, record):
         raise ValueError('zero-coverage checks')
     if len(checks) == 3 and status != 'unresolvable':
         raise ValueError('Third zero check must establish terminal status')
+    if status == 'resolved' and checks:
+        raise ValueError('Resolved endpoint retains active zero checks')
     if status != 'resolved' and any(key in endpoint for key in ('outcome', 'resolved_at', 'coincident_with')):
         raise ValueError('Nonpriced endpoint carries a priced outcome')
     recorded = record.get('published_at') or record.get('imported_at')
@@ -72,6 +74,9 @@ def _validate_retry_endpoint(endpoint, original, record):
         date.fromisoformat(record['requested_as_of']), datetime.min.time(), UTC)
     seen, previous = set(), None
     for check in checks:
+        if check.get('zero_source', 'well_formed_empty_history') not in {
+                'well_formed_empty_history', 'yahoo_explicit_window_no_data'}:
+            raise ValueError('Unknown zero-coverage source')
         identity = str(UUID(check['pass_id']))
         stamp = _aware(check['checked_at'])
         cutoff = _entry_cutoff(record, check['instrument_timezone'])
@@ -377,6 +382,7 @@ def _pending_status(record, endpoint, prices, now):
         'window_end_exclusive': prices.before, 'reference_entry_date': first.strftime('%Y-%m-%d'),
         'reference_exit_date': last.strftime('%Y-%m-%d'), 'reference_sessions': sessions,
         'instrument_timezone': str(raw.index.tz) if raw.index.tz is not None else None,
+        'zero_source': raw.attrs.get('settlement_zero_source', 'well_formed_empty_history'),
     }
 
 

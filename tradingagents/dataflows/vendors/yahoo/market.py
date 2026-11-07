@@ -270,6 +270,41 @@ def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 
+def _explicit_settlement_zero(exc, source, canonical, start, end):
+    """Accept only Yahoo's structured, exact-window negative answer.
+
+    A generic missing-prices exception is also used for service/malformed data.
+    Do not inspect its display message or fetch extra metadata to repair it.
+    """
+    import re
+    from zoneinfo import ZoneInfo
+
+    from yfinance.exceptions import YFPricesMissingError
+
+    if (not isinstance(exc, YFPricesMissingError) or getattr(exc, 'ticker', None) != canonical
+            or 'status_code' in (getattr(exc, 'debug_info', None) or '')):
+        return None
+    reason = getattr(exc, 'yahoo_reason', None)
+    if not isinstance(reason, str):
+        return None
+    match = re.fullmatch(r"Data doesn't exist for startDate = (-?\d+), endDate = (-?\d+)", reason)
+    timezone = getattr(getattr(source, '_price_history', None), 'tz', None)
+    if match is None or not isinstance(timezone, str):
+        return None
+    try:
+        zone = ZoneInfo(timezone)
+        expected = tuple(int(datetime.combine(day, datetime.min.time(), zone).timestamp()) for day in (start, end))
+        if tuple(map(int, match.groups())) != expected:
+            return None
+        closes = pd.Series(dtype=float, index=pd.DatetimeIndex([], tz=zone), name='Close')
+    except (ValueError, KeyError, OverflowError, OSError):
+        return None
+    closes.attrs.update(settlement_verified_empty=True,
+                        settlement_zero_source='yahoo_explicit_window_no_data',
+                        settlement_request_start=str(start), settlement_request_end=str(end))
+    return closes
+
+
 def get_settlement_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Read settlement closes without treating an unknown empty as zero coverage.
 
@@ -283,15 +318,19 @@ def get_settlement_closes(symbol: str, start_date: str, end_date: str) -> pd.Ser
     if start >= end:
         raise ValueError("settlement price window must have a positive length")
 
+    source = None
     try:
         # yfinance 1.7.0 accepts raise_errors in PriceHistory.history. Without
         # it, transport and Yahoo errors can become a plausible empty frame.
-        history = yf.Ticker(canonical).history(
+        source = yf.Ticker(canonical)
+        history = source.history(
             start=start_date, end=end_date, auto_adjust=True, raise_errors=True
         )
     except Exception as exc:
-        # Even YFPricesMissingError also represents HTTP/service failures, so
-        # its type alone cannot safely establish an explicit no-data answer.
+        zero = _explicit_settlement_zero(exc, source, canonical, start, end)
+        if zero is not None:
+            return zero
+        # The type alone never establishes zero coverage.
         raise VendorUnavailableError(
             f"Yahoo Finance settlement request failed: {type(exc).__name__}"
         ) from exc
@@ -311,6 +350,7 @@ def get_settlement_closes(symbol: str, start_date: str, end_date: str) -> pd.Ser
     if history.empty:
         closes = history["Close"].copy()
         closes.attrs["settlement_verified_empty"] = True
+        closes.attrs["settlement_zero_source"] = 'well_formed_empty_history'
         closes.attrs["settlement_request_start"] = start_date
         closes.attrs["settlement_request_end"] = end_date
         return closes

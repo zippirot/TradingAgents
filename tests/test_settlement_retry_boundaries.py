@@ -303,3 +303,29 @@ def test_documented_module_maintenance_reopens_only_selected_endpoint(tmp_path, 
     assert all(after['endpoints'][name] == before['endpoints'][name]
                for name in before['endpoints'] if name != '5_sessions')
     assert record_path.read_bytes() == immutable
+
+
+def test_resolved_outcome_cannot_retain_active_zero_checks(tmp_path, monkeypatch):
+    cfg = {'results_dir': str(tmp_path)}
+    row = _record(cfg, monkeypatch)
+    clock = _clock(monkeypatch)
+    values = {'DOCN': _verified_empty(), 'SPY': _mature_benchmark()}
+    _feed(monkeypatch, values)
+    outcomes.settle_publications(cfg)
+    stale = copy.deepcopy(_checks(cfg, row))
+    clock[0] += timedelta(days=14)
+    values['DOCN'] = _series(pd.bdate_range('2026-01-06', '2026-11-06'))
+    outcomes.settle_publications(cfg)
+    companion = outcomes.load_outcomes(cfg, row)
+    endpoint = companion['endpoints']['5_sessions']
+    assert endpoint['status'] == 'resolved' and endpoint['zero_checks'] == []
+    endpoint['zero_checks'] = stale
+    path = publication.record_root(cfg) / 'outcomes' / f"{row['decision_id']}.json"
+    with pytest.raises(ValueError):
+        outcomes._write(path, companion)
+    payload = {k: v for k, v in companion.items() if k != 'outcomes_sha256'}
+    checksum = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False,
+                                         separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+    path.write_text(json.dumps({**payload, 'outcomes_sha256': checksum}))
+    with pytest.raises(ValueError):
+        outcomes.load_outcomes(cfg, row)
