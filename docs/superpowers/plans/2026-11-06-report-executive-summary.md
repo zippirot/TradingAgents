@@ -1,7 +1,7 @@
 # Executive summary and table of contents implementation plan
 
 Date: 2026-11-06
-Execution authorized 2026-11-07. The implementation record is [report executive summary acceptance](../../reviews/2026-11-06-report-executive-summary-acceptance.md).
+Completed locally 2026-11-07; no release action taken. The implementation record is [report executive summary acceptance](../../reviews/2026-11-06-report-executive-summary-acceptance.md).
 Independent audit: required
 
 ## Outcome
@@ -175,18 +175,18 @@ Run the independent audit and close confirmed material findings in this same wor
 
 ## Acceptance checklist
 
-- [ ] A successful new report starts with the requested process paragraph, 5–12-sentence decision narrative, visible contents, then the full report with the final portfolio decision first.
-- [ ] Contents and body share the order: final portfolio decision, analysts, research, trading, risk, evidence; section numbering is consecutive and links preserve their section targets in both formats.
-- [ ] The rating is canonical and immediately defined; all present major sections contribute to the summary.
-- [ ] Actual pipeline execution is described accurately, including skipped or incomplete steps.
-- [ ] Both formats reuse the retained summary; saving/re-exporting cannot trigger model calls.
-- [ ] Underweight versus provisional Sell, absent final target, conditional valuation, and limited evidence remain accurately distinguished.
-- [ ] The complete body, per-agent files, canonical decision, publication/evidence records, trading memory, and evaluation behavior remain substantively unchanged.
-- [ ] Legacy, failure, REVIEW, and stale-summary paths are explicit and preserve the usable report.
-- [ ] Desktop/mobile/print inspection, focused tests, default suite, lint, and diff inspection are recorded with their actual results.
-- [ ] Live generation quality is either demonstrated under separate authorization or explicitly reported as unverified.
-- [ ] An independent Claude build audit of the committed candidate is recorded. Every finding has an evidence-backed disposition, all confirmed material in-scope gaps are closed, and any material fixes have independent closure verification on the corrected revision.
-- [ ] Implementation changes and acceptance evidence are committed; release actions remain separate.
+- [x] A successful new report starts with the requested process paragraph, 5–12-sentence decision narrative, visible contents, then the full report with the final portfolio decision first.
+- [x] Contents and body share the order: final portfolio decision, analysts, research, trading, risk, evidence; section numbering is consecutive and links preserve their section targets in both formats.
+- [x] The rating is canonical and immediately defined; all present major sections contribute to the summary.
+- [x] Actual pipeline execution is described accurately, including skipped or incomplete steps.
+- [x] Both formats reuse the retained summary; saving/re-exporting cannot trigger model calls.
+- [x] Underweight versus provisional Sell, absent final target, conditional valuation, and limited evidence remain accurately distinguished.
+- [x] The complete body, per-agent files, canonical decision, publication/evidence records, trading memory, and evaluation behavior remain substantively unchanged.
+- [x] Legacy, failure, REVIEW, and stale-summary paths are explicit and preserve the usable report.
+- [x] Desktop/mobile/print inspection, focused tests, default suite, lint, and diff inspection are recorded with their actual results.
+- [x] Live generation quality is either demonstrated under separate authorization or explicitly reported as unverified.
+- [x] An independent Claude build audit of the committed candidate is recorded. Every finding has an evidence-backed disposition, all confirmed material in-scope gaps are closed, and any material fixes have independent closure verification on the corrected revision.
+- [x] Implementation changes and acceptance evidence are committed; release actions remain separate.
 
 ## Open decisions and exclusions
 
