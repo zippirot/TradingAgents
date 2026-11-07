@@ -1507,3 +1507,13 @@ def corpus_hash(corpus: DisclosurePackage) -> str:
   ]
 }
 ```
+
+# Source-context follow-up findings review
+
+1. **Confirmed; nonmaterial; fix completed; agree.** The added shared-brief equality assertion had originally been checked against retained outputs separately, which was accurately disclosed. After this audit, the complete amended script was rerun successfully at unchanged application source, including the new assertion. Log /tmp/filing-facts-proof-final-audit.log and new sanitized runtime receipt identify that single fresh execution. This is verification only, not an application correction. It was not available in the frozen auditor packet and is builder-executed evidence.
+2. **Confirmed access limitation; nonmaterial; no_action; agree.** The valuation fixture was not in the audit packet. Builder inspected tests/test_valuation.py at the current unchanged commit: facts[2] is instant cash, facts[0].period_start is2025-01-01; the new security preserves cash's2026-06-30 period_end, unit/cik/as_of and gains that non-null start. It is genuinely a duration fact; _same's only changed comparison dimension is period_start. Probe returns incompatible_inputs/period mismatch. No runtime gap and no further audit needed for fixture-index cleanup; the explicit guard body was independently inspected.
+3. **Confirmed readability issue; nonmaterial; defer; agree.** Run-together historical prose and summary count inaccuracies do not change receipts. Raw audit reports remain immutable. Final authoritative acceptance uses spaced prose and actual finding-array counts: initial6Low, follow-up3Low. Broader historical formatting is deferred. No product or verification gate is altered.
+
+The independent follow-up explicitly inspected the attributed unchanged guards/producer context and supports local B acceptance. Application source remains3294b05a; latest tested tests9223b226. No open material B1–B3 finding remains. A closure plan is unnecessary because there is no confirmed material source gap. Original observations about supported quarterly layouts, source serialization and historical fixture context remain disclosed limitations.
+
+Executor telemetry: actual36turns/configured35limit, stop reviewer_completed. The budget remained $2.40030225 below the $10 hard cost limit. No override/limit increase occurred. Counting/termination semantics were not diagnosed or changed within B; preserve this discrepancy as a deferred runner issue rather than misreporting cap compliance. No independent runtime/remote CI or installation claim.

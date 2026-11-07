@@ -7,6 +7,8 @@ Independent audit: required
 
 Authorized start, 2026-11-07: user approved C integration/push and B start. Local staging, origin/staging and GitHub staging matched77ebc8ab before the approved fast-forward/push to exact C handoff bd27b742e6346ff7e6bd22f1823e263934f3e1aa. Refetched and verified all three atbd27b742; inspected seven C commits and confirmed D1/A predecessors. Production unchanged9ade69bf155d1b25699d3aecfff3c1b07752aff0. This branch codex/filing-facts and isolated worktree /Users/zipp/Documents/ChatGPT/Tauric/worktrees/filing-facts start at that verified C commit. Only B1–B3 are authorized here; no B integration/push, D start, release/install or cleanup.
 
+Local acceptance, 2026-11-07: application source `3294b05a` unchanged through audited candidate `910281a4`; final tested tests `9223b226` pass 3,239 tests and Ruff. Actual cached DOCN acquisition, saved-corpus replay, 12 role prompt factories, compiled before-analyst regression, log-state and report/evidence export are verified offline. Independent Claude audit and source-context closure completed without open material findings; evidence and limitations are in docs/reviews/2026-11-07-filing-facts-acceptance.md. This grants no B integration/push or D start authority. Requirements below are unchanged.
+
 External governing plan: /Users/zipp/Claude/2026-11-07-evidence-settlement-and-ops-gap-closure-plan.md. The following approved sections are frozen for B.
 
 ## Branch and Release Boundary

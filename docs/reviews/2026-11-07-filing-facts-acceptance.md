@@ -1,6 +1,6 @@
 # Build B: source-bound filing facts
 
-Current status, 2026-11-07: local B1–B3 implementation and offline proof complete; initial independent audit completed; focused independent source-context follow-up pending. This is local feature acceptance preparation, not integration/release acceptance. No B integration/push, D start, release, installation or cleanup is authorized.
+Current status, 2026-11-07: Build B complete locally. Independent audit and source-context closure completed; no open material findings. Final records follow audited candidate 910281a4; application source remains 3294b05a and final tested tests are 9223b226. This is local feature acceptance preparation, not integration/release acceptance. No B integration/push, D start, release, installation or cleanup is authorized.
 
 ## Authority and baseline
 
@@ -61,3 +61,19 @@ Test candidate9223b2260b5e581c818fe80664ecd947bfe6b8f4: full default pytest **32
 Current liquidity classification supports the explicit retained quarterly presentation only; other annual/layout variants remain unavailable. No broader coverage guarantee or valuation-cash change is introduced. Remote exact-B CI and installation remain unverified. No B integration/push or D start.
 
 Follow-up full-suite stdout SHA-256: `6d2ee1f96b5a9fea5244c73973d69f259dfa78588be6f8456edf62e646cb29ed`. Log `/tmp/filing-facts-pytest-audit-followup.log`.
+
+## Final local acceptance — authoritative status
+
+Build B is complete locally. The initial audit and focused source-context follow-up are completed, with no open Critical, High or Medium findings. The follow-up explicitly inspected the unchanged period guard, case-insensitive price pattern, actual table serialization, corpus identity/cutoff/hash checks, pre-analyst ordering, schema and canonical rendering. It confirms the two alleged guard gaps are disproved and that the source-context acceptance requirement is satisfied. Initial six Low entries and follow-up three Low entries are individually reviewed; none requires a product or financial-safety change.
+
+Audited source-context candidate: `910281a4f6875d63fadd2e427b5fa2264d0a6ba1`, range `57e954fe24eef0720d0ddb7829682a82fc7de536` to that commit. Initial range was exact C base `bd27b742e6346ff7e6bd22f1823e263934f3e1aa` to `57e954fe24eef0720d0ddb7829682a82fc7de536`. Application source remains exact `3294b05a93ad55773db778b2139411133bd3c0cd`; final tested test source `9223b2260b5e581c818fe80664ecd947bfe6b8f4` passed **3,239 tests**, 10 skips, 1 deselection, 100 subtests, full Ruff and diff checks. Subsequent changes contain evidence only.
+
+After the follow-up, the complete amended DOCN proof script was freshly executed, including its new shared-brief equality assertion. It passed all 12 actual role-prompt captures, note/lease/liquidity checks, saved-corpus replay, state logging and Markdown/HTML/evidence export. No network or paid product calls; private originals unchanged. Log `/tmp/filing-facts-proof-final-audit.log`; latest sanitized runtime receipt identifies this new disposable destination and stage `final-audit-replay`. Separately, a retained-output probe of fresh raw companyfacts plus the original saved validated corpus produces the same **844,741,000 USD** with identical input fact IDs; its distinct original disposable destination is identified. This later runtime evidence is builder executed and was not part of the frozen independent packet.
+
+Independent review cost: initial **$1.22289025**, follow-up **$2.40030225**, combined **$3.62319250**. Requested and served model: Claude Fable. Follow-up executor reports 36 actual turns against a configured 35-turn limit and returns `reviewer_completed`; no limit increase was requested. Preserve this counting/termination discrepancy as a deferred audit-runner telemetry issue; do not claim strict turn-cap compliance. Cost remained below its $10 hard cap. Both reports are static independent reviews, not independent test execution.
+
+Initial run manifest validated incomplete at 57e954fe; source-context manifest validated **verified/complete** while HEAD was 910281a4, before final records. External artifact directory `/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-07-filing-facts-context-closure`; validation receipt `/tmp/filing-facts-context-closure-validation.json`. No application/test changes after that candidate.
+
+Remaining limitations: supported filing layouts are intentionally bounded; other annual/table formats remain unavailable. Historical checkpoint continuation uses the original frozen fixture token and does not claim current B resumes predecessor prompts. Raw private inputs and model compliance were not independently reproduced; exact B remote CI, installation and Machine 1 acceptance remain unverified. No A3 budgets, valuation cash, live data or installed apps were changed. No B integration/push, D start, production advancement or cleanup has occurred. The next step is the user's separate approval for exact B staging integration/push and Build D start.
+
+Validated context manifest SHA-256: `5fafe8731ff0fef2a16aa94a02e7a08ba6a964ec120e894cc8cbfba0eec1e813`.

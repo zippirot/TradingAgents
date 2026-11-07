@@ -1,8 +1,8 @@
 {
-  "stage": "final",
+  "stage": "final-audit-replay",
   "source_state_sha256": "f1fe3b2a81131b1c6ded29e91e564494c1a646a1a0c104116b1cfac45b8a6809",
   "source_files_unchanged": 20,
-  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/filing-facts-proof-kf4herpi",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/filing-facts-proof-6n3802qn",
   "source_corpus_hash": "24d12b3401a6d7e3a88e9b1f9fb6ba09746fce498a81ce064dc5c827b541760e",
   "notes": 1,
   "note_locators": [
@@ -63,7 +63,7 @@
       "chars": 58227
     },
     "portfolio_manager": {
-      "sha256": "3885633928d9cae940d46eaee6c8a9382ab12428216aec0cfa40dcf000f73665",
+      "sha256": "13185436ba054fb0dc315b6fdab688af8a79151e6733721bc4d16cbac25d8c0c",
       "chars": 126024
     }
   },
@@ -86,7 +86,15 @@
     "Actual source acquisition, each role factory, evidence gate and report export execute.",
     "Factories invoked in application order; compiled graph scheduling is covered separately."
   ],
-  "companyfacts_sha256": "31811413bd5a0353e87640102a5796ab88deda276d982fd709b5839feb4a8b11",
   "application_source_commit": "3294b05a93ad55773db778b2139411133bd3c0cd",
-  "reopened_shared_brief_equal": true
+  "companyfacts_sha256": "31811413bd5a0353e87640102a5796ab88deda276d982fd709b5839feb4a8b11",
+  "reopened_shared_brief_equal": true,
+  "saved_corpus_liquidity_probe": {
+    "saved_corpus_liquidity_usd": "844741000",
+    "same_fact_ids": true,
+    "source_state_unchanged": true,
+    "network_calls": 0,
+    "application_source": "3294b05a93ad55773db778b2139411133bd3c0cd",
+    "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/filing-facts-proof-kf4herpi"
+  }
 }
