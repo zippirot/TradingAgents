@@ -273,6 +273,8 @@ def _summary_companion(saved_record, projection: dict) -> dict:
 
 
 def _summary_markdown(summary: dict) -> str:
+    if summary.get("_ground_truth_text"):
+        return summary["_ground_truth_text"]
     process = _plain_markdown(summary.get("process") or "")
     decision = _plain_markdown(" ".join(summary.get("sentences") or []))
     return f"## Executive summary\n\n{process}\n\n{decision}\n"
@@ -632,7 +634,9 @@ def _write_report_tree_locked(
             "This export is a current validated projection, not an immutable publication snapshot.")
     _write_json(save_path / "quality.json", original_quality if frozen else evidence_quality_snapshot(final_state))
     _write_json(save_path / "evidence.json", original_snapshot if frozen else evidence_snapshot(final_state))
-    if frozen:
+    if frozen or (final_state.get("publication_record") and (
+            (final_state.get("run_settings") or {}).get("ground_truth_audit") is True
+            or final_state.get("ground_truth_audit"))):
         _write_json(save_path / "diagnostics.json", original_diagnostics)
     display_settings = (final_state.get("run_settings") if isinstance(final_state.get("run_settings"), dict)
                         else settings)
@@ -647,6 +651,25 @@ def _write_report_tree_locked(
         parts = [(heading, folder, [(agent, filename, text.replace("evidence.json diagnostics", "diagnostics.json"))
                                    for agent, filename, text in written])
                  for heading, folder, written in parts]
+    from tradingagents.ground_truth_display import project_report
+
+    parts, summary, ground_truth_text, ground_truth_record = project_report(final_state, parts, summary)
+    if ground_truth_record is not None:
+        # The companion is content-addressed so a reused folder retains old links.
+        import hashlib
+
+        audit_name = "ground_truth_audit-" + hashlib.sha256(ground_truth_text.encode()).hexdigest()[:20] + ".md"
+        from tradingagents.ground_truth_display import audit_assessment
+
+        try:
+            _write_text(save_path / audit_name, ground_truth_text)
+        except OSError:
+            unavailable = {**ground_truth_record, "status": "unavailable",
+                           "reason": "The Ground Truth Audit detail could not be saved for this export."}
+            ground_truth_text = audit_assessment(unavailable, final_state)
+        else:
+            ground_truth_text = audit_assessment(ground_truth_record, final_state)
+            ground_truth_text += f"\n\n[Full Ground Truth Audit](./{audit_name})\n"
     anchors = historical_anchors(parts)
     sections = []
     for heading, folder, written in parts:
@@ -661,7 +684,7 @@ def _write_report_tree_locked(
         f"# Trading Analysis Report: {_plain_markdown(ticker)}\n\n"
         + (f"- Analysis date: {_plain_markdown(final_state['trade_date'])}\n\n"
            if final_state.get("trade_date") else "")
-        + _summary_markdown(summary) + "\n" + _contents_markdown(parts) + "\n"
+        + ground_truth_text + "\n" + _summary_markdown(summary) + "\n" + _contents_markdown(parts) + "\n"
         + _header(ticker, final_state, display_settings, metadata_only=True) + "\n\n".join(sections)
         + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n"
     )
@@ -691,7 +714,7 @@ def _write_report_tree_locked(
 
         page = _render_prepared_report(ticker, final_state, display_settings, parts, summary,
                                        diagnostics_sidecar=bool(frozen), assessment=assessment,
-                                       audit_path=audit_path)
+                                       audit_path=audit_path, ground_truth_text=ground_truth_text)
         _write_text(save_path / "complete_report.html", page)
     # A report is successful only when its final contents and linked companion
     # still match the bytes constructed from this prepared presentation.

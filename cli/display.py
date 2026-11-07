@@ -384,6 +384,27 @@ def display_complete_report(final_state):
     console.print()
     console.print(Rule("Complete Analysis Report", style="bold green"))
 
+    if (final_state.get("run_settings") or {}).get("ground_truth_audit") is True or final_state.get("ground_truth_audit"):
+        from tradingagents.ground_truth_display import project_report
+        from tradingagents.report_summary import resolve_summary
+        from tradingagents.reporting import (
+            _summary_markdown,
+            report_sections,
+            summary_input_for_report,
+        )
+
+        parts = report_sections(final_state)
+        summary = resolve_summary(summary_input_for_report(final_state, parts=parts),
+                                  final_state.get("executive_summary"))
+        parts, summary, audit_text, _record = project_report(final_state, parts, summary)
+        console.print(Markdown(audit_text))
+        console.print(Markdown(_summary_markdown(summary)))
+        for heading, _folder, written in parts:
+            console.print(Panel(heading, border_style="green"))
+            for title, _filename, text in written:
+                console.print(Panel(Markdown(text), title=title, border_style="blue", padding=(1, 2)))
+        return
+
     # I. Analyst Team Reports
     analysts = []
     if final_state.get("market_report"):

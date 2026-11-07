@@ -372,8 +372,13 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts=N
 
 def _render_prepared_report(ticker: str, final_state: dict, settings: dict | None, parts,
                             summary: dict, *, diagnostics_sidecar: bool = False,
-                            assessment: dict | None = None, audit_path: str | None = None) -> str:
+                            assessment: dict | None = None, audit_path: str | None = None,
+                            ground_truth_text: str | None = None) -> str:
     """Render one already prepared and resolved presentation."""
+    if ground_truth_text is None:
+        from tradingagents.ground_truth_display import project_report
+
+        parts, summary, ground_truth_text, _record = project_report(final_state, parts, summary)
     anchors = historical_anchors(parts)
     md = _markdown()
     rating = run_rating(final_state) if final_state.get("final_trade_decision") else ""
@@ -422,6 +427,10 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
         f'<p>{escape(" ".join(summary.get("sentences") or []))}</p></section>'
     )
 
+    if summary.get("_ground_truth_text"):
+        summary_html = '<section class="summary">' + md.render(summary["_ground_truth_text"]) + '</section>'
+    ground_truth_html = md.render(ground_truth_text or "")
+
     if assessment is None:
         from tradingagents.reporting import _unavailable_assessment
 
@@ -448,6 +457,7 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 <h1>{title}</h1>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 </header>
+{ground_truth_html}
 {summary_html}
 <nav class="contents" aria-label="Table of contents"><h2>Table of contents</h2><ul>{"".join(contents)}</ul></nav>
 <aside class="report-meta" aria-label="Report details">

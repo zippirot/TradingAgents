@@ -25,6 +25,10 @@ Build this as one per-run option, a final factual review, and its report output.
 | Codex credits | No credible range from the available measurements for this workload. |
 | Extra cost and time per report | No additional audit requests with No. With Yes, length, unique claims, gaps in retained sources and provider speed determine the increase. Measure actual calls, tokens when available, elapsed time, coverage and any known charges during the pilot. Use those measurements for a runtime estimate. |
 
+## Parallel development and integration
+
+Ground Truth Audit develops in its own worktree from verified staging Build A, `77ebc8abc30757f4bab0c106df9e3b56cd12aebf`, while Build C works on settlement and publication history. Local work can proceed independently. When separately authorized integration occurs, integrate one branch at a time. The branch integrated second verifies the combined publication and report behavior on the resulting staging revision. Later filing-fact and CLI/report changes also require this compatibility check. In particular, a Ground Truth finding must still identify the exact delivered claim after re-export. Current goal authority ends with local verified commits.
+
 ## Product decision for the build
 
 The user selected **one Portfolio Manager reassessment before publication**, followed by validation and re-audit, on November 7. Apply it when a verified factual correction undermines the recommendation. Preserve the original reasoning in the audit detail. The setup screen has one Yes/No question.

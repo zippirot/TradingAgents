@@ -1503,7 +1503,8 @@ def execute_cli(spec: CliSpec, work: Path, wire: OpenRouterWireGuard,
     DEFAULT_CONFIG = fresh_default_config()
     verify_cli_config(DEFAULT_CONFIG, spec)
     argv = ["cli.main", "--ticker", spec.ticker, "--date", spec.analysis_date,
-            "--analysts", "market,social,news,fundamentals", "--save", "--html", "--show", "--checkpoint"]
+            "--analysts", "market,social,news,fundamentals", "--save", "--html", "--show", "--checkpoint",
+            "--no-ground-truth-audit"]
     old_argv, old_cwd = sys.argv, Path.cwd()
     gate = NetworkGate() if source_replay is not None else None
     wire.network_gate = gate

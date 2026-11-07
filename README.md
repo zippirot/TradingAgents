@@ -220,6 +220,8 @@ At start-up the interactive CLI mentions a newer release and notices from Tauric
 
 A saved report starts with an executive summary and a visible table of contents, then presents the final portfolio decision before the analyst, research, trading, risk, and evidence sections. The same summary appears in `complete_report.md` and `complete_report.html`; `executive_summary.json` retains its editorial record when one exists. Older runs and runs without an available summary show an explicit offline fallback. The HTML copy is a self-contained page for reading in a browser, on a phone, or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
 
+At setup, **Ground Truth Audit?** defaults to **No** for every report. Selecting Yes (or passing `--ground-truth-audit`, or `config["ground_truth_audit"] = True` in Python) adds a factual review of the report and its final recommendation against dated evidence. The assessment shows coverage and unresolved claims, with source details in a linked companion. It adds time and model charges. A material source-backed correction can prompt one Portfolio Manager reassessment before publication. Partial or unavailable reviews are disclosed. `--no-ground-truth-audit` skips the extra review. Saved results are reused when the exact matching report is exported offline.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

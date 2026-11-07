@@ -56,6 +56,21 @@ def _recover_logged_summary(config, ticker, trade_date, record):
     return None
 
 
+def _recover_logged_ground_truth(config, ticker, trade_date, record):
+    """Recover only this exact publication's audit without running inference."""
+    try:
+        saved = json.loads(_state_log_path(config, ticker, _validate_trade_date(trade_date)).read_text())
+    except (OSError, ValueError, UnicodeError):
+        return {}
+    if not isinstance(saved, dict) or saved.get("run_id") != record["run_id"]:
+        return {}
+    if (saved.get("publication_record") or {}).get("record_sha256") != record["record_sha256"]:
+        return {}
+    return {key: saved[key] for key in ("ground_truth_audit", "ground_truth_prepublication",
+            "ground_truth_reassessment", "ground_truth_execution", "ground_truth_source_documents",
+            "ground_truth_source_acquisition") if key in saved}
+
+
 def record_attempt_event(config, attempt_id, ticker, trade_date, event, *, decision_id=None, error_type=None):
     """Append minimal execution coverage to the existing log; never provider errors."""
     row = {"schema_version": 1, "attempt_id": attempt_id, "event": event,
@@ -330,6 +345,8 @@ class TradingAgentsGraph:
         from tradingagents.agents.valuation_reference_flow import peer_selection_fingerprint
 
         settings = {k: v for k, v in self.config.items() if k not in _NOT_IN_SIGNATURE}
+        if settings.get("ground_truth_audit") is not True:
+            settings.pop("ground_truth_audit", None)
         digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode()).hexdigest()[:12]
         return "|".join([
             "analysts=" + ",".join(self.selected_analysts),
@@ -489,6 +506,7 @@ class TradingAgentsGraph:
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
             "output_language": cfg.get("output_language"),
+            "ground_truth_audit": cfg.get("ground_truth_audit") is True,
             "data_vendors": dict(cfg.get("data_vendors") or {}),
             "tool_vendors": dict(cfg.get("tool_vendors") or {}),
         }
@@ -653,6 +671,24 @@ class TradingAgentsGraph:
             final_state.setdefault("run_settings", self.run_settings())
             if "publication_versions" not in final_state:
                 final_state["publication_versions"] = publication.runtime_versions()
+            if self.config.get("ground_truth_audit") is True:
+                from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+                from tradingagents.ground_truth_flow import audit_before_publication
+
+                def reassess(candidate, corrections, model):
+                    # Source-backed material corrections request an independent PM assessment.
+                    candidate["investment_plan"] = str(candidate.get("investment_plan") or "") + (
+                        "\nGround Truth Audit source-backed proposed corrections. Independently reconsider the recommendation "
+                        "using these corrections and the original dated evidence:\n"
+                        + json.dumps(corrections, ensure_ascii=False)
+                    )
+                    return create_portfolio_manager(model)(candidate)
+
+                audit_before_publication(
+                    final_state, getattr(self, "deep_thinking_llm", None), self.config,
+                    reassess=reassess,
+                    validate=lambda candidate: enforce_publication(candidate, publication_config=self.config),
+                )
             record = publication.publish(self.config, final_state, company_name, trade_date)
         final_state["publication_record"] = {
             key: record[key] for key in ("decision_id", "published_at", "record_sha256")
@@ -685,6 +721,13 @@ class TradingAgentsGraph:
             recovered = _recover_logged_summary(self.config, company_name, trade_date, record)
             if recovered is not None:
                 final_state["executive_summary"] = recovered
+        if frozen is None and self.config.get("ground_truth_audit") is True:
+            from tradingagents.ground_truth_flow import audit_after_summary
+            audit_after_summary(final_state, getattr(self, "deep_thinking_llm", None), self.config)
+        elif frozen is not None:
+            recovered = _recover_logged_ground_truth(self.config, company_name, trade_date, record)
+            for field, value in recovered.items():
+                final_state.setdefault(field, value)
         self._log_state(trade_date, final_state)
         if is_review(run_rating(final_state)):
             logger.info("Research REVIEW for %s on %s saved without trading-memory insertion", company_name, trade_date)
@@ -815,7 +858,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("ground_truth_source_documents", "ground_truth_source_acquisition", "ground_truth_audit", "ground_truth_prepublication", "ground_truth_reassessment", "ground_truth_execution", "operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 
