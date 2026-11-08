@@ -436,7 +436,8 @@ def _settle_legacy_pending(
                 result.failed.append((ticker, entry["date"], f"reflection failed: {exc}"))
                 continue
             if memory_log.update_with_outcome(
-                ticker, entry["date"], raw, alpha, days, reflection, resolution_date=resolution_date
+                ticker, entry["date"], raw, alpha, days, reflection,
+                resolution_date=resolution_date, expected_entry=entry,
             ):
                 result.settled.append((ticker, entry["date"]))
     return result

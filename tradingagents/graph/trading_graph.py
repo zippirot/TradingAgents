@@ -740,25 +740,30 @@ class TradingAgentsGraph:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
                            company_name, trade_date)
             return
-        # Publication order, not projection scheduling, chooses the daily
-        # observation. A later revision may repair a missing primary projection.
-        primary = next((r for r in publication.list_records(self.config, company_name)
-                        if r["requested_as_of"] == str(trade_date) and r["eligibility"]["primary"]), None)
-        if primary is not None:
-            memory_decision = decision if primary["decision_id"] == record["decision_id"] else primary["canonical_decision"]
-            if primary["decision_truncated"] and primary["decision_id"] != record["decision_id"]:
-                memory_decision += "\n[Bounded publication excerpt; full decision hash retained in publication.]"
-            self.memory_log.store_decision(
-                ticker=company_name, trade_date=trade_date, final_trade_decision=memory_decision,
-                rating=primary["canonical_rating"], decision_id=primary["decision_id"],
-            )
-        elif not final_state.get("evidence_quality"):
-            # Existing unvalidated programmatic callers retain legacy behavior;
-            # do not link their memory to an ineligible measurement record.
-            self.memory_log.store_decision(
-                ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
-                rating=run_rating(final_state),
-            )
+        # Keep selection and projection ordered with publication writes. An old
+        # delayed projection must not replace a newer pending decision. Daily
+        # evaluation eligibility remains immutable and independent of this view.
+        from tradingagents.dataflows.files import locked
+
+        with locked(publication.record_root(self.config) / 'publication'):
+            latest = max((r for r in publication.list_records(self.config, company_name)
+                          if r['requested_as_of'] == str(trade_date)
+                          and r['eligibility']['directional'] and r['published_at']),
+                         key=lambda r: r['sequence'], default=None)
+            if latest is not None:
+                memory_decision = decision if latest['decision_id'] == record['decision_id'] else latest['canonical_decision']
+                if latest['decision_truncated'] and latest['decision_id'] != record['decision_id']:
+                    memory_decision += "\n[Bounded publication excerpt; full decision hash retained in publication.]"
+                self.memory_log.store_decision(
+                    ticker=company_name, trade_date=trade_date, final_trade_decision=memory_decision,
+                    rating=latest['canonical_rating'], decision_id=latest['decision_id'],
+                )
+            elif not final_state.get('evidence_quality'):
+                # Existing unvalidated programmatic callers retain legacy behavior.
+                self.memory_log.store_decision(
+                    ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+                    rating=run_rating(final_state),
+                )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):

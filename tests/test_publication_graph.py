@@ -72,7 +72,7 @@ def test_memory_keeps_exact_publication_link_after_outcome(tmp_path):
     assert memory.load_entries()[0]['decision_id'] == identity
 
 
-def test_later_revision_cannot_win_memory_while_primary_projection_is_delayed(tmp_path):
+def test_pending_memory_follows_latest_publication_when_first_projection_is_delayed(tmp_path):
     from tradingagents.memory.log import TradingMemoryLog
     app, _ = graph_and_state(tmp_path)
     app.memory_log = TradingMemoryLog({'memory_log_path': str(tmp_path / 'memory.md')})
@@ -90,9 +90,13 @@ def test_later_revision_cannot_win_memory_while_primary_projection_is_delayed(tm
     app.record_decision('DOCN', '2026-11-04', first)
     records = list_records(app.config)
     primary = next(r for r in records if r['eligibility']['primary'])
+    latest = max(records, key=lambda r: r['sequence'])
     entry = app.memory_log.load_entries()[0]
-    assert entry['decision_id'] == primary['decision_id']
-    assert entry['rating'] == 'Underweight'
+    assert primary['canonical_rating'] == 'Underweight'
+    assert latest['eligibility']['primary'] is False
+    assert entry['decision_id'] == latest['decision_id']
+    assert entry['rating'] == 'Hold'
+    assert len(app.memory_log.load_entries()) == 1
 
 
 def test_review_summary_survives_log_and_publication_replay(tmp_path):

@@ -1,4 +1,4 @@
-"""The memory log: an append-only markdown record of each decision and, once settled, its outcome."""
+"""Decision memory: replace pending reruns, retain settled decisions and lessons."""
 
 import contextlib
 import re
@@ -18,7 +18,7 @@ def is_trading_entry(entry: dict) -> bool:
 
 
 class TradingMemoryLog:
-    """Append-only markdown log of trading decisions and reflections."""
+    """Markdown log with replaceable pending decisions and durable settled lessons."""
 
     # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
@@ -46,10 +46,11 @@ class TradingMemoryLog:
         rating: str | None = None,
         decision_id: str | None = None,
     ) -> None:
-        """Atomically add a pending entry at end of propagate(). No LLM call.
+        """Atomically add or replace a pending daily entry. No LLM call.
 
         ``rating`` is the decision's own rating when the caller has it; without
         one it is read from the decision text.
+        Settled entries and retries of the same publication remain unchanged.
         """
         if decision_id is not None:
             decision_id = str(UUID(decision_id))
@@ -66,20 +67,29 @@ class TradingMemoryLog:
                 before, separator, tail = raw.rpartition(self._SEPARATOR)
                 if tail.strip():
                     complete, partial = before + separator, tail
-            # Idempotency guard: fast raw-text scan instead of full parse. Any entry
-            # for this ticker and date blocks another, pending or settled: a re-run
-            # after the outcome landed would otherwise count the same decision twice
-            # in past context and in every aggregate over the log.
-            for line in complete.splitlines():
-                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
-                    fields = [field.strip() for field in line[1:-1].split("|")]
-                    if len(fields) >= 4 and is_trading_entry({"rating": fields[2]}):
+            blocks = complete.split(self._SEPARATOR)
+            matching = []
+            for index, block in enumerate(blocks):
+                parsed = self._parse_entry(block.strip())
+                if (parsed and parsed['ticker'] == ticker and parsed['date'] == trade_date
+                        and is_trading_entry(parsed)):
+                    # Settlement wins permanently. A retry of the same immutable
+                    # publication also leaves the original bytes untouched.
+                    if not parsed['pending'] or (decision_id and parsed.get('decision_id') == decision_id):
                         return
+                    matching.append(index)
             # Historical REVIEW entries remain readable but never block a
             # corrected decision for the same ticker/date.
             tag = f"[{trade_date} | {ticker} | {rating} | pending]"
             link = f"<!-- PUBLICATION_ID: {decision_id} -->\n\n" if decision_id else ""
             entry = f"{tag}\n\n{link}DECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            if matching:
+                # Replace under the same file lock as settlement, preserving the
+                # position and every unrelated entry. Collapse old pending duplicates.
+                blocks[matching[0]] = entry.removesuffix(self._SEPARATOR)
+                complete = self._SEPARATOR.join(
+                    block for index, block in enumerate(blocks) if index not in matching[1:])
+                entry = ''
             if partial:
                 stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
                 quarantine = self._log_path.with_name(f"{self._log_path.name}.partial-{stamp}.md")
@@ -211,11 +221,14 @@ class TradingMemoryLog:
         holding_days: int,
         reflection: str,
         resolution_date: str | None = None,
+        *, expected_entry: dict | None = None,
     ) -> bool:
         """Replace pending tag and append REFLECTION section using atomic write.
 
         Returns whether an entry was updated: False when the decision was no
-        longer pending (another pass settled it first).
+        longer pending, or ``expected_entry`` was replaced while its reflection
+        was being prepared. Settlement callers supply their captured entry so
+        a result cannot attach to a different rerun's decision.
 
         Finds the first pending entry matching (trade_date, ticker), updates
         its tag with return figures (and the ``resolution_date`` the outcome
@@ -253,6 +266,12 @@ class TradingMemoryLog:
                     if not is_trading_entry({"rating": rating}):
                         new_blocks.append(block)
                         continue
+                    if expected_entry is not None:
+                        current = self._parse_entry(stripped)
+                        if any(current.get(key) != expected_entry.get(key)
+                               for key in ('decision_id', 'rating', 'decision')):
+                            new_blocks.append(block)
+                            continue
                     new_tag = self._resolved_tag(
                         trade_date,
                         ticker,
