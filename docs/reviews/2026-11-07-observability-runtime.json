@@ -346,5 +346,63 @@
     "Market analyst path only; not a full four-analyst filing-acquisition run.",
     "Split actions explicitly simulated zero; not proof of historical absence.",
     "Focused actual ToolNode tests separately exercise tool failure and Command journal/current-call-ID behavior."
-  ]
+  ],
+  "post_freeze_publication_inspection": {
+    "runtime_source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
+    "procedure": "Existing strict list_records/load_evidence plus parsed TradingMemoryLog links; no native rerun or source mutation.",
+    "stores": [
+      {
+        "store": "original",
+        "verified_publications": [
+          {
+            "decision_id": "3dceea0d-00f9-49dd-898c-f375d72a5991",
+            "record_sha256": "9ed6fe93eff68c5e6b6f9a328f51efc7405849dbaaf35cabad2991db449e126c",
+            "evidence_snapshot_sha256": "37002d51b0aa36baa8fc91b1b62f0d53dc3d8731a88b8eeea480a5159050353f"
+          },
+          {
+            "decision_id": "47d9c3e1-d4c7-43e8-8dc8-8a026a792856",
+            "record_sha256": "fbba4b24ccb0c56213c1d744a8389bb3363749efb100c4c9fac47dc2346ab84e",
+            "evidence_snapshot_sha256": "60d072e7338bb25c3ada68318b5668dbc6659586558d844619b74d5057c16b60"
+          },
+          {
+            "decision_id": "da91bf89-d269-4711-b1f4-d4569a68ec7e",
+            "record_sha256": "62c95a4e7b63291a436fb65adddd433735be25faf3904a068f533b69924e65b5",
+            "evidence_snapshot_sha256": "8d3374b96dc42d6975a21de8801ba56c6dacb18182c9843fc9e85243482ac27c"
+          }
+        ],
+        "memory_links": [
+          "3dceea0d-00f9-49dd-898c-f375d72a5991"
+        ],
+        "memory_sha256": "64be7cafddd716e6c2f858bf0f74e5c665f696dc8a31b17afcdbe242d963b126"
+      },
+      {
+        "store": "baseline",
+        "verified_publications": [
+          {
+            "decision_id": "8f4f177d-abf6-4e8a-8efa-cefe09d45e93",
+            "record_sha256": "203bc5dac482f5b85c7b58039ab7f3f7b2a269902a01dcd9e748c9bb4ca1c45f",
+            "evidence_snapshot_sha256": "79e48cfb3be1c2abceb5edc8e70678ceb63b277db7c29eeb8e50c843a89468fe"
+          }
+        ],
+        "memory_links": [
+          "8f4f177d-abf6-4e8a-8efa-cefe09d45e93"
+        ],
+        "memory_sha256": "2f04df4d731a697558995015c17e5bdc8ad0f3d0c4ec073458a37dac5ad31fa7"
+      },
+      {
+        "store": "candidate",
+        "verified_publications": [
+          {
+            "decision_id": "24085894-a454-4d37-9384-29b2f619e54f",
+            "record_sha256": "93a6d3a3a4d4e809b5d5af73b8eb7c842f96c9daf1277b68dbf005f05126b67d",
+            "evidence_snapshot_sha256": "d7ae9c1fc22c4b5a7a9a5a76458263ec24d5060fb6b01db0b66fde65b396e8bc"
+          }
+        ],
+        "memory_links": [
+          "24085894-a454-4d37-9384-29b2f619e54f"
+        ],
+        "memory_sha256": "82779bb08a59ce6706f730d67ef93f2c7b6e0812b60b449ad073efc4b0362f67"
+      }
+    ]
+  }
 }

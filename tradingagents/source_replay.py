@@ -33,6 +33,11 @@ def _pack(value):
 
     if isinstance(value, np.generic) and value.dtype.kind in "iufb" and value.dtype.itemsize <= 8:
         return {"__tradingagents_replay_numpy__": {"dtype": value.dtype.name, "value": _pack(value.item())}}
+    if isinstance(value, bytes):
+        try:
+            return {"__tradingagents_replay_utf8__": value.decode("utf-8")}
+        except UnicodeError:
+            return value  # unsupported encoding remains explicitly unreplayable
     if isinstance(value, datetime):
         try:
             datetime.fromisoformat(value.isoformat())
@@ -52,6 +57,8 @@ def _pack(value):
 
 def _unpack(value):
     if isinstance(value, dict):
+        if set(value) == {"__tradingagents_replay_utf8__"}:
+            return value["__tradingagents_replay_utf8__"].encode("utf-8")
         if set(value) == {"__tradingagents_replay_numpy__"}:
             import numpy as np
 
@@ -116,6 +123,7 @@ class ReplaySession:
         self.occurrences = Counter()
         self.misses = []
         self.checkpoint_resumed = False
+        self.unfinished_sources = False
         self.lock = Lock()
         self.observed_at = datetime.now(UTC)
         self.local_date = date.today()
@@ -165,7 +173,8 @@ class ReplaySession:
 
     def finish(self, success):
         self.recorder.emit("Source Inputs", {}, "source_session_end",
-                           incomplete=not success or self.recorder.failed or self.checkpoint_resumed,
+                           incomplete=not success or self.recorder.failed or self.checkpoint_resumed or self.unfinished_sources,
+                           unfinished_sources=self.unfinished_sources,
                            checkpoint_resumed=self.checkpoint_resumed, status=self.status,
                            replay_misses=len(self.misses))
 

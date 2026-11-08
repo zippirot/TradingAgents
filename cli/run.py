@@ -103,8 +103,10 @@ def _prepare_attempt_comparison(config, results_dir, selections, recorder):
              "asset_type": selections["asset_type"], "analysis_clock": clock,
              "starting_snapshot_sha256": digest,
              "settings": {key: config.get(key) for key in (
-                 "quick_think_llm", "deep_think_llm", "llm_provider", "deep_think_provider",
-                 "max_debate_rounds", "max_risk_discuss_rounds", "output_language")}}
+                 "quick_think_llm", "deep_think_llm", "llm_provider", "quick_think_provider",
+                 "deep_think_provider", "openai_reasoning_effort", "anthropic_effort",
+                 "google_thinking_level", "temperature", "max_tokens", "llm_max_retries",
+                 "max_tool_rounds", "max_debate_rounds", "max_risk_discuss_rounds", "output_language")}}
     set_session(ReplaySession(recorder, scope, baseline=Path(baseline).expanduser().resolve() if baseline else None))
     return config
 
@@ -424,6 +426,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             if session:
                 final_state["replay_context"] = {"status": session.status, "scope": session.scope,
                                                   "checkpoint_resumed": session.checkpoint_resumed,
+                                                  "unfinished_sources": session.unfinished_sources,
                                                   "misses": list(session.misses)}
                 if session.misses:
                     from tradingagents.operational_audit import merge_observations, observation

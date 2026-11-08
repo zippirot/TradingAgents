@@ -32,6 +32,7 @@ from urllib.request import Request, urlopen
 from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.symbols import crypto_base
 from tradingagents.operational_capture import record_operation
+from tradingagents.source_replay import current_session, external_input, source_now
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,8 @@ def _coverage_dates(posts) -> list:
     themselves do."""
     dates = [_posted_at(p) for p in posts]
     if len(posts) < _FEED_PAGE:
-        dates.append(datetime.now(UTC) - _SEARCH_LOOKBACK)
+        now = source_now(UTC) if current_session() else datetime.now(UTC)
+        dates.append(now - _SEARCH_LOOKBACK)
     return dates
 
 
@@ -203,9 +205,15 @@ def _fetch_subreddit_rss(
     """
     url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
     req = Request(url, headers={"User-Agent": _UA})
-    try:
+    def acquire():
         with urlopen(req, timeout=timeout) as resp:
-            root = ET.fromstring(_read_capped(resp))
+            return _read_capped(resp)
+
+    try:
+        raw = external_input("reddit_feed", {"url": url}, acquire)
+        if len(raw) > _MAX_FEED_BYTES:
+            raise http.client.HTTPException("Recorded Reddit feed exceeded size limit")
+        root = ET.fromstring(raw)
     except HTTPError as exc:
         if exc.code == 429 and _retry:
             # Honour a server-supplied Retry-After exactly (including 0); jitter

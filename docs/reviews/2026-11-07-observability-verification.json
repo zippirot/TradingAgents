@@ -31,5 +31,183 @@
   },
   "native_runtime": "docs/reviews/2026-11-07-observability-runtime.json",
   "remote_ci": "Not run: local unpushed feature branch; no push/integration authority.",
-  "native_runtime_source_fingerprint": "sha256:fc96b763b9c790d82e68c39ec429950448cdfe0be2c02d3848ee5fe1d22714b1"
+  "native_runtime_source_fingerprint": "sha256:fc96b763b9c790d82e68c39ec429950448cdfe0be2c02d3848ee5fe1d22714b1",
+  "first_claude_audit": {
+    "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r5-fable",
+    "run_id": "44749b33-1993-4752-a541-d378ef00cbfe",
+    "result": {
+      "base_commit": "8920ffac07d1063001291799e99963403955582a",
+      "head_commit": "cc010ccdda675e8db7377f8102a18ffb7110fa88",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "status": "completed",
+      "actual_turns": 70,
+      "reviewed_files": [
+        "cli/run.py",
+        "cli/run_logging.py",
+        "cli/stats_handler.py",
+        "docs/reviews/2026-11-07-observability-early-runtime.json",
+        "docs/reviews/2026-11-07-observability-runtime.json",
+        "docs/reviews/2026-11-07-observability-verification.json",
+        "docs/reviews/2026-11-07-observability.md",
+        "docs/reviews/operations-cli-proof.py",
+        "docs/superpowers/audits/2026-11-07-node-workflow-audit/README.md",
+        "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-A-sources-analysts-evidence.md",
+        "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-B-debate-manager-trader.md",
+        "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-C-risk-audit-pm-handoff.md",
+        "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "tests/test_attempt_trace.py",
+        "tests/test_comparison_snapshot.py",
+        "tests/test_document_state_log_replay.py",
+        "tests/test_run_logging.py",
+        "tests/test_source_replay.py",
+        "tests/test_stream_publication.py",
+        "tests/test_token_usage_metrics.py",
+        "tradingagents/agents/context.py",
+        "tradingagents/agents/state.py",
+        "tradingagents/agents/structured.py",
+        "tradingagents/attempt_trace.py",
+        "tradingagents/comparison_snapshot.py",
+        "tradingagents/dataflows/date_window.py",
+        "tradingagents/dataflows/router.py",
+        "tradingagents/dataflows/vendors/alpha_vantage/transcript.py",
+        "tradingagents/dataflows/vendors/sec_documents.py",
+        "tradingagents/dataflows/vendors/sec_edgar.py",
+        "tradingagents/dataflows/vendors/yahoo/common.py",
+        "tradingagents/dataflows/vendors/yahoo/expectations.py",
+        "tradingagents/dataflows/vendors/yahoo/fundamentals.py",
+        "tradingagents/dataflows/vendors/yahoo/market.py",
+        "tradingagents/dataflows/vendors/yahoo/ohlcv.py",
+        "tradingagents/dataflows/vendors/yahoo/price_observation.py",
+        "tradingagents/graph/trading_graph.py",
+        "tradingagents/memory/publication_outcomes.py",
+        "tradingagents/memory/settlement.py",
+        "tradingagents/operational_audit.py",
+        "tradingagents/operational_capture.py",
+        "tradingagents/source_replay.py"
+      ],
+      "summary": "Independent frozen-manifest audit of Build R5 (observability and controlled comparisons) over 8920ffac\u2192cc010ccd. The implementation matches the approved R5 requirements: R5.1 $writes unwrapping with a non-mutation regression against the real LangGraph producer; R5.2 allowlisted agent/exception-class diagnostics with secrets still redacted; R5.3 unconditional per-node transcript pointers plus persisted past_context/memory_note; R5.4 failed-attempt usage receipts with run-ID dedup and an explicit graph_only metrics boundary (the plan's permitted labeling alternative); R5.5 default-off private 0600 stage traces with ordered sequences, incomplete marking, env-secret redaction, and bounded requested/actual model provenance available without full tracing; R5.6 hash-verified source replay bound to ticker/clock/settings/stage/arguments/occurrence, typed-failure replay without raw diagnostics, re-executed search Command updates with current call IDs, explicit replay_miss/mixed-input taxonomy, tamper/symlink/overlap-rejecting pre-baseline snapshots with isolated writable clones, replay-disabled checkpointing, and rejection of resumed traces as baselines. All plan-named tests for R5.1\u2013R5.6 are present; the native CLI pair proof shows one replay hit, zero misses, 12/12 model callbacks, equal starting snapshots, and unchanged baseline stores. Verdicts: merge integrity consistent; local R5 feature acceptance supported with disclosed fixture-only provider evidence; full-suite health green only per the builder receipt at 5b01bc1f; remote CI unverified (local unpushed branch, correctly not claimed). No critical or high finding. Six non-blocking findings: the four-role agent allowlist leaves other structured agents' fallback logs stage-anonymous; baseline live-store isolation is procedural (disclosed, needs a user decision); nonfinite floats in traced events poison a baseline; non-typed provider failures always force mixed-input; Timestamp type identity is not exactly preserved; and the suite receipt is one docs-only commit behind HEAD with tree equality builder-asserted.",
+      "limitations": [
+        "Frozen-evidence-only audit: no test execution, runtime verification, network, or repository access beyond the supplied request.json; all pytest/Ruff/native-drill results are builder-supplied receipts, not independently rerun.",
+        "Production structured-output callers (tradingagents/agents/audit_pass.py, research_manager.py, trader.py, analyst agents) were not in the packet; the reachable set of agent names outside the run-logging allowlist is unverified, so finding 1 is partially confirmed.",
+        "The concatenated requirements context has no filename headers; file boundaries were inferred from content, and some unchanged neighboring source (e.g., cli/selections.py, graph/checkpointer.py, reporting.render_token_usage body) was absent or only partially inspectable.",
+        "Live-provider behavior is unproven by design at this stage: model callbacks, usage receipts on error, and Yahoo metadata shapes were exercised with fixtures (FakeListChatModel, OfflineModel, synthetic sources); on_llm_error delivering a response kwarg from real providers is unverified.",
+        "Remote CI, staging integration, Phase 1 live-provider baselines, and Na/Nb comparison runs are unperformed approved later stages and were not evaluated.",
+        "Full-suite receipt excludes 10 skipped tests (optional Bedrock SDK, private DOCN corpus/valuation/transcript fixtures) and 1 deselected integration marker, as disclosed.",
+        "Scratch-file extraction of the diff/requirements was blocked by the sandbox; analysis proceeded via windowed jq reads of the frozen JSON, which is slower but complete for the 4,483-line diff and the plan/report/test sections inspected."
+      ],
+      "findings": [
+        {
+          "severity": "medium",
+          "title": "Run-log agent allowlist names only four roles; other structured agents' fallback warnings omit the stage (SE4 partial)",
+          "path": "cli/run_logging.py"
+        },
+        {
+          "severity": "medium",
+          "title": "Baseline-run store isolation is procedural: trace-on recording against live stores still writes to them; only the candidate clone is automated (disclosed design decision \u2014 requires user decision)",
+          "path": "cli/run.py"
+        },
+        {
+          "severity": "low",
+          "title": "Trace writer uses allow_nan=False without the source codec for tool/model events; one nonfinite float marks the entire attempt incomplete and unusable as a comparison baseline",
+          "path": "tradingagents/attempt_trace.py"
+        },
+        {
+          "severity": "low",
+          "title": "Provider exceptions outside the three typed vendor errors are permanently unreplayable; recurring no-data errors (e.g., YFPricesMissingError on settlement zero-coverage) force mixed-input comparisons for affected runs",
+          "path": "tradingagents/source_replay.py"
+        },
+        {
+          "severity": "low",
+          "title": "pandas.Timestamp payload values round-trip as stdlib datetime; value-equal but exact type identity not preserved as the producer-type commit implies",
+          "path": "tradingagents/source_replay.py"
+        },
+        {
+          "severity": "low",
+          "title": "Full-suite and native-drill receipts bind to candidate 5b01bc1f, one commit behind audited HEAD cc010ccd; code-tree equality is builder-asserted and not verifiable from the frozen packet",
+          "path": "docs/reviews/2026-11-07-observability-verification.json"
+        }
+      ],
+      "classification": {
+        "declared_build_size": "large",
+        "effective_build_size": "extra large",
+        "escalation_reasons": [
+          "Frozen scope changes more than 10 files or more than 500 lines.",
+          "Frozen scope changes more than 30 files or more than 2,000 lines."
+        ]
+      },
+      "progress": {
+        "observed_events": 12325,
+        "last_activity_at": "2026-11-08T02:24:37.551Z",
+        "last_activity_kind": "stdout"
+      },
+      "ledger": {
+        "soft_budget_usd": 50,
+        "hard_budget_usd": 80,
+        "soft_turn_limit": 100,
+        "turn_limit": 160,
+        "wall_clock_limit_minutes": 360,
+        "actual_cost_usd": 9.12497325,
+        "actual_elapsed_ms": 3872355,
+        "soft_limit_reached": false
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "verified_dispositions": [
+      {
+        "id": "F1",
+        "classification": "incorrect",
+        "material": false,
+        "action": "no_action",
+        "agrees_with_audit": false
+      },
+      {
+        "id": "F2",
+        "classification": "incorrect",
+        "material": false,
+        "action": "no_action",
+        "agrees_with_audit": false
+      },
+      {
+        "id": "F3",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "F4",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "F5",
+        "classification": "partially_confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "F6",
+        "classification": "confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true
+      }
+    ],
+    "artifact_hashes": {
+      "audit-result.json": "f4d0aea696a5f89d0781a2ebba92b59bd32e063373dbd9519cd64da61798a315",
+      "manifest.json": "59417abd4c8b2e5c0eab081c33baa4870d5856e992fa61f8c39bbb6b402e8326",
+      "handoff.md": "b9c544f377a0a2735e631001fc7dd6ade506ec915b6692e6f34d5ceb4b32b5c4",
+      "audit.md": "235ded754826be4b58778826f00d0e12eeba3e3e2070ed58ea6fb7cc1061dde1",
+      "findings-review.md": "dfde1c790b4ffba5dbfeab056a872be1e6e08288c622a7aed072b7d0359d0463",
+      "builder-closure-plan.md": "da227a39c97d4fbe455e65fefd9f611a53795d681ede2e0363f37bd9450e06f7"
+    },
+    "validation_sha256": "4825d4df731eb8c216747049ac8c467d367d03138db8c7afc651dee8fdc2d456",
+    "validation_at_head": "cc010ccdda675e8db7377f8102a18ffb7110fa88",
+    "current_feature_acceptance": "incomplete: material working-copy corrections need committed-candidate closure",
+    "manifest_serialization": "One inventory filename is percent-encoded only in the external manifest to avoid its credential-pattern false-positive. The raw result recorded here and in audit-result.json is unmodified."
+  }
 }

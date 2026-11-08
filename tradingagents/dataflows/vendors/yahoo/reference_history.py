@@ -18,11 +18,12 @@ from zoneinfo import ZoneInfo
 import yfinance as yf
 
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import recorded_history, yf_retry
 from tradingagents.dataflows.vendors.yahoo.price_observation import (
     _timestamp,
     session_is_complete,
 )
+from tradingagents.source_replay import external_input
 
 MAX_QUARTERS = 24
 MAX_BARS = 2000
@@ -182,24 +183,24 @@ def get_reference_history(ticker, as_of, quarter_ends, *, observation_cutoff=Non
         canonical = normalize_symbol(ticker)
         analysis = date.fromisoformat(str(as_of))
         quarters = _quarters(quarter_ends, analysis)
-        retrieved = _now()
+        start = min(quarters) - timedelta(days=7)
+        retrieved = external_input("yahoo_reference_clock",
+                                   {"ticker": canonical, "start": str(start)}, _now)
         if retrieved.utcoffset() != timedelta(0):
             raise ValueError("Acquisition clock must be UTC")
         cutoff = _timestamp(observation_cutoff) if observation_cutoff else None
         if cutoff and cutoff > retrieved:
             raise ValueError("Observation cutoff exceeds acquisition time")
-        start = min(quarters) - timedelta(days=7)
         end = retrieved.date() + timedelta(days=1)
         if (end - start).days > MAX_HISTORY_DAYS + 370:
             raise ValueError("Historical source request exceeds bounded window")
 
         def fetch():
-            source = yf.Ticker(canonical)
-            history = source.history(
+            return recorded_history(
+                canonical, source_factory=yf.Ticker,
                 start=str(start), end=str(end), interval="1d",
                 auto_adjust=False, actions=True,
             )
-            return history, source.get_history_metadata()
 
         response = yf_retry(fetch)
         if response is None:

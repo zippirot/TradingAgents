@@ -1,5 +1,7 @@
 # R5 observability acceptance record
 
+**Current status (2026-11-07, Machine 2): R5 incomplete.** The first independent audit completed on frozen cc010ccd; verified findings dispositions and corrected-source closure are recorded below. The latest uncommitted closure candidate is identified in the final section below; prior commit/tree receipts are historical. No staging integration, push, later build, live-provider acceptance or release is claimed.
+
 ## Authority and baseline
 
 Governing requirements: `docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md`, Build R5. Machine 2 worktree `/Users/zipp/.codex/worktrees/workflow-gap-r5/TradingAgents`, branch `codex/workflow-gap-r5`; exact fetched local/GitHub staging predecessor `8920ffac07d1063001291799e99963403955582a`. Preparation-only requirements commit `4a4c723f895501df232ad1a00c5dc1ffdfa37475`. No merge/push, installation, live-data mutation or paid product calls are authorized for this local code-build proof.
@@ -72,3 +74,75 @@ The repeated actual CLI drill passed on that committed candidate. Its fresh repl
 Final independent review is **pending**. The explicit user-selected override is Claude Fable `~anthropic/claude-fable-latest`, through the existing frozen-manifest executor. R5 only is submitted for local feature acceptance; the full seven-build plan and Amendment 1 are supplied to establish boundaries, not as completed work. Staging integration/push, the remote CI matrix, Phase 1 live-provider baselines, Na/Nb comparisons and exact-production installed acceptance are unperformed approved later stages. No merge, push, PR, live-data write, installation or worktree removal occurred.
 
 Audit context is the exact frozen diff plus explicitly supplied HEAD contents: the approved plan; all three audit templates and skill; CI and pyproject; this report, native fixture and JSON receipts; complete changed production modules and relevant unchanged graph setup/tools, vendor errors/configuration/snapshot, document access/evidence validation, publication and outcome consumers; and source replay/trace/snapshot/stream/log/metrics/search/settlement/cutoff regressions. No raw private DOCN corpus or external temporary logs are sent. The runner permits frozen JSON inspection only, not independent runtime execution or network CI access. Its concatenated context does not add filename headers; the external manifest records exact path order and hashes. Missing or unreadable context must narrow the verdict. Existing source safeguards are context, not added implementation scope. The source graph index had zero files, so dependency review used direct source.
+
+
+## Source-boundary closure prepared during frozen review
+
+The original independent Claude Fable run `44749b33-1993-4752-a541-d378ef00cbfe` is reviewing exact frozen HEAD `cc010ccdda675e8db7377f8102a18ffb7110fa88` using its immutable JSON packet. The review was launched with the selected model override and unchanged policy caps (100/160 soft/hard turns, $50/$80 soft/hard spend, 360-minute emergency cap, 10-minute no-output timeout). The code changes below are **uncommitted working-copy corrections, not part of that frozen audit**. HEAD is preserved until its external record can be validated. No report/receipt from that earlier candidate proves these corrections.
+
+Builder-discovered material R5.6 gaps were reproduced through actual public acquisition entry points with synthetic HTTP producers: direct StockTwits and Reddit reads, Yahoo reference-history bars, and the optional threaded TypeSafe screen bypassed the source journal. The latter also lost the run context across workers. The original scope did not bind reasoning effort, temperature, the quick provider or output-token cap; four regressions accepted changed model settings as an identical scope. The raw UTF-8 round-trip probe also failed, while the credential-exclusion guard already passed. A further actual two-worker failure reproduced acceptance of a baseline whose screen returned while another source request remained in flight. Logs show nine initial expected failures/one privacy pass and the separate unfinished-request failure; no live requests or paid calls occurred.
+
+Corrections reuse the existing journal: raw UTF-8 bytes remain byte-identical but undergo textual credential scrubbing before retention; unsupported encodings remain explicitly unreplayable. Social parsing/windowing/screening and reference projections still execute current code. The TypeSafe boundary retains only status, parsed success JSON and bounded retry timing, never request headers or raw provider diagnostics. Each worker inherits its own copied context. A screen that leaves requests in flight marks the source journal incomplete without changing the existing fail-open product behavior. Reference history retains its original request-window clock; its raw bars use the existing Yahoo source wrapper. Comparison scope now binds the configured quick provider, efforts, sampling/token/retry settings and tool-round bound in addition to the original fields. No new vendor, model selection, paid retry policy or trading authority was introduced.
+
+Current working-copy focused checks: **129 passed in 1.33s**, followed by **44 passed in 1.38s** for neighboring social cutoff, attempt trace, actual ToolNode, stream publication and token-usage paths; full Ruff and diff checks passed. These are two focused runs, not a new complete suite. Package source fingerprint `sha256:9d53f8bf8d608af8afbfabc01b446cbd7828cb70ebe2204af3c410175dda5245`; CLI run module SHA-256 `f941cb6406499f7f4ebd711c0b3a201cd98a7968fe2ed5ba6ddb4d6638b85b3d`. Final full suite/native repetition, committed candidate and independent closure remain required. Review input for closure must add sentiment analyst, direct social fetchers/post screen, Yahoo reference history and their existing tests; those unchanged/previously omitted bodies were not in the first frozen packet.
+
+- `/tmp/r5-additional-sources-red.log` — SHA-256 `fd4a1f974b91b2fc79280c569e6df13e467267de26013bcf7ebe5012e0d0eb98`
+- `/tmp/r5-pending-social-red.log` — SHA-256 `b9045ddf33a636e4082a1ca0258cac4a08455f12c2cc6fcc3597a71895fe21ce`
+- `/tmp/r5-source-closure-focused.log` — SHA-256 `8b0bbb6e2bacf4f78e48d8114e7d17ca3e33d23fece53301cf64efb87e9e98cf`
+- `/tmp/r5-source-closure-neighbor.log` — SHA-256 `dc7da40279e729977ea6b9c45791df6c8a9531a08e1a13abe847887513249526`
+
+A separate read-only inspection used the existing strict publication/evidence readers on the final 5b01bc1f runtime artifacts. All five publication/evidence hashes verified. The original same-day memory entry links to the first publication under the unchanged deduplication policy; the separate baseline and candidate memory entries each link to their own publication. This inspection adds evidence about the prior saved artifacts; it is not a new native run on the corrections above. The bounded hash/link inventory is retained in the runtime JSON as a post-freeze inspection, not claimed supplied in the original audit packet.
+
+
+Social-clock follow-up in the same uncommitted closure batch: two red regressions showed that `in_window`'s undated-item decision and `coverage_gap`'s empty-feed classification used the wall clock despite an active frozen comparison clock. Both now use the existing source clock only inside a session; ordinary clock injection remains unchanged. The combined affected/neighbor suites pass **175/175 in 2.60s** on the updated source, and full Ruff/diff checks pass. This supersedes the earlier separate focused results for the current closure batch; full-suite/native and independent closure gates are still pending.
+
+- `/tmp/r5-social-clock-red.log` — SHA-256 `7e5e31e153321f9e8fb03d5437c9519fe9df2604c032ba43c9d12dd961ff60e4`
+
+- `/tmp/r5-source-closure-combined.log` — SHA-256 `e9f56c04e252f7173c07b5d0daa77bd7dc866ce684a09d550c2ed37ca8ba22c0`
+
+
+Pre-commit closure-candidate verification: the complete default suite passed **3357 tests, 10 skipped, 1 deselected, 25 warnings, 100 subtests in 57.95s**; the complete native CLI proof passed the original save/restart drills and fresh baseline/candidate comparison (one source replay hit, zero misses, equal starting snapshots, unchanged baseline stores, 12 model prompt/response pairs). The original private DOCN source hash was rechecked and is unchanged. The before/after source patch identity matched `209b5caacf281f65fd7201dcf013e268f268e184236989b9339dd9bb0ba15e10` relative to cc010ccd over `cli`, `tests`, `tradingagents`, the native proof and pyproject. Package fingerprint matches the current closure record above. This is an **uncommitted source-tree run**, not exact-HEAD or remote CI acceptance. A stable committed candidate and independent closure are still required; do not combine this result with earlier revisions.
+
+- `/tmp/r5-closure-full-pytest.log` — SHA-256 `cad5533030508deae2009380d8c243b9c88655fcdd6822e74cf8a4db0b749b4a`
+
+- `/tmp/r5-closure-native-runtime.json` — SHA-256 `1bc2eae4d1f3c1c746a6b6b39977f81e65f07232e0a20089ec6188eff5d8f248`
+
+- `/tmp/r5-closure-candidate-identity.json` — SHA-256 `49078b9a408f35e07fba187bb7f2e22522dd866eda5fd05c928b8956ee3f28c2`
+
+
+## Latest closure candidate — acquisition-clock correction
+
+A red public-entry regression showed reference history returning the frozen comparison time (21:59) as acquisition time when the simulated actual request clock was 22:00. The source wrapper now journals the actual reference-request clock separately, bound to ticker and effective history start; that retained clock and raw bars are replayed while the current history projection reruns. This preserves both truthful live acquisition time and identical replay request bounds. The previous plan to use the general comparison clock for this source's acquisition stamp is superseded. Ordinary request timing and provider behavior are unchanged.
+
+Updated affected checks: **176 passed in 1.73s**; full default suite **3358 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests in 58.43s**; full Ruff/diff checks pass. The actual CLI native proof repeated successfully with 12 model callback starts/ends, one source hit, zero misses, equal starting snapshots and unchanged protected baseline stores; no synthetic secret was retained. These are runs on one updated **uncommitted** source tree, not exact-HEAD or remote-CI acceptance. Package fingerprint `sha256:b1047431c57873f0be5c3225a40c614623b0ad1a903611147af0b34f462867fc`; full source/test/proof diff SHA-256 `69b7c2e242241217036457f3ca204b1f7e79a5c0dbf346f93345db5f08ff9091` relative to cc010ccd over the paths in the identity receipt. Before/after identity checks match. The earlier 3357-test closure run and its 9d53 source fingerprint remain historical, not evidence for this final clock correction.
+
+The first Claude run still targets its immutable cc010ccd JSON packet. A stable committed corrected candidate and required independent closure remain pending. No second audit was started, no caps increased, and no product paid calls were made by these synthetic proofs.
+
+- `/tmp/r5-reference-acquisition-clock-red.log` — SHA-256 `d1dae11f7a8dbb22d4c83069aa6d39cf2f9c5c1e4183c401c8bc4722693b2990`
+
+- `/tmp/r5-source-closure-clock-final-focused.log` — SHA-256 `9c1186e0160cd2b9486eb86a3f6fd35f51b7a5ebcc8adb113473a31cd17f6a49`
+
+- `/tmp/r5-clock-final-full-pytest.log` — SHA-256 `e9e60e7fd084109a4ab60acb903ae975d8d925d3d30098c8b4a748f5049bee5f`
+
+- `/tmp/r5-clock-final-native-runtime.json` — SHA-256 `22a2a35f5838e3d6e05c8ef7756f12e050222d3e31d453facc0b0de21252345e`
+
+- `/tmp/r5-clock-final-candidate-identity.json` — SHA-256 `6b8a8c4b411341f539c106d8415b8fc13dccd3b2dad559c05fb4ef21860c387c`
+
+
+## First Claude Fable audit — completed and findings verified
+
+Run `44749b33-1993-4752-a541-d378ef00cbfe` completed normally on frozen **cc010ccdda675e8db7377f8102a18ffb7110fa88**. Requested/served model: **~anthropic/claude-fable-latest**, the user-selected override. Actual **70 turns, $9.12497325, 3,872,355 ms (about 64.5 minutes)**; no soft limit reached; stop reason `reviewer_completed`. Original configured limits remained 100/160 turns, $50/$80, 360 minutes and a 10-minute no-output timeout. The report reviewed frozen evidence via windowed jq reads; it did not rerun tests or access remote CI. Its reviewed_files array is inventory, not proof of individual inspection. Complete raw result, limitations, ledger and dispositions are retained in the verification JSON and external audit record.
+
+Claude returned no Critical/High, two Medium claims and four Low findings. Both Medium defect/decision claims were disproved against current unchanged production callers and the approved plan: the structured helper has exactly four production role names and all four diagnostic labels are visible; R5.6/Sequence 6–7 already require procedural preparation of disposable baseline copies using the existing snapshot/clone functions. Automatic diversion of every ordinary trace-on run is not required. All production helper call sites were enumerated and the real formatter exercised for each; secret/prompt exclusion held. The existing nonempty snapshot baseline/candidate test was rerun (1 passed in 0.87s). No new product decision or role configuration is required.
+
+The Low limits are retained truthfully: nonfinite generic diagnostic events make a trace visibly incomplete; unsupported provider exception classes force explicit mixed inputs; Timestamp subclasses become stdlib datetime at the supported tested precision. Those remain non-blocking, with no invented failure data or numeric coercion. The fourth Low concerns code-tree equivalence between the test source and docs-only audit HEAD. Git verified identical OIDs at 5b01bc1f and cc010ccd: package `39bdb918e8ea0aa1f69554b870a93b213ff89dd6`, CLI `399c713f144c6093d65b6085d11f3edfe951b3b9`, tests `8c6d087ca535c6322e52cb75a5c095805722bcca`, native proof blob `aa44fb91fbfaa38bef830a07f72bad56d82a0f82`. This is local provenance evidence, not remote CI or independently rerun tests.
+
+The external manifest was validated successfully while HEAD was still cc010ccd. Its credential-pattern guard falsely matched an ordinary inventory filename containing `sk-`; that one inventory path is reversibly percent-encoded in the manifest only. The unmodified raw report is retained and hashed, and no validator rule, finding, cost, status or cap was altered. Its six findings-review entries cover every executor finding. The registered run remains `incomplete` for local feature acceptance because the additional builder-confirmed material fixes are outside that frozen candidate. A separate builder closure plan records those already-implemented corrections; none of the original six audit claims is classified as confirmed material merely to satisfy the validator.
+
+The corrected source still requires its committed-candidate verification and frozen-manifest Claude Fable closure. No staging integration/push, later build, paid product run, PR, release, installation or worktree removal occurred.
+
+- `/tmp/r5-audit-role-verification.json` — SHA-256 `b1628da9c8d823e1d1779942af4b8572b275eac05bc14950612a2486378bc53e`
+
+- `/tmp/r5-audit-low-verification.json` — SHA-256 `268e952cd714c5831defca8c151d3804a993a186b2fde5b4b53b970c1c270bf5`
+
+- `/tmp/r5-first-audit-validation.json` — SHA-256 `4825d4df731eb8c216747049ac8c467d367d03138db8c7afc651dee8fdc2d456`
