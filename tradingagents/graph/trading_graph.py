@@ -378,7 +378,7 @@ class TradingAgentsGraph:
             "advisory_audit=5",
             "run_metrics=2",
             "financing_evidence=2",
-            "shared_source_brief=4",
+            "shared_source_brief=5",
             "operational_delivery=1",
             "financial_claim_prompt=1",
             "document_search=2",
