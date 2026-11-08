@@ -77,6 +77,10 @@ class TradingMemoryLog:
                     # publication also leaves the original bytes untouched.
                     if not parsed['pending'] or (decision_id and parsed.get('decision_id') == decision_id):
                         return
+                    # A legacy direct call has no newer publication identity
+                    # with which to replace this established link.
+                    if parsed.get('decision_id') and decision_id is None:
+                        return
                     matching.append(index)
             # Historical REVIEW entries remain readable but never block a
             # corrected decision for the same ticker/date.

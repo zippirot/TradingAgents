@@ -113,3 +113,17 @@ def test_pending_replacement_quarantines_partial_tail_and_preserves_other_entrie
     quarantines = list(tmp_path.glob('memory.md.partial-*.md'))
     assert len(quarantines) == 1 and quarantines[0].read_text() == partial
     assert partial not in path.read_text()
+
+
+def test_unlinked_rerun_cannot_sever_retained_publication_link(tmp_path):
+    path = tmp_path / 'memory.md'
+    memory = TradingMemoryLog({'memory_log_path': str(path)})
+    first, second = str(uuid4()), str(uuid4())
+    memory.store_decision('DOCN', '2026-11-04', 'Underweight published', 'Underweight', first)
+    before = path.read_bytes()
+    memory.store_decision('DOCN', '2026-11-04', 'Hold unlinked direct call', 'Hold')
+    assert path.read_bytes() == before
+    assert memory.load_entries()[0]['decision_id'] == first
+    memory.store_decision('DOCN', '2026-11-04', 'Hold newer publication', 'Hold', second)
+    entries = memory.load_entries()
+    assert len(entries) == 1 and entries[0]['decision_id'] == second

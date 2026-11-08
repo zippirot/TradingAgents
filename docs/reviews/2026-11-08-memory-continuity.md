@@ -41,3 +41,119 @@ The R4.3 observation rule follows the original audit's concrete case: a requeste
 Audit context selection: full current memory/thesis/settlement/publication/outcomes, price-observation and financial-evidence models, PM schemas/node, output enforcement, graph/setup/checkpointer, file locks, report/export/CLI, changed regressions and relevant legacy fixtures are supplied as explicit paths. To bound the packet, unchanged `review_terminal_state` and the synthetic PM fixture `state` are exact attributed function excerpts; full evidence-validation/valuation internals and the historical part-B audit are omitted. The R4 requirements, part-A/part-C original audit and baseline excerpts remain supplied. No independent re-audit of unchanged financial valuation internals is claimed. The final verification JSON maps paths to concatenated input lines, because the executor inserts no path headers.
 
 Audit preparation found a manifest false positive in the public original part-C filename (its `risk-…` suffix matches the credential-like filename pattern). The complete unchanged part-C content is instead supplied as an attributed exact-BASE excerpt in the existing source-excerpts JSON, with its full file hash. The checker and source audit are unchanged; no secret or budget is involved. The failed preparation did not start a paid audit.
+
+Independent R4 Fable audit completed normally at frozen `da2b14cd5bade8d7c23b0e3deb7fae2181158d0d`, run `eae4465e-a666-4e42-84d4-75c4d7098857`: requested/served `~anthropic/claude-fable-latest`,52 turns,$4.307448,1,588,616 ms, no soft limit, `reviewer_completed`. Initial audit/result/findings/gap-plan manifest validated at its frozen HEAD before corrections. One Medium and five Low were reported; no Critical/High. Local closure and integration remain incomplete.
+
+Medium finding is partially confirmed: checked nominal test names did not match actual functions, and CI lacked a sanitized raw pre-R4 publication/evidence fixture pinning immutable full hashes and kind-less compatibility. Existing portable tests already covered isolated legacy metric identity/shape and alias/disposition preservation, so the statement that guarantees rested solely on private proof was broader than supported. The confirmed gap is corrected by two deterministic synthetic legacy publications/evidence produced with exact BASE78 code, plus four portable tests. They cover kind-less loads, all four raw file SHA pins and embedded hashes, BASE metric serialization/measurement IDs, aliases, kept dispositions, current next-run carry, and a labelled serializer fault-injection control. No private records were copied into fixtures.
+
+Main independently loaded both golden records/evidence through the unmodified BASE78 source checkout, asserted its imported package path and HEAD, compared the four fixture bytes against the original disposable generation outputs, and checked original model serialization/ID values against the manifest. Receipt `/tmp/r4-legacy-base-validation.json` pins BASE module and fixture-manifest hashes. Generator ran as an inline command; its transcript was inspected, but no original generator script/stdout file was retained and no such artifact hash is invented. The private baseline nine-record/32-condition scan remains an additional proof.
+
+Every R4 checked acceptance entry now names an actual existing test path/function, resolved with Python AST. Only test-name traceability changed; all behavior, legacy identity, privacy and safety criteria remain. New portable fixture tests use the plan's original names for the three legacy record/identity/hash requirements.
+
+Low dispositions: batch outcome updates have no captured-entry guard, but only two test callers exist and production settlement uses the guarded single update; broader batch API work is deferred. A newly stated price condition without validated instrument quote currency is visibly rejected; prior retained conditions with missing/incompatible closes remain unobserved. The boundary is preserved rather than inferring instrument currency from model prose or filing reporting currency. Docs-only source equivalence between d9ad53af and initial frozen da2b14cd was checked with zero-byte Git diff; corrected combined checks and exact-published-SHA CI will follow. The future-period rule matches original part-A ML3 wording, while future filed-date metadata remains forbidden by evidence validation; no filing schedule/date is invented.
+
+The introduced unlinked direct-call link-loss Low was reproduced through real `store_decision`: a no-ID call replaced a linked pending entry and erased its publication link (`/tmp/r4-unlinked-red.log`). A minimal guard now preserves an established link when no replacement publication identity is supplied. Verified newer linked reruns still replace, and unlinked-only legacy behavior remains. Main focused checks:35 passed in2.28s; Ruff/diff passed. This is an in-scope identity correction, with no new workflow or user gate.
+
+R2 is independently closed and integrated at exact staging `ccecd32599fe63754e2b2c4de3f17fac88139b2c`; CI run42465206951 passed all7 jobs. R4 will explicitly merge that confirmed staging into this existing feature worktree, combine only the overlapping historical-fixture version mappings, then run corrected combined focused/native/full checks before actual Fable closure. No reset or silent rebase is planned or performed.
+
+Original independent report below is immutable audit output with its stated frozen-only limitations, not a new builder scope or an independently rerun test claim.
+
+```json
+{
+  "base_commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+  "head_commit": "da2b14cd5bade8d7c23b0e3deb7fae2181158d0d",
+  "requested_model": "~anthropic/claude-fable-latest",
+  "served_model": "~anthropic/claude-fable-latest",
+  "status": "completed",
+  "actual_turns": 52,
+  "reviewed_files": [
+    "docs/reviews/2026-11-08-memory-continuity-baseline.json",
+    "docs/reviews/2026-11-08-memory-continuity-runtime.json",
+    "docs/reviews/2026-11-08-memory-continuity-source-excerpts.json",
+    "docs/reviews/2026-11-08-memory-continuity-verification.json",
+    "docs/reviews/2026-11-08-memory-continuity.md",
+    "docs/reviews/memory-continuity-proof.py",
+    "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+    "tests/test_build2_continuation_proof.py",
+    "tests/test_checkpoint_resume.py",
+    "tests/test_memory_pending_replacement.py",
+    "tests/test_publication_graph.py",
+    "tests/test_review_memory_backtest.py",
+    "tests/test_thesis.py",
+    "tests/test_thesis_condition_kinds.py",
+    "tests/test_thesis_graph_roles.py",
+    "tests/test_thesis_integration.py",
+    "tradingagents/agents/managers/portfolio_manager.py",
+    "tradingagents/agents/output_validation.py",
+    "tradingagents/agents/schemas.py",
+    "tradingagents/graph/trading_graph.py",
+    "tradingagents/memory/log.py",
+    "tradingagents/memory/settlement.py",
+    "tradingagents/memory/thesis.py"
+  ],
+  "summary": "Audited the frozen R4 memory-continuity build (base 78e3611f \u2192 head da2b14cd, 23 changed paths) strictly from the provided request.json. The implementation is substantively sound and matches approved D2 and the R4 requirements: same-day reruns atomically replace pending memory entries under the existing file lock with publication-ordered selection (latest directional published record) under the shared publication lock; settled entries and lessons are immutable, settlement carries an expected-entry identity guard wired into the production pass, and idempotent retries leave bytes untouched. The three-kind condition schema (metric/price_level/event) preserves exact legacy metric serialization and measurement identity (no 'kind' key persisted for metric; identical Decimal tuple ID normalization), rejects invalid conditions with disclosed reasons, observes price conditions only against validated currency-matching completed closes, leaves events as open unobserved questions, renders prompts as plain text with escaping deferred to HTML export, and advances the checkpoint signature (advisory_thesis=3) so metric-only checkpoints cannot resume into the new contract \u2014 each proven by new or updated tests visible in the diff. Findings: one medium (plan checkboxes [x] reference nonexistent test names, and the legacy-hash/kind-less-load guarantees are carried only by the private non-CI proof rather than committed sanitized fixtures) and five lows (unguarded batch_update_with_outcomes race, new price conditions dropped when no validated quote exists, link-severing replacement for unlinked direct API callers, receipts attaching to d9ad53af rather than HEAD, and the documented filing-date-vs-period-end deviation). Nothing found contradicts the builder's claims; staging integration, R2 merge, and combined acceptance remain outstanding as the builder discloses.",
+  "limitations": [
+    "Static audit of the single frozen request.json only: no code execution, no test reruns, no repository/filesystem/network access; all pass counts, hashes and proof outputs are builder-attested receipts, not independently reproduced.",
+    "The frozen requirements blob concatenates listed files without path headers; attribution relies on the builder-supplied path-to-lines map in the verification JSON and content recognition, so file-boundary attribution carries residual uncertainty.",
+    "Private-store proofs (9 publications, 32 legacy condition IDs/aliases/hashes, the 09:10/16:41 UUID replay) reference local paths and a private baseline manifest that are outside the frozen evidence and cannot be verified here.",
+    "Receipts for the full suite (3,468 passed) and both native proofs were produced at commit d9ad53af; the three subsequent commits to HEAD da2b14cd are described as docs-only but this could not be confirmed from the frozen diff alone.",
+    "Unchanged modules (publication, settlement internals, price observation, files locking) were reviewed only as frozen HEAD text for interaction with the diff; no independent re-audit of their internals is claimed.",
+    "Staging CI, R2 integration/merge, and combined acceptance are explicitly outstanding per the builder's own review document and were not assessed."
+  ],
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Plan acceptance checkboxes marked [x] cite test names that do not exist at HEAD; legacy publication hash/kind-less-load guarantees rest only on the private non-CI proof script, with no committed sanitized legacy-record fixture test",
+      "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md"
+    },
+    {
+      "severity": "low",
+      "title": "batch_update_with_outcomes lacks the expected_entry identity guard, retaining the stale-lesson-attaches-to-rerun race R4.1 fixed for the single-update path (test-only callers at HEAD, but exported API on the same class)",
+      "path": "tradingagents/memory/log.py"
+    },
+    {
+      "severity": "low",
+      "title": "Newly stated price_level conditions are rejected ('stated but not retained') whenever the run lacks a validated price observation, so a validly stated condition is not carried forward, in tension with R4.2's carry-every-condition goal (disclosed on card)",
+      "path": "tradingagents/memory/thesis.py"
+    },
+    {
+      "severity": "low",
+      "title": "store_decision called without a decision_id can replace a publication-linked pending entry for the same day, severing the memory-to-publication link for direct API callers (graph flow itself always resolves a linked latest record first)",
+      "path": "tradingagents/memory/log.py"
+    },
+    {
+      "severity": "low",
+      "title": "Full-suite pytest and native-proof receipts attach to candidate d9ad53af, not frozen HEAD da2b14cd; the trailing commits are builder-described as docs-only and were not independently confirmable from the frozen diff",
+      "path": "docs/reviews/2026-11-08-memory-continuity-verification.json"
+    },
+    {
+      "severity": "low",
+      "title": "R4.3 'not yet reported' rule keys off measurement period end vs analysis date rather than the plan's 'filing date' wording; deviation is documented and justified by strict evidence validation, flagged by the builder for reviewer assessment",
+      "path": "tradingagents/memory/thesis.py"
+    }
+  ],
+  "classification": {
+    "declared_build_size": "large",
+    "effective_build_size": "extra large",
+    "escalation_reasons": [
+      "Frozen scope changes more than 10 files or more than 500 lines."
+    ]
+  },
+  "progress": {
+    "observed_events": 4587,
+    "last_activity_at": "2026-11-08T08:50:12.377Z",
+    "last_activity_kind": "stdout"
+  },
+  "ledger": {
+    "soft_budget_usd": 50,
+    "hard_budget_usd": 80,
+    "soft_turn_limit": 100,
+    "turn_limit": 160,
+    "wall_clock_limit_minutes": 360,
+    "actual_cost_usd": 4.307448000000001,
+    "actual_elapsed_ms": 1588616,
+    "soft_limit_reached": false
+  },
+  "stop_reason": "reviewer_completed"
+}
+```
