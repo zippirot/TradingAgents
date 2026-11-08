@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tests.docn_workflow_fixture import ROOT, source_json
 from tradingagents.agents import document_questions as followup
 from tradingagents.agents.context import get_instrument_context_from_state
+from tradingagents.agents.document_access import retained_search_packages
 from tradingagents.dataflows.filing_search import corpus_hash
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 from tradingagents.graph.propagation import Propagator
@@ -105,9 +106,12 @@ def main():
         assert original_hash == baseline['original_state_sha256']
         old = json.loads(original.read_text())
         old_seal = old['document_followups']['record_hash']
+        old_journal = json.dumps(old.get('document_search_trace'), sort_keys=True)
+        assert retained_search_packages(old)
         assert followup.lookup_document_questions(old) == {}
         assert 'legacy_relevance_not_assessed' in followup.render_document_followups(old)
         assert old['document_followups']['record_hash'] == old_seal and digest(original) == original_hash
+        assert json.dumps(old.get('document_search_trace'), sort_keys=True) == old_journal
     receipt = {
         'disposable_root': str(root), 'source_corpus_hash': corpus_hash(corpus),
         'fixture_manifest_sha256': digest(ROOT / 'manifest.json'),
@@ -119,6 +123,7 @@ def main():
                   'top_excerpt': row['passages'][0]['text'][:700]} for row in record['results']],
         'keyword_positive_control': 'relevant_passages_found',
         'sealed_reuse': True, 'legacy_snapshot_unchanged': True, 'context_passage_deduplication': True,
+        'legacy_search_journal_exact_replay_unchanged': True,
         'saved_state_reopened': True, 'markdown_and_html_status_visible': True,
         'report_evidence_exact': True, 'network_denied': True, 'paid_calls': 0,
         'output_sha256': {str(p.relative_to(root)): digest(p) for p in root.rglob('*') if p.is_file()},

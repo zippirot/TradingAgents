@@ -345,8 +345,12 @@ def private_drill(tmp):
         # Keep the original graph-shape token ONLY inside this offline fixture;
         # every native checkpoint ID, pending-node and retained-input assertion
         # below remains live. This does not assert current B resume compatibility.
+        # R2's retrieval tokens likewise stay at this fixture's original values;
+        # current R2 uses separate IDs and does not resume this historical thread.
         return current_signature(graph, *args, **kwargs).replace(
-            "shared_source_brief=5", "shared_source_brief=3").replace("|operational_delivery=1", "")
+            "shared_source_brief=5", "shared_source_brief=3").replace(
+            "document_search=3", "document_search=2").replace(
+            "document_followup=3", "document_followup=2").replace("|operational_delivery=1", "")
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))
@@ -399,6 +403,7 @@ def private_drill(tmp):
             "feature_proof": result["feature_proof"],
             "historical_sensitivity_contract_frozen": True,
             "current_r1_resume_compatibility_claim": False,
+            "current_r2_resume_compatibility_claim": False,
             "source_unchanged": c.input_hashes(c.ORIGINAL) == original_hashes
             and h.sha(original_ledger) == original_ledger_sha,
         }

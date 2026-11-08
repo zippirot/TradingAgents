@@ -575,7 +575,8 @@ def test_document_source_credentials_are_isolated_and_old_scopes_reject_them(tmp
 
 
 
-def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(tmp_path, monkeypatch):
+@pytest.mark.parametrize("partial_query", [False, True])
+def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(tmp_path, monkeypatch, partial_query):
     from tests.test_transcript_access import state_with_sec_corpus, transcript_record
     from tradingagents.agents.audit_evidence import retain_tool_outputs
     from tradingagents.agents.document_access import merge_search_traces, run_document_search
@@ -605,14 +606,18 @@ def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(
     state["investment_debate_state"] = {
         "document_questions": {
             "bull": parse_document_questions(
-                '```document_questions\n["conference call"]\n```', "bull"
+                '```document_questions\n' + json.dumps([
+                    "conference call" + (" unknownterm" if partial_query else "")]) + '\n```', "bull"
             ),
             "bear": parse_document_questions(
-                '```document_questions\n["DigitalOcean"]\n```', "bear"
+                '```document_questions\n' + json.dumps([
+                    "DigitalOcean" + (" unknownterm" if partial_query else "")]) + '\n```', "bear"
             ),
         }
     }
     state.update(lookup_document_questions(state))
+    expected = "no_relevant_passage" if partial_query else "relevant_passages_found"
+    assert all(row["status"] == expected for row in state["document_followups"]["results"])
     state["audit_news_tool_evidence"] = retain_tool_outputs(
         "news", "DOCN", "2026-11-06", [{
             "name": "get_macro_indicators", "arguments": {"indicator": "cpi"},
