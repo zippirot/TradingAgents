@@ -1,0 +1,457 @@
+{
+  "stage": "R2 implementation and decisive local checks passed; required independent acceptance and integration pending",
+  "base_staging": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+  "full_suite_commit": "e40a3df6606e86962a58b6425091353763f454a0",
+  "native_proof_commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
+  "full_suite": {
+    "exit_code": 0,
+    "passed": 3479,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests": 100,
+    "seconds": 68.09
+  },
+  "prior_full_suite": {
+    "commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
+    "passed": 3478,
+    "seconds": 66.88,
+    "exit_code": 0
+  },
+  "historical_failed_suite": {
+    "commit": "71e662448b7f14da16cdae763383e52c1e6b8ea5",
+    "failed": 3,
+    "passed": 3460,
+    "seconds": 61.02,
+    "disposition": "Old report/assessor contracts and historical signature mismatch corrected; genuine exact historical journal replay gap fixed with versioned original rules. No audit started on failing candidate."
+  },
+  "commands": {
+    "pytest": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+    "ruff": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
+    "source_proof": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python docs/reviews/document-followup-proof.py",
+    "cli_proof": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python docs/reviews/operations-cli-proof.py"
+  },
+  "environment": {
+    "python": "3.9.6 (default, Apr 17 2026, 18:15:52) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "pytest": "9.1.1"
+  },
+  "ruff": "passed full repository",
+  "diff_check": "passed complete range",
+  "source_test_proof_oids": {
+    "e40a3df6606e86962a58b6425091353763f454a0": {
+      "tradingagents": "898379dc3aa52cb5dee9f6f6cd7921e85b3b2b4d",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "b6fe17578f758966d1cd98cbc14faf93771cfdf2",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/document-followup-proof.py": "1ac4c4d3c6d43898b28081518ea37e5d51c1b802",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+    },
+    "88acc5047529671cd3976a3b939d4041f03dd1f1": {
+      "tradingagents": "898379dc3aa52cb5dee9f6f6cd7921e85b3b2b4d",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "73e8038ad8d5cc1a9c87ddb7f4d2926cd6fcc852",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/document-followup-proof.py": "1ac4c4d3c6d43898b28081518ea37e5d51c1b802",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+    }
+  },
+  "native_evidence_reuse": "Both native proofs actually ran on88acc504. Application, CLI, public fixture, proof scripts, baseline query/input data and pyproject objects match full-suite e40a3df6 exactly; only the extra all-returned RPO acceptance test/naming and evidence documentation differ. The full3479 suite ran on one exact revision, not a union of runs.",
+  "logs": {
+    "/tmp/r2-final-acceptance-full-pytest.log": {
+      "sha256": "bc31b171f7a75e95b694e9a72d505ed5ea94c876354c5c18d293e13909df1548",
+      "bytes": 12150
+    },
+    "/tmp/r2-88acc504-full-pytest.log": {
+      "sha256": "8c360f51ebad57177e55d6a7a49c1c1b7c1f9ed063d13b25370424c7f9d18722",
+      "bytes": 12150
+    },
+    "/tmp/r2-88acc504-source-proof.json": {
+      "sha256": "01d00cfad335d53ce8a2e8c2a93a2e5395ff3ddde28134a4c112a98779d5f248",
+      "bytes": 9217
+    },
+    "/tmp/r2-88acc504-source-proof.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "/tmp/r2-88acc504-cli-proof.json": {
+      "sha256": "37e29fb425ddfd8455f200c0dc233092090c6ba499b87a8ab6f7cf682814aa1b",
+      "bytes": 11379
+    },
+    "/tmp/r2-88acc504-cli-proof.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "/tmp/r2-71e66244-full-pytest.log": {
+      "sha256": "472c6e40c544e99f20a57c71e3a5c416a284544d469a925a64692f6d974aae39",
+      "bytes": 20176
+    },
+    "/tmp/r2-legacy-and-consumers-focused.log": {
+      "sha256": "c8d298282431a48e26222345a7772131f29191522c6c629a09dd38454e675c57",
+      "bytes": 179
+    },
+    "/tmp/r2-private-continuation-corrected.log": {
+      "sha256": "b9a4f13183ca452a9a3e0bafec87ab2de274a3ff78bf4a07ba559ed9d41c738b",
+      "bytes": 99
+    },
+    "/tmp/r2-search-legacy-differential.log": {
+      "sha256": "4bc94b97119c3efcd2aafdd47911aa4c30faa629ad39be9b595975039769f0f5",
+      "bytes": 52
+    },
+    "/tmp/r2-legacy-journal-red.log": {
+      "sha256": "92653aa2203d6a6a837756f49ea187fe11ed8ec755978c2512d8d975117bb29b",
+      "bytes": 5028
+    },
+    "/tmp/r2-complete-search-acceptance.log": {
+      "sha256": "f12312a4c81a80b3512f449a2bf86d01a850c0270427be3f4151f18b1155df26",
+      "bytes": 99
+    }
+  },
+  "independent_audit": {
+    "required": true,
+    "model_override": "~anthropic/claude-fable-latest",
+    "status": "not_started"
+  },
+  "authority": {
+    "expires_at_utc": "2026-11-09T05:20:03Z",
+    "scope": "User advance approval for necessary approved-plan actions including stage integrations/pushes and audit retries under existing caps; all verification/review and safety/release boundaries retained."
+  },
+  "limitations": [
+    "No exact-R2 remote CI exists while branch is local/unpushed; baseline R1 seven-job CI is separate.",
+    "All original full natural-language questions remain no_relevant_passage when no body contains every content term; positive keyword control passes. Retrieval never asserts an answer; RM judgment unavailable until Na.",
+    "Other two original questions have partial ranking/material coverage only; before/after top dated sources are retained, not claimed complete answers.",
+    "Original sealed snapshot and search journal were verified read-only on Machine2, not delivered to frozen auditor; public selected source blocks are supplied in full.",
+    "Full runner cannot independently execute tests/decompress all gzip fixtures/query GitHub or read private originals/external logs. Receipts are builder evidence.",
+    "Three private retained-document tests, five private price tests, private transcript1 and optional Bedrock1 skipped; integration marker1 deselected. Required new public-source/direct/CLI proofs passed.",
+    "No live model/provider compliance, production mutation/release/stable app launch or later build acceptance is claimed."
+  ],
+  "audit_context_map": {
+    "semantics": "Trimmed HEAD files joined in exact request order with one newline;1-based decoded lines,no filename headings. Raw SHA includes surrounding whitespace. Last verification file does not self-hash.",
+    "verification_file_is_last": true,
+    "verification_starts_at_decoded_line": 16661,
+    "files": [
+      {
+        "path": ".codex/skills/independent-build-audit/templates/independent-audit.v1.md",
+        "decoded_start_line": 1,
+        "decoded_end_line": 21,
+        "raw_sha256": "002ef3fc43c3f6b14b8a96ee43a17d3d8726b4c7f3a004b896f4b62db774bcea"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/SKILL.md",
+        "decoded_start_line": 22,
+        "decoded_end_line": 71,
+        "raw_sha256": "1721917f016e94bbadc6ce6145b79ff1766d16b313587d486597994f8260ab8e"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/templates/handoff-preparation.v1.md",
+        "decoded_start_line": 72,
+        "decoded_end_line": 93,
+        "raw_sha256": "cf0f16da8d6c59b6e71f9b2fb8ec1e6f96cccfce568dd1fb9a0cb3f34067b2e3"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/templates/findings-review.v1.md",
+        "decoded_start_line": 94,
+        "decoded_end_line": 112,
+        "raw_sha256": "d55d1c0c15301f2053c5fd62f17bae8d1353bf0fcb431bb89a7caed2cc915277"
+      },
+      {
+        "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "decoded_start_line": 113,
+        "decoded_end_line": 771,
+        "raw_sha256": "085f304d448afabaf71c65dd04e692b22217910125f5f9bda7ecb62d1cecb862"
+      },
+      {
+        "path": "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-B-debate-manager-trader.md",
+        "decoded_start_line": 772,
+        "decoded_end_line": 984,
+        "raw_sha256": "3c8db372fc870237fc72a09de6280a33f6017d9990b1abc8d67b26f25cefe80f"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "decoded_start_line": 985,
+        "decoded_end_line": 1084,
+        "raw_sha256": "c659766026e6b8032bbdfa65ff9ad9c1a16c0eb34f8560c24a83e7e1fe39f81b"
+      },
+      {
+        "path": "pyproject.toml",
+        "decoded_start_line": 1085,
+        "decoded_end_line": 1173,
+        "raw_sha256": "670cd3552c10b5dbb2ea4c420336c7b58af455c27b1a65599727ecbefb4f375c"
+      },
+      {
+        "path": "tradingagents/agents/document_questions.py",
+        "decoded_start_line": 1174,
+        "decoded_end_line": 1582,
+        "raw_sha256": "66e168e95b54f1bb6d4ba7895edc64ead961053e47ce4d53f9d485c9bd044c77"
+      },
+      {
+        "path": "tradingagents/agents/document_access.py",
+        "decoded_start_line": 1583,
+        "decoded_end_line": 1985,
+        "raw_sha256": "d6eda5b0447d06069d443a254d136ae256ffbe14e00170a915c3195c3b558e3e"
+      },
+      {
+        "path": "tradingagents/dataflows/filing_search.py",
+        "decoded_start_line": 1986,
+        "decoded_end_line": 2278,
+        "raw_sha256": "9a62d6711e704878c666308be2a327689809a457b80348a334c34c5f75260108"
+      },
+      {
+        "path": "tradingagents/dataflows/vendors/sec_documents.py",
+        "decoded_start_line": 2279,
+        "decoded_end_line": 3507,
+        "raw_sha256": "d98c355d47a6c81b7adf5be9c4f98e188ad1cb64a254bbbb81fac5021da4e4a9"
+      },
+      {
+        "path": "tradingagents/agents/transcript_access.py",
+        "decoded_start_line": 3508,
+        "decoded_end_line": 3706,
+        "raw_sha256": "139b1272b309328fc813bbe39628085c27b4201508414097823b4f423e3d35c2"
+      },
+      {
+        "path": "tradingagents/dataflows/vendors/alpha_vantage/transcript.py",
+        "decoded_start_line": 3707,
+        "decoded_end_line": 4231,
+        "raw_sha256": "eca7a76eedc16d6d9d63b2c08d57e97068203a1e6368a13b068b7851788b4e1d"
+      },
+      {
+        "path": "tradingagents/agents/context.py",
+        "decoded_start_line": 4232,
+        "decoded_end_line": 4787,
+        "raw_sha256": "da1e822f1adf867fa6364a93dd608e65564e9628ed97cadd24088c15f1190f1a"
+      },
+      {
+        "path": "tradingagents/agents/audit_pass.py",
+        "decoded_start_line": 4788,
+        "decoded_end_line": 5440,
+        "raw_sha256": "e519296575b48cf3cffb8f8734918ec1b98fc30a4d59440d42c4c7a30922ae12"
+      },
+      {
+        "path": "tradingagents/agents/state.py",
+        "decoded_start_line": 5441,
+        "decoded_end_line": 5573,
+        "raw_sha256": "fd30392481b7cd409e0e244aa4857ae9405aca7b51d63ca767a8fc756680e69c"
+      },
+      {
+        "path": "tradingagents/agents/evidence_validation.py",
+        "decoded_start_line": 5574,
+        "decoded_end_line": 7105,
+        "raw_sha256": "bdf4c120fb5ca2fb1af2ad624b011ebfda1d547be045bff32a035f2b0d27de47"
+      },
+      {
+        "path": "tradingagents/agents/output_validation.py",
+        "decoded_start_line": 7106,
+        "decoded_end_line": 7336,
+        "raw_sha256": "a53e35381169b489f111e17a1eda640e052db480204aa0456bdd7ae9cf9cfc45"
+      },
+      {
+        "path": "tradingagents/agents/rating.py",
+        "decoded_start_line": 7337,
+        "decoded_end_line": 7484,
+        "raw_sha256": "ac6f058cd572798e6cc4e593ef9da47015defeac3f8d5f99e96df132b4a6df6a"
+      },
+      {
+        "path": "tradingagents/agents/managers/research_manager.py",
+        "decoded_start_line": 7485,
+        "decoded_end_line": 7579,
+        "raw_sha256": "2644a6c368bc9441d8907a7af0597471448472be251abb23165e979cfb3544a0"
+      },
+      {
+        "path": "tradingagents/agents/managers/portfolio_manager.py",
+        "decoded_start_line": 7580,
+        "decoded_end_line": 7796,
+        "raw_sha256": "bac0a55ea0e4687a27299dbc26fafe5c05c99577b5e336408fdb934f9127de5c"
+      },
+      {
+        "path": "tradingagents/agents/risk_mgmt/aggressive_debator.py",
+        "decoded_start_line": 7797,
+        "decoded_end_line": 7866,
+        "raw_sha256": "9348f4d8b2284fa487776075972268d21c894a11568a27929fa178297387ab54"
+      },
+      {
+        "path": "tradingagents/agents/risk_mgmt/conservative_debator.py",
+        "decoded_start_line": 7867,
+        "decoded_end_line": 7938,
+        "raw_sha256": "fb021a378857a71e1c6583e44eb3f5852fbd00fffac6382510e3b5998f3ee921"
+      },
+      {
+        "path": "tradingagents/agents/risk_mgmt/neutral_debator.py",
+        "decoded_start_line": 7939,
+        "decoded_end_line": 8008,
+        "raw_sha256": "eee34bb2c390ff5458df65363bdc454f8b965f22e229df1e2da29596b0070dcf"
+      },
+      {
+        "path": "tradingagents/graph/trading_graph.py",
+        "decoded_start_line": 8009,
+        "decoded_end_line": 8893,
+        "raw_sha256": "665f05045c219cc7c6e8f16da927937724851f223e8037a42ded1d3d590217a2"
+      },
+      {
+        "path": "tradingagents/graph/setup.py",
+        "decoded_start_line": 8894,
+        "decoded_end_line": 9230,
+        "raw_sha256": "8131cfd5783e68dcd674f0cb5b3d952e2005dd5b83899b2aed223c3cc99d7a60"
+      },
+      {
+        "path": "tradingagents/graph/propagation.py",
+        "decoded_start_line": 9231,
+        "decoded_end_line": 9312,
+        "raw_sha256": "3893f7a13ec4f2ed5802b1e266acb8ae07e04093e35d3546855cfa0fabfb4bb6"
+      },
+      {
+        "path": "tradingagents/graph/checkpointer.py",
+        "decoded_start_line": 9313,
+        "decoded_end_line": 9411,
+        "raw_sha256": "f1ccb055601a8267f0b136482b06d853bd173a83a63c7d04c30f69ac65f3c295"
+      },
+      {
+        "path": "tradingagents/reporting.py",
+        "decoded_start_line": 9412,
+        "decoded_end_line": 10124,
+        "raw_sha256": "5ac6d1cf519f8b5b2a2cd6f01f76b93045055ccdb77f0709e54156508c6df96e"
+      },
+      {
+        "path": "tradingagents/memory/publication.py",
+        "decoded_start_line": 10125,
+        "decoded_end_line": 10492,
+        "raw_sha256": "0b1c1fedf6d91e006c87c294173686dc9ca34e873fcc61b88d4359152a4f04e0"
+      },
+      {
+        "path": "tradingagents/source_replay.py",
+        "decoded_start_line": 10493,
+        "decoded_end_line": 10739,
+        "raw_sha256": "168c39bf6e69d9b4de1df8488f521661a0dce478efaf0f46f03ceda9bf7dcd7a"
+      },
+      {
+        "path": "cli/run.py",
+        "decoded_start_line": 10740,
+        "decoded_end_line": 11345,
+        "raw_sha256": "f941cb6406499f7f4ebd711c0b3a201cd98a7968fe2ed5ba6ddb4d6638b85b3d"
+      },
+      {
+        "path": "docs/reviews/operations-cli-proof.py",
+        "decoded_start_line": 11346,
+        "decoded_end_line": 11686,
+        "raw_sha256": "0d812360ab916ef8777db3bf16373dfbadfaab1c8767a4b5df9996ae32093457"
+      },
+      {
+        "path": "docs/reviews/document-access-proof-tools/live_cli.py",
+        "decoded_start_line": 11687,
+        "decoded_end_line": 12206,
+        "raw_sha256": "e1070e3fd3930a7fe2113a26329d7b36c772f5b5a4532541585483de86a1e722"
+      },
+      {
+        "path": "docs/reviews/document-followup-proof.py",
+        "decoded_start_line": 12207,
+        "decoded_end_line": 12346,
+        "raw_sha256": "c6eb2dd07b1987fd1bc7336cef2263dbf327dffb4e87cd0046a57f3f64d47b26"
+      },
+      {
+        "path": "tests/docn_workflow_fixture.py",
+        "decoded_start_line": 12347,
+        "decoded_end_line": 12374,
+        "raw_sha256": "e8a4bf75dacbfedab28405216efd44d0daf50a63b32de387512118a9b32f5956"
+      },
+      {
+        "path": "tests/fixtures/docn_2026_11_07/manifest.json",
+        "decoded_start_line": 12375,
+        "decoded_end_line": 12547,
+        "raw_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f"
+      },
+      {
+        "path": "tests/test_document_followup.py",
+        "decoded_start_line": 12548,
+        "decoded_end_line": 12899,
+        "raw_sha256": "0534380822cf3efe911ea698813e208cf27078624e1eb6ea666ab3b59be4b380"
+      },
+      {
+        "path": "tests/test_document_search_legacy.py",
+        "decoded_start_line": 12900,
+        "decoded_end_line": 12977,
+        "raw_sha256": "8e422839e0a58ff947c732ff80cc7bbe0c32742c680fb25f0a44e2255fef1484"
+      },
+      {
+        "path": "tests/test_document_search_state.py",
+        "decoded_start_line": 12978,
+        "decoded_end_line": 13307,
+        "raw_sha256": "e04b1caa96b3d55ff0d71e5a76c4e784f75122002e2c7fb03a482cb4249f2075"
+      },
+      {
+        "path": "tests/test_document_search_reporting.py",
+        "decoded_start_line": 13308,
+        "decoded_end_line": 13353,
+        "raw_sha256": "f093040b8c7644c4f07f429d861ced85081415e1e23602ce7612e6dcbd3657c2"
+      },
+      {
+        "path": "tests/test_filing_search_backend.py",
+        "decoded_start_line": 13354,
+        "decoded_end_line": 13630,
+        "raw_sha256": "501500829b20b21b395fe44edb885ed483a98d6bfdff4bf9078d6b126fd36d4f"
+      },
+      {
+        "path": "tests/test_filing_search_acquisition.py",
+        "decoded_start_line": 13631,
+        "decoded_end_line": 13870,
+        "raw_sha256": "4e8653578d1d7faf760c338a944930a9b72439c263f6d90e81fa3bd05e362ec8"
+      },
+      {
+        "path": "tests/test_filing_terms_graph.py",
+        "decoded_start_line": 13871,
+        "decoded_end_line": 13954,
+        "raw_sha256": "d215b23d8f8fdfddbfe318ad0970d5efd6597bf154d091db8eb61e6774942886"
+      },
+      {
+        "path": "tests/test_transcript_tool_integration.py",
+        "decoded_start_line": 13955,
+        "decoded_end_line": 14150,
+        "raw_sha256": "54049cb589a2c6d5f981a3f29d2f492aa332da4036c85c45e77ce23322100912"
+      },
+      {
+        "path": "tests/test_document_retained_replay.py",
+        "decoded_start_line": 14151,
+        "decoded_end_line": 14448,
+        "raw_sha256": "779c6595bb39de24737bac738357767890ca89c2fd5ebaa8020fec3e271575e2"
+      },
+      {
+        "path": "tests/test_document_access_proof_guard.py",
+        "decoded_start_line": 14449,
+        "decoded_end_line": 15210,
+        "raw_sha256": "f79ff1563587a14ce8cf047b31ec9cd389f250680117f75f66e2796d92da4f23"
+      },
+      {
+        "path": "tests/test_build2_continuation_proof.py",
+        "decoded_start_line": 15211,
+        "decoded_end_line": 15625,
+        "raw_sha256": "e6804bd642bbb4f20c042f303aa80caeb678c7bd9b876c98ac16c7e09048a28c"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-document-followup-baseline.json",
+        "decoded_start_line": 15626,
+        "decoded_end_line": 15829,
+        "raw_sha256": "b5967d4ebafd222e007cd010c7525664f5e1674c27d867797b67982d40ad2080"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-document-followup-runtime.json",
+        "decoded_start_line": 15830,
+        "decoded_end_line": 16222,
+        "raw_sha256": "27b5f4fc51749d7a2c850ac42f52505decc861af512faad7b16bb2d0b370bed0"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-document-followup-source-excerpts.json",
+        "decoded_start_line": 16223,
+        "decoded_end_line": 16593,
+        "raw_sha256": "8f7696110405d596ab70e7fbc64a1f558251d85decdc8830d5fe1400859415da"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-document-followup.md",
+        "decoded_start_line": 16594,
+        "decoded_end_line": 16660,
+        "raw_sha256": "43a40f1412f3e4b9b99467c5109dc4176e0168e807cfe3cb389e93689cedd64c"
+      }
+    ]
+  }
+}

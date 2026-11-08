@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 is integrated and pushed at `78e3611ffb3fd6d8672acc2c15f54489cc258ae6`; all seven exact-SHA CI jobs passed. Its 3448-pass local suite/native proofs and completed independent Claude Fable review (zero Critical/High/Medium, three Low observations retained) are recorded in the R1 report. R2 has started in separate `document-followup` worktree from that exact confirmed staging, with 32 baseline tests passed and the four original wrong rankings reproduced before implementation. R4/R3/Na/Nb have not started. User24-hour advance authority covers necessary stage integrations/pushes and audit retries within existing caps until2026-11-09T05:20:03Z. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 is integrated and pushed at `78e3611ffb3fd6d8672acc2c15f54489cc258ae6`; all seven exact-SHA CI jobs passed. Its 3448-pass local suite/native proofs and completed independent Claude Fable review (zero Critical/High/Medium, three Low observations retained) are recorded in the R1 report. R2 implementation and decisive local checks are complete in separate `document-followup` worktree from that exact staging: final default suite3479 passed, Ruff and native source/CLI proofs passed, historical journal replay preserved. Required independent Claude Fable acceptance is being prepared. R4/R3/Na/Nb have not started. User24-hour advance authority covers necessary stage integrations/pushes and audit retries within existing caps until2026-11-09T05:20:03Z. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -184,17 +184,17 @@ Full `pytest -q` and `ruff check` green at one commit. A DOCN fixture replay of 
 ### R2.1 Query terms that mean something (DF1)
 **Files:** `tradingagents/dataflows/filing_search.py` (~:122–131), `tradingagents/agents/document_questions.py`.
 - Before scoring, drop stop-words, question filler (does, say, from, what, how) and bare dates/years unless they are the only terms. Score phrase bigrams above single words, and weight body text above section headings.
-- [ ] `test_question_shaped_rpo_query_returns_rpo_note` (DOCN: bear-1's question returns the Q3 RPO note containing $799.7M and $345.1M), `test_bull1_query_no_longer_returns_lease_tables`, `test_keyword_queries_unchanged` (existing keyword behaviour preserved).
+- [x] `test_question_shaped_rpo_query_returns_rpo_note` (DOCN: bear-1's question returns the Q3 RPO note containing $799.7M and $345.1M), `test_bull1_query_no_longer_returns_lease_tables`, `test_keyword_queries_unchanged` (existing keyword behaviour preserved).
 - Preserve instrument-identifying years such as `2026 Convertible Notes` versus `2030 Convertible Notes`, the existing alias expansion, and multi-instrument passage reservation. Strip date filler only when it is not part of an identified instrument; prove the existing named-note cases still pass.
 
 ### R2.2 Retrieval says what it found, not whether the question was answered (DF2)
 - Deterministic status only: `relevant_passages_found` when every non-stop content word of at least one query phrase appears in a passage body, otherwise `no_relevant_passage`. Retrieval never claims a question was **answered**. A passage can contain every search word without explaining, for example, why RPO declined.
 - The card shows retrieval status and stops printing "N passages retrieved". N1.1 later owns the separate, unvalidated RM answer judgment and its card wiring; until that build is accepted, show "RM answer judgment unavailable" rather than inventing one. R2 does not depend on a future Phase 2 schema.
-- [ ] `test_unrelated_passages_are_not_reported_as_relevant`, `test_retrieval_never_reports_answered`, `test_card_shows_retrieval_status_without_rm_judgment`.
+- [x] `test_unrelated_passages_are_not_reported_as_relevant`, `test_retrieval_never_reports_answered`, `test_card_shows_retrieval_status_without_rm_judgment`.
 
 ### R2.3 Dedupe across questions and roles (DF3, BB2)
 - Deduplicate near-identical questions across bull and bear before lookup (freeing the slot), and deduplicate passages across results before building the follow-up context.
-- [ ] `test_duplicate_rpo_questions_use_one_slot`, `test_followup_context_has_no_repeated_passage`.
+- [x] `test_duplicate_rpo_questions_use_one_slot`, `test_followup_context_has_no_repeated_passage`.
 
 ### R2 proof
 Full suite and Ruff green. Replay the four logged DOCN questions through the new search: record each question, the top passage before and after, and the status in `docs/reviews/<date>-document-followup.md`.
