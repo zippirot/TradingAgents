@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 DEFAULT_MAX_REQUESTS = 192
 DEFAULT_MAX_SECONDS = 14400
 DEFAULT_MAX_TOKENS = 25_000_000
@@ -833,6 +833,20 @@ def _valuation_reference_basis_matches(quote):
     return True
 
 
+def _accounting_treatment_assertion(quote):
+    """Identify explicit expense-treatment wording, not ordinary amount claims.
+
+    This is a conservative authority boundary, not an accounting-language
+    interpreter. Nonliteral treatment interpretations need qualification.
+    """
+    cost = re.search(r"\b(?:costs?|expenses?|charges?|compensation|amortization|depreciation|tax(?:es)?)\b", quote, re.I)
+    treatment = re.search(
+        r"\b(?:before|after)\s+(?:treating|recognizing|expensing|deducting|subtracting|including|excluding|counting|charging)\b|"
+        r"\b(?:include[ds]?|including|exclude[ds]?|excluding|deduct(?:ed|ing|s)?|subtract(?:ed|ing|s)?|"
+        r"add(?:ed|ing|s)?[ -]+back|expensed|recognized[ -]+as)\b|\b(?:real|economic)[ -]+(?:cost|expense)\b", quote, re.I)
+    return bool(cost and treatment)
+
+
 def _validate_claim(raw, chunk, sources):
     if not isinstance(raw, dict):
         raise ValueError("claim must be an object")
@@ -868,6 +882,9 @@ def _validate_claim(raw, chunk, sources):
                          **{key: source[key] for key in ("original_locator", "source_character_start", "source_character_end") if key in source}})
     if outcome in {"supported", "contradicted"} and not evidence:
         raise ValueError("source-backed outcome needs evidence")
+    if (outcome == "supported" and _accounting_treatment_assertion(quote)
+            and not ("|" not in quote and any(e["kind"] == "filing passage" and quote in e["quote"] for e in evidence))):
+        raise ValueError("Supported accounting treatment requires exact primary narrative support for the entire assertion, not an amount or computation")
     correction = raw.get("correction")
     if correction is not None and (outcome != "contradicted" or not isinstance(correction, str)
                                    or not correction.strip() or len(correction) > 1800):
@@ -959,6 +976,12 @@ def _review_prompt(chunk, sources):
         "into exact quoted subclaims with their respective outcomes, or classify the whole claim as "
         "unsupported or contradicted. The outcome must agree with the explanation. An explanation "
         "that refutes a claim cannot accompany a supported outcome for that claim. "
+        "Accounting-treatment assertions about including, excluding, deducting or treating expenses "
+        "are not established by an amount row or reproduced sum. A supported treatment assertion "
+        "requires exact primary narrative support for the same full statement; a numeric reconciliation "
+        "alone cannot provide that authority. Otherwise qualify the treatment as unsupported or a "
+        "hypothesis, while assessing any exact amount subclaim separately. In a repair, dispose of the "
+        "entire requested mixed assertion: returning only its amount substring cannot complete the target. "
         "Treat recommendations and forecasts as hypotheses and check their stated factual premises. "
         "Explicitly dispose of all explicit recommendation, rating, target and sizing fields, including "
         "negative or missing values such as not provided, REVIEW or no position. Quote the complete "
