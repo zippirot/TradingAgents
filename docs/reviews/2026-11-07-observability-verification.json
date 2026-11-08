@@ -1,0 +1,34 @@
+{
+  "source_commit": "062aab77acae724234756924597d18d188504b1f",
+  "python": "3.12.13",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "packages": {
+    "langgraph": "1.2.16",
+    "langchain-core": "1.6.12",
+    "pandas": "3.0.6",
+    "yfinance": "1.7.0",
+    "pydantic": "2.14.1",
+    "pytest": "9.1.1",
+    "ruff": "0.17.1"
+  },
+  "pytest": {
+    "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+    "exit_code": 0,
+    "passed": 3342,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests_passed": 100,
+    "elapsed_seconds": 61.66,
+    "log_path": "/tmp/r5-full-pytest-062aab77.log",
+    "log_sha256": "4737838a9dd60da82b714c760b0e37d8ca4e1186ea93553278b17369884207b0",
+    "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3342 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 61.66s (0:01:01)"
+  },
+  "ruff": {
+    "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
+    "exit_code": 0,
+    "result": "All checks passed!"
+  },
+  "native_runtime": "docs/reviews/2026-11-07-observability-runtime.json",
+  "remote_ci": "Not run: local unpushed feature branch; no push/integration authority."
+}

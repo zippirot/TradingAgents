@@ -29,6 +29,18 @@ def _digest(value):
 
 
 def _pack(value):
+    import numpy as np
+
+    if isinstance(value, np.generic) and value.dtype.kind in "iufb" and value.dtype.itemsize <= 8:
+        return {"__tradingagents_replay_numpy__": {"dtype": value.dtype.name, "value": _pack(value.item())}}
+    if isinstance(value, datetime):
+        try:
+            datetime.fromisoformat(value.isoformat())
+        except ValueError:
+            return value  # e.g. pandas NaT remains explicitly unreplayable
+        return {"__tradingagents_replay_datetime__": value.isoformat()}
+    if isinstance(value, date):
+        return {"__tradingagents_replay_date__": value.isoformat()}
     if isinstance(value, float) and not math.isfinite(value):
         return {"__tradingagents_replay_float__": str(value)}
     if isinstance(value, dict):
@@ -40,6 +52,18 @@ def _pack(value):
 
 def _unpack(value):
     if isinstance(value, dict):
+        if set(value) == {"__tradingagents_replay_numpy__"}:
+            import numpy as np
+
+            scalar = value["__tradingagents_replay_numpy__"]
+            dtype = np.dtype(scalar["dtype"])
+            if dtype.kind not in "iufb" or dtype.itemsize > 8:
+                raise ValueError("Unsupported replay scalar dtype")
+            return dtype.type(_unpack(scalar["value"]))
+        if set(value) == {"__tradingagents_replay_datetime__"}:
+            return datetime.fromisoformat(value["__tradingagents_replay_datetime__"])
+        if set(value) == {"__tradingagents_replay_date__"}:
+            return date.fromisoformat(value["__tradingagents_replay_date__"])
         if set(value) == {"__tradingagents_replay_float__"}:
             return float(value["__tradingagents_replay_float__"])
         return {key: _unpack(item) for key, item in value.items()}

@@ -156,6 +156,7 @@ def test_replay_rebinds_call_ids_and_preserves_command_updates(tmp_path, monkeyp
 
 
 def test_raw_yahoo_replay_keeps_precision_dtype_and_timezone(tmp_path, monkeypatch):
+    import numpy as np
     import pandas as pd
 
     from tradingagents.dataflows.vendors.yahoo.common import recorded_history
@@ -171,7 +172,9 @@ def test_raw_yahoo_replay_keeps_precision_dtype_and_timezone(tmp_path, monkeypat
             return history
 
         def get_history_metadata(self):
-            return {"symbol": "DOCN", "currency": "USD", "exchangeTimezoneName": "America/New_York"}
+            return {"symbol": "DOCN", "currency": "USD", "exchangeTimezoneName": "America/New_York",
+                    "currentTradingPeriod": {"regular": {
+                        "end": pd.Timestamp("2026-11-06T16:00:00-05:00"), "gmtoffset": np.int64(-18000)}}}
 
     original = ReplaySession(recorder(tmp_path / "baseline", monkeypatch), SCOPE)
     with session_context(original):
@@ -185,6 +188,7 @@ def test_raw_yahoo_replay_keeps_precision_dtype_and_timezone(tmp_path, monkeypat
     pd.testing.assert_frame_equal(before, history)
     pd.testing.assert_frame_equal(after, history)
     assert replay_metadata == metadata
+    assert type(replay_metadata["currentTradingPeriod"]["regular"]["gmtoffset"]) is np.int64
 
 
 def test_known_provider_failure_replays_without_private_exception_text(tmp_path, monkeypatch):

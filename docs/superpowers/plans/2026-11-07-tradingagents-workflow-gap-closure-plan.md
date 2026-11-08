@@ -68,6 +68,10 @@ Every audit finding maps to exactly one task. ID prefixes follow the audit parts
 
 ## Delivery estimate
 
+Build size: large
+
+This standalone metadata restates the existing overall plan size for the audit-policy parser; it does not change the per-build estimates or the claimed build stage.
+
 | | R1 evidence | R2 doc follow-up | R3 decision page | R4 memory | R5 observability | Na lower-risk prompts | Nb judgment changes |
 |---|---|---|---|---|---|---|
 | Build size | medium | small | medium | small | small to medium | small to medium | small |
