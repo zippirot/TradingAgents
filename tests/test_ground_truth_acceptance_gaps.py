@@ -906,3 +906,49 @@ def test_target_control_evidence_retains_typed_unit_and_eligibility_without_mode
     row["control"]["decision_use"]["final_target_eligible"] = True
     assert control["decision_use"]["final_target_eligible"] is False
     assert result["code_verified"] is False
+
+
+@pytest.mark.parametrize("followup", [False, True])
+def test_review_prompt_excludes_report_chunk_ids_from_citable_sources_while_retaining_assumptions(followup):
+    from tradingagents.ground_truth import _review_prompt
+
+    chunk = {"chunk_id": "report.md@0:100", "section_id": "report.md", "text": "Middle scenario assumption: 1.93B."}
+    if followup:
+        chunk["review_claims"] = [chunk["text"]]
+        chunk["prior_assessments"] = [{"quoted_claim": chunk["text"], "outcome": "unsupported", "explanation": "Premise missing."}]
+    prompt = _review_prompt(chunk, {})
+    assert "Only source_id and locator pairs listed in SUPPLIED SOURCES are citable" in prompt
+    assert "report filenames, chunk IDs and offsets are not source records" in prompt
+    assert "Scenario assumptions in REPORT CHUNK may be read as stated assumptions" in prompt
+    assert "cite supplied external records for their factual premises" in prompt
+
+
+def test_valid_primary_references_do_not_rescue_an_invented_report_chunk_citation():
+    from tradingagents.ground_truth import _source_index
+
+    original = state()
+    original["filing_evidence"]["documents"][0]["blocks"] += [
+        {"locator": "annual-guidance", "text": "Full-year 2026 revenue guidance was $1.208 billion at the low end."},
+        {"locator": "forecast", "text": "Management expects 2027 revenue growth of at least 60%."}]
+    text = "The middle scenario assumption is slightly below the $1.9328 billion implied by low guidance and 60% growth."
+    parts = [("Decision", "5_portfolio", [("PM", "decision.md", "Revenue was 100 USD.\n\n" + text)])]
+    report = inventory(original, parts)
+    chunk = report["chunks"][0]
+    references = [
+        {"source_id": "doc-1", "locator": "annual-guidance", "quote": original["filing_evidence"]["documents"][0]["blocks"][1]["text"]},
+        {"source_id": "doc-1", "locator": "forecast", "quote": original["filing_evidence"]["documents"][0]["blocks"][2]["text"]},
+    ]
+    claim = {"quoted_claim": text, "outcome": "supported", "explanation": "Conditional arithmetic uses a stated scenario assumption.",
+             "evidence": references}
+    sources, _ = _source_index(original)
+    accepted = _validate_claim(claim, chunk, sources)
+    assert accepted["outcome"] == "supported"
+    assert accepted["code_verified"] is False
+    invented = {"source_id": chunk["chunk_id"], "locator": "text", "quote": text}
+    rejected = {**claim, "evidence": [*references, invented]}
+    with pytest.raises(ValueError, match="source quote or locator not present"):
+        _validate_claim(rejected, chunk, sources)
+    result = run_audit(original, Model({"claims": [response()["claims"][0], rejected], "no_material_claims": False}), inventory=report)
+    assert result["status"] == "partial"
+    assert result["coverage"]["reviewed_chunks"] == 0
+    assert [finding["quoted_claim"] for finding in result["claims"]] == ["Revenue was 100 USD."]
