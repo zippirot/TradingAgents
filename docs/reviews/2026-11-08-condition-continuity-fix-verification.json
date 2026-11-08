@@ -118,5 +118,70 @@
   "paid_calls_for_this_local_fix": 0,
   "independent_audit": "pending real frozen Claude Fable executor; no self-review substitution",
   "integration": "pending after independent acceptance under unexpired user authority",
-  "live_baseline_limitation": "The original live provider/model run was source9c252791, tree-equivalent to stagingc4b70a36. This correction changes condition preparation and the PM disposition schema; retained-response offline proof is not a fresh same-SHA paid baseline. Phase2 has not started."
+  "live_baseline_limitation": "The original live provider/model run was source9c252791, tree-equivalent to stagingc4b70a36. This correction changes condition preparation and the PM disposition schema; retained-response offline proof is not a fresh same-SHA paid baseline. Phase2 has not started.",
+  "stable_source_commit": "b13cfdbbe300c5d631c5ab5b7dacbb19f65b444e",
+  "source_objects_verified_at_commit": true,
+  "committed_reference": {
+    "receipt": {
+      "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/condition-continuity-committed-170906/receipt.json",
+      "sha256": "1e8429d5783ab9c7df72986394cb5570c6756319356af0136506c676d74ad5e7"
+    },
+    "observed": {
+      "proof": "offline current-code processing of a retained live PM response",
+      "input_state": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/phase1-DOCN-repeat2/run/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07.json",
+      "input_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+      "analysis_identity": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+      "original_retained_conditions": 8,
+      "new_proposal_conditions": 8,
+      "kept_prior_conditions": 4,
+      "corrected_retained_conditions": 12,
+      "price_conditions": 2,
+      "event_conditions": 2,
+      "all_prior_ids_preserved": true,
+      "next_run_observations": 12,
+      "next_prompt_contains_all_ids": true,
+      "memory_link_count": 1,
+      "rating": "Underweight",
+      "original_publication_files_unchanged": 30,
+      "new_record": {
+        "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+        "record_sha256": "619dde8c6fc6a0e8de30ab40720bf923a1bd639ebc07898b54ce4be2b1f1bddc",
+        "evidence_snapshot": {
+          "sha256": "11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa",
+          "path": "evidence/11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa.json"
+        }
+      },
+      "report_files": {
+        "evidence.json": "1b4f4a5f8528a6a2b9af54bdd66da3b2075901e883117382b2afd27acffe748e",
+        "complete_report.md": "42b250cad2b06aa066a94b69083c4f12c816d66c507e8a1c5c58c876a86c4dd2",
+        "quality.json": "2e1ca0ea7850c4ad81388e860471cdf0f342d0e94047b708072b0aacd9569acb",
+        "diagnostics.json": "e004bb969c22bb9f5871a269d921471148266c56a6bbe2a3515a7402644ae7bc",
+        "executive_summary.json": "6e7844cc0fef412bb14538eecede2b18cbfdc9ad013d1781ed872491bbe974e3",
+        ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete_report.html": "e6a9f760743144011476dc92aa1d39fe0aa876bdc2bb19eb9468297cba261e7d",
+        "operational_audit.md": "d88a072da2fbc800e5707a6fdb56d27d2aa44b06171838bac5b2efee96f599b5",
+        "5_portfolio/mechanical_grid.md": "18be12d50b88ea17a555fbeb82c82d91ba1bce12ae1977c28abedc1c29410113",
+        "5_portfolio/decision.md": "06f2977a2bedb5d26abbfa06067b3df92e43c99725180cd252fc013391a47294",
+        "6_evidence/summary.md": "9968407c477fb97b234b65a8dfd52e9cacea6a2b69a162c96adac997b98f38bb",
+        "3_trading/trader.md": "e2e30ab9825e30372692551037240c93cc7ba286e869295fe7e1f5d9932980f4",
+        "2_research/bull.md": "b02815b9e3e65d56add3e8e571f847c5f50e40751953daa008f32b3650a7e028",
+        "2_research/manager.md": "98ca12c9ae3d610389bb72819e9090c5534d6633e9ff5b4ab799bb7cda29be95",
+        "2_research/bear.md": "c5bdabdb926a19500402f8cf3017d509e5b7010c20bf8d65cfd4f532bf37364d",
+        "1_analysts/news.md": "94495e7aa992040fb8b0599d9287ed31dd4b6a2d880bf0e1b8bb72ba5cc8f24b",
+        "1_analysts/fundamentals.md": "a32174116c083235fd79ea3eb093e97ae1d09e79bf7a36e167c4019ac817b4aa",
+        "1_analysts/sentiment.md": "8520905968e0bd8e96a54767b94f6a32920f767d9ca94456e28aaf096ca40f34",
+        "1_analysts/market.md": "ee158d0aec9584ed1da64fc8fe26cff6bfc44c922f9fbb54b750c539f3f171a5",
+        "4_risk/aggressive.md": "f1305dffa24f2186a2ec91516953204b21d56a8d6ff0dbdb2b32a360c983e830",
+        "4_risk/neutral.md": "ca82c005baff219fa8a025ac98d80baa730fd1724f720dc61befa5ec830e722f",
+        "4_risk/conservative.md": "c5149d9281e5932e6d3b9e90c676686ed052352e44060214d16c4f085d142314",
+        "4_risk/debate.md": "011d27246811407be768666a5b6b7c22d076432bca72ea01da468750b0d7e1b7"
+      },
+      "network_connections_denied": true,
+      "limitations": [
+        "Provider response is retained, not a new live call.",
+        "The isolated variant reuses its recorded analysis ID so advisory response scopes stay intact.",
+        "It does not change any real original publication or establish a fresh same-SHA paid baseline."
+      ]
+    }
+  }
 }
