@@ -1,0 +1,44 @@
+{
+  "stage": "local feature candidate before independent audit; staging and production unverified",
+  "source_commit": "d9ad53afd2a4382db8525deb1e7a7473e8b24380",
+  "full_pytest": {
+    "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+    "exit_code": 0,
+    "passed": 3468,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests_passed": 100,
+    "elapsed_seconds": 64.26,
+    "log_path": "/tmp/r4-d9ad53af-full-pytest.log",
+    "log_sha256": "299a79da947fad24b4c15e6e861b98e7d61bdfd1b6238df4030b9ade612a84f4",
+    "terminal_excerpt": [
+      "=========================== short test summary info ============================",
+      "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'",
+      "SKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable",
+      "SKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present",
+      "SKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable",
+      "3468 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 64.26s (0:01:04)"
+    ]
+  },
+  "focused": {
+    "passed": 354,
+    "elapsed_seconds": 4.61,
+    "log_path": "/tmp/r4-combined-focused.log"
+  },
+  "checkpoint_corrected": {
+    "passed": 16,
+    "elapsed_seconds": 10.53,
+    "log_path": "/tmp/r4-checkpoint-corrected.log"
+  },
+  "ruff": {
+    "command": "ruff check tradingagents tests docs/reviews/memory-continuity-proof.py",
+    "exit_code": 0
+  },
+  "pending": [
+    "Independent Claude Fable audit and material closure",
+    "R2 then R4 staging integration and combined verification",
+    "Exact integrated-SHA CI",
+    "R3 and subsequent Goal stages"
+  ]
+}

@@ -251,7 +251,7 @@ Full suite and Ruff green. Re-render the DOCN reference run from the fixture: `d
 **Files:** `tradingagents/memory/log.py` (~:69–76).
 - Per approved D2: a newer run **replaces** a still-pending entry for the same ticker and date, keeping one entry and linking the newest publication ID. A settled entry is never replaced (preserves the double-count guard).
 - Perform the pending/settled check and replacement atomically under the existing store lock; reuse current partial-write quarantine and atomic replacement. Repeating the same publication is idempotent, and settlement/replacement ordering must not duplicate a settled outcome or lesson. Prove both orderings with the existing memory fixtures.
-- [ ] `test_rerun_replaces_pending_same_day_entry`, `test_settled_entry_never_replaced`, `test_memory_and_thesis_reference_same_publication`.
+- [x] `test_rerun_replaces_pending_same_day_entry`, `test_settled_entry_never_replaced`, `test_memory_and_thesis_reference_same_publication`.
 
 ### R4.2 Carry every stated condition forward: schema to next run (H2, RM2)
 **Files:** `tradingagents/memory/thesis.py` (`ThesisCondition` ~:21–34, rendering ~:397–408, :459), `tradingagents/agents/schemas.py::ThesisProposal`, `tradingagents/agents/managers/portfolio_manager.py` (instructions), the thesis validation and publication code that persists conditions, the next-run `thesis_context` renderer.
@@ -263,12 +263,12 @@ Today `ThesisCondition` requires a metric, comparator, threshold, unit and perio
 4. **Persistence.** Saved in the thesis and the publication record alongside metric conditions, under the same immutability rules.
 5. **Next run.** `price_level` is checked against the completed close. `event` is shown as an open question with its confirming evidence, status `unobserved` until a later run's evidence matches it; this plan adds no automatic event matching. Raise the rationale display from 300 to 1,000 chars.
 - Compatibility includes measurement identity, not only successful parsing: adding a default `kind=metric` must preserve existing condition IDs, aliases, keeps/dispositions, and immutable publication/evidence hashes. Use the existing legacy metric identity representation for legacy-equivalent metric conditions. Do not rewrite old records. Compare price conditions only with a dated, currency-compatible completed close; missing/incompatible data stays unobserved. Events remain open unless explicitly disposed under existing advisory rules; no matcher is introduced.
-- [ ] `test_existing_publications_without_kind_load_as_metric` (load every record in a copy of `~/.tradingagents/logs/publications/records/`), `test_pm_schema_accepts_three_condition_kinds`, `test_invalid_event_condition_rejected_with_reason`, `test_price_level_condition_carried_and_checked`, `test_event_condition_carried_as_open_question`, `test_prior_rationale_not_cut_at_300`.
-- [ ] `test_legacy_metric_condition_ids_and_dispositions_unchanged`, `test_legacy_publication_hashes_unchanged`, `test_price_condition_missing_or_wrong_currency_close_stays_unobserved`. Portable tests use sanitized committed fixtures; scanning the private copied store is an additional local proof, not a CI prerequisite.
+- [x] `test_existing_publications_without_kind_load_as_metric` (load every record in a copy of `~/.tradingagents/logs/publications/records/`), `test_pm_schema_accepts_three_condition_kinds`, `test_invalid_event_condition_rejected_with_reason`, `test_price_level_condition_carried_and_checked`, `test_event_condition_carried_as_open_question`, `test_prior_rationale_not_cut_at_300`.
+- [x] `test_legacy_metric_condition_ids_and_dispositions_unchanged`, `test_legacy_publication_hashes_unchanged`, `test_price_condition_missing_or_wrong_currency_close_stays_unobserved`. Portable tests use sanitized committed fixtures; scanning the private copied store is an additional local proof, not a CI prerequisite.
 
 ### R4.3 Plain-text prompt context (ML3, RK3)
 - Render `thesis_context` as plain text for prompts; escape only at HTML export. Report "period not yet reported" instead of "inputs missing or competing" when the period's filing date is after the analysis date.
-- [ ] `test_thesis_context_not_html_escaped_in_prompt`, `test_unreported_period_reason`.
+- [x] `test_thesis_context_not_html_escaped_in_prompt`, `test_unreported_period_reason`.
 
 ### R4 proof
 Full suite and Ruff green. Fixture sequence: write the 09:10 entry, then the 16:41 run: one entry linked to `cfae95e9`. A stub-model PM output containing all three condition kinds round-trips through validation, the publication record and the next-run `thesis_context`. Every existing publication record still loads.
