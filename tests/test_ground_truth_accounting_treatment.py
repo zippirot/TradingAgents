@@ -108,15 +108,17 @@ def test_prompt_requires_primary_treatment_support_and_full_repair_disposition()
     assert 'entire requested mixed assertion' in prompt
 
 
-def test_schema_six_false_supported_cannot_resolve_or_export_offline(tmp_path):
+@pytest.mark.parametrize('legacy_schema', [6, 7])
+def test_prior_schema_false_complete_cannot_resolve_or_export_offline(tmp_path, legacy_schema):
     candidate = {**state(), 'run_settings': {'ground_truth_audit': True}, 'final_rating': 'Hold', 'final_trade_decision': CLAIM}
     inv = build_report_inventory(candidate)
     chunk = next(c for c in inv['chunks'] if CLAIM in c['text'])
-    start = chunk['start'] + chunk['text'].index(CLAIM)
-    finding = {**raw(), 'chunk_id': chunk['chunk_id'], 'section_id': chunk['section_id'],
-               'character_start': start, 'character_end': start + len(CLAIM), 'ambiguous_location': False,
+    legacy_quote = CLAIM if legacy_schema == 6 else 'roughly $35M of quarterly stock compensation'
+    start = chunk['start'] + chunk['text'].index(legacy_quote)
+    finding = {**raw(legacy_quote), 'chunk_id': chunk['chunk_id'], 'section_id': chunk['section_id'],
+               'character_start': start, 'character_end': start + len(legacy_quote), 'ambiguous_location': False,
                'correction': None, 'code_verified': False, 'evidence': []}
-    old = {'schema_version': 6, 'status': 'completed', 'digest': inv['digest'], 'evidence_digest': inv['evidence_digest'],
+    old = {'schema_version': legacy_schema, 'status': 'completed', 'digest': inv['digest'], 'evidence_digest': inv['evidence_digest'],
            'identity': inv['identity'], 'claims': [finding],
            'chunk_digests': {c['chunk_id']: audit._digest(c) for c in inv['chunks']},
            'coverage': {'total_chunks': len(inv['chunks']), 'reviewed_chunks': len(inv['chunks']),
@@ -128,3 +130,89 @@ def test_schema_six_false_supported_cannot_resolve_or_export_offline(tmp_path):
         text = (tmp_path / name).read_text()
         assert 'unavailable' in text.lower() and 'Supported' not in text
     assert 'unavailable' in render_report('DOCN', candidate, None).lower()
+
+
+class InitialAmountReviewer:
+    def __init__(self, outcome='unsupported', amount_only=False):
+        self.calls, self.outcome, self.amount_only = [], outcome, amount_only
+    def invoke(self, prompt):
+        chunk = json.loads(prompt.split('REPORT CHUNK:\n')[1].split('\nSUPPLIED SOURCES')[0])
+        self.calls.append(chunk)
+        if chunk.get('review_claims') and not self.amount_only:
+            return {'claims': [raw(quote, outcome=self.outcome) for quote in chunk['review_claims']], 'no_material_claims': False}
+        return {'claims': [raw('roughly $35M of quarterly stock compensation')], 'no_material_claims': False}
+
+
+@pytest.mark.parametrize('outcome', ['unsupported', 'hypothesis'])
+def test_initial_amount_only_cannot_omit_the_full_treatment_interpretation(monkeypatch, outcome):
+    monkeypatch.setattr(audit, '_source_index', lambda state: (deepcopy(SOURCES), []))
+    inv = inventory(parts=[('Decision', '5_portfolio', [('PM', 'decision.md', CLAIM)])])
+    model = InitialAmountReviewer(outcome)
+    result = audit.run_audit(state(), model, inventory=inv)
+    assert len(model.calls) == 2 and model.calls[1]['review_claims'] == [CLAIM]
+    assert result['coverage']['reviewed_chunks'] == 1
+    assert result['claims'][0]['quoted_claim'] == 'roughly $35M of quarterly stock compensation'
+    assert result['claims'][1]['quoted_claim'] == CLAIM and result['claims'][1]['outcome'] == outcome
+
+
+@pytest.mark.parametrize('mode', ['amount_only', 'budget', 'duplicate'])
+def test_unassessed_treatment_never_completes_when_numeric_amounts_are_already_covered(monkeypatch, mode):
+    monkeypatch.setattr(audit, '_source_index', lambda state: (deepcopy(SOURCES), []))
+    text = CLAIM if mode != 'duplicate' else 'First case\n' + CLAIM + '\nSecond case\n' + CLAIM
+    model = InitialAmountReviewer(amount_only=True)
+    result = audit.run_audit(state(), model, {'ground_truth_max_requests': 1} if mode == 'budget' else {},
+                            inventory=inventory(parts=[('Decision', '5_portfolio', [('PM', 'decision.md', text)])]))
+    assert result['status'] == 'partial' and result['coverage']['reviewed_chunks'] == 0
+    assert result['unresolved_repairs']
+    assert len(model.calls) == (1 if mode == 'budget' else 2)
+
+
+def test_final_treatment_coverage_remains_partial_after_the_hundred_target_allowance(monkeypatch):
+    monkeypatch.setattr(audit, '_source_index', lambda state: (deepcopy(SOURCES), []))
+    lines = [f'Case {chr(65 + i // 26)}{chr(65 + i % 26)}: Net income excludes compensation.' for i in range(120)]
+    text = '\n'.join(lines)
+    class ManyReviewer:
+        def __init__(self):
+            self.calls = []
+        def invoke(self, prompt):
+            chunk = json.loads(prompt.split('REPORT CHUNK:\n')[1].split('\nSUPPLIED SOURCES')[0])
+            self.calls.append(chunk)
+            targets = chunk.get('review_claims', [])
+            return {'claims': [raw(quote, outcome='unsupported') for quote in targets], 'no_material_claims': not targets}
+    model = ManyReviewer()
+    result = audit.run_audit(state(), model, inventory=inventory(parts=[('Decision', '5_portfolio', [('PM', 'decision.md', text)])]))
+    assert len(model.calls) == 2 and len(model.calls[1]['review_claims']) == 100
+    assert result['status'] == 'partial' and result['coverage']['reviewed_chunks'] == 0
+    assert len(result['unresolved_repairs']) == 20
+
+
+@pytest.mark.parametrize('outcome', ['unsupported', 'hypothesis', 'supported'])
+def test_complete_treatment_disposition_does_not_add_an_unnecessary_repair(monkeypatch, outcome):
+    quote = DEFINITION if outcome == 'supported' else CLAIM
+    source = {**SOURCE, 'text': quote}
+    monkeypatch.setattr(audit, '_source_index', lambda state: ({('issuer', 'reconciliation'): source}, []))
+    class FullReviewer:
+        calls = 0
+        def invoke(self, prompt):
+            self.calls += 1
+            return {'claims': [raw(quote, outcome=outcome, excerpt=quote)], 'no_material_claims': False}
+    model = FullReviewer()
+    result = audit.run_audit(state(), model, inventory=inventory(parts=[('Decision', '5_portfolio', [('PM', 'decision.md', quote)])]))
+    assert model.calls == 1 and result['coverage']['reviewed_chunks'] == 1
+
+
+def test_final_treatment_check_keeps_oversized_unquotable_statement_partial():
+    text = 'Before treating compensation as a real cost, ' + 'additional context ' * 330 + 'the conclusion is conditional.'
+    inv = audit.build_inventory(state(), parts=[('Decision', '5_portfolio', [('PM', 'decision.md', text)])],
+                                summary_text='', chunk_characters=10000)
+    assert len(inv['chunks']) == 1 and len(text) > 6000
+    class EmptyReviewer:
+        calls = 0
+        def invoke(self, prompt):
+            self.calls += 1
+            return {'claims': [], 'no_material_claims': True}
+    model = EmptyReviewer()
+    result = audit.run_audit(state(), model, inventory=inv)
+    assert model.calls == 1
+    assert result['status'] == 'partial' and result['coverage']['reviewed_chunks'] == 0
+    assert result['coverage']['remaining_chunks']

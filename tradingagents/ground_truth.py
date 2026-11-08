@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 DEFAULT_MAX_REQUESTS = 192
 DEFAULT_MAX_SECONDS = 14400
 DEFAULT_MAX_TOKENS = 25_000_000
@@ -1090,7 +1090,7 @@ def _validated_response(output, chunk, selected):
 
 
 def _omitted_targets(chunk, claims):
-    """Locate uncovered numeric/decision occurrences in exact sentences/rows.
+    """Locate uncovered numeric/decision/treatment assertions in exact report text.
 
     This is a recall backstop, not a claim extractor or truth judgment. It
     preserves raw offsets and never lets one repeated numeric value cover
@@ -1143,11 +1143,18 @@ def _omitted_targets(chunk, claims):
         for unit in units:
             start = unit.start() if unit is line else line.start() + unit.start()
             end = unit.end() if unit is line else line.start() + unit.end()
-            if any(start <= left and right <= end for left, right in missing):
+            raw_unit = chunk["text"][start:end]
+            start += len(raw_unit) - len(raw_unit.lstrip())
+            end -= len(raw_unit) - len(raw_unit.rstrip())
+            treatment_missing = (_accounting_treatment_assertion(raw_unit)
+                                 and not any(left <= start and end <= right for left, right in spans))
+            if treatment_missing or any(start <= left and right <= end for left, right in missing):
                 quote = unique_context(start, end)
                 if quote:
                     targets.append({"quoted_claim": quote,
-                                    "explanation": "Coverage repair required: an exact numeric or explicit decision-field occurrence was omitted."})
+                                    "explanation": ("Coverage repair required: the full accounting-treatment assertion was omitted; an amount substring does not cover it."
+                                                    if treatment_missing else
+                                                    "Coverage repair required: an exact numeric or explicit decision-field occurrence was omitted.")})
     return list({target["quoted_claim"]: target for target in targets}.values())
 
 
@@ -1289,6 +1296,21 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
                 field_start, field_end = field.span("field")
                 if not any(start <= field_start and field_end <= end for start, end in quote_spans):
                     raise ValueError("unaccounted explicit decision field occurrence")
+            # Treatment coverage is about the full recognized assertion, not
+            # its numeric token. Check even when no bounded repair target could
+            # be emitted or the existing hundred-target allowance was reached.
+            for line in re.finditer(r"[^\n]+", chunk["text"]):
+                units = ([line] if "|" in line.group() or _CRITICAL_FIELD.search(line.group()) else
+                         list(re.finditer(r".+?(?:[.!?](?=\s+[A-Z*]|\s*$)|$)", line.group())))
+                for unit in units:
+                    start = unit.start() if unit is line else line.start() + unit.start()
+                    end = unit.end() if unit is line else line.start() + unit.end()
+                    raw_unit = chunk["text"][start:end]
+                    start += len(raw_unit) - len(raw_unit.lstrip())
+                    end -= len(raw_unit) - len(raw_unit.rstrip())
+                    if (_accounting_treatment_assertion(raw_unit)
+                            and not any(left <= start and end <= right for left, right in quote_spans)):
+                        raise ValueError("unaccounted full accounting-treatment assertion occurrence")
             if time.monotonic() - started > max_seconds:
                 raise ValueError("elapsed review budget exceeded")
             # A numerically covered initial finding does not complete a
