@@ -254,3 +254,35 @@ def test_replay_empty_settlement_history_preserves_verified_zero_coverage(tmp_pa
     pd.testing.assert_series_equal(before, after)
     assert after.attrs["settlement_verified_empty"] is True
     assert after.attrs == before.attrs and candidate.misses == []
+
+
+def test_resumed_checkpoint_trace_is_not_a_complete_comparison_baseline(tmp_path, monkeypatch):
+    original = ReplaySession(recorder(tmp_path / "baseline", monkeypatch), SCOPE)
+    original.checkpoint_resumed = True
+    original.finish(True)
+    with pytest.raises(ValueError, match="incomplete"):
+        ReplaySession(recorder(tmp_path / "candidate", monkeypatch), SCOPE,
+                      baseline=tmp_path / "baseline")
+
+
+def test_replay_comparison_starts_fresh_without_restoring_model_outputs(tmp_path, monkeypatch):
+    from cli.run import _prepare_attempt_comparison
+    from tradingagents.graph import trading_graph
+    from tradingagents.source_replay import current_session
+
+    config = {"results_dir": str(tmp_path / "results"), "data_cache_dir": str(tmp_path / "cache"),
+              "memory_log_path": str(tmp_path / "memory.md"), "checkpoint_enabled": True}
+    selections = {"ticker": "DOCN", "analysis_date": "2026-11-07", "asset_type": "stock"}
+    baseline = tmp_path / "baseline"
+    with session_context(None):
+        _prepare_attempt_comparison(config, baseline, selections, recorder(baseline, monkeypatch))
+        current_session().finish(True)
+    monkeypatch.setenv("TRADINGAGENTS_REPLAY_TRACE", str(baseline))
+    with session_context(None):
+        prepared = _prepare_attempt_comparison(config, tmp_path / "candidate", selections,
+                                               recorder(tmp_path / "candidate", monkeypatch))
+    assert prepared["checkpoint_enabled"] is False
+    graph = object.__new__(trading_graph.TradingAgentsGraph)
+    graph.config = prepared
+    monkeypatch.setattr(trading_graph, "get_checkpointer", lambda *a, **k: pytest.fail("restored old model outputs"))
+    assert graph.begin_checkpoint("DOCN", "2026-11-07") is None

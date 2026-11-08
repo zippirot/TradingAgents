@@ -115,6 +115,7 @@ class ReplaySession:
         self.records = defaultdict(dict)
         self.occurrences = Counter()
         self.misses = []
+        self.checkpoint_resumed = False
         self.lock = Lock()
         self.observed_at = datetime.now(UTC)
         self.local_date = date.today()
@@ -164,7 +165,8 @@ class ReplaySession:
 
     def finish(self, success):
         self.recorder.emit("Source Inputs", {}, "source_session_end",
-                           incomplete=not success or self.recorder.failed, status=self.status,
+                           incomplete=not success or self.recorder.failed or self.checkpoint_resumed,
+                           checkpoint_resumed=self.checkpoint_resumed, status=self.status,
                            replay_misses=len(self.misses))
 
     def input(self, name, arguments, live):

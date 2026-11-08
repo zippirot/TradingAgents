@@ -90,6 +90,8 @@ def _prepare_attempt_comparison(config, results_dir, selections, recorder):
         config.update(clone_starting_snapshot(
             Path(baseline).expanduser().resolve() / "comparison-start",
             (results_dir / "comparison-run").resolve()))
+        # Inputs are replayed; opaque model outputs from a checkpoint are not.
+        config["checkpoint_enabled"] = False
     roots = {key: str(Path(config[key]).expanduser().resolve())
              for key in ("results_dir", "data_cache_dir", "memory_log_path")}
     manifest = capture_starting_snapshot(roots, (results_dir / "comparison-start").resolve())
@@ -301,6 +303,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         if checkpoint_tid is not None:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = checkpoint_tid
             _announce_checkpoint_state(graph, selections["ticker"], selections["analysis_date"])
+            if current_session():
+                current_session().checkpoint_resumed = bool(getattr(graph, "_resuming", False))
 
         # Stream the analysis. On resume, feed None so LangGraph continues the
         # interrupted run instead of re-appending the initial state (#1249); the
@@ -419,6 +423,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             session = current_session()
             if session:
                 final_state["replay_context"] = {"status": session.status, "scope": session.scope,
+                                                  "checkpoint_resumed": session.checkpoint_resumed,
                                                   "misses": list(session.misses)}
                 if session.misses:
                     from tradingagents.operational_audit import merge_observations, observation
