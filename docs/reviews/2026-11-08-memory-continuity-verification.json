@@ -1,24 +1,24 @@
 {
-  "stage": "local feature candidate before independent audit; staging and production unverified",
-  "source_commit": "d9ad53afd2a4382db8525deb1e7a7473e8b24380",
+  "stage": "Corrected combined R4 candidate after accepted R2 staging; actual independent closure and R4 staging CI pending",
+  "source_commit": "8ad5e1727deefa15d3f7b4c2da3e535da2ed7074",
   "full_pytest": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
     "exit_code": 0,
-    "passed": 3468,
+    "passed": 3505,
     "skipped": 10,
     "deselected": 1,
     "warnings": 25,
     "subtests_passed": 100,
-    "elapsed_seconds": 64.26,
-    "log_path": "/tmp/r4-d9ad53af-full-pytest.log",
-    "log_sha256": "299a79da947fad24b4c15e6e861b98e7d61bdfd1b6238df4030b9ade612a84f4",
+    "elapsed_seconds": 71.01,
+    "log_path": "/tmp/r4-combined-candidate-full-pytest.log",
+    "log_sha256": "cf8b9a48127791df8dd3e861ca13b09c289823e37bb0fb75274f2d60ced20c14",
     "terminal_excerpt": [
       "=========================== short test summary info ============================",
       "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'",
       "SKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable",
       "SKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present",
       "SKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable",
-      "3468 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 64.26s (0:01:04)"
+      "3505 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 71.01s (0:01:11)"
     ]
   },
   "focused": {
@@ -32,17 +32,16 @@
     "log_path": "/tmp/r4-checkpoint-corrected.log"
   },
   "ruff": {
-    "command": "ruff check tradingagents tests docs/reviews/memory-continuity-proof.py",
+    "command": "ruff check",
     "exit_code": 0
   },
   "pending": [
-    "Independent Claude Fable audit and material closure",
-    "R2 then R4 staging integration and combined verification",
-    "Exact integrated-SHA CI",
+    "Actual independent Claude Fable closure of current R4 candidate",
+    "R4 staging integration and exact final published-SHA CI",
     "R3 and subsequent Goal stages"
   ],
   "audit_packet": {
-    "explicit_path_count": 57,
+    "explicit_path_count": 62,
     "access": "Frozen diff and trimmed HEAD path contents joined by one newline, no filename headers. Map excludes this final verification document. No runtime or external file access.",
     "paths_to_concatenated_lines": [
       {
@@ -73,7 +72,7 @@
         "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
         "first_line": 113,
         "last_line": 771,
-        "trimmed_sha256": "e0648c5d0fb4538d9b0753ebbeb54933428afcdaf22510e62cb9124dc1799eed"
+        "trimmed_sha256": "5f738264f757f5e0da5c0bc3d658412b632e80a652b4e49aacef0dc8155e7b9e"
       },
       {
         "path": "docs/superpowers/audits/2026-11-07-node-workflow-audit/README.md",
@@ -108,278 +107,308 @@
       {
         "path": "tradingagents/memory/log.py",
         "first_line": 1827,
-        "last_line": 2307,
-        "trimmed_sha256": "e9241147a582e494cf22bb16421d75d935d1214c9e9bef5d795761731c716bcf"
+        "last_line": 2311,
+        "trimmed_sha256": "6843abf402c073e03a2cffa693cc6b17683f2692920c914eb4386b9b8ee0aba1"
       },
       {
         "path": "tradingagents/memory/settlement.py",
-        "first_line": 2308,
-        "last_line": 2788,
+        "first_line": 2312,
+        "last_line": 2792,
         "trimmed_sha256": "3fab7f6d8be44021cdbcbf9b6c45619ebdeeaf54d22553793bd9a9c8c5be83a0"
       },
       {
         "path": "tradingagents/memory/publication.py",
-        "first_line": 2789,
-        "last_line": 3156,
+        "first_line": 2793,
+        "last_line": 3160,
         "trimmed_sha256": "9fe2e64992cbe7b8d5994180df649e68f4fe7f76bf4029ee725b3f0297efc3e6"
       },
       {
         "path": "tradingagents/memory/publication_outcomes.py",
-        "first_line": 3157,
-        "last_line": 3858,
+        "first_line": 3161,
+        "last_line": 3862,
         "trimmed_sha256": "c699bea309d496eccf390981c2d139bcfca9209956ea1b45d4b5157649bbf8b9"
       },
       {
         "path": "tradingagents/dataflows/files.py",
-        "first_line": 3859,
-        "last_line": 3949,
+        "first_line": 3863,
+        "last_line": 3953,
         "trimmed_sha256": "ddd4e0c53080b4cbfe846891c36c82ef4c86ab6c94a47440839013ec8ac39219"
       },
       {
         "path": "tradingagents/dataflows/financial_evidence.py",
-        "first_line": 3950,
-        "last_line": 4402,
+        "first_line": 3954,
+        "last_line": 4406,
         "trimmed_sha256": "3b5448eb32de509ca95740099b236680c7f68e33c5893f6922ec463a786e0da5"
       },
       {
         "path": "tradingagents/dataflows/vendors/yahoo/price_observation.py",
-        "first_line": 4403,
-        "last_line": 4796,
+        "first_line": 4407,
+        "last_line": 4800,
         "trimmed_sha256": "66bafb8e980b5d8bba5524da80a244e455abdafe4c79e0c01ec99061fc1e3827"
       },
       {
         "path": "tradingagents/agents/managers/portfolio_manager.py",
-        "first_line": 4797,
-        "last_line": 5018,
+        "first_line": 4801,
+        "last_line": 5022,
         "trimmed_sha256": "80e94304c96a2ee612dbfbf22323b502b92cba0d5188816df4cbcb37213dbd49"
       },
       {
         "path": "tradingagents/agents/schemas.py",
-        "first_line": 5019,
-        "last_line": 5673,
+        "first_line": 5023,
+        "last_line": 5677,
         "trimmed_sha256": "92ba36d803b5066cc7e4343ceb0a4880b16cf0f2c7738a921b0d0e46ce8dcb41"
       },
       {
         "path": "tradingagents/agents/output_validation.py",
-        "first_line": 5674,
-        "last_line": 5906,
+        "first_line": 5678,
+        "last_line": 5910,
         "trimmed_sha256": "996b0d11fdba6f7908873f48843cb6046242bda1faff7f38eb6906cc13dd8cf5"
       },
       {
         "path": "tradingagents/agents/evidence_presentation.py",
-        "first_line": 5907,
-        "last_line": 5958,
+        "first_line": 5911,
+        "last_line": 5962,
         "trimmed_sha256": "b202c12ae6059f877d20cb31e063c4d41d5dc3c807f262ff504b2237f443951b"
       },
       {
         "path": "tradingagents/agents/rating.py",
-        "first_line": 5959,
-        "last_line": 6106,
+        "first_line": 5963,
+        "last_line": 6110,
         "trimmed_sha256": "9ff11b045320e6b4431c17b6ea96ad293abd4f82652395385277fe0c8debb9b0"
       },
       {
         "path": "tradingagents/agents/state.py",
-        "first_line": 6107,
-        "last_line": 6239,
+        "first_line": 6111,
+        "last_line": 6243,
         "trimmed_sha256": "52387d85146cf2a270fb6c987c0c9c3fe6d12fd711a6492357f35eb156a1b06f"
       },
       {
         "path": "tradingagents/agents/context.py",
-        "first_line": 6240,
-        "last_line": 6795,
+        "first_line": 6244,
+        "last_line": 6799,
         "trimmed_sha256": "9d0b998e3269dfacdcc351935b645ac8f10cf85da2ab88d97678ee332832acf9"
       },
       {
         "path": "tradingagents/graph/trading_graph.py",
-        "first_line": 6796,
-        "last_line": 7685,
-        "trimmed_sha256": "5c0e17060776d5dcd1241b030ee3491ef2572eb6aa305bd98f7c664321b419ec"
+        "first_line": 6800,
+        "last_line": 7689,
+        "trimmed_sha256": "039f40877178fa86ae8c8ece486b8971b3c06e5f09751285888d60451b606953"
       },
       {
         "path": "tradingagents/graph/setup.py",
-        "first_line": 7686,
-        "last_line": 8022,
+        "first_line": 7690,
+        "last_line": 8026,
         "trimmed_sha256": "385c19fa5a1fd0e63c1fba2a3b9cc57c376548b1432f33138cb1687412ddd8bf"
       },
       {
         "path": "tradingagents/graph/propagation.py",
-        "first_line": 8023,
-        "last_line": 8104,
+        "first_line": 8027,
+        "last_line": 8108,
         "trimmed_sha256": "828986ac906c7d6a83815b87f3c971771c4e8b0fe0a044254534c57f0f524e85"
       },
       {
         "path": "tradingagents/graph/checkpointer.py",
-        "first_line": 8105,
-        "last_line": 8203,
+        "first_line": 8109,
+        "last_line": 8207,
         "trimmed_sha256": "0f4e34cfe0c3b96371e2155483124aa7a1920591286bf1a9c3bf5ef3639ce3c0"
       },
       {
         "path": "tradingagents/reporting.py",
-        "first_line": 8204,
-        "last_line": 8916,
+        "first_line": 8208,
+        "last_line": 8920,
         "trimmed_sha256": "67ca2cbfb17a4b1a5621086972ce18bf9ab7a36fc0c7177abf83b96bdcaca4c3"
       },
       {
         "path": "tradingagents/report_html.py",
-        "first_line": 8917,
-        "last_line": 9392,
+        "first_line": 8921,
+        "last_line": 9396,
         "trimmed_sha256": "f6d760fcea3254604ff1240e4ed106d0b9a5bee39236b4ed99603ca2265e3ef6"
       },
       {
         "path": "cli/run.py",
-        "first_line": 9393,
-        "last_line": 9998,
+        "first_line": 9397,
+        "last_line": 10002,
         "trimmed_sha256": "bb95193ebc370ef3519ba2a3d9f114ae2331703b2aa726a340c69c97b06837fa"
       },
       {
         "path": "docs/reviews/operations-cli-proof.py",
-        "first_line": 9999,
-        "last_line": 10339,
+        "first_line": 10003,
+        "last_line": 10343,
         "trimmed_sha256": "da835426245a309141fb922e66bfe9d00e098cdde398bba0c078ef85b80245a0"
       },
       {
         "path": "docs/reviews/memory-continuity-proof.py",
-        "first_line": 10340,
-        "last_line": 10616,
+        "first_line": 10344,
+        "last_line": 10620,
         "trimmed_sha256": "26dad41c3bffbd68350086155a9dfea0125bbf557f3ce4c43b4d15e4c4d78c83"
       },
       {
         "path": "tests/test_memory_pending_replacement.py",
-        "first_line": 10617,
-        "last_line": 10731,
-        "trimmed_sha256": "efc09ea862c0c65d84064a312fcbc796d6d1222cf9aca37b8498017c426bede6"
-      },
-      {
-        "path": "tests/test_memory_log.py",
-        "first_line": 10732,
-        "last_line": 12110,
-        "trimmed_sha256": "5d2ee04c1f18d034fc595ea227271c7e7b20d782e666087282f424db08334fb1"
+        "first_line": 10621,
+        "last_line": 10749,
+        "trimmed_sha256": "9b384cce1cd4764c5fe22fb28d1faff7b7516d4eb69b4b90d28f74a3f0f51f18"
       },
       {
         "path": "tests/test_memory_pointintime.py",
-        "first_line": 12111,
-        "last_line": 12211,
+        "first_line": 10750,
+        "last_line": 10850,
         "trimmed_sha256": "e99a6d762d3d31c41beb0b95a84a5fb30a9110911473341803d7e3c7da5bbd4e"
       },
       {
         "path": "tests/test_publication_graph.py",
-        "first_line": 12212,
-        "last_line": 12470,
+        "first_line": 10851,
+        "last_line": 11109,
         "trimmed_sha256": "5106e8652c82820cee186473c9e71d2fbd61bb700424874d055a8e58c6162c91"
       },
       {
         "path": "tests/test_publication_records.py",
-        "first_line": 12471,
-        "last_line": 12634,
+        "first_line": 11110,
+        "last_line": 11273,
         "trimmed_sha256": "d3683120262ffbff5c7d74a5d4964dda332673ef258d781c865d9c269ded6c6d"
       },
       {
         "path": "tests/test_thesis.py",
-        "first_line": 12635,
-        "last_line": 13110,
+        "first_line": 11274,
+        "last_line": 11749,
         "trimmed_sha256": "8e77fcc810c0baabd0fa1d25f6806d4979957f783f2c663a154f19eb55731464"
       },
       {
         "path": "tests/test_thesis_condition_kinds.py",
-        "first_line": 13111,
-        "last_line": 13264,
+        "first_line": 11750,
+        "last_line": 11903,
         "trimmed_sha256": "7e17c1d00b32334ebb0eac3b96fd6cf09e04d8e940cc3bf46a6a631f81c06f30"
       },
       {
         "path": "tests/test_thesis_aliases.py",
-        "first_line": 13265,
-        "last_line": 13354,
+        "first_line": 11904,
+        "last_line": 11993,
         "trimmed_sha256": "3450c302484fdc4ddd7115061c0b32e1226e7a04dd47e1eab64b6b8ec4814898"
       },
       {
         "path": "tests/test_thesis_integration.py",
-        "first_line": 13355,
-        "last_line": 13462,
+        "first_line": 11994,
+        "last_line": 12101,
         "trimmed_sha256": "7e84d9bf6ffb0034bd54b25054b71f355995ca22a872bee711a10bc8b86a6d4d"
       },
       {
         "path": "tests/test_thesis_graph_roles.py",
-        "first_line": 13463,
-        "last_line": 13570,
+        "first_line": 12102,
+        "last_line": 12209,
         "trimmed_sha256": "2dc48a3f4819b85cb076aa4d8e5bfe78b7bbf867881a617446d3d6145c860aaa"
       },
       {
         "path": "tests/test_checkpoint_resume.py",
-        "first_line": 13571,
-        "last_line": 13830,
+        "first_line": 12210,
+        "last_line": 12469,
         "trimmed_sha256": "75f4c0ce9f747a9998d6c158bb613a9f7abd91d184156d0065081a1875d3719b"
       },
       {
         "path": "tests/test_build2_continuation_proof.py",
-        "first_line": 13831,
-        "last_line": 14242,
-        "trimmed_sha256": "ba84f0d1b3c104c2b1c4df3cc4d344d70ac091cbb779b16c80c7576e8b594b8f"
+        "first_line": 12470,
+        "last_line": 12884,
+        "trimmed_sha256": "c20a18d2add95490287f5bb0122869d7ca87aecd0fb498587cf75a7c387f3fe8"
       },
       {
         "path": "tests/test_graph_end_to_end.py",
-        "first_line": 14243,
-        "last_line": 14880,
+        "first_line": 12885,
+        "last_line": 13522,
         "trimmed_sha256": "dce2399bc58a5a4ebc8288bbe4c16f51e1d9cea611b0e242a644ef6a48597e3c"
       },
       {
         "path": "tests/test_settlement_pass.py",
-        "first_line": 14881,
-        "last_line": 15131,
+        "first_line": 13523,
+        "last_line": 13773,
         "trimmed_sha256": "4f0c09c7e7bfad1d2822c47de8b4dfdab56eefdbd8b41ea32b630e09f6496b09"
       },
       {
         "path": "tests/test_settlement_retry_boundaries.py",
-        "first_line": 15132,
-        "last_line": 15462,
+        "first_line": 13774,
+        "last_line": 14104,
         "trimmed_sha256": "b42c50d6cc80fcbc76750e10330364c9bbf955361bb0d9ff89b02d48b1e3e304"
       },
       {
         "path": "tests/test_review_memory_backtest.py",
-        "first_line": 15463,
-        "last_line": 15686,
+        "first_line": 14105,
+        "last_line": 14328,
         "trimmed_sha256": "bc61ff1536c65995db5bbc2763ef744e2a37b33f1562a22cfee3b5d420ba0dc1"
       },
       {
         "path": "tests/test_cli_memory_log.py",
-        "first_line": 15687,
-        "last_line": 15897,
+        "first_line": 14329,
+        "last_line": 14539,
         "trimmed_sha256": "8c011d08495cfa531026b8dc7ab8f04416d8634cb8b6b371374a05658051f910"
       },
       {
         "path": "tests/test_price_observation.py",
-        "first_line": 15898,
-        "last_line": 16161,
+        "first_line": 14540,
+        "last_line": 14803,
         "trimmed_sha256": "8bd4854f4bc96b8c2990c67f51b5f48189c029ccf60ed2bd9fb41276f6596e48"
       },
       {
         "path": "tests/test_report_html.py",
-        "first_line": 16162,
-        "last_line": 16379,
+        "first_line": 14804,
+        "last_line": 15021,
         "trimmed_sha256": "e11be1b57a0f90cbe46203faebeec5b7ef65943e49b5523ba21958ab2d723974"
       },
       {
+        "path": "tests/test_thesis_legacy_publications.py",
+        "first_line": 15022,
+        "last_line": 15122,
+        "trimmed_sha256": "0f103962d5caa01654af61e701ccd26a70d36eaa78c3815f249211c045e884ea"
+      },
+      {
+        "path": "tests/fixtures/thesis_legacy_metric/manifest.json",
+        "first_line": 15123,
+        "last_line": 15168,
+        "trimmed_sha256": "1ec1d42617de3c983528ccb06a660f0b05a229cd4077c02e36ad481b0b87710c"
+      },
+      {
+        "path": "tests/fixtures/thesis_legacy_metric/publications/evidence/9bb1183fc4174d59f12ec1df9db6098436833602f07821a63011cf026e193800.json",
+        "first_line": 15169,
+        "last_line": 15169,
+        "trimmed_sha256": "9bb1183fc4174d59f12ec1df9db6098436833602f07821a63011cf026e193800"
+      },
+      {
+        "path": "tests/fixtures/thesis_legacy_metric/publications/evidence/eebbe78a6ca97cba2e6f331a8fbc3993c11b8c6c6620e03d1fdaab840a89a044.json",
+        "first_line": 15170,
+        "last_line": 15170,
+        "trimmed_sha256": "eebbe78a6ca97cba2e6f331a8fbc3993c11b8c6c6620e03d1fdaab840a89a044"
+      },
+      {
+        "path": "tests/fixtures/thesis_legacy_metric/publications/records/11111111-1111-4111-8111-111111111111.json",
+        "first_line": 15171,
+        "last_line": 15171,
+        "trimmed_sha256": "04cbb44014073cd87e819645425be895bc2b479179f104b105fa9d36944a6b99"
+      },
+      {
+        "path": "tests/fixtures/thesis_legacy_metric/publications/records/22222222-2222-4222-8222-222222222222.json",
+        "first_line": 15172,
+        "last_line": 15172,
+        "trimmed_sha256": "ed5543b0b59e7bf9edb083ef96effa63b87edddf4864e3cecba1450a27d30239"
+      },
+      {
         "path": "docs/reviews/2026-11-08-memory-continuity-baseline.json",
-        "first_line": 16380,
-        "last_line": 16402,
+        "first_line": 15173,
+        "last_line": 15195,
         "trimmed_sha256": "e47a9006da4852775960105ce4b2ef89e9e4cbfb77a0f80536df43b49e2b0387"
       },
       {
         "path": "docs/reviews/2026-11-08-memory-continuity-runtime.json",
-        "first_line": 16403,
-        "last_line": 16781,
-        "trimmed_sha256": "afb6f60355265e9168ec57e533c29cddcbe7bc738843e456a36eeadd0478ee02"
+        "first_line": 15196,
+        "last_line": 15957,
+        "trimmed_sha256": "6bf101c5e540d39ad520f01f648f0b73c65fb9124591192b42e893c51bb1e46f"
       },
       {
         "path": "docs/reviews/2026-11-08-memory-continuity-source-excerpts.json",
-        "first_line": 16782,
-        "last_line": 16866,
+        "first_line": 15958,
+        "last_line": 16042,
         "trimmed_sha256": "6712a87044da56f75e3295c91d22df6174efc8bc01c9afa8f67615ae103d4708"
       },
       {
         "path": "docs/reviews/2026-11-08-memory-continuity.md",
-        "first_line": 16867,
-        "last_line": 16909,
-        "trimmed_sha256": "0f142ae7c0d7611fa40186e54e290f42227d12febeecd5a41e6ee5248eaa1ba0"
+        "first_line": 16043,
+        "last_line": 16211,
+        "trimmed_sha256": "94f47d1ca4e2de0917de32f29bc78343c2701229cc4ba60c0e5b63e9137848f6"
       }
     ],
     "omitted_full_files": [
@@ -387,14 +416,195 @@
       "tradingagents/agents/evidence_validation.py",
       "tests/test_portfolio_valuation.py"
     ],
-    "part_C_delivery": "Complete exact BASE content embedded in source-excerpts JSON; original path excluded from manifest due public filename false positive."
+    "part_C_delivery": "Complete exact BASE content embedded in source-excerpts JSON; original path excluded from manifest due public filename false positive.",
+    "closure_omitted_unchanged_paths": [
+      "tests/test_memory_log.py"
+    ]
   },
   "source_oids": {
     "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
-    "tradingagents": "8cbb471933d91c05eac38ea6b81f8186745dab43",
-    "tests": "272be3ade32134f2feb70f71c771c68f0fc97d79",
+    "tradingagents": "0516be9760d857d7881f80bfe4d181f6cea71f72",
+    "tests": "5924cc18aa3276cf412664ab236d2696bde49297",
+    "tests/fixtures/thesis_legacy_metric": "4c489e51d830ae3693ec03f56bd4b89218b1a358",
+    "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+    "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd",
     "docs/reviews/memory-continuity-proof.py": "04b9163372b4d214992cc8b9bcf4f7e26bb8dd2a",
     "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
     "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+  },
+  "pre_audit_full_pytest": {
+    "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+    "exit_code": 0,
+    "passed": 3468,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests_passed": 100,
+    "elapsed_seconds": 64.26,
+    "log_path": "/tmp/r4-d9ad53af-full-pytest.log",
+    "log_sha256": "299a79da947fad24b4c15e6e861b98e7d61bdfd1b6238df4030b9ade612a84f4",
+    "terminal_excerpt": [
+      "=========================== short test summary info ============================",
+      "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'",
+      "SKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable",
+      "SKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present",
+      "SKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable",
+      "3468 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 64.26s (0:01:04)"
+    ]
+  },
+  "pre_audit_source_commit": "d9ad53afd2a4382db8525deb1e7a7473e8b24380",
+  "confirmed_integrated_R2_staging": "ccecd32599fe63754e2b2c4de3f17fac88139b2c",
+  "combined_focused": {
+    "passed": 60,
+    "skipped": 2,
+    "seconds": 13.45,
+    "log_path": "/tmp/r4-r2-combined-focused.log"
+  },
+  "correction_focused": {
+    "passed": 42,
+    "seconds": 2.55,
+    "log_path": "/tmp/r4-audit-correction-focused.log"
+  },
+  "legacy_fixture_BASE_validation": {
+    "base_commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+    "imported_package": "/Users/zipp/.codex/worktrees/evidence-assembly/TradingAgents/tradingagents/__init__.py",
+    "records": 2,
+    "raw_files": 4,
+    "all_original_generation_bytes_and_base_id_serialization_matched": true,
+    "base_module_sha256": {
+      "tradingagents/memory/thesis.py": "6b4743a5b848417594d2f1755f7a163440b67716f222dba512dd9723dc371c37",
+      "tradingagents/memory/publication.py": "0b1c1fedf6d91e006c87c294173686dc9ca34e873fcc61b88d4359152a4f04e0"
+    },
+    "fixture_manifest_sha256": "53bbd3557ef6dda9e206a7c9bbaffe5105637a809747a9860695ae7ace29072a",
+    "generator_provenance": "Inline generation source inspected in agent tool transcript; no original generator script/stdout file retained, no generator file hash claimed."
+  },
+  "independent_audit": {
+    "required": true,
+    "model_override": "~anthropic/claude-fable-latest",
+    "status": "initial_complete_material_corrections_ready_for_closure",
+    "initial_frozen_head": "da2b14cd5bade8d7c23b0e3deb7fae2181158d0d",
+    "initial_run_id": "eae4465e-a666-4e42-84d4-75c4d7098857",
+    "initial_turns": 52,
+    "initial_cost_usd": 4.307448,
+    "initial_stop_reason": "reviewer_completed",
+    "initial_manifest_validation_exit": 0,
+    "medium": "Confirmed portable fixture/traceability portion corrected; no independent closure claimed yet",
+    "lows": "Unlinked-call link loss fixed; unused batch API deferred; missing quote currency not inferred; source-OID equality and period-end/filing-date limitation disclosed"
+  },
+  "R4_acceptance_test_resolution": [
+    {
+      "reference": "tests/test_memory_pending_replacement.py::test_pending_rerun_replaces_atomically_and_same_publication_is_idempotent",
+      "exists": true,
+      "source_sha256": "584b5c49fa3f206d7555dd7032299d0bd87750a514f0503b808193c21704c29e"
+    },
+    {
+      "reference": "tests/test_memory_pending_replacement.py::test_settlement_before_rerun_preserves_original_lesson",
+      "exists": true,
+      "source_sha256": "584b5c49fa3f206d7555dd7032299d0bd87750a514f0503b808193c21704c29e"
+    },
+    {
+      "reference": "tests/test_thesis_graph_roles.py::test_pending_thesis_roles_cross_real_graph_and_restart",
+      "exists": true,
+      "source_sha256": "473177c0e2480b24141bb603cd0d08c5ba5047c661b2cfc6bac8d2e146d30239"
+    },
+    {
+      "reference": "tests/test_thesis_legacy_publications.py::test_existing_publications_without_kind_load_as_metric",
+      "exists": true,
+      "source_sha256": "eb60fe44df30f41c0dc5afa31064b957f0e2cdbc4f84c21bf63627c83d481483"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_pm_schema_accepts_all_three_kinds",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_event_and_invalid_sibling_are_visible",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    },
+    {
+      "reference": "tests/test_thesis_integration.py::test_three_condition_kinds_roundtrip_through_publication_and_next_run",
+      "exists": true,
+      "source_sha256": "236c12ccdf4ca7a5e4258b1edf13dddbec2a5aa1d6212cb5e2e374d0a4b9394c"
+    },
+    {
+      "reference": "tests/test_thesis_integration.py::test_three_condition_kinds_roundtrip_through_publication_and_next_run",
+      "exists": true,
+      "source_sha256": "236c12ccdf4ca7a5e4258b1edf13dddbec2a5aa1d6212cb5e2e374d0a4b9394c"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_prompt_context_is_plain_text_and_rationale_is_longer",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    },
+    {
+      "reference": "tests/test_thesis_legacy_publications.py::test_legacy_metric_condition_ids_and_dispositions_unchanged",
+      "exists": true,
+      "source_sha256": "eb60fe44df30f41c0dc5afa31064b957f0e2cdbc4f84c21bf63627c83d481483"
+    },
+    {
+      "reference": "tests/test_thesis_legacy_publications.py::test_legacy_publication_hashes_unchanged",
+      "exists": true,
+      "source_sha256": "eb60fe44df30f41c0dc5afa31064b957f0e2cdbc4f84c21bf63627c83d481483"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_price_level_uses_only_validated_completed_close",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_prompt_context_is_plain_text_and_rationale_is_longer",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    },
+    {
+      "reference": "tests/test_thesis_condition_kinds.py::test_future_metric_period_is_not_yet_reported_without_inventing_filing_date",
+      "exists": true,
+      "source_sha256": "df672d65c06d5058d8b331922f6878d54a324f54056163398ee2c0c7e62bad45"
+    }
+  ],
+  "accepted_R2_predecessor": {
+    "feature_and_published_staging": "ccecd32599fe63754e2b2c4de3f17fac88139b2c",
+    "ci_run_id": 42465206951,
+    "ci_url": "https://github.com/zippirot/TradingAgents/actions/runs/42465206951",
+    "ci_status": "completed_success",
+    "ci_jobs": [
+      {
+        "name": "tests (py3.11, UTC)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.14, UTC)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.13, UTC)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "ruff (strict, full repo)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "clean-install smoke",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.12, America/New_York)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.12, UTC)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "production_unchanged": "9ade69bf155d1b25699d3aecfff3c1b07752aff0"
   }
 }
