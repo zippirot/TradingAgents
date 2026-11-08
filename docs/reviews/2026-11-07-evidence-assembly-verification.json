@@ -1,8 +1,8 @@
 {
-  "stage": "R1 local feature pre-audit acceptance; independent audit and closure pending",
+  "stage": "R1 corrected local checks passed; independent audit failed and remains required",
   "baseline_staging": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
-  "full_suite_commit": "ffb7f44e3b816b1d1e338a01ad88b3f10092509b",
-  "native_proof_commit": "9cf9b6839361109552a778bd65394421ba226635",
+  "full_suite_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
+  "native_proof_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
   "commands": {
     "pytest": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
     "ruff": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
@@ -15,12 +15,12 @@
   },
   "full_suite": {
     "exit_code": 0,
-    "passed": 3445,
+    "passed": 3448,
     "skipped": 10,
     "deselected": 1,
     "warnings": 25,
     "subtests": 100,
-    "seconds": 64.3
+    "seconds": 64.88
   },
   "ruff": "passed full repository",
   "diff_check": "passed",
@@ -42,9 +42,18 @@
       "docs/reviews/evidence-assembly-proof.py": "35b04d4d1ba345b0bbdedb3fb6197598946ccc55",
       "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
       "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+    },
+    "87845f5a5a0ee31cd5928501ffbf13db266879b7": {
+      "tradingagents": "9022b45c4148a2d6b4f4cd032655d2328d4ffb41",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "a46a8bef74c38f53a033b17b01b807c2ea76eb4e",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/evidence-assembly-proof.py": "35b04d4d1ba345b0bbdedb3fb6197598946ccc55",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
     }
   },
-  "native_evidence_reuse": "Application, CLI, fixture source bytes, proof scripts and pyproject identical; only one checkpoint-version expectation test differs. Full suite actually ran on full_suite_commit; native proofs actually ran on native_proof_commit. No combined-revision full-suite claim.",
+  "native_evidence_reuse": "Both native proofs and full suite freshly executed on corrected committed source 87845f5a5a0ee31cd5928501ffbf13db266879b7. Historical prior receipts preserved separately; no combined-revision full-suite claim.",
   "logs": {
     "/tmp/r1-ffb7f44e-full-pytest.log": {
       "sha256": "acf565853877e0e582cfcf95f465fa8add3b649c80e92e04f7e8260f841c12b0",
@@ -81,13 +90,46 @@
     "/tmp/r1-provider-precision-final.log": {
       "sha256": "76eebe403ad0b4417a66ea137d7be6389013f26a429c2daf069f03ef2121d93e",
       "bytes": 99
+    },
+    "/tmp/r1-87845f5a-full-pytest.log": {
+      "sha256": "68b01c6dc290277f882586f1a3bf52ef0d102bd62aaa5219a84d2f434e995809",
+      "bytes": 12142
+    },
+    "/tmp/r1-87845f5a-source-proof.json": {
+      "sha256": "756c2f66b5f9d922c86d9e16d183ccbd50dc782234656d9462e6223b398be44a",
+      "bytes": 3429
+    },
+    "/tmp/r1-87845f5a-source-proof.stderr": {
+      "sha256": "50b4a8e5cedc39f819dd244da41040ed1df7d7e6bb6e87fbde6f007322b08ada",
+      "bytes": 102
+    },
+    "/tmp/r1-87845f5a-cli-proof.json": {
+      "sha256": "0c425809b5e07a93265c87a09dcf791cf274f5751fd6af20f9f0e20043951036",
+      "bytes": 11379
+    },
+    "/tmp/r1-87845f5a-cli-proof.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
     }
   },
   "source_only_fixture_manifest_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f",
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "not_started"
+    "status": "failed_provider_error_incomplete",
+    "frozen_commit": "412338f856c0e314462d65f910914418c99e1a11",
+    "run_id": "8ab0be51-1831-4d1f-abd6-397d0bd39743",
+    "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/docs/superpowers/audits/2026-11-08-2026-11-08-workflow-gap-r1-fable",
+    "actual_turns": 38,
+    "actual_cost_usd": 2.0503794999999996,
+    "actual_elapsed_ms": 252578,
+    "failure": "HTTP 402 available credits versus in-flight requests",
+    "findings_returned": 0,
+    "findings_are_a_clean_verdict": false,
+    "retry_authorized": false,
+    "manifest_sha256": "ee3e446664dcf2d7a387238315c086d3d25dd49dd83262414d58639db3048564",
+    "result_sha256": "b50af32a3799baa5939064cd4e9311824626748fedcc5485b833361819ed27cf",
+    "validator_passed_while_frozen_head": true
   },
   "limitations": [
     "Default optional Bedrock/private-source skips retained; integration marker deselected.",
@@ -96,7 +138,21 @@
     "R1 branch is local and unpushed; exact R1 remote CI and staging integration await separate approval after independent closure.",
     "Stable release, production mutation, Machine 1 acceptance and later builds are outside this local stage."
   ],
-  "audit_context_map": {
+  "historical_local_gate": {
+    "full_suite_commit": "ffb7f44e3b816b1d1e338a01ad88b3f10092509b",
+    "native_proof_commit": "9cf9b6839361109552a778bd65394421ba226635",
+    "full_suite": {
+      "exit_code": 0,
+      "passed": 3445,
+      "skipped": 10,
+      "deselected": 1,
+      "warnings": 25,
+      "subtests": 100,
+      "seconds": 64.3
+    },
+    "native_evidence_reuse": "Application, CLI, fixture source bytes, proof scripts and pyproject identical; only one checkpoint-version expectation test differs. Full suite actually ran on full_suite_commit; native proofs actually ran on native_proof_commit. No combined-revision full-suite claim."
+  },
+  "historical_audit_context_map_412338f8": {
     "semantics": "Requirements string is the trimmed HEAD files joined in request order with one newline; these are 1-based decoded line ranges, no filename headers. Raw SHA-256 includes original surrounding whitespace.",
     "verification_file_is_last": true,
     "verification_starts_at_decoded_line": 25023,
@@ -593,6 +649,21 @@
         "decoded_end_line": 25022,
         "raw_sha256": "6779829a4829d2137e13b274a8da768ec459865ef4bda97eee4644fbb9f19572"
       }
-    ]
-  }
+    ],
+    "frozen_commit": "412338f856c0e314462d65f910914418c99e1a11"
+  },
+  "post_freeze_builder_findings": [
+    {
+      "requirement": "G2 numeric display",
+      "status": "corrected_focused_and_full_tests_passed_independent_review_pending",
+      "red_log": "/tmp/r1-subunit-bands-red.log",
+      "regressions": 2
+    },
+    {
+      "requirement": "R1.4/G7 latest primary context",
+      "status": "corrected_focused_and_full_tests_passed_independent_review_pending",
+      "red_log": "/tmp/r1-annual-primary-red.log",
+      "regressions": 1
+    }
+  ]
 }
