@@ -273,9 +273,10 @@ def test_retained_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatc
     markdown = rendered.read_text()
     html = (target / "complete_report.html").read_text()
     assert ref in markdown and ref in html
-    assert "cited in final decision" in markdown
+    assert "cited in final decision" in markdown.lower()
     assert "final-decision citation not verified." in markdown
-    assert "RM answer judgment unavailable" in markdown and 'source passages retrieved; final-decision citation not verified.' in html
+    assert "RM answer judgment unavailable" in markdown
+    assert 'Retrieved source text, not accepted evidence; final-decision citation not verified.' in html
     assert "Retrieved source text, not accepted evidence" in markdown
 
     # The CLI complete-report path prepares the same state before display.
@@ -295,4 +296,33 @@ def test_retained_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatc
         (target / "complete_report_cli.txt").write_text(visible)
     assert "Portfolio Manager Decision" in visible
     assert "Debate document follow-up" in visible
-    assert 'source passages retrieved; final-decision citation not verified.' in visible
+    normalized_cli = " ".join(visible.replace("│", " ").split())
+    assert 'Retrieved source text, not accepted evidence; final-decision citation not verified.' in normalized_cli
+
+
+def test_public_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatch):
+    """Run the original node proof on public sources with a scripted initial state."""
+    import socket
+
+    from tests.docn_workflow_fixture import source_json
+    from tradingagents.graph.propagation import Propagator
+
+    public = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
+    assert public.as_of == date(2026, 11, 7)
+    assert all(doc.filing.filed_date <= date(2026, 11, 6) for doc in public.documents)
+    # A later-acquired public corpus projected to this filing-date cutoff; this
+    # is a mixed scripted fixture, not the missing private historical replay.
+    corpus = DisclosurePackage.model_validate({
+        **public.model_dump(mode="json"), "as_of": "2026-11-06",
+    })
+    def deny_network(*args, **kwargs):
+        raise AssertionError("Public node proof forbids network access")
+    monkeypatch.setattr(socket.socket, "connect", deny_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", deny_network)
+    monkeypatch.setattr(socket, "create_connection", deny_network)
+    scripted = Propagator().create_initial_state("DOCN", "2026-11-06")
+    scripted["trader_investment_plan"] = "Hold: offline scripted proposal."
+    monkeypatch.setattr(
+        "tests.test_document_retained_replay._retained_corpus", lambda: (scripted, corpus),
+    )
+    test_retained_docn_passages_reach_actual_decision_nodes(tmp_path, monkeypatch)

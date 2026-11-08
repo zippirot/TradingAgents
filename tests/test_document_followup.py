@@ -40,10 +40,18 @@ def test_unrelated_passages_are_not_reported_as_relevant():
 def test_retrieval_never_reports_answered():
     state = state_with_corpus()
     state.update(lookup_document_questions(state))
-    assert {r["status"] for r in state["document_followups"]["results"]} <= {
-        "relevant_passages_found", "no_relevant_passage", "unavailable", "invalid_query",
+    assert {r["status"] for r in state["document_followups"]["results"]} == {
+        "relevant_passages_found", "no_relevant_passage",
     }
-    assert all("answered" not in r for r in state["document_followups"]["results"])
+    card = render_document_followups(state)
+    assert "Retrieval: relevant_passages_found" in card
+    assert "Retrieval: no_relevant_passage" in card
+    assert "RM answer judgment unavailable" in card
+    assert "answered" not in card
+    context = document_followup_context(state)
+    assert "Retrieval: relevant_passages_found" in context
+    assert "Retrieval: no_relevant_passage" in context
+    assert "not that a question was answered" in context
 
 
 def test_card_shows_retrieval_status_without_rm_judgment():
