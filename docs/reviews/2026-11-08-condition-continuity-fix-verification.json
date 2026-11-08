@@ -1,5 +1,5 @@
 {
-  "stage": "R4 local correction with documented retention/growth policy and multi-cycle regression; independent closure, integration/CI and Phase1 fresh same-source live acceptance incomplete.",
+  "stage": "Local R4 feature accepted by actual Claude closure; integration/exact-published-SHA CI, Phase1 fresh same-source live acceptance and Na/Nb remain incomplete.",
   "base_commit": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
   "branch": "codex/condition-continuity-fix",
   "source_objects": {
@@ -126,7 +126,23 @@
     }
   },
   "paid_calls_for_this_local_fix": 0,
-  "independent_audit": "Initial actual Fable completed with verified material policy gap; clarification/regression complete, real frozen closure review pending.",
+  "independent_audit": {
+    "initial_run_id": "73569352-3883-470e-8f7c-0e3c4c4f29e6",
+    "closure_run_id": "2615a9a9-c9df-4be4-8230-94c7cff64726",
+    "closure_head": "011523472c71d830d94f7186d067a64a3485e115",
+    "status": "completed_local_feature_accepted",
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 3,
+    "turns": 25,
+    "cost_usd": 1.01869075,
+    "elapsed_ms": 355745,
+    "stop_reason": "reviewer_completed",
+    "aggregate_audit_cost_usd": "3.36645950",
+    "validated_at_frozen_head": true,
+    "limitations": "Frozen executor inspected supplied source/evidence; did not execute runtime/tests or access private artifacts. No remote CI/new live baseline claim."
+  },
   "integration": "pending after independent acceptance under unexpired user authority",
   "live_baseline_limitation": "The original live provider/model run was source9c252791, tree-equivalent to stagingc4b70a36. This correction changes condition preparation and the PM disposition schema; retained-response offline proof is not a fresh same-SHA paid baseline. Phase2 has not started.",
   "stable_source_commit": "d6e8e3b69e719aa827f4204fc6c44708696df5e4",
@@ -406,5 +422,11 @@
   },
   "source_capture_timing": "Captured at suite startup after command launch; all six implementation/test/proof objects remained unchanged through completion. Documentation-only evidence was updated during the suite.",
   "source_commit_binding": "All six current source/test/proof objects verified at this committed closure revision; production/proof objects also remain identical to b13cfdbb. The following freeze changes only this evidence binding.",
-  "native_proof_reuse": "Production thesis/schema/card and proof-helper blobs are byte-identical to committed b13cfdbb proof. Closure changes only regression/docs; native defining path evidence reused without inventing a new provider run or duplicating expensive checks."
+  "native_proof_reuse": "Production thesis/schema/card and proof-helper blobs are byte-identical to committed b13cfdbb proof. Closure changes only regression/docs; native defining path evidence reused without inventing a new provider run or duplicating expensive checks.",
+  "prepared_fresh_baseline_operator": {
+    "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/fresh-baseline-qualification.json",
+    "sha256": "40d080d166c4d07228c2f03ce788b935e0c5e0f2becad0f1cf6bca6179895b79",
+    "paid_calls": 0,
+    "status": "49 offline checks/project Ruff pass; separate fresh baseline approval absent"
+  }
 }
