@@ -1,5 +1,7 @@
 # DOCN Ground Truth reference assessment
 
+**Current checkpoint, November 8:** complete schema 5 text coverage and 31 acceptable registered case assessments do **not** establish acceptance. An additional output inspection confirmed **D2**, a material cross-basis valuation correction outside that sample. Its original output remains preserved; repair and independent closure are pending. Historical results below retain their original revisions and limitations.
+
 November 7, 2026. Milestone 1 reference assessment against retained evidence. This review used local source records and arithmetic, with no provider calls. It is a bounded human/agent adjudication set for evaluating the future auditor. It does not establish full-report coverage or live model quality.
 
 ## Source identity and limits
@@ -162,3 +164,11 @@ The binding authority is now **$90 total**, superseding the earlier historical $
 
 
 The $120 transition preserved all 311 prior ledger rows, $73.17220825 exposure and all $35.85 of unknown reservations. The corrected source requires a fresh whole-parent model proof before final case grades or independent acceptance closure can be reported. Prior partial outcomes keep their original source revisions and limitations.
+
+## Complete schema 5 result and additional material finding D2
+
+The corrected frozen `158597846ee1f46477f1f19d53227cd532f7f8b3` group completed 62/62 original chunks across two bounded passes, with 33 exact matching completed chunks reused and 29 newly reviewed in the second pass. All 31 registered cases received acceptable scoped assessments, with the previously disclosed R2, R3 and N03 component limits retained. No known false Supported clearance was found in that purposive sample. This is not a global accuracy or false-alarm estimate.
+
+An independent inspection of the actual correction outputs confirmed **D2**, a material false correction outside the registered sample. The original abbreviated current multiple derives from borrowings-only enterprise value divided by full-year 2026 guidance. The auditor replaced it with equity value divided by trailing revenue, citing a real reproduced reference for that different basis. The adjacent report comparison mixes the two metrics; the original abbreviated quote cannot safely be corrected by substituting the other metric. Exact upstream definitions, dated inputs, Decimal calculations and original response provenance are retained in the private D2 adjudication receipt. The original result is preserved and is not retrospectively graded as correct.
+
+Complete text/numeric coverage therefore coexists with a confirmed material semantic error. D2 requires an evidence-authority fix, affected served verification and independent Claude closure. Private raw reports, detailed claims, outputs and billing records remain outside Git. Current cumulative pilot exposure is $93.01830365 including $35.85 historical unknown reservations, with no pending requests; the binding total cap remains $120.
