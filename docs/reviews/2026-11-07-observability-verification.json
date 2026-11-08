@@ -1,5 +1,5 @@
 {
-  "source_commit": "062aab77acae724234756924597d18d188504b1f",
+  "source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
   "python": "3.12.13",
   "platform": "macOS-26.5.1-arm64-arm-64bit",
   "packages": {
@@ -14,15 +14,15 @@
   "pytest": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
     "exit_code": 0,
-    "passed": 3342,
+    "passed": 3344,
     "skipped": 10,
     "deselected": 1,
     "warnings": 25,
     "subtests_passed": 100,
-    "elapsed_seconds": 61.66,
-    "log_path": "/tmp/r5-full-pytest-062aab77.log",
-    "log_sha256": "4737838a9dd60da82b714c760b0e37d8ca4e1186ea93553278b17369884207b0",
-    "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3342 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 61.66s (0:01:01)"
+    "elapsed_seconds": 58.82,
+    "log_path": "/tmp/r5-final-pytest-5b01bc1f.log",
+    "log_sha256": "e9ca341bfb12d8aa6cf460f1e4318054834b5082e50f252501fd23633686e59b",
+    "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3344 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 58.82s"
   },
   "ruff": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
@@ -30,5 +30,6 @@
     "result": "All checks passed!"
   },
   "native_runtime": "docs/reviews/2026-11-07-observability-runtime.json",
-  "remote_ci": "Not run: local unpushed feature branch; no push/integration authority."
+  "remote_ci": "Not run: local unpushed feature branch; no push/integration authority.",
+  "native_runtime_source_fingerprint": "sha256:fc96b763b9c790d82e68c39ec429950448cdfe0be2c02d3848ee5fe1d22714b1"
 }
