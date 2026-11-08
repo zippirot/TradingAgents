@@ -293,6 +293,21 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             lines.extend(line for line in canonical_lines if (
                 "cash plus marketable securities:" in line
                 or any(line.startswith(f"- [{label}]") for label in input_labels)))
+        from tradingagents.agents.issuer_events import issuer_supplement
+
+        # Acquisition already uses this deterministic matcher; rebind to the
+        # retained filing package rather than trusting a later event summary.
+        financing = issuer_supplement({}, state.get("filing_evidence"),
+                                     cik=package.cik, as_of=str(package.as_of))
+        forms = {event["source_id"]: event["form"] for event in financing["events"]}
+        for event in financing["financing_records"]:
+            denomination = event["currency"] or "source $; denomination unknown"
+            lines.append(
+                f"Financing authorization: {forms[event['source_id']]} filed {event['known_at']}; "
+                f"at-the-market program up to {event['authorized_amount']} {denomination}; "
+                f"source_id {event['source_id']}, {event['locator']}. "
+                "Authorized capacity does not establish issuance; remaining capacity is unknown."
+            )
         # Latest records from each metric, plus annual earnings/revenue baselines.
         # Round-robin selection avoids rich history crowding out other definitions.
         groups = {}

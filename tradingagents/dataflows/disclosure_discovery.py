@@ -11,6 +11,7 @@ from decimal import Decimal
 from tradingagents.dataflows.disclosure_context import (
     _HEADING,
     central_estimate_clause,
+    collapse_quote_packages,
     lower_bound_clause,
     outlook_period,
     qualified_value_spans,
@@ -20,7 +21,6 @@ from tradingagents.dataflows.disclosure_evidence import (
     DisclosureResult,
     validate_disclosure_claims,
 )
-from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
 _NUMBER = r'\d[\d,]*(?:\.\d+)?'
 
@@ -46,7 +46,7 @@ def _amount(span):
 
 
 def discover_disclosures(packages) -> DisclosureResult:
-    packages = tuple(DisclosurePackage.model_validate(p) for p in packages)
+    packages = collapse_quote_packages(packages)
     blocks = {(d.source_id, b.locator): b.section + '\n' + b.text
               for p in packages for d in p.documents for b in d.blocks}
     proposed = []

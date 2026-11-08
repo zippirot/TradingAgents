@@ -209,8 +209,14 @@ def validate_disclosure_claims(
     """
     if len(claims) > 32:
         raise ValueError("at most 32 disclosure records may be extracted")
-    from tradingagents.dataflows.disclosure_context import validate_context
+    from tradingagents.dataflows.disclosure_context import collapse_quote_packages, validate_context
 
+    try:
+        packages = collapse_quote_packages(packages)
+    except ValueError as exc:
+        return DisclosureResult(rejected=tuple(
+            f"record {index}: {exc} ({claim.source_id}, {claim.locator})"
+            for index, claim in enumerate(claims)))
     accepted, rejected, warnings = [], [], []
     for index, claim in enumerate(claims):
         text = blocks.get((claim.source_id, claim.locator))

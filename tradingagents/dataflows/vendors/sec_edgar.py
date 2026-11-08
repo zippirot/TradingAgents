@@ -460,6 +460,7 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     allowed_quarters = set(sorted(quarterly_ends)[-12:])
     allowed_annual = set(sorted(annual_ends)[-5:])
     selected = {}
+    peer_gaps = []
     ambiguous_security_metrics = set()
     for rows in statements.values():
         for metric, tags in rows:
@@ -468,7 +469,15 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
                                          allowed_ends=allowed_quarters, period_floor=period_floor)
                 annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
                                         allowed_ends=allowed_annual, period_floor=period_floor)
-            except VendorUnavailableError:
+            except VendorUnavailableError as exc:
+                ambiguity = re.fullmatch(
+                    r"SEC (?:period or unit|fact) ambiguous for .+ at (\d{4}-\d{2}-\d{2})",
+                    str(exc),
+                )
+                if (peer_revenue_definitions and ambiguity
+                        and metric not in {"Revenue", "Gross Profit", "Common Shares Outstanding"}):
+                    peer_gaps.append(f"{metric} ambiguous at {ambiguity.group(1)}; not used for peer statistics")
+                    continue
                 if not metric.startswith("Unclassified Marketable Securities ["):
                     raise
                 quarter, annual = {}, {}
@@ -534,7 +543,8 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     if not sources:
         raise NoMarketDataError(ticker, ticker, f"no statement evidence filed by {as_of_date}")
     return add_period_calculations(EvidencePackage(cik=cik, as_of=cutoff, facts=tuple(records.values()), sources=tuple(sources.values()),
-        warnings=("Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.",)))
+        warnings=("Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.",
+                  *peer_gaps)))
 
 
 def _displayed_current_balance(block: str, label: str) -> Decimal | None:

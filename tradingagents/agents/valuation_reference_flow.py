@@ -517,6 +517,8 @@ def render_valuation_reference(record):
                      f"gross margin {margin_text}; completed close {stats['price_session']}; "
                      f"share date {stats['share_date']}; revenue {stats['revenue_fact']['period_start']} to {stats['revenue_fact']['period_end']}.")
         lines.append("  Revenue definition: " + _cell(stats.get("revenue_definition", "See retained source tags")) + ".")
+        for gap in stats.get("evidence_gaps", []):
+            lines.append("  Evidence gap: " + _cell(gap) + ".")
         if stats.get("share_quality") in {"lower_quality_dated_cover", "lower_quality_dated_statement"}:
             share_label = ("dated cover shares" if stats["share_quality"] == "lower_quality_dated_cover"
                            else "statement shares dated differently from the revenue-period end")

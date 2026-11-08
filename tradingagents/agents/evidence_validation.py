@@ -236,7 +236,7 @@ def evidence_quality(checks: list[dict]) -> dict:
         "scope": "Selected US SEC-filer fundamentals",
         "status": "insufficient" if insufficient else ("limited" if warnings else "sufficient"),
         "checks": list(by_code.values()),
-        "warnings": [check["message"] for check in warnings],
+        "warnings": list(dict.fromkeys(check["message"] for check in warnings)),
     }
 
 
@@ -480,6 +480,14 @@ def assess_financial_package(
             source_errors.append(f"Retained document search integrity: {exc}")
     quote_packages = tuple(([disclosures] if disclosures is not None else []) + search_packages)
     if quote_packages:
+        from tradingagents.dataflows.disclosure_context import collapse_quote_packages
+
+        try:
+            quote_packages = collapse_quote_packages(quote_packages)
+        except (ValueError, ValidationError) as exc:
+            source_errors.append(str(exc))
+            quote_packages = ()  # Conflicting source views cannot ground a claim.
+    if quote_packages:
         try:
             if disclosures is not None:
                 package, calculations, extraction = filing_accounting_evidence(package, disclosures)
@@ -622,6 +630,9 @@ def assess_financial_package(
     from tradingagents.agents.accounting_checks import check_cash_plus_marketable_securities
 
     calculations.append(check_cash_plus_marketable_securities(package))
+    from tradingagents.dataflows.disclosure_evidence import DisclosureResult
+
+    grounded = DisclosureResult()
     disclosure_summary = ""
     disclosure_references = []
     if quote_packages:
@@ -634,7 +645,7 @@ def assess_financial_package(
             for doc in quote_package.documents
             for block in doc.blocks
         }
-        discovered = discover_disclosures((disclosures,) if disclosures is not None else ())
+        discovered = discover_disclosures(quote_packages)
         grounded = discovered if source_only else parse_disclosure_report(
             state.get("fundamentals_report", ""), blocks, packages=quote_packages)
         model_grounded = None if source_only else grounded
@@ -694,12 +705,15 @@ def assess_financial_package(
             # flooding decision/report coverage with per-record diagnostics.
             # Full rejects and warnings remain in the extraction evidence.
             checks.append({"code": "optional_disclosure_summary", "status": "unavailable",
-                "message": f"Disclosure extraction: {len(grounded.rejected)} validation rejection(s), "
-                           f"{len(grounded.warnings)} warning(s); raw details retained in disclosure evidence."
-                           + (" No supported operating KPI or guidance record extracted." if not grounded.claims else "")})
+                "message": (f"Model submission rejected: {len(model_grounded.rejected) if model_grounded else 0} record(s); "
+                            f"source extraction rejected: {len(discovered.rejected)} record(s). "
+                            "Raw details retained in disclosure evidence. "
+                            + ("Missing optional disclosure detail: " + "; ".join(dict.fromkeys(grounded.warnings))
+                               if grounded.warnings else "")
+                            + (" No supported operating KPI or guidance record extracted." if not grounded.claims else ""))})
     if disclosures is not None:
         checks.extend(
-            {"code": f"optional_source_scope_{i}", "status": "unavailable", "message": gap}
+            {"code": f"optional_source_scope_{i}", "status": "unavailable", "message": "Source coverage gap: " + gap}
             for i, gap in enumerate(disclosures.gaps)
             if "Document text limit reached" in gap
             or "Older submissions archive not retrieved" in gap

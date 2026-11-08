@@ -22,15 +22,19 @@ def news_tool_coverage(messages) -> dict:
                 status = 'unavailable'
             elif text.startswith(('NO_DATA_AVAILABLE:', 'No news found for ')):
                 status = 'no_data'
+            elif 'Coverage: degraded: search_fallback, headlines_only' in text.split('### ', 1)[0]:
+                status = 'degraded'
             elif text.strip():
                 status = 'available'
             else:
                 status = 'unavailable'
             results.append(status)
-        status = ('available' if 'available' in results else 'unavailable' if 'unavailable' in results
+        status = ('degraded' if 'degraded' in results else 'available' if 'available' in results else 'unavailable' if 'unavailable' in results
                   else 'no_data' if results else 'not_retrieved')
         coverage[category] = {'status': status, 'tool': tool, 'calls': len(results),
                               'failed_calls': results.count('unavailable')}
+        if 'degraded' in results:
+            coverage[category]['reason'] = 'search_fallback, headlines_only'
     coverage['consensus'] = {'status': 'not_retrieved', 'reason': 'News and issuer disclosures do not establish analyst consensus'}
     return coverage
 

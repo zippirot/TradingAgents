@@ -385,6 +385,10 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     # Select actual completed sessions; never carry a prior close under an empty
     # latest session's date. Sorting also makes the retained explanation stable.
     data = data.sort_values("Date")
+    # Keep the session window separate from close observations: callers that
+    # summarize 252 sessions must not pull in an older close when one session
+    # in that window has no reported close.
+    completed_session_dates = [str(day.date()) for day in data["Date"].tail(252)]
     price_fallback = None
 
     # A closeless newest bar is an unsettled session, not a symbol without data.
@@ -425,6 +429,7 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         "session_status": "completed",
         **({"price_fallback": price_fallback} if price_fallback else {}),
     }
+    data.attrs["completed_session_dates"] = completed_session_dates
     return data
 
 

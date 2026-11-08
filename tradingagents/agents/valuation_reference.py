@@ -373,6 +373,8 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
             ) else "Reported revenue; retained source tags define the accounting basis"),
             "revenue_fact": _lineage(package, ttm), "equity_value": _number(equity),
             "multiple": _number(multiple), "equity_value_unit": currency, "trailing_revenue_growth": growth, "gross_margin": margin,
+            "evidence_gaps": [warning for warning in package.warnings
+                              if warning.endswith("; not used for peer statistics")],
         }
         if quote.get("price_fallback"):
             result["price_fallback"] = quote["price_fallback"]
