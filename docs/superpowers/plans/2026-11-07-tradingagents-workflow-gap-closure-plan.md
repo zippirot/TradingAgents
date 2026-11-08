@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is locally complete with independent Claude Fable closure; staging integration/push awaits explicit approval. Later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 is starting in its separate `evidence-assembly` worktree from that confirmed commit, including Amendment 1 R1 tasks. Later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -138,6 +138,41 @@ This standalone metadata restates the existing overall plan size for the audit-p
 - Every rendered sensitivity states its assumption explicitly: obligations as of their balance-sheet date (2026-09-30) held constant against the case's future period (for example FY2027), with no growth or repayment assumed. No change to which case is the base.
 - Preserve the analyst's original submitted request, base-case capital assumptions and base target. Reuse `price_case` with a separately labelled source-bound sensitivity request when missing categories need to be supplied; do not silently rewrite the accepted base case. Missing/incompatible canonical categories remain unavailable, never zero or guessed. Verify original request/base target unchanged alongside the sensitivity result.
 - [ ] A regression test named for the root cause found, plus `test_docn_case_renders_finance_equipment_and_all_leases_sensitivities` (lower per-share figures than the $77.73 borrowings-only base) and `test_sensitivity_states_obligation_date_assumption`.
+
+### Approved Amendment 1 tasks activated for R1
+
+### G2 Prior trading inside a price band, computed by code
+
+**Files:** `tradingagents/agents/tools.py::get_verified_market_snapshot` and the builder it calls (`build_verified_market_snapshot`); its tests.
+
+- Append a "Prior closes by price band" table to the snapshot: from the latest completed close down to the lowest close of the last 252 completed sessions, in bands of 5% of the latest close. Each band lists the number of closes in it, the most recent date and the lowest and highest close. Bands with no closes say "no closes in the last 252 sessions". Point-in-time: only sessions on or before the analysis cutoff.
+- No new vendor call: reuse the OHLCV the snapshot already loads, extending its window if it is shorter than 252 sessions.
+- [ ] `test_band_table_lists_march_closes_below_lower_band` (DOCN fixture, close 72.48 on 2026-11-06: the 65.2–68.9 band reports closes including 66.22 and 68.63/68.69 dated March 2026, and the 61.6–65.2 band reports 62.01), `test_band_table_respects_cutoff`, `test_empty_band_says_no_closes`.
+
+### G4 Guidance grounding is stable on the same corpus
+
+This is an acceptance check on R1.2 and R1.3, not new code unless it fails.
+
+- Add a fixture for the `16416b7e` retained corpus next to R1's `tests/fixtures/docn_2026_11_07/` (same privacy rules: retained source bytes only, no memory or secrets).
+- [ ] `test_16416b7e_corpus_accepts_guided_shares_and_margin_guides`: deterministic discovery accepts Q4 2026 diluted weighted shares 128–129M, FY2026 diluted weighted shares 122–123M, Q4 and FY2026 adjusted EBITDA margin guides, and the FY2026 adjusted FCF margin guide.
+- [ ] `test_discovery_is_order_independent`: the same corpus with documents and blocks in shuffled order yields an identical accepted set and identical record IDs.
+- [ ] R1 proof records accepted counts for both the `913554d4` and `16416b7e` corpora, before and after. If the two corpora themselves differ (different blocks retained), record which blocks differ and why; a difference in retention is an R1.2 defect, not an acceptable run-to-run variation.
+
+### G5 Peer exclusion only for facts the peer statistics read
+
+**Files:** `tradingagents/dataflows/vendors/sec_edgar.py` (`_select_facts`, ambiguity raise ~:271), `tradingagents/agents/valuation_reference_flow.py::_fetch_peer` (~:242).
+
+- At build start, list the metrics `calculate_peer_statistics` and the peer render actually read (expected: Revenue, Gross Profit, Common Shares Outstanding; verify). For peer packages only, an ambiguity in any other metric drops that metric from the package with a recorded gap ("Assets ambiguous at 2023-12-31; not used for peer statistics") instead of raising. An ambiguity in a metric the statistics read still excludes the peer with today's reason.
+- Subject-issuer packages are unchanged: ambiguity still raises.
+- [ ] `test_peer_ambiguity_in_unused_metric_keeps_peer` (synthetic companyfacts: conflicting `Assets` at 2023-12-31, clean revenue and shares: peer status `available`, gap recorded), `test_peer_ambiguity_in_revenue_still_excludes`, `test_subject_ambiguity_still_raises`.
+- [ ] R1 proof: NBIS from the `16416b7e` recorded inputs is either accepted or excluded for a reason that names a metric the statistics read.
+
+### G7 Maturity totals labelled as undiscounted, with present value beside them
+
+**Files:** the canonical context builder in `tradingagents/agents/context.py`; the filing-cell extraction that already reads the lease table (`block-226` in DOCN).
+
+- When the retained finance-lease and equipment maturity table yields both a per-year undiscounted schedule and its present-value total, render one line: "Finance lease and equipment maturities (undiscounted, include imputed interest): 2027 $250.0M; total $X; less imputed interest $Y; present value $923.6M (F25). Scheduled payments are not principal." Values come only from the retained table with source IDs; if any piece is missing, render nothing for that piece.
+- [ ] `test_maturity_line_labels_undiscounted_and_present_value` (DOCN fixture), `test_partial_table_renders_only_present_pieces`.
 
 ### R1 proof
 Full `pytest -q` and `ruff check` green at one commit. A DOCN fixture replay of Source Acquisition through Evidence Check shows: ATM in brief; 0 false disclosure rejections; FY2026 outlook accepted; RPO history in context; dated news; lease-inclusive sensitivities on both DOCN cases. Record before and after counts in `docs/reviews/<date>-evidence-assembly.md`.
