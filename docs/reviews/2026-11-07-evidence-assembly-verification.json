@@ -1,5 +1,5 @@
 {
-  "stage": "R1 corrected local checks passed; failed first independent audit preserved; one fresh audit explicitly approved and being prepared",
+  "stage": "R1 local gate passed; independent Fable dependency failed twice; 24-hour advance authority recorded; provider funding/capacity unresolved",
   "baseline_staging": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
   "full_suite_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
   "native_proof_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
@@ -116,21 +116,50 @@
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "failed_provider_error_incomplete",
-    "frozen_commit": "412338f856c0e314462d65f910914418c99e1a11",
-    "run_id": "8ab0be51-1831-4d1f-abd6-397d0bd39743",
-    "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/docs/superpowers/audits/2026-11-08-2026-11-08-workflow-gap-r1-fable",
-    "actual_turns": 38,
-    "actual_cost_usd": 2.0503794999999996,
-    "actual_elapsed_ms": 252578,
-    "failure": "HTTP 402 available credits versus in-flight requests",
-    "findings_returned": 0,
-    "findings_are_a_clean_verdict": false,
-    "retry_authorized": true,
-    "manifest_sha256": "ee3e446664dcf2d7a387238315c086d3d25dd49dd83262414d58639db3048564",
-    "result_sha256": "b50af32a3799baa5939064cd4e9311824626748fedcc5485b833361819ed27cf",
-    "validator_passed_while_frozen_head": true,
-    "retry_scope": "One fresh Fable audit attempt on corrected complete R1 range; existing caps unchanged; user explicitly approved after blocked handoff."
+    "status": "two_attempts_failed_provider_402_independent_acceptance_incomplete",
+    "attempts": [
+      {
+        "required": true,
+        "model_override": "~anthropic/claude-fable-latest",
+        "status": "failed_provider_error_incomplete",
+        "frozen_commit": "412338f856c0e314462d65f910914418c99e1a11",
+        "run_id": "8ab0be51-1831-4d1f-abd6-397d0bd39743",
+        "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/docs/superpowers/audits/2026-11-08-2026-11-08-workflow-gap-r1-fable",
+        "actual_turns": 38,
+        "actual_cost_usd": 2.0503794999999996,
+        "actual_elapsed_ms": 252578,
+        "failure": "HTTP 402 available credits versus in-flight requests",
+        "findings_returned": 0,
+        "findings_are_a_clean_verdict": false,
+        "retry_authorized": true,
+        "manifest_sha256": "ee3e446664dcf2d7a387238315c086d3d25dd49dd83262414d58639db3048564",
+        "result_sha256": "b50af32a3799baa5939064cd4e9311824626748fedcc5485b833361819ed27cf",
+        "validator_passed_while_frozen_head": true,
+        "retry_scope": "One fresh Fable audit attempt on corrected complete R1 range; existing caps unchanged; user explicitly approved after blocked handoff."
+      },
+      {
+        "run_id": "df6ad470-0a4d-4d8b-8359-df0757db0a1d",
+        "frozen_commit": "bc8c64abaad6026b4fc63e207897047f9d2a40a8",
+        "actual_turns": 30,
+        "actual_cost_usd": 0.853173,
+        "actual_elapsed_ms": 185734,
+        "status": "failed",
+        "stop_reason": "provider_error",
+        "findings_returned": 0,
+        "clean_verdict": false,
+        "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r1-fable-retry-1",
+        "validator_passed_while_frozen_head": true
+      }
+    ],
+    "next_attempt_authority": "User advance authority valid until 2026-11-09T05:20:03Z; no further routine permission required within approved scope/caps. Recheck actual provider capacity before another paid attempt; do not blindly repeat the failed condition.",
+    "observed_provider_capacity": {
+      "checked_at_utc": "2026-11-08T05:21:54.618799+00:00",
+      "read_only": true,
+      "account_balance_usd_approx": 4.147951544,
+      "per_key_credit_limit": null,
+      "failure_metadata_and_retry_after_unavailable": true,
+      "causation": "Balance is observed. Exact transient in-flight versus single-request admission reason cannot be established from the executor error text."
+    }
   },
   "limitations": [
     "Default optional Bedrock/private-source skips retained; integration marker deselected.",
@@ -667,7 +696,7 @@
       "regressions": 1
     }
   ],
-  "audit_context_map": {
+  "historical_audit_context_map_bc8c64ab": {
     "semantics": "Requirements string is trimmed HEAD files joined in request order with one newline; 1-based decoded line ranges; no filename headers. Raw SHA-256 includes surrounding whitespace. Verification file is last and does not self-hash.",
     "verification_file_is_last": true,
     "verification_starts_at_decoded_line": 25460,
@@ -1164,6 +1193,7 @@
         "decoded_end_line": 25459,
         "raw_sha256": "6779829a4829d2137e13b274a8da768ec459865ef4bda97eee4644fbb9f19572"
       }
-    ]
+    ],
+    "frozen_commit": "bc8c64abaad6026b4fc63e207897047f9d2a40a8"
   }
 }
