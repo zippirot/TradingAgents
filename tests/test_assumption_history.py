@@ -1,10 +1,12 @@
 """Assumption history uses actual verified publications, not a second ledger."""
+import json
 from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from tests.test_case_valuation import revenue_case
 from tests.test_shared_valuation import state
+from tests.test_valuation import pe_request
 from tradingagents.agents.decision_context import prepare_decision_context, render_condition_summary
 from tradingagents.agents.shared_valuation import prepare_shared_valuation, replay_cases
 from tradingagents.memory import publication
@@ -29,6 +31,114 @@ def store(config, value, monkeypatch, hour=16):
     return publication.publish(config, value, "DOCN", value["trade_date"])
 
 
+def set_cases(value, rows):
+    value["financial_claim_validation"]["raw_report"] = (
+        "Research\n```valuation_scenarios\n" + json.dumps(rows) + "\n```"
+    )
+    value["shared_valuation_scenarios"] = prepare_shared_valuation(value)
+    return value
+
+
+def test_same_day_method_change_prints_one_material_summary(tmp_path, monkeypatch):
+    from tradingagents.agents.assumption_history import assumption_changes
+
+    config = {"results_dir": str(tmp_path)}
+    prior = store(config, inputs(), monkeypatch)
+    current = set_cases(inputs(), [{"name": "Earnings", "request": pe_request()}])
+    result = assumption_changes(config, "DOCN", current)
+    assert result["status"] == "available"
+    assert result["rows"] == []
+    assert result["summary_message"] == (
+        "Prior publication used a different valuation method; field-level comparison not shown"
+    )
+    assert "2026-10-19 16:00 UTC" in result["prior_label"]
+    assert prior["decision_id"][:8] in result["prior_label"]
+
+
+def test_dropped_case_is_listed_once_without_horizon_noise(tmp_path, monkeypatch):
+    from tradingagents.agents.assumption_history import assumption_changes
+
+    config = {"results_dir": str(tmp_path)}
+    later = deepcopy(revenue_case())
+    later["name"] = "Later"
+    later["request"]["forecast"].update(period_start="2028-01-01", period_end="2028-12-31")
+    later["request"]["capital"]["valuation_date"] = "2028-12-31"
+    prior = set_cases(inputs(), [revenue_case(), later])
+    assert len(prior["shared_valuation_scenarios"]["rows"]) == 2
+    store(config, prior, monkeypatch)
+    current = inputs(horizon="4 months")
+    result = assumption_changes(config, "DOCN", current)
+    assert result["status"] == "available"
+    assert result["rows"] == [{
+        "scenario": "Later", "field": "case", "previous": "present", "current": "dropped",
+    }]
+
+
+def test_ambiguous_unroled_cases_report_additions_and_removals_once(tmp_path, monkeypatch):
+    from tradingagents.agents.assumption_history import assumption_changes
+
+    config = {"results_dir": str(tmp_path)}
+    first = revenue_case()
+    second = deepcopy(first)
+    second["name"] = "Upside"
+    second["request"]["multiple"] = "4"
+    prior = set_cases(inputs(), [first, second])
+    store(config, prior, monkeypatch)
+    renamed = deepcopy(first)
+    renamed["name"] = "Core"
+    cautious = deepcopy(second)
+    cautious["name"] = "Cautious"
+    current = set_cases(inputs(), [renamed, cautious])
+    result = assumption_changes(config, "DOCN", current)
+    assert {(row["scenario"], row["current"]) for row in result["rows"]} == {
+        ("Base", "dropped"), ("Upside", "dropped"),
+        ("Core", "added"), ("Cautious", "added"),
+    }
+    assert all(row["field"] == "case" for row in result["rows"])
+
+
+def test_renamed_case_matched_by_explicit_role_shows_revenue_change(tmp_path, monkeypatch):
+    from tradingagents.agents.assumption_history import assumption_changes
+
+    config = {"results_dir": str(tmp_path)}
+    old = revenue_case()
+    old["scenario_role"] = "core"
+    prior = set_cases(inputs(), [old])
+    assert prior["shared_valuation_scenarios"]["status"] == "available"
+    store(config, prior, monkeypatch)
+    new = deepcopy(old)
+    new["name"] = "Renamed core"
+    new["request"]["forecast"]["value"] = "1190"
+    current = set_cases(inputs(), [new])
+    result = assumption_changes(config, "DOCN", current)
+    assert result["status"] == "available"
+    assert result["rows"] == [{
+        "scenario": "Renamed core", "field": "forecast",
+        "previous": "1200 USD; US-GAAP; analyst_forecast",
+        "current": "1190 USD; US-GAAP; analyst_forecast",
+    }]
+
+
+def test_null_and_absent_roles_match_unique_case_without_inventing_role(tmp_path, monkeypatch):
+    from tradingagents.agents.assumption_history import assumption_changes
+
+    config = {"results_dir": str(tmp_path)}
+    old = revenue_case()
+    old["scenario_role"] = None
+    prior = set_cases(inputs(), [old])
+    assert "scenario_role" not in prior["shared_valuation_scenarios"]["rows"][0]
+    store(config, prior, monkeypatch)
+    new = revenue_case()
+    new["name"] = "Renamed"
+    new["request"]["multiple"] = "4"
+    result = assumption_changes(config, "DOCN", set_cases(inputs(), [new]))
+    assert result["rows"] == [{
+        "scenario": "Renamed", "field": "multiple",
+        "previous": "3× borrowings_only / forward",
+        "current": "4× borrowings_only / forward",
+    }]
+
+
 def test_changes_use_verified_prior_and_only_report_changed_assumptions(tmp_path, monkeypatch):
     from tradingagents.agents.assumption_history import assumption_changes
 
@@ -38,7 +148,7 @@ def test_changes_use_verified_prior_and_only_report_changed_assumptions(tmp_path
     original = deepcopy(current)
     result = assumption_changes(config, "DOCN", current)
     assert result["status"] == "available" and result["prior_decision_id"] == prior["decision_id"]
-    assert {(r["scenario"], r["field"]) for r in result["rows"]} == {("Base", "multiple"), ("Decision", "horizon")}
+    assert {(r["scenario"], r["field"]) for r in result["rows"]} == {("Base", "multiple")}
     assert result["new_filings_between"] is None  # absent inventory does not prove no new filing
     assert current == original
 
@@ -123,7 +233,7 @@ def test_real_graph_publication_persists_history_once_and_retry_keeps_it(tmp_pat
     actual = publication.load_record(config, current["run_id"])
     changes = publication.load_evidence(config, actual)["decision_context"]["assumption_changes"]
     assert changes["prior_decision_id"] == prior["decision_id"]
-    assert len(changes["rows"]) == 2
+    assert len(changes["rows"]) == 1
     app.record_decision("DOCN", current["trade_date"], current)
     assert publication.load_record(config, current["run_id"]) == actual
     saved = app.save_reports(current, "DOCN", tmp_path / "reopened")

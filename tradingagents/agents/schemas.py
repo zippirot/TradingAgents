@@ -361,6 +361,7 @@ class PortfolioDecision(BaseModel):
         description="Legacy input retained for compatibility only; never an authoritative target. Use valuation_request with canonical fact IDs, or omit the target.",
     )
     no_case_reason: str | None = Field(default=None, max_length=1200, description="Brief reason when no supported case is adopted.")
+    horizon_reason: str | None = Field(default=None, max_length=1200, description="Required nonblank reason for overriding the configured decision horizon; not a forecast period.")
     valuation_request: ValuationRequest | None = Field(
         default=None,
         description=(
@@ -443,7 +444,7 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
     )
 
     time_horizon: str | None = Field(
-        description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Separate from the forecast period; never assume 3-6 months. If unknown, return null and the decision is incomplete.",
+        description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Use the configured default supplied in the prompt unless overriding with a nonblank horizon_reason. Separate from the forecast period. If unknown, return null and the decision is incomplete.",
     )
 
     @model_validator(mode="before")

@@ -332,7 +332,7 @@ def test_publication_replays_reference_near_top_and_does_not_publish_tampered_va
     output = enforce_publication(state)
     text = output["final_trade_decision"]
     assert "Own history" in text and "vendor consensus, unverified" in text
-    assert text.index("Valuation reference points") < text.index("Investment Thesis")
+    assert text.index("Investment Thesis") < text.index("Valuation reference points") < text.index("Canonical evidence")
     altered = deepcopy(state)
     altered["valuation_reference"]["subject"]["multiple"] = "999"
     output = enforce_publication(altered)

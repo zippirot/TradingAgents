@@ -346,11 +346,16 @@ def private_drill(tmp):
         # every native checkpoint ID, pending-node and retained-input assertion
         # below remains live. Freeze R2 retrieval and R4 condition-kind tokens
         # ONLY here; production uses new IDs and cannot resume this old thread.
-        return current_signature(graph, *args, **kwargs).replace(
+        # The new configured decision horizon also changes the settings digest.
+        # Freeze its absence only for this historical fixture's thread identity.
+        legacy_config = {key: value for key, value in graph.config.items() if key != 'decision_horizon_months'}
+        with patch.object(graph, 'config', legacy_config):
+            signature = current_signature(graph, *args, **kwargs)
+        return signature.replace(
             "shared_source_brief=5", "shared_source_brief=3").replace(
             "advisory_thesis=3", "advisory_thesis=2").replace(
             "document_search=3", "document_search=2").replace(
-            "document_followup=3", "document_followup=2").replace("|operational_delivery=1", "")
+            "document_followup=3", "document_followup=2").replace("|operational_delivery=1", "").replace("|decision_page=1", "")
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))

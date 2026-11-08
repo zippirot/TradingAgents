@@ -1,0 +1,69 @@
+{
+  "source_commit": "82703a98b9726692ced53d761a643e7772494bde",
+  "proof_type": "retained_state_offline_disposable_verified_publication_render",
+  "input_hashes": {
+    "full_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+    "private_store_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+    "publication_evidence_sha256": "31e6d004fd68f4c9cd5451ae599b64ac663dde18d4863bc2a045ad8f40f7eb26",
+    "publication_record_sha256": "c4a904d8278c1c4c42b21dd8189d55b125d7c493000fd4775d627d76cd5ad362"
+  },
+  "publication_id": "cfae95e9-0b34-41cc-b98c-b3b862a7d518",
+  "private_store_file_count": 27,
+  "metrics": {
+    "carried_condition_count": 4,
+    "decision_line_count": 295,
+    "main_condition_block_line_count": 4,
+    "main_condition_threshold_match_count": 0,
+    "main_condition_threshold_matches": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "material_change_line_count": 21,
+    "material_change_line_numbers": [
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33
+    ],
+    "placeholder_summary_line_numbers": [
+      69
+    ],
+    "pm_summary_first_40_lines": false,
+    "pm_summary_line_numbers": [
+      273
+    ]
+  },
+  "rendered_sha256": {
+    "5_portfolio/decision.md": "0c20558ce99579060d13c60424707b05523ebac233973cf894081204288f907a",
+    "complete_report.html": "69196e903fbc592931d6e0fde5647d11f2286f1bfdab4153407af8e53b0d233c",
+    "complete_report.md": "cd544c94114774105dfce240e2440ebb00fea959d080fbfca49b23dbf08e732e",
+    "diagnostics.json": "1980b3a2d679731760e19f72f33a18f5e11dda74ebe439bf8e8d2c540a762c9f",
+    "evidence.json": "c7cccba3d1bade63c455724cb338fd5970b637913b5aceebb1b2f8c0d3df0da2",
+    "executive_summary.json": "f5691de94f8ab09b84cfe9a34062da352e98e2b061d975ae39e03a53c9271548"
+  },
+  "limitations": [
+    "This is a current renderer projection of a sealed historical publication, not a new publication or live model run.",
+    "The retained source may have fields that candidate validation presents differently; immutable evidence and publication bytes stay unchanged.",
+    "Generated export timestamps can change full report hashes independently of semantic changes."
+  ],
+  "original_and_disposable_publications_unchanged": true
+}

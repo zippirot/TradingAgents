@@ -20,6 +20,8 @@ class InvestDebateState(TypedDict):
     current_response: Annotated[str, "Latest response"]
     count: Annotated[int, "Length of the current conversation"]
     document_questions: NotRequired[dict]
+    current_bull_response: NotRequired[str]
+    current_bear_response: NotRequired[str]
 
 
 # Risk management team state

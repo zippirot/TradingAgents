@@ -14,7 +14,6 @@ from importlib.resources import files
 
 from markdown_it import MarkdownIt
 
-from tradingagents.agents.decision_context import render_condition_summary
 from tradingagents.agents.rating import run_rating
 from tradingagents.reporting import (
     _DESCRIPTIONS,
@@ -394,8 +393,6 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
                    if final_state.get("report_view_note") else
                    "<p>Historical publication identity not verified against a configured store; current validated projection.</p>"
                    if final_state.get("publication_record") else "")
-    condition_summary = (md.render(render_condition_summary(final_state["decision_context"]))
-                         if final_state.get("decision_context") else "")
     details = "".join(
         f'<div class="{"note" if label == "Memory log" else "detail"}">'
         f"<dt>{escape(label)}</dt><dd>{value}</dd></div>"
@@ -458,7 +455,6 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 {summary_html}
 <nav class="contents" aria-label="Table of contents"><h2>Table of contents</h2><ul>{"".join(contents)}</ul></nav>
 <aside class="report-meta" aria-label="Report details">
-<div class="condition-summary">{condition_summary}</div>
 <dl class="run">{details}</dl>
 {export_view}
 </aside>

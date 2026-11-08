@@ -40,7 +40,8 @@ def test_new_missing_horizon_cannot_publish_valuation_or_infer_forecast_date():
 
 
 def test_free_text_horizon_is_explicit_bounded_and_ambiguity_is_incomplete():
-    for text, expected in [('Rating: Sell\n**Time Horizon**: 12 months', '12 months'),
+    for text, expected in [('Rating: Sell\n**Time Horizon**: 12 months', '6 months (configured default)'),
+                           ('Rating: Sell\nTime Horizon: 12 months\nHorizon Reason: Refinancing next year', '12 months (pm override:'),
                            ('Rating: Sell\nA 2027 forecast supports my view.', 'incomplete'),
                            ('Rating: Sell\nTime Horizon: 3 months\nTime Horizon: 6 months', 'incomplete')]:
         llm = MagicMock()

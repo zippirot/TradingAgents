@@ -54,8 +54,8 @@ def test_valid_finding_one_call_and_no_authority_change():
     assert original["financial_evidence"] == {"immutable": True}
     assert record["status"] == "completed with findings"
     assert record["counts_by_type"] == {"unsupported_claim": 0, "contradiction": 1, "numerical_inconsistency": 0}
-    assert record["independence_by_role"]["research_manager"] == "same model"
-    assert record["independence_by_role"]["fundamentals_analyst"] == "different model"
+    assert record["independence_by_role"]["research_manager"] == "unknown"
+    assert record["independence_by_role"]["fundamentals_analyst"] == "unknown"
     assert "Peer median: 3.0" in model.calls[0]
 
 
@@ -69,7 +69,7 @@ def test_partial_rejection_and_unknown_labels_or_misattributed_quotes():
     assert record["accepted_count"] == 1
     assert record["rejected_count"] == 4
     assert len(record["rejection_reasons"]) == 4
-    assert all(value == "same model" for value in record["independence_by_role"].values())
+    assert all(value == "unknown" for value in record["independence_by_role"].values())
     assert "4 rejected" in render_advisory_audit(record)
 
 
@@ -127,7 +127,7 @@ def test_real_brief_ids_and_price_source_are_accepted():
     assert record["rejected_count"] == 1
     schema = AuditOutput.model_json_schema()
     props = schema["$defs"]["AuditFinding"]["properties"]
-    assert set(props) == {"role", "quoted_claim", "issue_type", "evidence_label", "explanation"}
+    assert set(props) == {"role", "quoted_claim", "issue_type", "evidence_label", "explanation", "case_id"}
 
 
 def test_renderer_tolerates_corrupt_saved_record_without_markup():

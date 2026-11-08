@@ -1,0 +1,285 @@
+{
+  "candidate_reference": {
+    "source_commit": "efbdd417fdd8ba177a2f80e4ab9c776f0679b27e",
+    "proof_type": "retained_state_offline_disposable_verified_publication_render",
+    "input_hashes": {
+      "full_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+      "private_store_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+      "publication_evidence_sha256": "31e6d004fd68f4c9cd5451ae599b64ac663dde18d4863bc2a045ad8f40f7eb26",
+      "publication_record_sha256": "c4a904d8278c1c4c42b21dd8189d55b125d7c493000fd4775d627d76cd5ad362"
+    },
+    "publication_id": "cfae95e9-0b34-41cc-b98c-b3b862a7d518",
+    "private_store_file_count": 27,
+    "metrics": {
+      "carried_condition_count": 4,
+      "decision_line_count": 246,
+      "incompatible_method_summary_line_count": 1,
+      "main_condition_block_line_count": 4,
+      "main_condition_threshold_match_count": 4,
+      "main_condition_threshold_matches": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "material_change_line_count": 0,
+      "material_change_line_numbers": [],
+      "placeholder_summary_line_numbers": [],
+      "pm_summary_first_40_lines": true,
+      "pm_summary_line_numbers": [
+        7
+      ]
+    },
+    "rendered_sha256": {
+      "5_portfolio/decision.md": "ae51080bf87925c056ece7f758ba5d8b85201229f57e84a7d65264d154bfc3ec",
+      "complete_report.html": "8010165c3cc95ca324542c9c7ef8f2903e3d2bfab4351ffa05ca0a7d0b994929",
+      "complete_report.md": "72be66bab2a503681103b1664ecffdb21df138684d80e59ff0119a9abc9a3a42",
+      "diagnostics.json": "1980b3a2d679731760e19f72f33a18f5e11dda74ebe439bf8e8d2c540a762c9f",
+      "evidence.json": "c7cccba3d1bade63c455724cb338fd5970b637913b5aceebb1b2f8c0d3df0da2",
+      "executive_summary.json": "f5691de94f8ab09b84cfe9a34062da352e98e2b061d975ae39e03a53c9271548"
+    },
+    "limitations": [
+      "This is a current renderer projection of a sealed historical publication, not a new publication or live model run.",
+      "The retained source may have fields that candidate validation presents differently; immutable evidence and publication bytes stay unchanged.",
+      "Generated export timestamps can change full report hashes independently of semantic changes."
+    ],
+    "original_and_disposable_publications_unchanged": true,
+    "source_binding": "Actual companion-capture correction stable source efbdd417fdd8ba177a2f80e4ab9c776f0679b27e; all37 source/test/proof objects agree with the new3561-pass/70.45s receipt."
+  },
+  "amendment_16416": {
+    "G1": {
+      "accepted_finding_id": "AF-44b5227bc97d0ef453c56029",
+      "case_id_in_legacy_finding": null,
+      "case_rows": [
+        {
+          "case_id": "case-42b84b7489bf86b2",
+          "disputed": true,
+          "target": "65.8914728682170542635658914728682170542635658914728682170543"
+        },
+        {
+          "case_id": "case-208bb22cb2568b80",
+          "disputed": false,
+          "target": "28.5714285714285714285714285714285714285714285714285714285714"
+        }
+      ],
+      "disputed_count": 1,
+      "range_high": "28.5714285714285714285714285714285714285714285714285714285714",
+      "range_low": "28.5714285714285714285714285714285714285714285714285714285714",
+      "supported_count": 1
+    },
+    "G3": {
+      "limitation": "Legacy stored audit is unchanged; classification is applied on newly generated audits only.",
+      "validated_source_locations": {
+        "AF-80aa43b68627c2bc7d939fac": {
+          "locator": "block-114",
+          "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092"
+        },
+        "AF-9a2840b3946f5879988b835a": {
+          "locator": "block-114",
+          "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092"
+        }
+      }
+    },
+    "checks": "All assertions passed; raw input loaded read-only; receipt contains metadata only.",
+    "kind": "R3 G1/G3 read-only retained-state reference proof",
+    "offline_guard": "socket.connect and socket.create_connection raise; no model or provider calls",
+    "source_path": "/Users/zipp/.tradingagents/logs/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07_16416b7e.json",
+    "source_sha256": "8a512a7e1d04336ecbf212b26ac452eaa94ab69261ed7a0625ddc57d3016ca8f",
+    "stored_pm_dispositions": {
+      "answered": 8,
+      "rejected": 0,
+      "unanswered": 0
+    }
+  },
+  "prior_candidate_reference": {
+    "source_commit": "e9ac805d13c59c18612cc59808c57b10bbd54ccf",
+    "proof_type": "retained_state_offline_disposable_verified_publication_render",
+    "input_hashes": {
+      "full_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+      "private_store_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+      "publication_evidence_sha256": "31e6d004fd68f4c9cd5451ae599b64ac663dde18d4863bc2a045ad8f40f7eb26",
+      "publication_record_sha256": "c4a904d8278c1c4c42b21dd8189d55b125d7c493000fd4775d627d76cd5ad362"
+    },
+    "publication_id": "cfae95e9-0b34-41cc-b98c-b3b862a7d518",
+    "private_store_file_count": 27,
+    "metrics": {
+      "carried_condition_count": 4,
+      "decision_line_count": 246,
+      "incompatible_method_summary_line_count": 1,
+      "main_condition_block_line_count": 4,
+      "main_condition_threshold_match_count": 4,
+      "main_condition_threshold_matches": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "material_change_line_count": 0,
+      "material_change_line_numbers": [],
+      "placeholder_summary_line_numbers": [],
+      "pm_summary_first_40_lines": true,
+      "pm_summary_line_numbers": [
+        7
+      ]
+    },
+    "rendered_sha256": {
+      "5_portfolio/decision.md": "ae51080bf87925c056ece7f758ba5d8b85201229f57e84a7d65264d154bfc3ec",
+      "complete_report.html": "ade7a023ccaf6cf0df8535b1968b3a6d02885d61ffa998ccb8efc8c31e5596f9",
+      "complete_report.md": "a9ee6a145ae4a359cff714a1ced3db05ab11bd36003d073f264f706c088f1d95",
+      "diagnostics.json": "1980b3a2d679731760e19f72f33a18f5e11dda74ebe439bf8e8d2c540a762c9f",
+      "evidence.json": "c7cccba3d1bade63c455724cb338fd5970b637913b5aceebb1b2f8c0d3df0da2",
+      "executive_summary.json": "f5691de94f8ab09b84cfe9a34062da352e98e2b061d975ae39e03a53c9271548"
+    },
+    "limitations": [
+      "This is a current renderer projection of a sealed historical publication, not a new publication or live model run.",
+      "The retained source may have fields that candidate validation presents differently; immutable evidence and publication bytes stay unchanged.",
+      "Generated export timestamps can change full report hashes independently of semantic changes."
+    ],
+    "original_and_disposable_publications_unchanged": true,
+    "source_binding": "Stable committed source e9ac805d13c59c18612cc59808c57b10bbd54ccf; exact object IDs verified against the full-suite receipt."
+  },
+  "prior_corrected_reference": {
+    "source_commit": "67865e678c9d3bda32a09939771d32e0e6d53d9e",
+    "proof_type": "retained_state_offline_disposable_verified_publication_render",
+    "input_hashes": {
+      "full_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+      "private_store_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+      "publication_evidence_sha256": "31e6d004fd68f4c9cd5451ae599b64ac663dde18d4863bc2a045ad8f40f7eb26",
+      "publication_record_sha256": "c4a904d8278c1c4c42b21dd8189d55b125d7c493000fd4775d627d76cd5ad362"
+    },
+    "publication_id": "cfae95e9-0b34-41cc-b98c-b3b862a7d518",
+    "private_store_file_count": 27,
+    "metrics": {
+      "carried_condition_count": 4,
+      "decision_line_count": 246,
+      "incompatible_method_summary_line_count": 1,
+      "main_condition_block_line_count": 4,
+      "main_condition_threshold_match_count": 4,
+      "main_condition_threshold_matches": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "material_change_line_count": 0,
+      "material_change_line_numbers": [],
+      "placeholder_summary_line_numbers": [],
+      "pm_summary_first_40_lines": true,
+      "pm_summary_line_numbers": [
+        7
+      ]
+    },
+    "rendered_sha256": {
+      "5_portfolio/decision.md": "ae51080bf87925c056ece7f758ba5d8b85201229f57e84a7d65264d154bfc3ec",
+      "complete_report.html": "192a1d554830605a0d1334a52a7b2e39364cf8a110976eb90dc44af21a493354",
+      "complete_report.md": "27970734e2e00a3cb0d75935fcaf06b89109a894a7a4e2a75796f7b0af825df6",
+      "diagnostics.json": "1980b3a2d679731760e19f72f33a18f5e11dda74ebe439bf8e8d2c540a762c9f",
+      "evidence.json": "c7cccba3d1bade63c455724cb338fd5970b637913b5aceebb1b2f8c0d3df0da2",
+      "executive_summary.json": "f5691de94f8ab09b84cfe9a34062da352e98e2b061d975ae39e03a53c9271548"
+    },
+    "limitations": [
+      "This is a current renderer projection of a sealed historical publication, not a new publication or live model run.",
+      "The retained source may have fields that candidate validation presents differently; immutable evidence and publication bytes stay unchanged.",
+      "Generated export timestamps can change full report hashes independently of semantic changes."
+    ],
+    "original_and_disposable_publications_unchanged": true,
+    "source_binding": "Corrected stable source 67865e678c9d3bda32a09939771d32e0e6d53d9e; full-suite source/test/proof objects independently matched to this commit."
+  },
+  "prior_precision_reference": {
+    "source_commit": "03e5e29155ed0d3e8e8bfbb48123e9a57d1cb8ac",
+    "proof_type": "retained_state_offline_disposable_verified_publication_render",
+    "input_hashes": {
+      "full_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+      "private_store_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+      "publication_evidence_sha256": "31e6d004fd68f4c9cd5451ae599b64ac663dde18d4863bc2a045ad8f40f7eb26",
+      "publication_record_sha256": "c4a904d8278c1c4c42b21dd8189d55b125d7c493000fd4775d627d76cd5ad362"
+    },
+    "publication_id": "cfae95e9-0b34-41cc-b98c-b3b862a7d518",
+    "private_store_file_count": 27,
+    "metrics": {
+      "carried_condition_count": 4,
+      "decision_line_count": 246,
+      "incompatible_method_summary_line_count": 1,
+      "main_condition_block_line_count": 4,
+      "main_condition_threshold_match_count": 4,
+      "main_condition_threshold_matches": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "material_change_line_count": 0,
+      "material_change_line_numbers": [],
+      "placeholder_summary_line_numbers": [],
+      "pm_summary_first_40_lines": true,
+      "pm_summary_line_numbers": [
+        7
+      ]
+    },
+    "rendered_sha256": {
+      "5_portfolio/decision.md": "ae51080bf87925c056ece7f758ba5d8b85201229f57e84a7d65264d154bfc3ec",
+      "complete_report.html": "d34b452cb7f6f7417098edacbf333ee1e6dae31e3cb300f98738c57d2512f637",
+      "complete_report.md": "1871caf08e41f53cc83db3655678f4e6e41315559d9ddc205663bf09ec325253",
+      "diagnostics.json": "1980b3a2d679731760e19f72f33a18f5e11dda74ebe439bf8e8d2c540a762c9f",
+      "evidence.json": "c7cccba3d1bade63c455724cb338fd5970b637913b5aceebb1b2f8c0d3df0da2",
+      "executive_summary.json": "f5691de94f8ab09b84cfe9a34062da352e98e2b061d975ae39e03a53c9271548"
+    },
+    "limitations": [
+      "This is a current renderer projection of a sealed historical publication, not a new publication or live model run.",
+      "The retained source may have fields that candidate validation presents differently; immutable evidence and publication bytes stay unchanged.",
+      "Generated export timestamps can change full report hashes independently of semantic changes."
+    ],
+    "original_and_disposable_publications_unchanged": true,
+    "source_binding": "Final committed source 03e5e29155ed0d3e8e8bfbb48123e9a57d1cb8ac; all37 source/test/proof objects agree with the3561-pass full receipt."
+  },
+  "sidecar_content_probe": {
+    "origin": "Direct actual export probe, not an executor finding",
+    "pre_correction": {
+      "proof": "fresh_unpublished_report_companion_preserves_referenced_originals",
+      "source_commit": "48c6294bd1d959777821027db61c4b3071b154fe",
+      "connection_apis_denied": true,
+      "private_prose_printed": false,
+      "rows": [
+        {
+          "review": false,
+          "raw_manager_in_sidecar": false,
+          "raw_market_in_sidecar": false,
+          "sidecar_equals_export_evidence_diagnostics": false,
+          "raw_market_present_in_evidence": true
+        },
+        {
+          "review": true,
+          "raw_manager_in_sidecar": false,
+          "raw_market_in_sidecar": false,
+          "sidecar_equals_export_evidence_diagnostics": false,
+          "raw_market_present_in_evidence": true
+        }
+      ]
+    },
+    "corrected": {
+      "proof": "actual_fresh_and_REVIEW_companion_original_content",
+      "connection_apis_denied": true,
+      "private_prose_printed": false,
+      "source_objects_receipt": "/tmp/r3-sidecar-source-objects-before-tests.json",
+      "rows": [
+        {
+          "review": false,
+          "raw_manager_in_sidecar": true,
+          "raw_market_in_sidecar": true,
+          "sidecar_equals_export_evidence_diagnostics": true,
+          "input_state_sha256": "9fd9fc1b046431ff7a748c1f63f6d2f3f45274ca832d1d814c314bf1703a642a",
+          "input_unchanged": true
+        },
+        {
+          "review": true,
+          "raw_manager_in_sidecar": true,
+          "raw_market_in_sidecar": true,
+          "sidecar_equals_export_evidence_diagnostics": true,
+          "input_state_sha256": "924ead4260ee103303c6039bc27de6f3f512a9c3a9207beb2abd7f1b7fd9ed64",
+          "input_unchanged": true
+        }
+      ]
+    },
+    "explanation": "Fresh export sidecar captured pre-projection diagnostics, omitting newly retained originals already present in evidence.json. Now uses projected diagnostics for fresh/REVIEW, original diagnostics for verified frozen publications. Existing tests were strengthened to inspect actual manager/market content and preserved original fields, rather than mirror the premature snapshot."
+  }
+}

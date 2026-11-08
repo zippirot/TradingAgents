@@ -156,8 +156,12 @@ def prepare_shared_valuation(state, requests=None):
     rows, reasons, comparisons = [], [], []
     for index, row in enumerate(requests, 1):
         try:
-            if not isinstance(row, dict) or set(row) != {"name", "request"}:
+            if (not isinstance(row, dict) or not {"name", "request"} <= set(row)
+                    or set(row) - {"name", "request", "scenario_role"}):
                 raise ValueError("Expected name and request fields")
+            scenario_role = row.get("scenario_role")
+            if scenario_role is not None and (not isinstance(scenario_role, str) or not scenario_role.strip()):
+                raise ValueError("Scenario role must be an explicit nonempty string")
             name = row["name"]
             if not isinstance(name, str) or not name.strip() or len(name) > 80:
                 raise ValueError("Scenario name missing or oversized")
@@ -202,6 +206,7 @@ def prepare_shared_valuation(state, requests=None):
                 comparison = compare_valuation(state, result, request)
             case_id = "case-" + hashlib.sha256(name.strip().encode()).hexdigest()[:16]
             rows.append({"name": name.strip(), "case_id": case_id, "version": 1,
+                         **({"scenario_role": scenario_role} if scenario_role is not None else {}),
                          "request": request.model_dump(mode="json"), "result": result.model_dump(mode="json"),
                          "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
@@ -227,6 +232,31 @@ def prepare_shared_valuation(state, requests=None):
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
     return _record(status, requests, rows, reasons)
+
+
+def annotate_disputed_cases(state, record):
+    """An accepted finding can exclude a displayed case, never alter its math."""
+    from tradingagents.agents.audit_pass import prepare_audit_dispositions
+    findings = [f for f in prepare_audit_dispositions(state)['findings'] if f['disposition'] == 'accepted']
+    def prose(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key in {'reason', 'rationale', 'multiple_rationale', 'assumption_text'} and isinstance(item, str):
+                    yield item
+                elif isinstance(item, (dict, list)):
+                    yield from prose(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from prose(item)
+    rows = []
+    for row in record.get('rows', []):
+        text = list(prose(row.get('request', {})))
+        ids = [f['finding_id'] for f in findings
+               if (f.get('case_id') == row['case_id'] if f.get('case_id') else
+                   bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text))]
+        clean = {key: value for key, value in row.items() if key != 'disputed_by'}
+        rows.append({**clean, **({'disputed_by': ids} if ids else {})})
+    return {**record, 'rows': rows}
 
 
 def replay_cases(state, *, revision=None):
@@ -299,6 +329,8 @@ def render_shared_valuation(record):
                       "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"])
                       + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]
             lines.append(f"Case ID {row['case_id']}, version {row['version']}.")
+            if row.get('disputed_by'):
+                lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; excluded from conditional range. Arithmetic retained unchanged.')
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"

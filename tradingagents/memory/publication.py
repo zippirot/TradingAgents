@@ -19,6 +19,11 @@ from tradingagents.dataflows.symbols import crypto_base, normalize_symbol
 from tradingagents.reporting import evidence_snapshot
 
 _SCHEMA = 1
+_PM_TEXT_LIMIT = 20_000
+_PM_FIELDS = frozenset({
+    'pm_executive_summary', 'pm_investment_thesis', 'pm_stated_conditions',
+    'pm_reasoning_status',
+})
 
 EVALUATION_PROTOCOL = {'version': 1,
  'primary_selection': 'first eligible ticker/as-of publication',
@@ -40,7 +45,7 @@ EVALUATION_PROTOCOL = {'version': 1,
 _SETTINGS = (
     'version', 'llm_provider', 'deep_think_provider', 'deep_think_llm',
     'quick_think_provider', 'quick_think_llm', 'analysts', 'max_debate_rounds',
-    'max_risk_discuss_rounds', 'output_language', 'data_vendors', 'tool_vendors',
+    'max_risk_discuss_rounds', 'decision_horizon_months', 'output_language', 'data_vendors', 'tool_vendors',
 )
 
 
@@ -180,6 +185,39 @@ def _sources(snapshot: dict) -> list[dict]:
     return [found[k] for k in sorted(found)]
 
 
+def _pm_reasoning(state: dict) -> dict:
+    """Retain bounded, unvalidated structured PM prose outside the decision cap."""
+    outputs = state.get('unvalidated_outputs')
+    output = outputs.get('portfolio_manager') if isinstance(outputs, dict) else None
+    if not isinstance(output, dict):
+        return {}
+    structured = output.get('structured')
+    if not isinstance(structured, dict):
+        structured = {}
+    summary = structured.get('executive_summary')
+    thesis = structured.get('investment_thesis')
+    candidate = output.get('thesis_candidate')
+    if not isinstance(candidate, dict):
+        candidate = structured.get('thesis_candidate')
+    if not isinstance(candidate, dict):
+        candidate = state.get('thesis_candidate')
+    conditions = candidate.get('conditions') if isinstance(candidate, dict) else None
+
+    def bounded(text):
+        return {'text': text[:_PM_TEXT_LIMIT], 'truncated': len(text) > _PM_TEXT_LIMIT}
+
+    retained = {}
+    if isinstance(summary, str):
+        retained['pm_executive_summary'] = bounded(summary)
+    if isinstance(thesis, str):
+        retained['pm_investment_thesis'] = bounded(thesis)
+    if isinstance(conditions, list):
+        retained['pm_stated_conditions'] = bounded(_json(conditions))
+    if retained:
+        retained['pm_reasoning_status'] = 'unvalidated structured PM output'
+    return retained
+
+
 def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
     """Commit one canonical record, preserving identity on retries/re-exports.
 
@@ -222,6 +260,7 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
         'benchmark': benchmark,
         'target_sha256': _digest(state['target_validation']) if state.get('target_validation') else None,
         'scenarios_sha256': _digest(state['shared_valuation_scenarios']) if state.get('shared_valuation_scenarios') else None,
+        **_pm_reasoning(state),
     }
     if state.get('analysis_clock'):
         payload['analysis_clock'] = state['analysis_clock']
@@ -243,7 +282,11 @@ def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
         if path.exists():
             existing = _checked_record(path)
             if existing['payload_sha256'] != payload_hash:
-                raise ValueError('run_id already published with different canonical content')
+                # A record sealed before PM prose fields existed stays byte-for-byte
+                # unchanged. Only newly added prose may differ on its retry.
+                earlier_payload = {key: value for key, value in payload.items() if key not in _PM_FIELDS}
+                if any(key in existing for key in _PM_FIELDS) or existing['payload_sha256'] != _digest(earlier_payload):
+                    raise ValueError('run_id already published with different canonical content')
             load_evidence(config, existing)
             return existing
         records = list_records(config)

@@ -67,6 +67,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "bull_history": bull_history + "\n" + argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
+            "current_bull_response": argument,
             "count": investment_debate_state["count"] + 1,
         }
 

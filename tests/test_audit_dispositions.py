@@ -91,7 +91,9 @@ def test_publication_does_not_change_with_advisory_responses():
     # Same horizon is required for the comparison to isolate audit responses.
     answered_state['unvalidated_outputs']['portfolio_manager']['structured']['time_horizon'] = '3–6 months'
     answered = enforce_publication(answered_state)
-    assert answered['final_trade_decision'] == unanswered['final_trade_decision']
+    assert 'PM responded to 0' in unanswered['final_trade_decision']
+    assert 'PM responded to 10' in answered['final_trade_decision']
+    assert answered['final_trade_decision'].replace('PM responded to 10', 'PM responded to 0') == unanswered['final_trade_decision']
     assert answered['target_validation'] == unanswered['target_validation']
     assert enforce_publication(answered_state | answered)['final_trade_decision'] == answered['final_trade_decision']
 

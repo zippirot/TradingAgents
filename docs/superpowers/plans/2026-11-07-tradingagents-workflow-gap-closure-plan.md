@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 is integrated and pushed at `78e3611ffb3fd6d8672acc2c15f54489cc258ae6`; all seven exact-SHA CI jobs passed. Its 3448-pass local suite/native proofs and completed independent Claude Fable review (zero Critical/High/Medium, three Low observations retained) are recorded in the R1 report. R2 implementation and decisive local checks are complete in separate `document-followup` worktree from that exact staging: final default suite3479 passed, Ruff and native source/CLI proofs passed, historical journal replay preserved. Required independent Claude Fable acceptance is being prepared. R4/R3/Na/Nb have not started. User24-hour advance authority covers necessary stage integrations/pushes and audit retries within existing caps until2026-11-09T05:20:03Z. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status (2026-11-08, R3 local acceptance):** D1–D4 and Amendment 1 were approved on2026-11-07. R5/R1/R2/R4 are accepted and integrated; the R3 baseline is staging `82703a98b9726692ced53d761a643e7772494bde`, with all seven exact-SHA CI jobs passed. R3 in `codex/decision-page` passes the complete default suite3561 tests/Ruff and actual Claude Fable closure3 with no Critical/High/Medium findings. All source/receipt and fresh companion-content gaps are independently closed; documented nonmaterial Low limitations remain. Source/receipt histories, amendment mapping and local acceptance are in `docs/reviews/2026-11-08-decision-page.md` and adjacent JSON. That verification JSON identifies external exact-SHA staging-integration and CI receipts, written only after the transition occurs. Passing results are not combined across revisions. Paid baselines and Na/Nb remain incomplete; numerical run/total spending limits are requested separately. User24-hour advance authority covers necessary stage integrations/pushes and audit retries within existing caps until2026-11-09T05:20:03Z. Production stays `9ade69bf155d1b25699d3aecfff3c1b07752aff0`; release and exact-production Machine1 acceptance remain separate approvals. Supplemental paid spend and automatic retries are not authorized by plan readiness.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -201,47 +201,50 @@ Full suite and Ruff green. Replay the four logged DOCN questions through the new
 
 ## Build R3 — The decision page and the publication record (P1, P2, P3, P4, AA1, AA2, AA3, H3, EX1, EX2, RK5, H5)
 
+**Execution checkpoint (2026-11-08):** started from confirmed R4 staging `82703a98b9726692ced53d761a643e7772494bde` in `codex/decision-page`. Amendment 1 R3 G1/G3/G6/G9 applies, including six-month default. Local proofs and independent closure acceptance are recorded in `docs/reviews/2026-11-08-decision-page.md`; exact published integration/CI observations use the external receipts identified in its adjacent verification JSON. Paid baselines and Na/Nb remain incomplete.
+
 **Worktree slug:** `decision-page`. Layout per approved decision D1.
 
 ### R3.1 Lead with the decision (P1, EX2)
 **Files:** `tradingagents/agents/decision_context.py`, `tradingagents/reporting.py`, `tradingagents/report_html.py`, `tradingagents/agents/output_validation.py` (:147, :161).
 - Order of `5_portfolio/decision.md` and the decision section of the complete report: (1) rating and horizon; (2) the PM's executive summary and thesis, labelled "model reasoning, not validated"; (3) audit summary line ("7 findings; PM responded to 7", AA3); (4) advisory conditions with comparator and threshold; (5) material changes since the prior publication; (6) what the price implies; (7) valuation tables and scenario comparison. Remove the placeholder "Executive Summary" line. `manager.md` likewise puts the plan before the evidence rows.
 - Change "retained in evidence.json diagnostics" to "diagnostics.json" (EX1).
-- [ ] `test_decision_page_starts_with_rating_then_pm_summary` (DOCN fixture: PM summary within the first 40 lines), `test_no_placeholder_executive_summary`, `test_manager_export_plan_first`.
+- [x] `tests/test_decision_page.py::test_decision_page_starts_with_rating_then_pm_summary`, `tests/test_decision_page.py::test_no_placeholder_executive_summary`, `tests/test_decision_page.py::test_manager_export_plan_first`.
 
 ### R3.2 Changes worth reading (P2)
 **Files:** `tradingagents/agents/assumption_history.py` (~:112–117).
 - Match cases by `(method, period, scenario role)`, not free-text name. If the method or code revision differs, print one line ("Prior publication used a different valuation method; field-level comparison not shown"), not per-field diffs. Show material changes only: revenue forecast, multiple, share basis, a case added or dropped. Label the prior by publication time, not just date, when it is from the same day.
 - "Code revision" here means an incompatible valuation calculation/contract revision, not any change to the repository-wide source hash (`publication.runtime_versions` changes for unrelated edits). The current case schema has no scenario-role field: use a role only if explicitly supplied in retained data; never infer bear/base/bull from ordering or price. If matching is ambiguous, report additions/removals once instead of inventing identity. No new role registry or historical-record rewrite is needed.
-- [ ] `test_same_day_method_change_prints_one_line` (DOCN: 21 lines → 1), `test_renamed_case_matched_by_role_shows_revenue_change` (1.93B → 1.90B shown), `test_dropped_case_listed_once`.
+- [x] `tests/test_assumption_history.py::test_same_day_method_change_prints_one_material_summary`, `tests/test_assumption_history.py::test_renamed_case_matched_by_explicit_role_shows_revenue_change`, `tests/test_assumption_history.py::test_dropped_case_is_listed_once_without_horizon_noise`.
 
 ### R3.3 Conditions printed once, with thresholds, all of them (P3, P4)
 **Files:** `tradingagents/agents/decision_context.py` (~:272, :321–324, :396–397).
 - One conditions block with metric, comparator, threshold, status and reason. Remove the 3-item cap. Stop truncating `no_case_reason` mid-word.
-- [ ] `test_two_gross_margin_conditions_render_distinct_thresholds`, `test_all_four_conditions_rendered`, `test_no_case_reason_not_truncated`.
+- [x] `tests/test_decision_page.py::test_two_gross_margin_conditions_render_distinct_thresholds_and_all_four`, `tests/test_decision_page.py::test_no_case_reason_not_truncated`.
 
 ### R3.4 The publication record keeps the reasoning (H3)
 **Files:** `tradingagents/memory/publication.py` (~:214).
 - Store the PM's executive summary, thesis and stated conditions as their own fields, in full (bounded at 20,000 chars each, with a `truncated` flag), separately from `canonical_decision`. `canonical_decision` keeps its cap but starts from the reordered page (R3.1), so its first 12 KB are the decision.
-- [ ] `test_record_keeps_pm_summary_and_thesis_in_full`, `test_record_hash_stable_for_same_inputs`. Check the immutability and integrity checks still pass for existing records (they must not be rewritten).
+- [x] `tests/test_publication_pm_fields.py::test_record_keeps_pm_summary_thesis_and_stated_conditions_in_full`, `tests/test_publication_pm_fields.py::test_record_hash_stable_and_old_record_bytes_unchanged_on_new_pm_prose`.
 
 ### R3.5 Audit the whole argument (AA1)
 **Files:** `tradingagents/agents/audit_pass.py` (~:246).
 - Replace `text[:6000]` with the role's **final** turn plus a head-and-tail window of earlier turns, within the same total budget the audit has today. The final turn gets priority. If the final turn alone exceeds the role's budget, audit its head and tail within that budget and give earlier turns nothing. Disclose the coverage per role (characters audited of total, which turns) in the audit result. Never truncate silently.
-- [ ] `test_audit_input_includes_final_turn_of_each_role`, `test_oversized_final_turn_gets_head_and_tail_within_budget`, `test_audit_coverage_disclosed`.
+- [x] `tests/test_audit_role_coverage.py::test_final_turn_of_each_debate_role_is_prioritized_and_coverage_disclosed`, `tests/test_audit_role_coverage.py::test_oversized_final_turn_gets_head_and_tail_within_budget`, `tests/test_audit_role_coverage.py::test_legacy_history_without_final_turn_metadata_discloses_unknown`.
 
 ### R3.6 Export ordering and the operational headline (RK5, H5)
 - Export risk turns in speaking order as the main view, with per-role files kept. The operational audit headline names every fallback, not just the first.
-- [ ] `test_risk_export_in_speaking_order`, `test_operational_headline_lists_all_fallbacks`.
+- [x] `tests/test_decision_page.py::test_risk_export_in_speaking_order`, `tests/test_decision_page.py::test_operational_headline_lists_all_fallbacks`.
 
 ### R3.7 Audit independence from the models actually used (AA2)
 **Files:** `tradingagents/agents/audit_pass.py` (~:445–448).
 - Derive `independence_by_role` from the recorded per-node model ID instead of the hard-coded slot mapping. Keep the existing disclosure that the PM is not audited.
 - R5's call metadata is the input contract: requested model plus provider-returned model identity when supplied, including fallback attempts. If actual identity is unavailable, report independence as unknown rather than inferring it from quick/deep slots. R3.7 owns this disclosure and its test.
-- [ ] `test_independence_uses_recorded_model_ids` (same model for a quick role when quick == deep is marked "same model").
+- [x] `tests/test_audit_model_identity.py::test_independence_uses_actual_completed_calls_and_fallback`, `tests/test_audit_model_identity.py::test_reordered_completed_calls_with_different_actual_models_are_ambiguous`.
 
 ### R3 proof
 Full suite and Ruff green. Re-render the DOCN reference run from the fixture: `decision.md` before and after (line number of PM summary, count of change lines, conditions rendered) recorded in `docs/reviews/<date>-decision-page.md`. Manual: open `complete_report.html` and confirm the Copy All button still works.
+
 
 ## Build R4 — Memory continuity (H1, H2, RM2, ML3, RK3)
 

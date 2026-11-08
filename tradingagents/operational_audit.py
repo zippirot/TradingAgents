@@ -208,7 +208,9 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
                          "locator": "executive_summary.status"})
     findings.sort(key=lambda item: (item["score"], item["stage"], item["code"]))
     score = min((item["score"] for item in findings), default=5)
-    return _assessment(score, state, rows, expected, missing, integrity, findings[0]["text"] if findings else
+    headline = [findings[0]['text']] if findings else []
+    headline.extend(f['text'] for f in findings[1:] if f['code'] in {'fallback_recovered', 'vendor_fallback_recovered', 'model_fallback_recovered'})
+    return _assessment(score, state, rows, expected, missing, integrity, ' '.join(dict.fromkeys(headline)) if findings else
                        "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
 
 

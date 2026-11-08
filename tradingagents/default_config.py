@@ -19,6 +19,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
+    "TRADINGAGENTS_DECISION_HORIZON_MONTHS": "decision_horizon_months",
     "TRADINGAGENTS_MAX_TOOL_ROUNDS":      "max_tool_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
@@ -96,6 +97,7 @@ def build_default_config() -> dict:
         # price sessions retain their own exchange/session clock.
         "analysis_timezone": "America/Denver",
         "analysis_cutoff_utc": None,
+        "decision_horizon_months": 6,
         # LLM settings
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",

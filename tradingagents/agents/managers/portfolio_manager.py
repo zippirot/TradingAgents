@@ -41,6 +41,9 @@ def create_portfolio_manager(llm):
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state, include_mechanical=True)
         portfolio_context = get_portfolio_context_from_state(state)
+        horizon_months = (state.get("run_settings") or {}).get("decision_horizon_months", 6)
+        if type(horizon_months) is not int or horizon_months <= 0:
+            raise ValueError("decision_horizon_months must be a positive integer")
 
         package = None
         canonical_facts = "Canonical financial evidence unavailable; omit valuation_request."
@@ -143,7 +146,7 @@ Write in order, rating first:
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
 - **Executive Summary**: call and action
 - **Investment Thesis**: decisive evidence and reconsideration conditions
-- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Never infer from forecasts or default to 3–6 months; unknown means incomplete, rating unchanged.
+- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Use the configured default of {horizon_months} months unless a different horizon is justified in horizon_reason. Never infer from forecasts; missing or invalid means incomplete, rating unchanged.
 
 {NO_EXTERNAL_TOOLS}{EVIDENCE_DISCIPLINE}{get_language_instruction()}"""
 
@@ -168,6 +171,7 @@ Write in order, rating first:
             request = json.loads(json.dumps(request, default=str), parse_constant=str)
             original["portfolio_manager"] = {
                 "contract_version": DECISION_HORIZON_CONTRACT,
+                "configured_horizon_months": horizon_months,
                 "case_contract": 1,
                 "structured": json.loads(
                     json.dumps(
@@ -187,7 +191,8 @@ Write in order, rating first:
             final_trade_decision = delivered_narrative(raw.content, raw)
             final_rating = parse_rating(final_trade_decision)
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
-            original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT}
+            original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT,
+                                             "configured_horizon_months": horizon_months}
             target = TargetResult(
                 status="unsupported",
                 reasons=(

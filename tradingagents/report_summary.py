@@ -331,9 +331,12 @@ def _observed_presence(state, present):
                               if filename == "trader.md" and bool(original.get("trader_investment_plan"))}
     risk = _mapping(original.get("risk_debate_state"))
     risk_fields = {"aggressive.md": "aggressive_history", "conservative.md": "conservative_history",
-                   "neutral.md": "neutral_history"}
+                   "neutral.md": "neutral_history", "debate.md": "history"}
     observed["4_risk"] = {filename for filename in observed.get("4_risk", set())
                           if bool(risk.get(risk_fields[filename]))}
+    if 'debate.md' in observed['4_risk']:
+        observed['4_risk'].update(filename for filename, key in risk_fields.items()
+                                  if filename != 'debate.md' and bool(risk.get(key)))
     observed["5_portfolio"] = {filename for filename in observed.get("5_portfolio", set())
                                if filename == "decision.md" and bool(original.get("final_trade_decision"))}
     return observed

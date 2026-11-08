@@ -1,0 +1,775 @@
+{
+  "stage": "R3 local acceptance complete; exact published staging/CI tracked in external transition receipts. Paid baselines and Na/Nb remain incomplete.",
+  "base_commit": "82703a98b9726692ced53d761a643e7772494bde",
+  "source_objects": {
+    "docs/reviews/decision-page-proof.py": "5af641212bc05d9f703bebc85f877c7c5de83493",
+    "docs/reviews/valuation-build2-proof-tools/live_cli.py": "6faa7b48be4f5210986729e8eb41b483fe18a46e",
+    "tests/test_advisory_audit.py": "f66affb07e60441b7e8e9662e75c85ea0441e341",
+    "tests/test_advisory_audit_integration.py": "bb2ba025f3d2df8c8996134b0ce5567df1c04d23",
+    "tests/test_assumption_history.py": "108292466a5e1a19d2df675f4976d133b97d5075",
+    "tests/test_audit_case_id.py": "596d62ff2774fa123c1ccaa0318677a497698a55",
+    "tests/test_audit_dispositions.py": "df68bfdae659cba4f99c4dca65f1a160e46a0e46",
+    "tests/test_audit_model_identity.py": "1475e5d2e293cdcbb75e605fcb7a8e6ff34605d9",
+    "tests/test_audit_retained_amount.py": "f296af0e706c53b7882f670a4cefd03bed9c134b",
+    "tests/test_audit_role_coverage.py": "2ab3a24c06e2ac9079cc100fd57b6734bb6945a8",
+    "tests/test_build1_horizon_sell.py": "d1225308079596ad9cd03fe91807ed1e108979fc",
+    "tests/test_build2_continuation_proof.py": "290375be5f50c985bdec8b7011469acb0afbad8a",
+    "tests/test_citation_check.py": "52119614bebef7f801c986b3062ff8954f41e86e",
+    "tests/test_decision_horizon_default.py": "b34b39dd7d69e7644aba3eb93db09ad472acbf91",
+    "tests/test_decision_page.py": "e8e5902a78bd63944a33ee8e1cef03eaf398282e",
+    "tests/test_disputed_case_range.py": "d4bc6f613bd2f386a937a7fcb81be6c24a692bb7",
+    "tests/test_export_diagnostics_sidecar.py": "a251e3eadbc6c291e56f35178b4b0da780735d2e",
+    "tests/test_publication_pm_fields.py": "ba5aff281d0d8410cb202af7158b95ceb8b905e1",
+    "tests/test_valuation_reference_flow.py": "6e1b862b1712a354dee3afe990f6239ed8361cdf",
+    "tradingagents/agents/assumption_history.py": "31346c92840b52f2c3be8fa6eb562f4f6823a578",
+    "tradingagents/agents/audit_pass.py": "1c97b1ed23ae9dbbb980512b5e466ae26fe001b2",
+    "tradingagents/agents/citation_check.py": "c7897a905791b3920e04b0dd55c39b426b4bbeb1",
+    "tradingagents/agents/decision_context.py": "5a9c04466dbe14809108c9c0ca3adfab5eb075ed",
+    "tradingagents/agents/managers/portfolio_manager.py": "30bcec913f3e8c7c987d95dfa2de3ba922d2f47b",
+    "tradingagents/agents/output_validation.py": "5effe1afec496dc3b1cd037f9785717fa4e59e69",
+    "tradingagents/agents/researchers/bear_researcher.py": "7d593485f65c98bfb4cfc3fa3629165274756d2b",
+    "tradingagents/agents/researchers/bull_researcher.py": "721c8d029e9e0a4f2db56973646a658e6104529c",
+    "tradingagents/agents/schemas.py": "98531f7f414d23879bcffd14f4fa7b1c5660e987",
+    "tradingagents/agents/shared_valuation.py": "986e03b820250ef37147a6a726ca9cb646472df7",
+    "tradingagents/agents/state.py": "5b286884101ba236b09c23c67ad65d06edec3b9c",
+    "tradingagents/default_config.py": "73708ab41501a6dcf10a1bd486e385f0fc62e319",
+    "tradingagents/graph/trading_graph.py": "8f247dab3c5e7d78e4231228c875bd0b2daf6c5d",
+    "tradingagents/memory/publication.py": "b9ee83e372e5b13324186e5e0b30cd7b7205a942",
+    "tradingagents/operational_audit.py": "a4155c50d9ae397704854c8e665a2ff573647bee",
+    "tradingagents/report_html.py": "9d708bea7c17f5daebe5e439dfa4d88c90351c0c",
+    "tradingagents/report_summary.py": "6b4f884b332badec025c664c6937fdd250077c09",
+    "tradingagents/reporting.py": "8a45f1470b7532327850ffa79e97fbb9350133e0"
+  },
+  "full_pytest": {
+    "command": "python -m pytest -q",
+    "exit_code": 0,
+    "passed": 3561,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests_passed": 100,
+    "seconds": 70.45,
+    "log": "/tmp/r3-sidecar-full-pytest.log",
+    "sha256": "5261f0d77d213976d0dc776b1ff397a6e7cf0c16f49fc22bcb48e4e5f7470352"
+  },
+  "ruff": {
+    "command": "ruff check .",
+    "exit_code": 0,
+    "log": "/tmp/r3-sidecar-ruff.log",
+    "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+  },
+  "failure_recovery": {
+    "initial_full": "8 failed, 3538 passed; development run before final corrections; not candidate acceptance",
+    "affected_focused": "74 passed in 12.81s, including the original actual CLI/compiled-graph continuation fixture",
+    "log": "/tmp/r3-corrections-focused-2.log",
+    "sha256": "baf0cfdbbcf79a986f69e492a9b3e74879bfc7a1de665a0910bb6ae5b63e5017"
+  },
+  "manual_html": {
+    "path": "/tmp/r3-decision-page-manual-html-2/complete_report.html",
+    "sha256": "2598c0d018cd567921e52857032104707d9259059e632ef1ff3f9097e8e43b96",
+    "surface": "Google Chrome guest, local file URL; CUA native accessibility",
+    "one_condition_block": true,
+    "pm_before_mechanical": true,
+    "copy_all_actual_button_clicked": true,
+    "clipboard_verified_by_native_paste": {
+      "report_start_DOCN": true,
+      "analysis_date_2026_11_07": true,
+      "executive_summary": true,
+      "final_operational_footer": true,
+      "current_token_total_2282259": true,
+      "both_fallback_stages": true
+    },
+    "limits": "Start/end and identifying content inspected; no byte-for-byte clipboard equality claimed. Temporary unsaved TextEdit proof document discarded; no existing document edited. Stable Tradeframe application untouched.",
+    "source_equivalence": "Manual receipt predates final audit model-identity and citation-count-only corrections; reporting.py/report_html.py, copy-button code, layout and clipboard mechanism were unchanged. No byte equality or identical final rendered-file hash claimed. Closure corrections leave report_html.py and its actual Copy All implementation unchanged; reporting.py changes only diagnostic wording and unconditional companion-file writing. Layout/clipboard proof remains applicable; final artifact bytes are not claimed identical."
+  },
+  "paid_product_calls": 0,
+  "audit": "Actual Claude Fable initial and three closure reviews completed; final closure3 has no Critical/High/Medium; two nonmaterial Low observations deferred.",
+  "staging_integration": {
+    "status_at_local_acceptance": "pending authorized clean-tree squash and exact-SHA CI",
+    "integration_receipt": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r3-fable-closure-3/staging-integration.json",
+    "ci_receipt": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r3-fable-closure-3/staging-ci-result.json",
+    "authority_expires_at_utc": "2026-11-09T05:20:03Z",
+    "feature_history_publication": "prohibited; publish cleaned tree only to preserve privacy of unpublished intermediate packet"
+  },
+  "stable_source_commit": "efbdd417fdd8ba177a2f80e4ab9c776f0679b27e",
+  "source_objects_verified_at_commit": true,
+  "reference_receipt": {
+    "path": "/tmp/r3-sidecar-committed-reference.json",
+    "sha256": "fc854a3f7590e6f418595c47eaa44b42094f90ab8d9a6575d36b8b27bc943ce2"
+  },
+  "prior_candidates": [
+    {
+      "stable_source_commit": "e9ac805d13c59c18612cc59808c57b10bbd54ccf",
+      "full_pytest": {
+        "command": "python -m pytest -q",
+        "exit_code": 0,
+        "passed": 3552,
+        "skipped": 10,
+        "deselected": 1,
+        "warnings": 25,
+        "subtests_passed": 100,
+        "seconds": 74.46,
+        "log": "/tmp/r3-stable-full-pytest.log",
+        "sha256": "0befbd86d339a2a264b4dbb18fe1521fd499cfbd82e0ccbd47350afab732c581"
+      },
+      "ruff": {
+        "command": "ruff check .",
+        "exit_code": 0,
+        "log": "/tmp/r3-stable-ruff.log",
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "source_objects": {
+        "docs/reviews/decision-page-proof.py": "5af641212bc05d9f703bebc85f877c7c5de83493",
+        "docs/reviews/valuation-build2-proof-tools/live_cli.py": "6faa7b48be4f5210986729e8eb41b483fe18a46e",
+        "tests/test_advisory_audit.py": "f66affb07e60441b7e8e9662e75c85ea0441e341",
+        "tests/test_advisory_audit_integration.py": "bb2ba025f3d2df8c8996134b0ce5567df1c04d23",
+        "tests/test_assumption_history.py": "108292466a5e1a19d2df675f4976d133b97d5075",
+        "tests/test_audit_case_id.py": "596d62ff2774fa123c1ccaa0318677a497698a55",
+        "tests/test_audit_dispositions.py": "df68bfdae659cba4f99c4dca65f1a160e46a0e46",
+        "tests/test_audit_model_identity.py": "1475e5d2e293cdcbb75e605fcb7a8e6ff34605d9",
+        "tests/test_audit_retained_amount.py": "26593e044fb8ff0b296628e87d14c5b4d17bcd9d",
+        "tests/test_audit_role_coverage.py": "2ab3a24c06e2ac9079cc100fd57b6734bb6945a8",
+        "tests/test_build1_horizon_sell.py": "d1225308079596ad9cd03fe91807ed1e108979fc",
+        "tests/test_build2_continuation_proof.py": "290375be5f50c985bdec8b7011469acb0afbad8a",
+        "tests/test_citation_check.py": "db1097309e3ecf2e9f149dea75c5ee9e54db6511",
+        "tests/test_decision_horizon_default.py": "b34b39dd7d69e7644aba3eb93db09ad472acbf91",
+        "tests/test_decision_page.py": "e8e5902a78bd63944a33ee8e1cef03eaf398282e",
+        "tests/test_disputed_case_range.py": "9620e7417b0f0bc56bb5254b6a7d4587af63289d",
+        "tests/test_publication_pm_fields.py": "fa582d900c14e7f2ef4a1f0e628d99a371ff83c0",
+        "tests/test_valuation_reference_flow.py": "6e1b862b1712a354dee3afe990f6239ed8361cdf",
+        "tradingagents/agents/assumption_history.py": "31346c92840b52f2c3be8fa6eb562f4f6823a578",
+        "tradingagents/agents/audit_pass.py": "50b10f1f31a609cf0008b89a685b91fb21a011b5",
+        "tradingagents/agents/citation_check.py": "4026c755463dafdbe5100ddfe0cf4efdaf5650d2",
+        "tradingagents/agents/decision_context.py": "1692394e9ef515f1281b277a2d5eb5200e45e2cf",
+        "tradingagents/agents/managers/portfolio_manager.py": "30bcec913f3e8c7c987d95dfa2de3ba922d2f47b",
+        "tradingagents/agents/output_validation.py": "369cc246cc0deb311f7399585fb676949268a9e7",
+        "tradingagents/agents/researchers/bear_researcher.py": "7d593485f65c98bfb4cfc3fa3629165274756d2b",
+        "tradingagents/agents/researchers/bull_researcher.py": "721c8d029e9e0a4f2db56973646a658e6104529c",
+        "tradingagents/agents/schemas.py": "98531f7f414d23879bcffd14f4fa7b1c5660e987",
+        "tradingagents/agents/shared_valuation.py": "986e03b820250ef37147a6a726ca9cb646472df7",
+        "tradingagents/agents/state.py": "5b286884101ba236b09c23c67ad65d06edec3b9c",
+        "tradingagents/default_config.py": "73708ab41501a6dcf10a1bd486e385f0fc62e319",
+        "tradingagents/graph/trading_graph.py": "8f247dab3c5e7d78e4231228c875bd0b2daf6c5d",
+        "tradingagents/memory/publication.py": "b3e54bd0c2304309e70e39dd755bfa43fb10e545",
+        "tradingagents/operational_audit.py": "a4155c50d9ae397704854c8e665a2ff573647bee",
+        "tradingagents/report_html.py": "9d708bea7c17f5daebe5e439dfa4d88c90351c0c",
+        "tradingagents/report_summary.py": "6b4f884b332badec025c664c6937fdd250077c09",
+        "tradingagents/reporting.py": "d2b32eade64eaca45e8caaca1781850651ccbe6d"
+      },
+      "reference_receipt": {
+        "path": "/tmp/r3-committed-reference-proof.json",
+        "sha256": "1966cf272f7f047e9ba39600c1c2250feef294c91762e17971acbdb6ba2cc4eb"
+      }
+    },
+    {
+      "stable_source_commit": "67865e678c9d3bda32a09939771d32e0e6d53d9e",
+      "full_pytest": {
+        "command": "python -m pytest -q",
+        "exit_code": 0,
+        "passed": 3559,
+        "skipped": 10,
+        "deselected": 1,
+        "warnings": 25,
+        "subtests_passed": 100,
+        "seconds": 70.34,
+        "log": "/tmp/r3-closure-full-pytest.log",
+        "sha256": "96a6f3c9a3eed67fd30437416e7dcee8194499109ad7100f964ace1f5c6e7b9a"
+      },
+      "ruff": {
+        "command": "ruff check .",
+        "exit_code": 0,
+        "log": "/tmp/r3-closure-ruff.log",
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "source_objects": {
+        "docs/reviews/decision-page-proof.py": "5af641212bc05d9f703bebc85f877c7c5de83493",
+        "docs/reviews/valuation-build2-proof-tools/live_cli.py": "6faa7b48be4f5210986729e8eb41b483fe18a46e",
+        "tests/test_advisory_audit.py": "f66affb07e60441b7e8e9662e75c85ea0441e341",
+        "tests/test_advisory_audit_integration.py": "bb2ba025f3d2df8c8996134b0ce5567df1c04d23",
+        "tests/test_assumption_history.py": "108292466a5e1a19d2df675f4976d133b97d5075",
+        "tests/test_audit_case_id.py": "596d62ff2774fa123c1ccaa0318677a497698a55",
+        "tests/test_audit_dispositions.py": "df68bfdae659cba4f99c4dca65f1a160e46a0e46",
+        "tests/test_audit_model_identity.py": "1475e5d2e293cdcbb75e605fcb7a8e6ff34605d9",
+        "tests/test_audit_retained_amount.py": "f296af0e706c53b7882f670a4cefd03bed9c134b",
+        "tests/test_audit_role_coverage.py": "2ab3a24c06e2ac9079cc100fd57b6734bb6945a8",
+        "tests/test_build1_horizon_sell.py": "d1225308079596ad9cd03fe91807ed1e108979fc",
+        "tests/test_build2_continuation_proof.py": "290375be5f50c985bdec8b7011469acb0afbad8a",
+        "tests/test_citation_check.py": "db1097309e3ecf2e9f149dea75c5ee9e54db6511",
+        "tests/test_decision_horizon_default.py": "b34b39dd7d69e7644aba3eb93db09ad472acbf91",
+        "tests/test_decision_page.py": "e8e5902a78bd63944a33ee8e1cef03eaf398282e",
+        "tests/test_disputed_case_range.py": "d4bc6f613bd2f386a937a7fcb81be6c24a692bb7",
+        "tests/test_export_diagnostics_sidecar.py": "dc9336acfc04bcd04be8a5aa7bef42addc32a7d1",
+        "tests/test_publication_pm_fields.py": "ba5aff281d0d8410cb202af7158b95ceb8b905e1",
+        "tests/test_valuation_reference_flow.py": "6e1b862b1712a354dee3afe990f6239ed8361cdf",
+        "tradingagents/agents/assumption_history.py": "31346c92840b52f2c3be8fa6eb562f4f6823a578",
+        "tradingagents/agents/audit_pass.py": "1c97b1ed23ae9dbbb980512b5e466ae26fe001b2",
+        "tradingagents/agents/citation_check.py": "4026c755463dafdbe5100ddfe0cf4efdaf5650d2",
+        "tradingagents/agents/decision_context.py": "5a9c04466dbe14809108c9c0ca3adfab5eb075ed",
+        "tradingagents/agents/managers/portfolio_manager.py": "30bcec913f3e8c7c987d95dfa2de3ba922d2f47b",
+        "tradingagents/agents/output_validation.py": "5effe1afec496dc3b1cd037f9785717fa4e59e69",
+        "tradingagents/agents/researchers/bear_researcher.py": "7d593485f65c98bfb4cfc3fa3629165274756d2b",
+        "tradingagents/agents/researchers/bull_researcher.py": "721c8d029e9e0a4f2db56973646a658e6104529c",
+        "tradingagents/agents/schemas.py": "98531f7f414d23879bcffd14f4fa7b1c5660e987",
+        "tradingagents/agents/shared_valuation.py": "986e03b820250ef37147a6a726ca9cb646472df7",
+        "tradingagents/agents/state.py": "5b286884101ba236b09c23c67ad65d06edec3b9c",
+        "tradingagents/default_config.py": "73708ab41501a6dcf10a1bd486e385f0fc62e319",
+        "tradingagents/graph/trading_graph.py": "8f247dab3c5e7d78e4231228c875bd0b2daf6c5d",
+        "tradingagents/memory/publication.py": "b9ee83e372e5b13324186e5e0b30cd7b7205a942",
+        "tradingagents/operational_audit.py": "a4155c50d9ae397704854c8e665a2ff573647bee",
+        "tradingagents/report_html.py": "9d708bea7c17f5daebe5e439dfa4d88c90351c0c",
+        "tradingagents/report_summary.py": "6b4f884b332badec025c664c6937fdd250077c09",
+        "tradingagents/reporting.py": "22aa07c9780716f8bd856860f9b086f796bfaebd"
+      },
+      "closure_checks": {
+        "focused": {
+          "passed": 33,
+          "seconds": 1.25,
+          "log": "/tmp/r3-closure-focused.log"
+        },
+        "ex1_red": {
+          "failed": 3,
+          "log": "/tmp/r3-ex1-red.log"
+        },
+        "adopted_label_red": {
+          "failed": 1,
+          "log": "/tmp/r3-adopted-target-red.log"
+        },
+        "reference_proof": {
+          "path": "/tmp/r3-closure-committed-reference.json",
+          "sha256": "f5bf2ffe0b7e3d69b5fa5e42856bcf979e575d456f0cec9c17df6c9571250dc9"
+        },
+        "privacy_integration": "Clean final tree will be squash-integrated; unpublished context remains local. No public feature branch push."
+      }
+    },
+    {
+      "stable_source_commit": "03e5e29155ed0d3e8e8bfbb48123e9a57d1cb8ac",
+      "full_pytest": {
+        "command": "python -m pytest -q",
+        "exit_code": 0,
+        "passed": 3561,
+        "skipped": 10,
+        "deselected": 1,
+        "warnings": 25,
+        "subtests_passed": 100,
+        "seconds": 69.83,
+        "log": "/tmp/r3-final-full-pytest.log",
+        "sha256": "ed03ccb5744f512de183c507d571fb02b33d1050a3536aae8ec1afeb1160d9eb"
+      },
+      "ruff": {
+        "command": "ruff check .",
+        "exit_code": 0,
+        "log": "/tmp/r3-final-ruff.log",
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      "source_objects": {
+        "docs/reviews/decision-page-proof.py": "5af641212bc05d9f703bebc85f877c7c5de83493",
+        "docs/reviews/valuation-build2-proof-tools/live_cli.py": "6faa7b48be4f5210986729e8eb41b483fe18a46e",
+        "tests/test_advisory_audit.py": "f66affb07e60441b7e8e9662e75c85ea0441e341",
+        "tests/test_advisory_audit_integration.py": "bb2ba025f3d2df8c8996134b0ce5567df1c04d23",
+        "tests/test_assumption_history.py": "108292466a5e1a19d2df675f4976d133b97d5075",
+        "tests/test_audit_case_id.py": "596d62ff2774fa123c1ccaa0318677a497698a55",
+        "tests/test_audit_dispositions.py": "df68bfdae659cba4f99c4dca65f1a160e46a0e46",
+        "tests/test_audit_model_identity.py": "1475e5d2e293cdcbb75e605fcb7a8e6ff34605d9",
+        "tests/test_audit_retained_amount.py": "f296af0e706c53b7882f670a4cefd03bed9c134b",
+        "tests/test_audit_role_coverage.py": "2ab3a24c06e2ac9079cc100fd57b6734bb6945a8",
+        "tests/test_build1_horizon_sell.py": "d1225308079596ad9cd03fe91807ed1e108979fc",
+        "tests/test_build2_continuation_proof.py": "290375be5f50c985bdec8b7011469acb0afbad8a",
+        "tests/test_citation_check.py": "52119614bebef7f801c986b3062ff8954f41e86e",
+        "tests/test_decision_horizon_default.py": "b34b39dd7d69e7644aba3eb93db09ad472acbf91",
+        "tests/test_decision_page.py": "e8e5902a78bd63944a33ee8e1cef03eaf398282e",
+        "tests/test_disputed_case_range.py": "d4bc6f613bd2f386a937a7fcb81be6c24a692bb7",
+        "tests/test_export_diagnostics_sidecar.py": "dc9336acfc04bcd04be8a5aa7bef42addc32a7d1",
+        "tests/test_publication_pm_fields.py": "ba5aff281d0d8410cb202af7158b95ceb8b905e1",
+        "tests/test_valuation_reference_flow.py": "6e1b862b1712a354dee3afe990f6239ed8361cdf",
+        "tradingagents/agents/assumption_history.py": "31346c92840b52f2c3be8fa6eb562f4f6823a578",
+        "tradingagents/agents/audit_pass.py": "1c97b1ed23ae9dbbb980512b5e466ae26fe001b2",
+        "tradingagents/agents/citation_check.py": "c7897a905791b3920e04b0dd55c39b426b4bbeb1",
+        "tradingagents/agents/decision_context.py": "5a9c04466dbe14809108c9c0ca3adfab5eb075ed",
+        "tradingagents/agents/managers/portfolio_manager.py": "30bcec913f3e8c7c987d95dfa2de3ba922d2f47b",
+        "tradingagents/agents/output_validation.py": "5effe1afec496dc3b1cd037f9785717fa4e59e69",
+        "tradingagents/agents/researchers/bear_researcher.py": "7d593485f65c98bfb4cfc3fa3629165274756d2b",
+        "tradingagents/agents/researchers/bull_researcher.py": "721c8d029e9e0a4f2db56973646a658e6104529c",
+        "tradingagents/agents/schemas.py": "98531f7f414d23879bcffd14f4fa7b1c5660e987",
+        "tradingagents/agents/shared_valuation.py": "986e03b820250ef37147a6a726ca9cb646472df7",
+        "tradingagents/agents/state.py": "5b286884101ba236b09c23c67ad65d06edec3b9c",
+        "tradingagents/default_config.py": "73708ab41501a6dcf10a1bd486e385f0fc62e319",
+        "tradingagents/graph/trading_graph.py": "8f247dab3c5e7d78e4231228c875bd0b2daf6c5d",
+        "tradingagents/memory/publication.py": "b9ee83e372e5b13324186e5e0b30cd7b7205a942",
+        "tradingagents/operational_audit.py": "a4155c50d9ae397704854c8e665a2ff573647bee",
+        "tradingagents/report_html.py": "9d708bea7c17f5daebe5e439dfa4d88c90351c0c",
+        "tradingagents/report_summary.py": "6b4f884b332badec025c664c6937fdd250077c09",
+        "tradingagents/reporting.py": "22aa07c9780716f8bd856860f9b086f796bfaebd"
+      },
+      "reference_receipt": {
+        "path": "/tmp/r3-final-committed-reference.json",
+        "sha256": "6051702cc314b37c5ef8a9dd3219e4fb2b13ab953af32966fc7d5e26731225e0"
+      },
+      "closure_checks": {
+        "citation_focused_passed": 10,
+        "receipt_history_checked_against_original_git_and_actual_logs": true,
+        "reference_proof": {
+          "path": "/tmp/r3-final-committed-reference.json",
+          "sha256": "6051702cc314b37c5ef8a9dd3219e4fb2b13ab953af32966fc7d5e26731225e0"
+        },
+        "privacy_integration": "Clean final tree only will be squash-integrated; unpublished context remains local."
+      }
+    }
+  ],
+  "closure_checks": {
+    "focused_passed": 47,
+    "focused_seconds": 1.07,
+    "focused_log": "/tmp/r3-sidecar-content-green.log",
+    "actual_content_red_failed": 2,
+    "actual_content_red_log": "/tmp/r3-sidecar-content-red.log",
+    "reference_proof": {
+      "path": "/tmp/r3-sidecar-committed-reference.json",
+      "sha256": "fc854a3f7590e6f418595c47eaa44b42094f90ab8d9a6575d36b8b27bc943ce2"
+    },
+    "source_objects_before_tests": "/tmp/r3-sidecar-source-objects-before-tests.json"
+  },
+  "independent_audit": {
+    "initial": {
+      "base_commit": "82703a98b9726692ced53d761a643e7772494bde",
+      "head_commit": "c733b03aca7cc2d4f10446c36ff866f79495be8f",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "status": "completed",
+      "actual_turns": 55,
+      "reviewed_files": [
+        "docs/reviews/2026-11-08-decision-page-baseline.json",
+        "docs/reviews/2026-11-08-decision-page-runtime.json",
+        "docs/reviews/2026-11-08-decision-page-source-excerpts.json",
+        "docs/reviews/2026-11-08-decision-page-verification.json",
+        "docs/reviews/2026-11-08-decision-page.md",
+        "docs/reviews/decision-page-proof.py",
+        "docs/reviews/valuation-build2-proof-tools/live_cli.py",
+        "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "tests/test_advisory_audit.py",
+        "tests/test_advisory_audit_integration.py",
+        "tests/test_assumption_history.py",
+        "tests/test_audit_case_id.py",
+        "tests/test_audit_dispositions.py",
+        "tests/test_audit_model_identity.py",
+        "tests/test_audit_retained_amount.py",
+        "tests/test_audit_role_coverage.py",
+        "tests/test_build1_horizon_sell.py",
+        "tests/test_build2_continuation_proof.py",
+        "tests/test_citation_check.py",
+        "tests/test_decision_horizon_default.py",
+        "tests/test_decision_page.py",
+        "tests/test_disputed_case_range.py",
+        "tests/test_publication_pm_fields.py",
+        "tests/test_valuation_reference_flow.py",
+        "tradingagents/agents/assumption_history.py",
+        "tradingagents/agents/audit_pass.py",
+        "tradingagents/agents/citation_check.py",
+        "tradingagents/agents/decision_context.py",
+        "tradingagents/agents/managers/portfolio_manager.py",
+        "tradingagents/agents/output_validation.py",
+        "tradingagents/agents/researchers/bear_researcher.py",
+        "tradingagents/agents/researchers/bull_researcher.py",
+        "tradingagents/agents/schemas.py",
+        "tradingagents/agents/shared_valuation.py",
+        "tradingagents/agents/state.py",
+        "tradingagents/default_config.py",
+        "tradingagents/graph/trading_graph.py",
+        "tradingagents/memory/publication.py",
+        "tradingagents/operational_audit.py",
+        "tradingagents/report_html.py",
+        "tradingagents/report_summary.py",
+        "tradingagents/reporting.py"
+      ],
+      "summary": "Independent frozen-manifest audit of Build R3 (decision page + publication record, with Amendment 1 G1/G3/G6/G9) over 82703a98..c733b03a: 42 files, ~3,254 diff lines. The build substantively delivers every R3 task with sound safety properties: the decision page leads with rating/horizon and labelled-unvalidated PM prose followed by the audit response line, one uncapped conditions block with comparators/thresholds, material-change rows keyed by (method, period, explicit scenario role) with same-day time labels and one-line method-change summaries; the publication record gains bounded hash-bound PM prose fields while provably leaving old record bytes and retry immutability intact; the advisory audit prioritizes verified final turns within the existing budget with per-role coverage disclosure, derives model independence from recorded provider identities (unknown rather than slot-inferred, order-ambiguity hardened), excludes accepted-finding-disputed cases from ranges without touching arithmetic, relabels retained-source-located amounts as coverage notes without deleting findings, adds a display-only PM citation check, and implements the six-month configured horizon with reasoned-override semantics. Tests in the diff cover all plan-named R3 checkboxes and the amendment behaviors, and committed offline proof receipts (baseline vs candidate DOCN render, unchanged store hashes, G1/G3 retained-state results) are internally consistent. One medium gap: the explicitly required EX1 wording change ('evidence.json diagnostics' \u2192 'diagnostics.json' in output_validation.py) was not made even though R3.1 is marked complete \u2014 the string is re-added verbatim in the rebuilt page and no test covers it. Remaining findings are low: located-source findings still counted as unsupported claims in issue counts, amendment fixture-named tests replaced by synthetic equivalents with unticked amendment checkboxes, all-or-nothing PM-field retention, a thousands-table numeric false-positive vector, disputed-case exclusion not covering a PM-adopted target, and private global instructions/home paths committed in review artifacts. No security, rating-authority, immutability, or evidence-eligibility regressions were found; recommend fixing EX1 (or un-ticking it) before staging advancement, with the low items as follow-ups.",
+      "limitations": [
+        "Static review of the frozen diff and embedded head-state requirements only: no tests, Ruff, or renders were executed, so the claimed full-suite result (3,552 passed, Ruff green) and the baseline/candidate DOCN re-render metrics, G1/G3 16416b7e receipts, and the manual Copy All HTML proof are accepted as recorded claims with internally consistent hashes, not independently reproduced.",
+        "The offline proof inputs (private publication store, full-state logs under ~/.tradingagents, /tmp pointer and baseline files) are outside the frozen manifest and were not read; their hashes were checked only for internal consistency between the committed baseline, runtime and verification JSONs.",
+        "The frozen head c733b03a is one commit past the stable receipt commit e9ac805d named in the review doc; the final commit's content (review-doc acceptance text) was audited via the diff, but the receipt binding between the two commits cannot be verified from the manifest alone.",
+        "Behavioral claims that depend on code outside the changed hunks (e.g. ThesisProposal condition-count bounds limiting the now-uncapped condition rendering, _role_texts/_ROLE_STAGES key agreement, report_summary expected-section alignment with the new debate.md) were checked against the head-file copies embedded in the frozen requirements where available, otherwise assumed from passing-suite claims.",
+        "No assessment of live-model behavior, prompt quality, or production CI: the audit covers source, tests, and recorded proofs in the frozen scope only."
+      ],
+      "findings": [
+        {
+          "severity": "medium",
+          "title": "EX1 wording fix not implemented though R3.1 is marked complete: output_validation.py still emits 'retained in evidence.json diagnostics' in all three places (investment_plan line, debate placeholders, and the rebuilt decision page re-adds the string verbatim); only the pre-existing frozen-export replace in reporting.py masks it for historical re-exports, and no test covers EX1",
+          "path": "tradingagents/agents/output_validation.py"
+        },
+        {
+          "severity": "low",
+          "title": "Findings relabelled 'located_in_retained_source' still increment counts_by_type['unsupported_claim'], so the rendered 'Issue counts' line overstates open unsupported claims relative to the separate located-source coverage line",
+          "path": "tradingagents/agents/audit_pass.py"
+        },
+        {
+          "severity": "low",
+          "title": "Amendment 1 G1/G3 acceptance named 16416b7e-fixture tests (e.g. test_accepted_finding_with_case_id_excludes_case_from_range, test_unsupported_finding_located_in_10q_is_relabelled); delivered tests use synthetic fixtures under different names and the 16416b7e evidence lives only in an uncommitted-store offline proof receipt; amendment checkboxes remain unticked while the execution checkpoint states G1/G3/G6/G9 apply",
+          "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md"
+        },
+        {
+          "severity": "low",
+          "title": "_pm_reasoning is all-or-nothing: if the structured PM output has an executive summary but no thesis string (or vice versa), none of the three R3.4 fields \u2014 including pm_stated_conditions \u2014 is retained in the publication record",
+          "path": "tradingagents/memory/publication.py"
+        },
+        {
+          "severity": "low",
+          "title": "G3 thousands-table handling scales every bare number in an 'in thousands' block by 1000 (including years or share counts), creating a residual false-relabel vector mitigated only by the single shared non-numeric word requirement",
+          "path": "tradingagents/agents/audit_pass.py"
+        },
+        {
+          "severity": "low",
+          "title": "G1 dispute exclusion applies to the conditional range, counts and case rows, but a disputed case adopted by the PM via valuation_request would still validate and display as the adopted target; the amendment's 'stops a known-bad number from being displayed as valid' intent does not cover this path",
+          "path": "tradingagents/agents/decision_context.py"
+        },
+        {
+          "severity": "low",
+          "title": "Committed review artifacts embed the user's complete private global working agreement (~/.codex/AGENTS.md) verbatim and absolute home-directory paths to the private publication store; stated as deliberate frozen-context workarounds but they place personal operating instructions and private paths in repository history",
+          "path": "docs/reviews/2026-11-08-decision-page-source-excerpts.json"
+        }
+      ],
+      "classification": {
+        "declared_build_size": "large",
+        "effective_build_size": "extra large",
+        "escalation_reasons": [
+          "Frozen scope changes more than 10 files or more than 500 lines.",
+          "Frozen scope changes more than 30 files or more than 2,000 lines."
+        ]
+      },
+      "progress": {
+        "observed_events": 3214,
+        "last_activity_at": "2026-11-08T10:47:39.000Z",
+        "last_activity_kind": "stdout"
+      },
+      "ledger": {
+        "soft_budget_usd": 50,
+        "hard_budget_usd": 80,
+        "soft_turn_limit": 100,
+        "turn_limit": 160,
+        "wall_clock_limit_minutes": 360,
+        "actual_cost_usd": 4.3587247499999995,
+        "actual_elapsed_ms": 1220746,
+        "soft_limit_reached": false
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "initial_findings_review": [
+      {
+        "severity": "medium",
+        "title": "EX1 wording fix not implemented though R3.1 is marked complete: output_validation.py still emits 'retained in evidence.json diagnostics' in all three places (investment_plan line, debate placeholders, and the rebuilt decision page re-adds the string verbatim); only the pre-existing frozen-export replace in reporting.py masks it for historical re-exports, and no test covers EX1",
+        "path": "tradingagents/agents/output_validation.py",
+        "classification": "confirmed",
+        "material": true,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "EX1 explicitly requires diagnostics.json. Source emits old wording in output_validation and decision_context; reporting currently writes the companion only for frozen publications. Reproduce a fresh export, change current references and emit the real companion for fresh/frozen/review paths, preserving immutable historical records."
+      },
+      {
+        "severity": "low",
+        "title": "Findings relabelled 'located_in_retained_source' still increment counts_by_type['unsupported_claim'], so the rendered 'Issue counts' line overstates open unsupported claims relative to the separate located-source coverage line",
+        "path": "tradingagents/agents/audit_pass.py",
+        "classification": "confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "Located findings retain original issue_type for stable finding identity, but their displayed unsupported counter remains misleading. Count open unsupported claims separately while retaining original classification and finding IDs."
+      },
+      {
+        "severity": "low",
+        "title": "Amendment 1 G1/G3 acceptance named 16416b7e-fixture tests (e.g. test_accepted_finding_with_case_id_excludes_case_from_range, test_unsupported_finding_located_in_10q_is_relabelled); delivered tests use synthetic fixtures under different names and the 16416b7e evidence lives only in an uncommitted-store offline proof receipt; amendment checkboxes remain unticked while the execution checkpoint states G1/G3/G6/G9 apply",
+        "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "classification": "partially_confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "Portable synthetic tests and an actual hash-bound private 16416 reference proof both exist; private inputs are intentionally excluded from repository/auditor transmission. Add an explicit actual-test mapping/execution disposition outside the verbatim approved amendment; do not invent a portable private fixture or mark absent proof passed."
+      },
+      {
+        "severity": "low",
+        "title": "_pm_reasoning is all-or-nothing: if the structured PM output has an executive summary but no thesis string (or vice versa), none of the three R3.4 fields \u2014 including pm_stated_conditions \u2014 is retained in the publication record",
+        "path": "tradingagents/memory/publication.py",
+        "classification": "confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "Fresh typed PM output requires both strings, so the normal call is protected; direct/legacy partial structured inputs lose otherwise available prose. Retain each available bounded PM field independently, without inventing missing values; regress the partial-input path."
+      },
+      {
+        "severity": "low",
+        "title": "G3 thousands-table handling scales every bare number in an 'in thousands' block by 1000 (including years or share counts), creating a residual false-relabel vector mitigated only by the single shared non-numeric word requirement",
+        "path": "tradingagents/agents/audit_pass.py",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true,
+        "evidence": "The approved G3 matching rule explicitly uses displayed/filing numeric forms with one shared nonnumeric word. A thousands-table year/share semantic ambiguity remains in this coverage-only locator; it never establishes canonical financial validation or changes contradictions. Do not add an unapproved semantic table parser; record this limitation."
+      },
+      {
+        "severity": "low",
+        "title": "G1 dispute exclusion applies to the conditional range, counts and case rows, but a disputed case adopted by the PM via valuation_request would still validate and display as the adopted target; the amendment's 'stops a known-bad number from being displayed as valid' intent does not cover this path",
+        "path": "tradingagents/agents/decision_context.py",
+        "classification": "partially_confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "The approved G1 rule excludes disputed cases from range/counts without changing rating eligibility or recalculating. Add the same visible disputed annotation to a PM-adopted case/target, preserving its calculation/status and avoiding a new veto or publication gate."
+      },
+      {
+        "severity": "low",
+        "title": "Committed review artifacts embed the user's complete private global working agreement (~/.codex/AGENTS.md) verbatim and absolute home-directory paths to the private publication store; stated as deliberate frozen-context workarounds but they place personal operating instructions and private paths in repository history",
+        "path": "docs/reviews/2026-11-08-decision-page-source-excerpts.json",
+        "classification": "partially_confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "The global working agreement was unnecessarily embedded verbatim. Repository visibility is public, verified read-only via gh repo view. Remove that entry from the current packet; preserve frozen evidence privately. Use authorized squash staging integration from the cleaned final tree so unpublished feature-history context is not made public. Absolute proof paths are nonsecret reproducibility metadata and remain; no secret was identified."
+      }
+    ],
+    "initial_frozen_manifest_validated": true,
+    "closure_status": "Reported receipt/citation findings independently closed; builder-discovered raw-research capture correction awaits independent closure.",
+    "closure1": {
+      "base_commit": "82703a98b9726692ced53d761a643e7772494bde",
+      "head_commit": "46d7050346b1c6bca2d3ae2f49432305131457f5",
+      "status": "completed",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "actual_turns": 50,
+      "summary": "Independent frozen-manifest closure audit of Build R3 (decision page + publication record, Amendment 1 G1/G3/G6/G9) over 82703a98..46d70503: 43 files, ~2,798 diff lines, auditing the corrected candidate after the initial Claude Fable review of c733b03a (1 Medium, 6 Low). All seven prior findings are verifiably addressed in the diff: (1) Medium EX1 is closed \u2014 output_validation.py, decision_context.py and reporting.py now consistently name diagnostics.json, the companion file is written for fresh/frozen/REVIEW exports, and tests/test_export_diagnostics_sidecar.py provides receipted red-to-green regressions; (2) located-source findings no longer inflate unsupported-claim counts (separate located_source_count with its own render line and tests); (3) the amendment test-mapping is documented outside the verbatim approved amendment with portable-vs-private proof separation; (4) _pm_reasoning retains each bounded PM field independently with a sealed-retry regression; (5) the thousands-table vector is deferred per the approved matching rule and disclosed; (6) a PM-adopted disputed case is now visibly annotated on the page and card without altering its calculation, status, or rating; (7) the private global working agreement is removed from the committed packet. The closure preserves the sound safety properties of the initial build: old publication record bytes are byte-for-byte immutable under new PM-prose fields and retries, disputed-case exclusion changes display ranges only, the citation check and audit relabelling are display-only, model independence is derived from provider-returned identities with order-ambiguity hardening (unknown rather than slot-inferred, with new reordered/ambiguous-call tests), and the six-month configured horizon keeps missing/invalid horizons incomplete. Head source-object hashes recorded in the committed verification JSON match the frozen diff's head blobs exactly, binding the receipts to this tree. One new medium documentation-integrity finding: the verification JSON's prior_candidates block binds the corrected candidate's 3,559-pass pytest receipt (identical log path and sha256) to prior stable commit e9ac805d, which the plan and review record as a 3,552-pass tree with different source objects \u2014 a mis-copied receipt that should be corrected before the record is relied on as acceptance evidence. Two residual lows (citation-check exact-precision false mismatches; the already-deferred thousands-table relabel vector) are display-only. No security, rating-authority, immutability, or evidence-eligibility regressions were found; closure of the prior audit's in-scope findings is substantively complete, with the receipt mis-binding as the only recommended pre-integration correction.",
+      "findings": [
+        {
+          "severity": "medium",
+          "title": "Closure receipt mis-binding: the committed verification JSON's prior_candidates entry for stable commit e9ac805d records full_pytest passed=3559 with the identical log path (/tmp/r3-closure-full-pytest.log) and sha256 (96a6f3c9...) as the corrected candidate 67865e67's receipt, while the plan status line and the review narrative both record e9ac805d as a 3,552-pass suite; the two source trees differ (e.g. audit_pass.py 50b10f1f vs 1c97b1ed, publication.py b3e54bd0 vs b9ee83e3, and tests/test_export_diagnostics_sidecar.py absent from the prior candidate's object list), so one identical receipt cannot be truthfully bound to both commits. This contradicts the review doc's own statement that 'the earlier 3552-pass candidate result is preserved separately, not combined into this run' and should be corrected (record the prior candidate's actual 3,552 receipt or drop the copied block) before this record is used as acceptance evidence for staging advancement. Code behavior is unaffected; the corrected candidate's own receipt binding is internally consistent.",
+          "path": "docs/reviews/2026-11-08-decision-page-verification.json"
+        },
+        {
+          "severity": "low",
+          "title": "G6 citation check is stricter than the amendment's 'within display rounding' rule for full-precision citations: _matches accepts a percent figure only when it exactly equals the canonical value quantized to two decimals, so a PM sentence citing the exact unrounded canonical percent (e.g. '29.455' vs canonical 29.455 -> required 29.46) is listed as a mismatch, and a millions figure stated at higher precision than one decimal (e.g. '321.192 million' vs canonical 321,192,000) likewise mismatches. Display-only false-mismatch vector; no gate, rating, or text change results.",
+          "path": "tradingagents/agents/citation_check.py"
+        },
+        {
+          "severity": "low",
+          "title": "G3 thousands-table locator still scales every bare number in an 'in thousands' block by 1000 (years, share counts), leaving the residual false-relabel vector mitigated only by the shared non-numeric-word requirement; explicitly deferred per the approved amendment matching rule and disclosed in the review doc, retained here as an open accepted limitation rather than a new defect.",
+          "path": "tradingagents/agents/audit_pass.py"
+        }
+      ],
+      "limitations": [
+        "Static review of the frozen manifest only: no tests, Ruff, renders, or git commands were executed, and no files outside the frozen request.json were read. The claimed 3,559-pass full suite, Ruff clean, red-test closure logs (/tmp/r3-ex1-red.log, /tmp/r3-adopted-target-red.log), and the committed reference-render metrics are accepted as recorded receipts whose internal hash cross-references were checked, not independently reproduced.",
+        "Private proof inputs (the 16416b7e full-state log under ~/.tradingagents, the /tmp receipt files, and the private publication store) are outside the frozen manifest; their SHA-256 values were checked only for consistency among the committed baseline/runtime/verification JSONs.",
+        "The frozen head 46d70503 is one commit past the recorded corrected stable source 67865e678c; binding was inferred from the diff's head blob hashes matching the verification JSON's 37 recorded source objects (consistent with a documentation-only final commit), not from direct commit inspection.",
+        "Behavior depending on unchanged code outside the diff hunks (ThesisProposal condition bounds, replay_cases internals, prepare_audit_dispositions, document/transcript access validators, report section registry) was assessed from diff context and the passing-suite receipts, not from full source.",
+        "No assessment of live-model behavior, prompt quality, remote CI, staging integration, or the Sequence 6-7 paid baseline runs; those remain separately gated and incomplete per the plan."
+      ],
+      "ledger": {
+        "soft_budget_usd": 50,
+        "hard_budget_usd": 80,
+        "soft_turn_limit": 100,
+        "turn_limit": 160,
+        "wall_clock_limit_minutes": 360,
+        "actual_cost_usd": 6.926302,
+        "actual_elapsed_ms": 2263764,
+        "soft_limit_reached": false
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "closure1_findings_review": [
+      {
+        "severity": "medium",
+        "title": "Closure receipt mis-binding: the committed verification JSON's prior_candidates entry for stable commit e9ac805d records full_pytest passed=3559 with the identical log path (/tmp/r3-closure-full-pytest.log) and sha256 (96a6f3c9...) as the corrected candidate 67865e67's receipt, while the plan status line and the review narrative both record e9ac805d as a 3,552-pass suite; the two source trees differ (e.g. audit_pass.py 50b10f1f vs 1c97b1ed, publication.py b3e54bd0 vs b9ee83e3, and tests/test_export_diagnostics_sidecar.py absent from the prior candidate's object list), so one identical receipt cannot be truthfully bound to both commits. This contradicts the review doc's own statement that 'the earlier 3552-pass candidate result is preserved separately, not combined into this run' and should be corrected (record the prior candidate's actual 3,552 receipt or drop the copied block) before this record is used as acceptance evidence for staging advancement. Code behavior is unaffected; the corrected candidate's own receipt binding is internally consistent.",
+        "path": "docs/reviews/2026-11-08-decision-page-verification.json",
+        "classification": "confirmed",
+        "material": true,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "Verified against immutable c733b03a verification JSON: e9ac805d actually has3552 passed,74.46s,log r3-stable-full-pytest.log,SHA0befbd86. Current prior_candidates incorrectly aliases the updated3559 receipt. Restore the exact prior record with a deep copy and explicit log-hash checks; keep the corrected3559 receipt separate. Source behavior and its current receipt are unaffected."
+      },
+      {
+        "severity": "low",
+        "title": "G6 citation check is stricter than the amendment's 'within display rounding' rule for full-precision citations: _matches accepts a percent figure only when it exactly equals the canonical value quantized to two decimals, so a PM sentence citing the exact unrounded canonical percent (e.g. '29.455' vs canonical 29.455 -> required 29.46) is listed as a mismatch, and a millions figure stated at higher precision than one decimal (e.g. '321.192 million' vs canonical 321,192,000) likewise mismatches. Display-only false-mismatch vector; no gate, rating, or text change results.",
+        "path": "tradingagents/agents/citation_check.py",
+        "classification": "confirmed",
+        "material": false,
+        "action": "fix",
+        "agrees_with_audit": true,
+        "evidence": "Source _matches compares a stated percent/millions amount only to a pre-rounded canonical value. Exact higher-precision source equivalents can falsely mismatch. Reproduce both forms; compare at the approved display precision, without any rating/gate/text rewrite."
+      },
+      {
+        "severity": "low",
+        "title": "G3 thousands-table locator still scales every bare number in an 'in thousands' block by 1000 (years, share counts), leaving the residual false-relabel vector mitigated only by the shared non-numeric-word requirement; explicitly deferred per the approved amendment matching rule and disclosed in the review doc, retained here as an open accepted limitation rather than a new defect.",
+        "path": "tradingagents/agents/audit_pass.py",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true,
+        "evidence": "Same explicitly approved coverage-only numeric/shared-word locator limitation as the prior reviewed Low. No canonical financial validation or contradiction change; retain documented deferral rather than introduce a semantic table parser."
+      }
+    ],
+    "closure1_frozen_manifest_validated": true,
+    "closure2": {
+      "base_commit": "46d7050346b1c6bca2d3ae2f49432305131457f5",
+      "head_commit": "48c6294bd1d959777821027db61c4b3071b154fe",
+      "status": "completed",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "actual_turns": 39,
+      "summary": "Independent frozen-manifest closure audit of Build R3 over 46d70503..48c6294b (7 files: citation_check.py, test_citation_check.py, plan status line, and four docs/reviews records), the second Fable closure after closure review 1 reported one Medium (receipt-history mis-binding) and two Lows. Both actionable prior findings are verifiably addressed. (1) Medium receipt mis-binding is closed: the verification JSON's prior_candidates entry for e9ac805d now carries its true 3,552-pass receipt (74.46s, /tmp/r3-stable-full-pytest.log, sha 0befbd86), matching field-for-field the embedded immutable c733b03a Git excerpt (file sha 5152b719, also recorded in receipt_history_repair); the corrected 67865e67 3,559-pass receipt (70.34s, log sha 96a6f3c9) is preserved as a distinct history entry with its own 37-object tree and relocated closure_checks, and the runtime JSON moves the 67865e67 render receipt into prior_corrected_reference instead of overwriting it \u2014 the three receipts (3552/3559/3561) are now distinct and separately bound. (2) Low G6 exact-precision citation mismatch is closed: the only code change adds exact_or_display to _matches so a stated figure matches the canonical value exactly or at the approved display rounding (percent 0.01, millions 0.1), with InvalidOperation caught; this strictly widens acceptance (no new false-accept path), stays display-only with no gate/rating/text effect, and two new regressions cover exact full-precision, rounded, wrong-value, and 400-digit-oversized inputs. Internal consistency holds throughout: 3559+2=3561 passes and 8+2=10 focused citation checks match the recorded receipts; the diff's head blobs c7897a90/52119614 exactly match the head verification JSON's recorded source objects, binding the receipts to this tree; the head source-object count is 37 as the runtime JSON claims; the review doc's closure-1 record (50 turns, $6.926302, 2,263,764 ms, head 46d70503) matches the embedded closure1 ledger and this audit's frozen base; unchanged decision.md/diagnostics/evidence render hashes with only timestamped full-report hashes moving is consistent with the disclosed timestamp limitation; the previously-removed private working agreement remains absent from the committed excerpts packet. The plan status line truthfully records that no material finding is self-closed and final independent closure precedes integration. No security, rating-authority, publication-immutability, or evidence-eligibility regressions were found. Residual items are two Lows: a narrower citation false-mismatch vector (truthful intermediate-precision roundings like '321.19 million', and banker's-rounding .xx5 ties, still list as mismatches \u2014 arguably within the approved G6 rule's letter) and the already-approved, disclosed thousands-table locator deferral. Closure of both prior in-scope findings is substantively complete; nothing found blocks using this record as acceptance evidence for the separately-approved staging integration.",
+      "findings": [
+        {
+          "severity": "low",
+          "title": "Residual G6 citation false-mismatch vector after the exact-precision fix: _matches accepts only the exact canonical value or the single approved display quantization (percent 0.01, millions 0.1 via Decimal.quantize with default banker's rounding), so a truthful intermediate-precision rounding (e.g. '321.19 million' for canonical 321,192,000) or a human half-up rounding of an exact .xx5 tie (e.g. stated 29.47% where canonical 29.465 banker's-rounds to 29.46) still lists as a mismatch. Display-only, no gate/rating/text effect, and arguably within the approved amendment rule's letter ('millions to one decimal, percent to two decimals'); record as an accepted limitation or widen to any-precision consistency in a future display-only revision.",
+          "path": "tradingagents/agents/citation_check.py"
+        },
+        {
+          "severity": "low",
+          "title": "G3 thousands-table locator deferral remains open: every bare number in an 'in thousands' block is still scaled by 1000 (years, share counts), leaving the residual false-relabel vector mitigated only by the shared non-numeric-word requirement; explicitly deferred per the approved amendment matching rule, disclosed in the review record, and unchanged by this diff \u2014 carried as an accepted limitation, not a new defect.",
+          "path": "tradingagents/agents/audit_pass.py"
+        }
+      ],
+      "limitations": [
+        "Static review of the frozen request.json only: no tests, Ruff, renders, git, or hashing commands were executed (sandbox denied hash tools), so the 3,561-pass/Ruff-clean receipts, /tmp log hashes, and reference-replay render hashes were checked for internal cross-document consistency, not reproduced; the embedded excerpts' recorded sha256 values were likewise cross-referenced, not independently recomputed.",
+        "Private proof inputs (the ~/.tradingagents full-state logs, /tmp receipt/log files, and the private publication store) are outside the frozen manifest; the restored e9ac805d receipt was verified against the embedded immutable c733b03a Git excerpt, not against the original pytest log bytes.",
+        "Frozen head 48c6294b is one documentation-freeze commit past the recorded final stable source 03e5e291; binding was inferred from the diff's head blob hashes (citation_check.py c7897a90, test_citation_check.py 52119614) matching the verification JSON's recorded source objects plus the prior closure audit's binding of the 35 unchanged objects at 46d70503, not from direct commit inspection.",
+        "Behavior of unchanged code outside the two changed source/test files (decision_context card line, _canonical_values consumers, renderer) was assessed from the head-state copies embedded in the frozen requirements and the passing-suite receipts, not re-reviewed in full.",
+        "No assessment of live-model behavior, prompt quality, remote CI, the actual staging squash-integration, or the paid Phase 1 baseline runs; those remain separately gated and incomplete per the plan."
+      ],
+      "ledger": {
+        "soft_budget_usd": 32,
+        "hard_budget_usd": 50,
+        "soft_turn_limit": 65,
+        "turn_limit": 110,
+        "wall_clock_limit_minutes": 240,
+        "actual_cost_usd": 2.8154377500000005,
+        "actual_elapsed_ms": 859370,
+        "soft_limit_reached": false
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "closure2_frozen_manifest_validated": true,
+    "closure3": {
+      "base_commit": "48c6294bd1d959777821027db61c4b3071b154fe",
+      "head_commit": "722f5d286f03702655e184daa3bab41b94bdc645",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "status": "completed",
+      "actual_turns": 31,
+      "reviewed_files": [
+        "docs/reviews/2026-11-08-decision-page-runtime.json",
+        "docs/reviews/2026-11-08-decision-page-verification.json",
+        "docs/reviews/2026-11-08-decision-page.md",
+        "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "tests/test_export_diagnostics_sidecar.py",
+        "tradingagents/reporting.py"
+      ],
+      "summary": "Independent frozen-manifest closure audit of Build R3's EX1 companion-content correction over 48c6294b..722f5d28 (6 files: one-line reporting.py branch, strengthened sidecar test, plan status line, and three docs/reviews evidence records), the third Fable closure, following closure2's clean receipt/citation closure and a builder runtime probe that found fresh-export diagnostics.json omitting original manager/market research. The reported gap is real and the fix is correct: previously the sidecar was written from a raw_diagnostics snapshot captured before prepare_report_state, so for fresh and REVIEW exports it missed the originals that enforce_publication/the REVIEW branch only populate during projection (the probe's raw_manager/raw_market_in_sidecar=false with raw_market_present_in_evidence=true is exactly what that ordering produces). The head change writes projected raw_diagnostics for fresh/REVIEW exports \u2014 a strict superset, since both projection paths only setdefault into unvalidated_outputs and never drop keys \u2014 while verified frozen publications keep their pre-projection original diagnostics byte-identically (non-empty tuple truthiness is sound), preserving immutability semantics. The test change strengthens rather than weakens: the old premature equality against the pre-projection snapshot is replaced by subset preservation of every pre-projection diagnostic, explicit original investment_plan/market_report content assertions, and exact equality with evidence.json's raw_diagnostics; the recorded 2 red failures match the two parametrized variants, and the 3561 test count staying flat is consistent with assertion-only changes. Cross-document integrity holds throughout: diff head blobs 8a45f147/a251e3ea exactly match the head verification JSON's source objects; the prior 03e5e291 receipt (3561/69.83s, log ed03ccb5) is archived as an independent deep-copied prior_candidates entry with its own 37-object tree \u2014 correctly applying the lesson from the earlier Medium receipt mis-binding \u2014 so the 3552/3559/3561-old/3561-new receipts remain distinct and separately bound; the unchanged decision.md/diagnostics/evidence render hashes with only timestamped full-report hashes moving match the frozen path being untouched; the review doc's closure2 ledger (39 turns, $2.8154, 859370 ms, reviewer_completed) matches the embedded closure2 record and this audit's base; and the plan status line truthfully attributes the gap to a direct builder probe (not self-closed, never attributed to the executor) with independent closure still gated before integration. No change to rating authority, evidence gating, numeric validation, or publication-record bytes. Findings are two Lows (an untested frozen-path companion/evidence consistency asymmetry that predates this diff, and a benign duplicated evidence_snapshot computation); the two carried closure2 Lows remain accepted limitations. Nothing found blocks using this record as acceptance evidence for the separately approved staging integration.",
+      "limitations": [
+        "Static review of the frozen request.json only: no tests, Ruff, renders, git commands, or hash recomputation were executed; the 3561-pass/70.45s pytest receipt, Ruff receipt, /tmp log sha256 values, probe row hashes, and reference-replay render hashes were checked for internal cross-document consistency, not reproduced.",
+        "Private proof inputs (/tmp receipt and log files, the ~/.tradingagents full-state logs, and the private publication store) are outside the frozen manifest; the pre-correction probe rows and corrected rows were taken at face value as recorded evidence, cross-checked only against the code semantics visible in the embedded head-state sources.",
+        "Frozen head 722f5d28 is one documentation-freeze commit past the recorded stable source efbdd417; binding was inferred from the diff's head blob hashes for reporting.py (8a45f147) and test_export_diagnostics_sidecar.py (a251e3ea) matching the head verification JSON's recorded source objects, plus closure2's prior binding of the 35 unchanged objects, not from direct commit inspection.",
+        "Behavior of unchanged code (enforce_publication, prepare_report_state, evidence_snapshot, the REVIEW branch, report_html) was assessed from the head-state copies embedded in the frozen requirements and the passing-suite receipts, not re-reviewed in full or executed.",
+        "The two carried Low limitations from closure2 (citation-check intermediate-precision/banker's-rounding false-mismatch vector in citation_check.py, and the approved thousands-table locator deferral in audit_pass.py) are unchanged by this diff and remain accepted, disclosed limitations rather than new findings.",
+        "No assessment of live-model behavior, remote CI, the separately approved staging squash-integration, or the paid Phase 1 baseline runs; per the plan these remain separately gated and incomplete."
+      ],
+      "findings": [
+        {
+          "severity": "low",
+          "title": "Frozen-export companion consistency is untested and asymmetric: fresh/REVIEW exports now guarantee diagnostics.json equals evidence.json's raw_diagnostics (asserted by the strengthened test), but for verified frozen publications diagnostics.json is still built from the caller-passed state before projection rather than from the store's immutable original snapshot, so a passed-in state that diverges from the sealed publication could yield a companion that silently differs from evidence.json's retained raw_diagnostics. Pre-existing behavior unchanged by this diff; recommend a frozen-path consistency assertion or a documented note in a future display-only revision.",
+          "path": "tradingagents/reporting.py"
+        },
+        {
+          "severity": "low",
+          "title": "Redundant duplicate computation of evidence_snapshot(final_state) on the prepared state in the non-frozen export path (once for evidence.json, once for diagnostics.json). Both calls are pure and deterministic today and the new test pins their raw_diagnostics equality, so this is a maintainability nit, not a correctness defect; a single shared snapshot would remove any future drift vector.",
+          "path": "tradingagents/reporting.py"
+        }
+      ],
+      "classification": {
+        "declared_build_size": "large",
+        "effective_build_size": "large",
+        "escalation_reasons": []
+      },
+      "progress": {
+        "observed_events": 1424,
+        "last_activity_at": "2026-11-08T12:18:33.202Z",
+        "last_activity_kind": "stdout"
+      },
+      "ledger": {
+        "soft_budget_usd": 32,
+        "hard_budget_usd": 50,
+        "soft_turn_limit": 65,
+        "turn_limit": 110,
+        "wall_clock_limit_minutes": 240,
+        "actual_cost_usd": 2.069624,
+        "actual_elapsed_ms": 597680,
+        "soft_limit_reached": false
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "closure3_artifacts": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r3-fable-closure-3",
+    "closure3_validation": {
+      "exit_code": 0,
+      "frozen_head": "722f5d286f03702655e184daa3bab41b94bdc645",
+      "receipt": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r3-fable-closure-3/validation-at-frozen-head.json",
+      "manifest_sha256": "ef3b676e4c29e724c6a1395e732ab0f11a87b8e322f79feca71a44ae32e4c2cd"
+    },
+    "aggregate_actual_cost_usd": "16.17008850"
+  },
+  "receipt_history_repair": {
+    "source_commit": "c733b03aca7cc2d4f10446c36ff866f79495be8f",
+    "source_path": "docs/reviews/2026-11-08-decision-page-verification.json",
+    "source_file_sha256": "5152b71947689e261bce08b2f43509ae239595857f04a04d1cc099cf5ca3dec6",
+    "old_and_corrected_log_hashes_verified": true,
+    "distinct_receipts": true,
+    "cause": "Shallow dictionary references copied into history and then mutated with current fields; restoration uses independent deep copies from immutable Git content."
+  },
+  "source_objects_unchanged_during_full_suite": true,
+  "builder_runtime_gap": {
+    "origin": "Direct actual export probe, not an executor finding",
+    "pre_correction": {
+      "proof": "fresh_unpublished_report_companion_preserves_referenced_originals",
+      "source_commit": "48c6294bd1d959777821027db61c4b3071b154fe",
+      "connection_apis_denied": true,
+      "private_prose_printed": false,
+      "rows": [
+        {
+          "review": false,
+          "raw_manager_in_sidecar": false,
+          "raw_market_in_sidecar": false,
+          "sidecar_equals_export_evidence_diagnostics": false,
+          "raw_market_present_in_evidence": true
+        },
+        {
+          "review": true,
+          "raw_manager_in_sidecar": false,
+          "raw_market_in_sidecar": false,
+          "sidecar_equals_export_evidence_diagnostics": false,
+          "raw_market_present_in_evidence": true
+        }
+      ]
+    },
+    "corrected": {
+      "proof": "actual_fresh_and_REVIEW_companion_original_content",
+      "connection_apis_denied": true,
+      "private_prose_printed": false,
+      "source_objects_receipt": "/tmp/r3-sidecar-source-objects-before-tests.json",
+      "rows": [
+        {
+          "review": false,
+          "raw_manager_in_sidecar": true,
+          "raw_market_in_sidecar": true,
+          "sidecar_equals_export_evidence_diagnostics": true,
+          "input_state_sha256": "9fd9fc1b046431ff7a748c1f63f6d2f3f45274ca832d1d814c314bf1703a642a",
+          "input_unchanged": true
+        },
+        {
+          "review": true,
+          "raw_manager_in_sidecar": true,
+          "raw_market_in_sidecar": true,
+          "sidecar_equals_export_evidence_diagnostics": true,
+          "input_state_sha256": "924ead4260ee103303c6039bc27de6f3f512a9c3a9207beb2abd7f1b7fd9ed64",
+          "input_unchanged": true
+        }
+      ]
+    },
+    "explanation": "Fresh export sidecar captured pre-projection diagnostics, omitting newly retained originals already present in evidence.json. Now uses projected diagnostics for fresh/REVIEW, original diagnostics for verified frozen publications. Existing tests were strengthened to inspect actual manager/market content and preserved original fields, rather than mirror the premature snapshot.",
+    "independent_closure": {
+      "run_id": "79fa9f11-4c1a-4cb5-a7f4-a5e0e88987d7",
+      "status": "closed",
+      "frozen_head": "722f5d286f03702655e184daa3bab41b94bdc645",
+      "result": "reviewer_completed, no Critical/High/Medium"
+    }
+  }
+}
