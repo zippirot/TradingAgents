@@ -363,7 +363,7 @@ class TradingAgentsGraph:
             "source_acquisition=1",
             "publication=1",
             "shared_valuation=7",
-            "advisory_thesis=2",
+            "advisory_thesis=3",
             "price_observation=3",
             "completed_market_inputs=2",
             "event_comparison=2",

@@ -243,6 +243,18 @@ class TestCheckpointSignature(unittest.TestCase):
         # never fire.
         self.assertIn("analysts=parallel", base)
 
+    def test_condition_kinds_do_not_resume_past_legacy_metric_only_pm(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        graph = object.__new__(TradingAgentsGraph)
+        graph.selected_analysts = ('market',)
+        graph.config = {'max_debate_rounds': 1, 'max_risk_discuss_rounds': 1}
+        current = graph._run_signature('stock')
+        self.assertIn('advisory_thesis=3', current)
+        legacy = current.replace('advisory_thesis=3', 'advisory_thesis=2')
+        self.assertNotEqual(thread_id(self.ticker, self.date, current),
+                            thread_id(self.ticker, self.date, legacy))
+
 
 if __name__ == "__main__":
     unittest.main()

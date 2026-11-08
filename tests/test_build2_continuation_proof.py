@@ -344,9 +344,11 @@ def private_drill(tmp):
         # pre-analyst brief and intentionally gives fresh runs a different ID.
         # Keep the original graph-shape token ONLY inside this offline fixture;
         # every native checkpoint ID, pending-node and retained-input assertion
-        # below remains live. This does not assert current B resume compatibility.
+        # below remains live. R4's condition-kind token is also frozen here;
+        # this does not assert current-build resume compatibility.
         return current_signature(graph, *args, **kwargs).replace(
-            "shared_source_brief=5", "shared_source_brief=3").replace("|operational_delivery=1", "")
+            "shared_source_brief=5", "shared_source_brief=3").replace(
+            "advisory_thesis=3", "advisory_thesis=2").replace("|operational_delivery=1", "")
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))
