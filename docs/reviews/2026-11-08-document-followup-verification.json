@@ -1,5 +1,5 @@
 {
-  "stage": "R2 implementation and decisive local checks passed; required independent acceptance and integration pending",
+  "stage": "Local R2 feature accepted after actual independent Fable closure; post-commit staging/CI acceptance is separate.",
   "base_staging": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
   "full_suite_commit": "46433fad823fe882eea5a7894b3544ef65de92bd",
   "native_proof_commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
@@ -70,9 +70,20 @@
       "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
       "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c",
       "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd"
+    },
+    "8ae3fab41ff3ea85e68fb992aa5981db102ff452": {
+      "tradingagents": "898379dc3aa52cb5dee9f6f6cd7921e85b3b2b4d",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "eaae817e9c60a6e7684efbe187a4424319a3e1d6",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/document-followup-proof.py": "1ac4c4d3c6d43898b28081518ea37e5d51c1b802",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c",
+      "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd"
     }
   },
-  "native_evidence_reuse": "Both native proofs actually ran on88acc504. Application, CLI, public fixture, proof scripts, baseline query/input data and pyproject objects match full-suite e40a3df6 exactly; only the extra all-returned RPO acceptance test/naming and evidence documentation differ. The full3479 suite ran on one exact revision, not a union of runs.",
+  "native_evidence_reuse": "Both standalone native proofs ran on88acc504. Relevant application, CLI, public fixture/loader, proof scripts, baseline input/query data and pyproject objects match corrected full-suite46433fad exactly; source OIDs and zero-byte Git diff are recorded. Tests differ through the RPO acceptance case and portable audit-correction/status-guard tests. Corrected full3480 suite ran on one exact46433fad revision, not a union. Prior full3479 at e40a3df6 is retained as pre-audit historical evidence. Exact frozen closure8ae3 application/test/proof OIDs equal46433fad; later documentation-only record does not change tested source.",
   "logs": {
     "/tmp/r2-final-acceptance-full-pytest.log": {
       "sha256": "bc31b171f7a75e95b694e9a72d505ed5ea94c876354c5c18d293e13909df1548",
@@ -126,20 +137,29 @@
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "initial_complete_closure_pending",
+    "status": "local_feature_closed_no_in_scope_critical_high_medium",
     "initial_run_id": "320f9714-d5c4-4669-805f-1d6ec1dc906e",
     "initial_frozen_head": "14b4301d708721e40e9f95a6a56f029945a63c49",
     "initial_cost_usd": 6.14689375,
     "initial_turns": 48,
     "initial_stop_reason": "reviewer_completed",
     "initial_manifest_validation_exit": 0,
-    "medium": "Corrected in tests, independently unclosed until closure report",
+    "medium": "Closed by actual independent Fable review and main red/green verification; private missing replay still not claimed",
     "low_dispositions": [
       "Weak guard corrected",
       "Conservative relevance preserved; Na owns RM interpretation",
       "Pre-existing corpus-authentic validation without filing-ranking replay deferred",
       "Stable source/test OIDs and exact-source full suite supplied; integration CI still pending"
-    ]
+    ],
+    "closure_run_id": "6d00d60f-38e8-4c98-8fc4-32e773c2d3e2",
+    "closure_frozen_head": "8ae3fab41ff3ea85e68fb992aa5981db102ff452",
+    "closure_model_requested": "~anthropic/claude-fable-latest",
+    "closure_model_served": "~anthropic/claude-fable-latest",
+    "closure_cost_usd": 1.97592175,
+    "closure_turns": 43,
+    "closure_stop_reason": "reviewer_completed",
+    "closure_manifest_validation_exit": 0,
+    "remaining_in_scope_material": 0
   },
   "authority": {
     "expires_at_utc": "2026-11-09T05:20:03Z",
@@ -516,7 +536,7 @@
         "reports/2_research/manager.md": "d4c8b8541be6852300e64ca41f8c781296f4ffb4e4820e3b81128173f26f025d",
         "reports/4_risk/neutral.md": "4b45439d7caf99cd6c9242e1c8477917345841822295d4fae1c7b0c64dc0323f"
       },
-      "input_fixture": "Hash-checked committed Nov7 public SEC corpus projected through strict validation to Nov6 filing cutoff; every filing date checked <=Nov6; sanitized state/scripted models; sockets denied. Not original missing private replay.",
+      "input_fixture": "Hash-checked committed Nov7 public SEC corpus projected through strict validation to Nov6 filing cutoff; every filing date checked <=Nov6; sanitized state/scripted models; sockets denied. Not original missing private replay. Connection APIs blocked: socket.socket.connect/connect_ex and socket.create_connection; generic DNS/UDP denial is not claimed.",
       "outputs": [
         "reports/complete_report.md",
         "reports/complete_report.html",
@@ -558,5 +578,11 @@
   "closure_packet_omitted_unchanged_paths": [
     "tradingagents/agents/risk_mgmt/aggressive_debator.py",
     "tradingagents/agents/risk_mgmt/conservative_debator.py"
-  ]
+  ],
+  "post_commit_staging_acceptance": {
+    "receipt_root": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r2-fable-closure-1",
+    "integration_receipt": "staging-integration.json",
+    "exact_sha_ci_receipt": "staging-ci-result.json",
+    "meaning": "Local feature evidence is committed here. Subsequent exact final published SHA, remote CI and outcome are recorded separately after authorized integration; this source commit does not claim unrun remote CI."
+  }
 }
