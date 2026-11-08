@@ -36,7 +36,7 @@ def response():
         {"quoted_claim": "Revenue was 100 USD.", "outcome": "supported", "explanation": "Source agrees.",
          "evidence": [{"source_id": "doc-1", "locator": "table-1", "quote": "Revenue was 100 USD."}]},
         {"quoted_claim": "Last claim is 9 USD.", "outcome": "contradicted", "explanation": "Source states 10.",
-         "correction": "Last claim is 10 USD.",
+         "correction": "Last claim is 10 USD.", "correction_scope": "complete_claim",
          "evidence": [{"source_id": "doc-1", "locator": "table-1", "quote": "Last claim is 10 USD."}]},
     ], "no_material_claims": False}
 
@@ -382,7 +382,7 @@ def test_partial_chunks_with_valid_findings_count_as_progress():
         ("PM", f"section-{i}.md", "Revenue was 100 USD. Additional claim 99.") for i in range(5)])]
     model = Model({"claims": response()["claims"][:1], "no_material_claims": False})
     result = run_audit(state(), model, inventory=inventory(parts=parts))
-    assert len(model.calls) == 5
+    assert len(model.calls) == 10  # One bounded repair for each omitted occurrence.
     assert len(result["claims"]) == 5
     assert result["status"] == "partial"
     assert result["coverage"]["reviewed_chunks"] == 0

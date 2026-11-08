@@ -84,8 +84,8 @@
     "tests/test_ground_truth_audit.py::test_inventory_preserves_all_characters_and_binds_report_sources_run_and_summary"
   ],
   "files": {
-    "complete_report.md": "11ee4b6557d0b757dff306b74a09dbdfb87d8fff0594f2ecbe7c497af133b8cd",
-    "complete_report.html": "54cef3c8a64ac3622ffbd7e64edba5d830b86118bb383b0d5c56c871f73bda94",
+    "complete_report.md": "265b9d48b522082349d9e5ca4b85cb5c91fcd5888fa413cd9a8df4fc590c52e4",
+    "complete_report.html": "a3b24ddac87d99651056f57a23545d3752620c13f9e8b83d8c7b053c5d286d69",
     "evidence.json": "84b2b891313f546b3ac2065b39f3d9e630d918d9d82e9ecbc12126e5b9fdb81b",
     "quality.json": "8dda7dca8b16ceb19f035771d27d876f336c8e0b6b898e376b35f7c37b1d3f42",
     "ground_truth_audit-966f60861aa0871b8d42.md": "966f60861aa0871b8d425c6869809e2ba8a1176e7f7ec54dfcb812b4cc8f348b",

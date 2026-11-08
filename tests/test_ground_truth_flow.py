@@ -151,7 +151,7 @@ def test_literal_primary_source_correction_reaches_one_independent_pm_reassessme
     model = Model({'no_material_claims': False, 'claims': [{
         'quoted_claim': 'Revenue was 100 USD.', 'outcome': 'contradicted',
         'decision_material': True, 'explanation': 'The dated filing reports 20 USD.',
-        'correction': 'Revenue was 20 USD.',
+        'correction': 'Revenue was 20 USD.', 'correction_scope': 'complete_claim',
         'evidence': [{'source_id': 'doc-1', 'locator': 'table-1', 'quote': 'Revenue was 20 USD.'}],
     }]})
     calls = []
@@ -180,7 +180,7 @@ def test_vendor_only_or_missing_literal_replacement_never_triggers_pm(monkeypatc
                                   ('filing passage', 'Revenue was 20 USD.', 'unsupported')]:
         candidate = {'final_rating': 'Hold'}
         finding = {'outcome': outcome, 'decision_material': True, 'code_verified': False,
-                   'correction': 'Revenue was 20 USD.', 'verification': {'source_quotes_validated': True},
+                   'correction': 'Revenue was 20 USD.', 'correction_scope': 'complete_claim', 'verification': {'source_quotes_validated': True},
                    'evidence': [{'kind': kind, 'quote': quote}]}
         monkeypatch.setattr(flow, '_audit_pass', lambda *a, finding=finding: {'claims': [finding]})
         def forbidden(*args):
@@ -249,7 +249,7 @@ def test_reproduced_market_and_cash_corrections_request_one_pm_review(monkeypatc
             return {'no_material_claims': False, 'claims': [{
                 'quoted_claim': chunk['text'], 'outcome': 'contradicted' if original else 'supported',
                 'decision_material': True, 'explanation': 'The scoped retained source supplies the observed value.',
-                **({'correction': correction} if original else {}),
+                **({'correction': correction, 'correction_scope': 'complete_claim'} if original else {}),
                 'evidence': [{'source_id': source['source_id'], 'locator': source['locator'],
                               'quote': source['text']}]}]}
     calls = []

@@ -38,7 +38,7 @@ REVIEW means no actionable rating was established. The retained decision did not
 
 - Rating: REVIEW
 - Evidence: Legacy export — financial evidence unvalidated
-- Generated: 2026-11-07 19:38:25
+- Generated: 2026-11-07 20:35:05
 - TradingAgents ?: ?, deep ?, quick ?
 - Analysts: ; research debate rounds ?, risk debate rounds ?
 

@@ -876,7 +876,7 @@ def test_target_control_can_establish_the_literal_negative_declaration_without_p
     assert finding["code_verified"] is False
     correction_quote = "Price Target: $100"
     correction = _validate_claim({"quoted_claim": correction_quote, "outcome": "contradicted", "decision_material": True,
-                                 "explanation": "The run actually declares no validated target.", "correction": quote,
+                                 "explanation": "The run actually declares no validated target.", "correction": quote, "correction_scope": "complete_claim",
                                  "evidence": [reference]},
                                 {"chunk_id": "x", "section_id": "x", "start": 0, "text": correction_quote},
                                 {(row["source_id"], row["locator"]): row})

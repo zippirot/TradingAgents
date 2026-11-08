@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DEFAULT_MAX_REQUESTS = 128
 DEFAULT_MAX_SECONDS = 7200
 DEFAULT_MAX_TOKENS = 10_000_000
@@ -847,6 +847,13 @@ def _validate_claim(raw, chunk, sources):
     arithmetic = _arithmetic(raw, sources)
     source_replacement = bool(correction and any(correction in e["quote"] for e in evidence))
     correction_withheld = False
+    supporting_excerpt = correction if source_replacement else None
+    withheld_reason = None
+    correction_scope = raw.get("correction_scope")
+    if correction and source_replacement and not fields and correction_scope != "complete_claim":
+        correction = None
+        correction_withheld = True
+        withheld_reason = "The literal source excerpt does not establish complete correction scope for the whole report claim; the proposed correction is withheld."
     if correction and not (source_replacement or fields):
         if not arithmetic:
             raise ValueError("correction has no reproducible support")
@@ -854,6 +861,7 @@ def _validate_claim(raw, chunk, sources):
         # interpretation or recommendation in arbitrary replacement wording.
         correction = None
         correction_withheld = True
+        withheld_reason = "The computation was reproduced, but the proposed wording lacks validated source support."
     positions = [match.start() for match in re.finditer(re.escape(quote), chunk["text"])]
     absolute_start = chunk["start"] + positions[0] if len(positions) == 1 else None
     return {"chunk_id": chunk["chunk_id"], "section_id": chunk["section_id"],
@@ -862,9 +870,10 @@ def _validate_claim(raw, chunk, sources):
             "ambiguous_location": absolute_start is None,
             "quoted_claim": quote, "outcome": outcome, "explanation": explanation,
             "correction": correction, "evidence": evidence,
+            "supporting_source_excerpt": supporting_excerpt,
+            "correction_scope": correction_scope if correction_scope in {"complete_claim", "supporting_excerpt"} else "unknown",
             "correction_withheld": correction_withheld,
-            "correction_withheld_reason": ("The computation was reproduced, but the proposed wording lacks validated source support."
-                                          if correction_withheld else None),
+            "correction_withheld_reason": withheld_reason,
             "decision_material": raw.get("decision_material") is True,
             "code_verified": fields,
             "verification": {"source_quotes_validated": bool(evidence),
@@ -875,7 +884,10 @@ def _validate_claim(raw, chunk, sources):
 
 def _review_prompt(chunk, sources):
     scope = ("Recheck ONLY the exact review_claims target strings against these additional sources. "
-             "Return exactly those target claims with quoted_claim unchanged. The full report chunk "
+             "Return exactly those target claims with quoted_claim unchanged. Some targets repair omitted "
+             "occurrences or rejected citations, rather than previously accepted findings: validate them "
+             "afresh, never assume the rejected outcome or references were correct. Failure reasons are "
+             "diagnostics only, not source evidence. The full report chunk "
              "is context only. Do not re-extract other assertions or repeat previously supported claims. "
              "The prior_assessments give the original unresolved reason for each target. Resolve that "
              "original concern across the entire target assertion before upgrading it to supported. "
@@ -927,6 +939,12 @@ def _review_prompt(chunk, sources):
         "controls establish only what this run declares about its target, including a missing target; they "
         "do not establish future prices, financial premises or rating authority. A contradicted claim may include correction, "
         "which must appear verbatim in cited source text or have a strict field-bound fact_check. "
+        "For a literal correction, also set correction_scope to complete_claim only when the source-backed "
+        "replacement resolves ALL clauses, periods, units, definitions and qualifiers of the entire quoted "
+        "claim. This is a model scope assessment, not code proof. If the source covers only part of a "
+        "compound claim, set correction_scope to supporting_excerpt; do not present it as a complete "
+        "correction. Prefer separate exact atomic report subclaims where possible. Missing scope is "
+        "treated as incomplete and the literal is retained only as a supporting excerpt. "
         "A reproduced calculation verifies numeric computation only. It cannot authorize replacement "
         "prose, a different financial metric, causal wording or an investment recommendation. When "
         "a calculation disagrees but replacement wording lacks source support, report the computation "
@@ -987,13 +1005,51 @@ def _validated_response(output, chunk, selected):
     if (not isinstance(output, dict) or not isinstance(output.get("claims"), list)
             or len(output["claims"]) > 100 or type(output.get("no_material_claims")) is not bool):
         raise ValueError("malformed review response")
-    claims, invalid = [], 0
+    claims, invalid = [], []
     for item in output["claims"]:
         try:
             claims.append(_validate_claim(item, chunk, selected))
-        except (ValueError, TypeError, KeyError):
-            invalid += 1
+        except (ValueError, TypeError, KeyError) as exc:
+            # Only a bounded, exact and uniquely located report quotation may
+            # enter a repair. Rejected outcomes, evidence and arbitrary raw
+            # provider text never become accepted findings or source records.
+            quote = item.get("quoted_claim") if isinstance(item, dict) else None
+            exact = (isinstance(quote, str) and 0 < len(quote.strip()) <= 6000
+                     and chunk["text"].count(quote) == 1)
+            invalid.append({"quoted_claim": quote if exact else None,
+                            "explanation": "Validation repair required: " + str(exc)[:240]})
     return claims, invalid
+
+
+def _omitted_targets(chunk, claims):
+    """Locate uncovered numeric/decision occurrences in exact sentences/rows.
+
+    This is a recall backstop, not a claim extractor or truth judgment. It
+    preserves raw offsets and never lets one repeated numeric value cover
+    another occurrence. Ambiguous/oversized quotations remain incomplete.
+    """
+    spans = [(claim["character_start"] - chunk["start"], claim["character_end"] - chunk["start"])
+             for claim in claims if not claim["ambiguous_location"]]
+    coverage = _coverage_text(chunk["text"])
+    missing = [match.span() for match in _NUMBER.finditer(coverage)]
+    missing.extend(match.span("field") for match in _CRITICAL_FIELD.finditer(coverage))
+    missing = [(start, end) for start, end in missing
+               if not any(left <= start and end <= right for left, right in spans)]
+    targets = []
+    for line in re.finditer(r"[^\n]+", chunk["text"]):
+        # Financial tables and labelled fields stay whole; prose uses sentence
+        # boundaries only at whitespace, so decimals are never split.
+        units = ([line] if "|" in line.group() or _CRITICAL_FIELD.search(line.group()) else
+                 list(re.finditer(r".+?(?:[.!?](?=\s+[A-Z*]|\s*$)|$)", line.group())))
+        for unit in units:
+            start = unit.start() if unit is line else line.start() + unit.start()
+            end = unit.end() if unit is line else line.start() + unit.end()
+            if any(start <= left and right <= end for left, right in missing):
+                quote = chunk["text"][start:end].strip()
+                if quote and len(quote) <= 6000 and chunk["text"].count(quote) == 1:
+                    targets.append({"quoted_claim": quote,
+                                    "explanation": "Coverage repair required: an exact numeric or explicit decision-field occurrence was omitted."})
+    return list({target["quoted_claim"]: target for target in targets}.values())
 
 
 def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
@@ -1013,6 +1069,7 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
     started = time.monotonic()
     sources, gaps = _source_index(state)
     claims, reviewed, limits, errors = [], [], [], []
+    unresolved_repairs = []
     reused = []
     followup_incomplete = False
     prior = prior_audit if prior_audit is not None else state.get("ground_truth_prepublication")
@@ -1051,55 +1108,70 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
                                      max_requests=max_requests, deadline=started + max_seconds,
                                      token_limit=token_limit, output_reservation=output_reservation)
             chunk_claims, invalid_claims = _validated_response(output, chunk, selected)
-            targets = [c["quoted_claim"] for c in chunk_claims if c["outcome"] == "unsupported"]
+            repair = {item["quoted_claim"]: item for item in invalid_claims if item["quoted_claim"]}
+            for item in _omitted_targets(chunk, chunk_claims):
+                repair.setdefault(item["quoted_claim"], item)
+            assessments = {c["quoted_claim"]: {key: c[key] for key in
+                           ("quoted_claim", "outcome", "explanation")}
+                           for c in chunk_claims if c["outcome"] == "unsupported"}
+            assessments.update(repair)
+            if len(assessments) > 100:
+                limits.append("Repair target count exceeded the single-response allowance; omitted occurrences remain unreviewed.")
+                assessments = dict(list(assessments.items())[:100])
+            targets = list(assessments)
+            repaired = set()
             if targets:
-                # Follow up only when the retained index contains a relevant
-                # passage that was absent from the first bounded packet.
-                query = "\n".join(targets + [claim["explanation"] for claim in chunk_claims
-                                              if claim["quoted_claim"] in targets])
+                query = "\n".join(targets + [item["explanation"] for item in assessments.values()])
                 eligible_sources = {key: value for key, value in sources.items()
                                     if not value.get("kind", "").startswith("retained report context")
                                     or _brief_scope_claim("\n".join(targets))}
                 relevant_new = {key: value for key, value in eligible_sources.items()
                                 if key not in selected and _relevance(query, value) > 0}
-                # The second packet keeps relevant prior premises and their
-                # definitions eligible. Excluding every old source would lose
-                # the very context behind the unresolved assessment.
-                reranked, _extra_omitted = _select_followup_sources(
-                    [claim for claim in chunk_claims if claim["quoted_claim"] in targets],
-                    eligible_sources, source_cap)
-                additional = reranked if set(reranked) & set(relevant_new) else {}
-                if additional:
+                reranked, _extra_omitted = _select_followup_sources(list(assessments.values()), eligible_sources, source_cap)
+                # Citation/coverage repairs may re-use the same packet: the
+                # missing work is the finding, not necessarily a new source.
+                additional = reranked if repair or set(reranked) & set(relevant_new) else {}
+                if repair and not additional:
+                    additional = selected
+                if additional or repair:
                     follow_chunk = {**chunk, "review_claims": targets,
-                                    "prior_assessments": [{key: claim[key] for key in
-                                        ("quoted_claim", "outcome", "explanation")}
-                                        for claim in chunk_claims if claim["quoted_claim"] in targets]}
+                                    "prior_assessments": list(assessments.values())}
                     try:
                         response = _request_review(llm, _review_prompt(follow_chunk, additional), usage, limits,
                                                    max_requests=max_requests, deadline=started + max_seconds,
                                                    token_limit=token_limit, output_reservation=output_reservation)
                         if isinstance(response, dict) and isinstance(response.get("claims"), list):
-                            # Unrequested old claims have already been checked
-                            # against their own packet. Do not reinterpret them
-                            # using this intentionally different source subset.
                             response = {**response, "claims": [item for item in response["claims"]
                                         if isinstance(item, dict) and item.get("quoted_claim") in targets]}
                         follow_claims, follow_invalid = _validated_response(response, chunk, additional)
+                        if bool(follow_claims) == response["no_material_claims"]:
+                            raise ValueError("inconsistent repair claim coverage")
                         revised = {c["quoted_claim"]: c for c in follow_claims if c["quoted_claim"] in targets}
+                        repaired = set(revised)
+                        previous = {c["quoted_claim"] for c in chunk_claims}
                         chunk_claims = [revised.get(c["quoted_claim"], c) for c in chunk_claims]
+                        chunk_claims.extend(c for quote, c in revised.items() if quote not in previous)
+                        invalid_claims = [item for item in invalid_claims if item["quoted_claim"] not in revised]
                         if follow_invalid or set(revised) != set(targets):
                             followup_incomplete = True
-                            limits.append("Some claim-dependent follow-up findings failed source validation.")
+                            limits.append("Some claim-dependent follow-up or repair findings failed validation or remained omitted.")
                     except Exception as exc:
                         followup_incomplete = True
-                        limits.append("Claim-dependent source follow-up was incomplete; unsupported claims remain unverified.")
+                        limits.append("Claim-dependent source follow-up or citation/coverage repair was incomplete; unresolved claims remain unverified.")
                         errors.append({"chunk_id": chunk["chunk_id"], "category": type(exc).__name__, "stage": "source_followup"})
                 elif relevant_new:
                     followup_incomplete = True
                     limits.append("Relevant retained passages could not fit the follow-up source allowance.")
+            for quote, item in repair.items():
+                if quote not in repaired:
+                    offset = chunk["text"].index(quote)
+                    unresolved_repairs.append({"chunk_id": chunk["chunk_id"], "section_id": chunk["section_id"],
+                                               "quoted_claim": quote, "character_start": chunk["start"] + offset,
+                                               "character_end": chunk["start"] + offset + len(quote),
+                                               "reason": item["explanation"]})
             claims.extend(chunk_claims)
             validated_this_chunk = len(chunk_claims)
-            if invalid_claims or bool(chunk_claims) == output["no_material_claims"]:
+            if invalid_claims or (not repair and bool(chunk_claims) == output["no_material_claims"]):
                 raise ValueError("invalid claims or inconsistent claim coverage")
             numeric_text = _coverage_text(chunk["text"])
             # Equal numeric values in different assertions are separate work.
@@ -1147,7 +1219,7 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
     result = {"schema_version": SCHEMA_VERSION, "status": status, "digest": inv["digest"],
               "evidence_digest": inv["evidence_digest"], "identity": inv["identity"],
               "chunk_digests": {c["chunk_id"]: _digest(c) for c in inv["chunks"]},
-              "claims": claims, "coverage": {"total_chunks": len(inv["chunks"]),
+              "claims": claims, "unresolved_repairs": unresolved_repairs, "coverage": {"total_chunks": len(inv["chunks"]),
                   "reviewed_chunks": len(reviewed), "reviewed_chunk_ids": reviewed, "reused_chunk_ids": reused,
                   "remaining_chunks": remaining, "sections": [
                       {"section_id": s["section_id"], "characters": s["characters"]} for s in inv["sections"]],
@@ -1233,7 +1305,7 @@ def _correction_annotation(claim):
 
     from tradingagents.reporting import _plain_markdown
 
-    parts = ["Ground Truth Audit — " + _correction_label(claim) + _plain_markdown(str(claim["correction"])),
+    parts = ["Ground Truth Audit — " + _correction_label(claim) + _plain_markdown(str(claim.get("correction") or claim["supporting_source_excerpt"])),
              "Auditor scope assessment (model): " + _plain_markdown(str(claim.get("explanation") or
                 "Scope explanation unavailable; review the cited source before applying this excerpt."))]
     for source in claim.get("evidence") or []:
@@ -1265,7 +1337,7 @@ def corrected_text(section_id, text, record):
         boundary = text.find("\n\n", end)
         if boundary < 0:
             boundary = len(text)
-        correction = claim.get("correction")
+        correction = claim.get("correction") or claim.get("supporting_source_excerpt")
         from tradingagents.reporting import _plain_markdown
 
         note = (_correction_annotation(claim) if correction else
@@ -1345,6 +1417,14 @@ def render_audit(record):
     from tradingagents.reporting import _plain_markdown
 
     lines += ["", "Reviewed chunks can still contain unsupported or contradicted claims."]
+    if record.get("unresolved_repairs"):
+        lines += ["", "#### Unresolved citation or coverage repairs", "",
+                  "These exact report passages were not successfully validated. Diagnostics are not accepted factual verdicts or source evidence."]
+        for item in record["unresolved_repairs"]:
+            lines += ["", "- " + _prose(item["quoted_claim"]),
+                      "  Location: " + _prose(item["chunk_id"]) + "; characters "
+                      + _prose(item["character_start"]) + " to " + _prose(item["character_end"]),
+                      "  Repair diagnostic: " + _prose(item["reason"])]
     for key, label in (("reviewed_chunk_ids", "Reviewed chunk locations"),
                        ("remaining_chunks", "Not fully reviewed chunk locations (partial or unattempted)")):
         lines += ["", label + ":"]
@@ -1378,6 +1458,8 @@ def render_audit(record):
             lines.append("  Raw model decision_material flag: " + _prose(claim.get("decision_material")))
         if claim.get("correction"):
             lines.append(("  Raw proposed policy correction: " if notice else "  " + _correction_label(claim)) + _prose(claim["correction"]))
+        if claim.get("supporting_source_excerpt") and not claim.get("correction"):
+            lines.append("  Supporting source excerpt: " + _prose(claim["supporting_source_excerpt"]))
         if claim.get("correction_withheld"):
             lines.append("  Correction withheld: " + _prose(claim.get("correction_withheld_reason") or "Proposed wording lacks source support."))
         arithmetic = (claim.get("verification") or {}).get("arithmetic_proof")

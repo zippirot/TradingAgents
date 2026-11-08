@@ -268,7 +268,7 @@ def test_ambiguous_source_bound_correction_has_no_pm_authority(tmp_path, monkeyp
                 'quoted_claim': original if wrong else chunk['text'],
                 'outcome': 'contradicted' if wrong else 'supported',
                 'decision_material': True, 'explanation': 'The retained source reports a different value.',
-                **({'correction': 'Revenue was 20 USD.'} if wrong else {}),
+                **({'correction': 'Revenue was 20 USD.', 'correction_scope': 'complete_claim'} if wrong else {}),
                 'evidence': [{'source_id': 'doc-1', 'locator': 'table-1', 'quote': 'Revenue was 20 USD.'}]}]}
     calls = []
     def reconsider(state, corrections, model):

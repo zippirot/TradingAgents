@@ -35,7 +35,7 @@ class HistoryModel(graph_fixture.ScriptedModel):
                        'explanation': 'Scripted history wiring fixture.', 'evidence': []}]
             if OLD_CLAIM in chunk['text']:
                 claims.append({'quoted_claim': OLD_CLAIM, 'outcome': 'contradicted', 'decision_material': True,
-                               'explanation': 'The retained fixture reports a different amount.', 'correction': CORRECTION,
+                               'explanation': 'The retained fixture reports a different amount.', 'correction': CORRECTION, 'correction_scope': 'complete_claim',
                                'evidence': [{'source_id': 'doc-1', 'locator': 'table-1', 'quote': SOURCE_QUOTE}]})
             return ChatResult(generations=[ChatGeneration(message=AIMessage(content=json.dumps({
                 'claims': claims, 'no_material_claims': False})))])
