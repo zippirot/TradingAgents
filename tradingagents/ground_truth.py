@@ -500,6 +500,36 @@ def _valuation_reference_question(text):
     return historical or basis
 
 
+
+def _measure_companion(text, source):
+    """Locate a definition/reconciliation of the exact asserted adjusted measure.
+
+    This is retrieval preference only. The existing issuer/date, quotation and
+    interpretation checks still determine what the passage can support.
+    """
+    if source.get("kind") != "filing passage":
+        return False
+    def normalize(value):
+        return re.sub(r"\s+", " ", re.sub(r"[-–—]", " ", value.casefold()))
+    query = normalize(text)
+    measures = re.findall(
+        r"\b(?:adjusted|non\s+gaap)\s+(?:(?:operating|net|gross|diluted|basic|free)\s+){0,2}"
+        r"(?:income|earnings|profit|ebitda|cash\s+flow)(?:\s+per\s+share)?\b", query)
+    if not measures:
+        return False
+    body = normalize(source["text"])
+    for measure in measures:
+        if measure not in body:
+            continue
+        named = re.escape(measure)
+        definition = re.search(r"(?:we define|definition of)\s+" + named + r"\b|\b" + named
+                               + r"\s+(?:is )?defined as\b", body)
+        reconciliation = ("|" in body and bool(re.search(r"\badjustments\s*:", body)))
+        if definition or reconciliation:
+            return True
+    return False
+
+
 def _source_priority(text, source):
     """Prefer scoped typed observations over broad recorded vendor payloads."""
     query = text.casefold()
@@ -538,7 +568,7 @@ def _source_priority(text, source):
     if kind.startswith("retained report context") and _brief_scope_claim(text):
         return 1
     if kind == "filing passage":
-        return 2
+        return 1 if _measure_companion(text, source) else 2
     if kind == "canonical financial fields":
         return 3
     if source.get("locator") == "recorded-output":

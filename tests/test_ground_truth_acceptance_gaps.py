@@ -952,3 +952,38 @@ def test_valid_primary_references_do_not_rescue_an_invented_report_chunk_citatio
     assert result["status"] == "partial"
     assert result["coverage"]["reviewed_chunks"] == 0
     assert [finding["quoted_claim"] for finding in result["claims"]] == ["Revenue was 100 USD."]
+
+
+def test_named_adjusted_measure_coselects_its_definition_and_reconciliation_amid_gaap_matches():
+    from tradingagents.ground_truth import _select_followup_sources
+
+    sources = {}
+    for index in range(30):
+        sources[(f"filing-{index}", "body")] = {
+            "source_id": f"filing-{index}", "locator": "body", "kind": "filing passage",
+            "text": "Q3 GAAP gross margin 50.15%, operating margin 10.28% and net loss $42.6 million. " * 2}
+    sources[("issuer", "reported-increase")] = {
+        "source_id": "issuer", "locator": "reported-increase", "kind": "filing passage",
+        "text": "Adjusted operating income was $74 million, an increase of 6%."}
+    sources[("issuer", "definition")] = {
+        "source_id": "issuer", "locator": "definition", "kind": "filing passage",
+        "text": "We define adjusted operating income as operating income excluding stock-based compensation and acquired-intangible amortization."}
+    sources[("issuer", "reconciliation")] = {
+        "source_id": "issuer", "locator": "reconciliation", "kind": "filing passage",
+        "text": "Q3 2026 versus Q3 2025; USD thousands. Adjustments: | stock-based compensation 36045; amortization 5071. Adjusted operating income: | 74141 versus 69646."}
+    assessment = {"quoted_claim": "Q3 GAAP gross margin was 50.15%, operating margin 10.28% and net loss $42.6 million; adjusted operating income rose 6%.",
+                  "explanation": "The adjusted measure's definition and reconciliation are missing."}
+    packet, _ = _select_followup_sources([assessment], sources, 1700)
+    assert ("issuer", "definition") in packet
+    assert ("issuer", "reconciliation") in packet
+    assert all("fact" not in row for row in packet.values())
+
+
+def test_adjusted_definition_bonus_does_not_apply_to_a_different_measure():
+    from tradingagents.ground_truth import _source_priority
+
+    query = "Adjusted operating income increased."
+    ordinary = {"source_id": "issuer", "locator": "text", "kind": "filing passage",
+                "text": "Adjusted operating income increased."}
+    different = {**ordinary, "text": "Adjusted operating income increased. We define adjusted EBITDA as earnings before interest and taxes."}
+    assert _source_priority(query, different) == _source_priority(query, ordinary)

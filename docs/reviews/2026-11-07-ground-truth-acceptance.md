@@ -76,6 +76,12 @@ The review bundle uses freshly invented figures and SEC-shaped records, explicit
 
 The shared assessment distinguishes code-checked quotations and recorded calculation proofs from other arithmetic and source interpretation, which use model review. It does not imply that every free-prose calculation has a deterministic proof.
 
+## Citation-boundary served check
+
+Candidate `10514d46` passed the full repository suite: **3,320 passed**, ten disclosed skips, one deselection and 100 subtests in 55.99 seconds; repository Ruff also passed. The prompt explicitly restricts references to supplied source/locator pairs. Strict rejection of invented report-chunk references is unchanged and covered by regression tests, including a claim with two valid references plus an invented third.
+
+The served final-section check on that unchanged candidate passed C4 and all seven registered final-decision controls with valid supplied citations. It took 120.16 seconds, two requests and $0.24647685 reported. The additional mixed GAAP/adjusted-income 6% statement remained unsupported: the issuer highlight was supplied, but its available reconciliation was omitted. The original statement is not explicitly a quotation of the issuer, and the definition-check requirement remains applicable. Exact replay reproduces the omission at both 90k and 120k: round-robin selection reaches broad financial passages before the compact named reconciliation. This is a companion-context selection gap; increasing the cap alone is insufficient. The batch stopped before the other six scopes. Exposure is **$19.50227985**, including unchanged unknown reservations, with no request in flight. Provider and source receipts remain private. The scoped result's completed coverage does not mean all controls passed or the parent report was cleared.
+
 ## Remaining acceptance
 
 Verify the remaining original tail and the affected schema-3 semantic cases under the same spend ledger, inspect final outputs, and run the required final repository suite and lint. Commit the stable passing candidate, obtain the independent Claude build audit, disposition every finding, close confirmed material gaps with affected verification, and obtain independent closure. Any private factual spot-check must use authorized non-Git delivery within the combined review budget. The Goal remains active and incomplete. Integration, push, installation and release require separate authority.
