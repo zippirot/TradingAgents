@@ -319,3 +319,23 @@ def test_full_search_attaches_existing_rpo_facts_without_extra_fetch(monkeypatch
     result = docs.get_filing_search_evidence("DOCN", str(corpus.as_of))
     assert {doc.rpo_facts[0].value for doc in result.documents} == {893828000, 799707000}
     assert len(calls) == 3  # submissions metadata plus each already selected filing
+
+
+def test_latest_annual_primary_is_a_snapshot_not_a_stale_quarter():
+    """Synthetic form variant over retained exact facts/table; not a live annual proof."""
+    state = _state()
+
+    def annual(corpus):
+        documents = tuple(doc.model_copy(update={'filing': doc.filing.model_copy(update={'form': '10-K'})})
+                          if str(doc.filing.report_date) == '2026-09-30' and doc.url == doc.filing.url
+                          else doc for doc in corpus.documents)
+        return corpus.model_copy(update={'documents': documents})
+
+    _change(state, annual)
+    history = render_retained_kpi_history(state)
+    maturity = render_lease_maturities(state)
+    assert '2026-09-30 799,707,000 USD' in history
+    assert '2026-06-30 893,828,000 USD' in history
+    assert 'present value $923.6M' in maturity
+    assert 'block-226' in maturity
+    assert 'as of 2026-09-30' in maturity

@@ -230,3 +230,28 @@ def test_band_table_lists_march_closes_from_retained_docn_source(monkeypatch, tm
         row = captured.loc[pd.Timestamp(day, tz=zone)]
         assert row["Close"] == pytest.approx(close, abs=0.005)
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize('latest', [0.0001, 0.1234])
+def test_subunit_bands_keep_nonzero_closes_and_distinct_bounds(monkeypatch, latest):
+    from decimal import Decimal
+
+    frame = _band_ohlcv()
+    for column in ('Open', 'High', 'Low', 'Close'):
+        frame[column] = latest
+        frame.loc[frame.index[-5], column] = latest * 0.75
+    monkeypatch.setattr(validator, 'load_ohlcv', lambda *args, **kwargs: frame)
+    report = validator.build_verified_market_snapshot('LOW-USD', '2026-11-06', indicators=('rsi',))
+    table = report.split('### Prior closes by price band', 1)[1].split('Use this snapshot', 1)[0]
+    labels = []
+    for line in table.splitlines():
+        if not line.startswith('| ') or line.startswith('| Price band'):
+            continue
+        cells = [v.strip() for v in line.strip('|').split('|')]
+        lower, upper = (Decimal(value) for value in cells[0].split('–'))
+        assert lower < upper
+        labels.append(cells[0])
+        if int(cells[1]):
+            assert Decimal(cells[3]) > 0 and Decimal(cells[4]) > 0
+    assert len(labels) > 1 and len(set(labels)) == len(labels)
+    assert f'| close | {latest:.4g} |' in report.lower()

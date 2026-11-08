@@ -65,6 +65,8 @@ def _fmt(value) -> str:
     if isinstance(value, (int,)):
         return str(value)
     if isinstance(value, float):
+        if value and abs(value) < 1:
+            return f"{value:.4g}"
         return f"{value:.2f}"
     return str(value)
 
@@ -96,14 +98,18 @@ def _prior_close_band_lines(df: pd.DataFrame) -> list[str]:
         index = max(0, int(distance.to_integral_value(rounding=ROUND_CEILING)) - 1)
         bands[index].append((row["Date"], close))
 
+    # Retain distinct bounds even when a 5% band is smaller than one tenth.
+    bound_decimals = max(1, -width.adjusted())
+
     def label(value: Decimal) -> str:
-        return str(value.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+        quantum = Decimal(1).scaleb(-bound_decimals)
+        return str(value.quantize(quantum, rounding=ROUND_HALF_UP))
 
     lines = [
         "", "### Prior closes by price band", "",
         f"Last {session_count} available completed sessions (up to 252); "
         "bands are 5% of the latest completed close. Exact bounds determine membership; "
-        "displayed bounds are rounded to one decimal.",
+        f"displayed bounds are rounded to {bound_decimals} decimal {'place' if bound_decimals == 1 else 'places'}.",
         *([f"{missing_count} completed session{'s' if missing_count != 1 else ''} "
            f"ha{'ve' if missing_count != 1 else 's'} no available close. "
            "Counts include observed closes only; empty bands are uncertain."]
@@ -118,8 +124,8 @@ def _prior_close_band_lines(df: pd.DataFrame) -> list[str]:
         if closes:
             lines.append(
                 f"| {band} | {len(closes)} | {_fmt(max(day for day, _ in closes))} | "
-                f"{min(close for _, close in closes):.2f} | "
-                f"{max(close for _, close in closes):.2f} |"
+                f"{_fmt(float(min(close for _, close in closes)))} | "
+                f"{_fmt(float(max(close for _, close in closes)))} |"
             )
         else:
             empty = (

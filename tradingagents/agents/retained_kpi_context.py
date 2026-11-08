@@ -97,7 +97,7 @@ def render_retained_kpi_history(state) -> str:
     if corpus is None:
         return ""
     periods = sorted({doc.filing.report_date for doc in corpus.documents
-                      if doc.filing.form == "10-Q" and doc.url == doc.filing.url
+                      if doc.filing.form in {"10-Q", "10-K"} and doc.url == doc.filing.url
                       and doc.filing.report_date})
     if len(periods) < 2:
         return ""
@@ -168,7 +168,7 @@ def render_lease_maturities(state) -> str:
     if corpus is None:
         return ""
     periods = sorted({doc.filing.report_date for doc in corpus.documents
-                      if doc.filing.form == "10-Q" and doc.filing.report_date})
+                      if doc.filing.form in {"10-Q", "10-K"} and doc.url == doc.filing.url and doc.filing.report_date})
     if not periods:
         return ""
     doc = _primary_at(corpus, periods[-1])
@@ -215,6 +215,6 @@ def render_lease_maturities(state) -> str:
         if "present value" in amounts:
             pieces.append(f"present value {_millions(amounts['present value'])}")
         return ("Finance lease and equipment maturities (undiscounted, include imputed interest): "
-                + "; ".join(pieces) + f" ({_source(doc, block)}). Scheduled payments are not principal.")
+                + f"as of {periods[-1].isoformat()}; " + "; ".join(pieces) + f" ({_source(doc, block)}). Scheduled payments are not principal.")
     except (ValueError, ArithmeticError):
         return ""
