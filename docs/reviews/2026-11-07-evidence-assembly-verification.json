@@ -1,5 +1,5 @@
 {
-  "stage": "R1 corrected local gate passed; provider capacity restored; authorized complete-range independent Fable audit being prepared",
+  "stage": "R1 local feature accepted; required independent Fable review complete with zero Critical/High/Medium; authorized staging integration/CI next",
   "baseline_staging": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
   "full_suite_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
   "native_proof_commit": "87845f5a5a0ee31cd5928501ffbf13db266879b7",
@@ -116,7 +116,7 @@
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "historical_failures_preserved_capacity_restored_next_attempt_preparing",
+    "status": "completed_local_acceptance_zero_critical_high_medium",
     "attempts": [
       {
         "required": true,
@@ -166,7 +166,176 @@
       "read_only": true,
       "user_reported_credits_added": true,
       "prior_external_incident_resolved": true
-    }
+    },
+    "completed_run": {
+      "run_id": "707b0bd1-3db6-4bab-b414-fd1d22148a74",
+      "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r1-fable-funded-1",
+      "report": {
+        "base_commit": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
+        "head_commit": "f7fec67e7d5196f45e5b1efec78ad280012e623b",
+        "requested_model": "~anthropic/claude-fable-latest",
+        "served_model": "~anthropic/claude-fable-latest",
+        "status": "completed",
+        "actual_turns": 70,
+        "reviewed_files": [
+          "docs/reviews/2026-11-07-evidence-assembly-baseline.json",
+          "docs/reviews/2026-11-07-evidence-assembly-corpus-differences.json",
+          "docs/reviews/2026-11-07-evidence-assembly-runtime.json",
+          "docs/reviews/2026-11-07-evidence-assembly-source-excerpts.json",
+          "docs/reviews/2026-11-07-evidence-assembly-verification.json",
+          "docs/reviews/2026-11-07-evidence-assembly.md",
+          "docs/reviews/evidence-assembly-proof.py",
+          "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+          "tests/docn_workflow_fixture.py",
+          "tests/fixtures/docn_2026_11_07/16416b7e-bounded.json.gz",
+          "tests/fixtures/docn_2026_11_07/16416b7e-corpus.json.gz",
+          "tests/fixtures/docn_2026_11_07/913554d4-bounded.json.gz",
+          "tests/fixtures/docn_2026_11_07/913554d4-corpus.json.gz",
+          "tests/fixtures/docn_2026_11_07/DOCN-YFin-data.csv.gz",
+          "tests/fixtures/docn_2026_11_07/cfae95e9-bounded.json.gz",
+          "tests/fixtures/docn_2026_11_07/cfae95e9-corpus.json.gz",
+          "tests/fixtures/docn_2026_11_07/cfae95e9-financial.json.gz",
+          "tests/fixtures/docn_2026_11_07/cfae95e9-price-source.json.gz",
+          "tests/fixtures/docn_2026_11_07/docn-submissions.json.gz",
+          "tests/fixtures/docn_2026_11_07/issuer-map.json.gz",
+          "tests/fixtures/docn_2026_11_07/manifest.json",
+          "tests/fixtures/docn_2026_11_07/raw-companyfacts-docn.json.gz",
+          "tests/fixtures/docn_2026_11_07/raw-companyfacts-nbis.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-08549ed25733257842cef8fa9f2c02fdf12dcc54612112f3c7c6505e404a6e98.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-1668d74c6a17c99a51f86d721cb5e51101921178f2d36d9f5100823b59a7f82b.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-7894747485c93330428a981e3fa9f385effe853a80c0a8774e45420c443de29a.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-8f6fa50d949703be12a622f4568299a6b655e8382709f67d84756525d48db13e.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-937fe5017daae13ff630e00667dcf5ce153c35b02f350eceaa2a865439a43367.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-97280aa532a85b0d08d2794fd661032cb10a0d6e7e1c00cd0f78fdbed2c7faa6.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-986137c03ad6898e7f039aaa483f450b81d03cff4277219cdbcb7cc497c2028b.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-c4060c33f967164d4f79d532579b43ef655ce3156265c711ceaf4b4105c1c6b3.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-ce31022f3663c2126809c55128ef3d993acae66a02ca15e2901954534208ae5e.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-e5702f82329f857c41a948e957efbcda16c5eaa9132004baec404bfd8669e076.json.gz",
+          "tests/fixtures/docn_2026_11_07/sec-ee5ab4b9b66b5206ca84fab9eb97db76dd2330d967c2027c5d1119625526459c.json.gz",
+          "tests/test_build2_continuation_proof.py",
+          "tests/test_complete_disclosure_sentences.py",
+          "tests/test_completed_market_inputs.py",
+          "tests/test_disclosure_context.py",
+          "tests/test_disclosure_package_identity.py",
+          "tests/test_evidence_assembly_docn.py",
+          "tests/test_evidence_quality_messages.py",
+          "tests/test_filing_terms_graph.py",
+          "tests/test_financing_currency_binding.py",
+          "tests/test_guidance_retention.py",
+          "tests/test_news_source_coverage.py",
+          "tests/test_peer_period_scope.py",
+          "tests/test_preanalyst_acquisition.py",
+          "tests/test_retained_kpi_context.py",
+          "tests/test_shared_source_brief.py",
+          "tests/test_source_bound_lease_sensitivities.py",
+          "tests/test_yahoo_snapshot.py",
+          "tradingagents/agents/context.py",
+          "tradingagents/agents/evidence_validation.py",
+          "tradingagents/agents/issuer_events.py",
+          "tradingagents/agents/retained_kpi_context.py",
+          "tradingagents/agents/shared_valuation.py",
+          "tradingagents/agents/valuation_reference.py",
+          "tradingagents/agents/valuation_reference_flow.py",
+          "tradingagents/dataflows/disclosure_context.py",
+          "tradingagents/dataflows/disclosure_discovery.py",
+          "tradingagents/dataflows/disclosure_evidence.py",
+          "tradingagents/dataflows/vendors/sec_documents.py",
+          "tradingagents/dataflows/vendors/sec_edgar.py",
+          "tradingagents/dataflows/vendors/yahoo/common.py",
+          "tradingagents/dataflows/vendors/yahoo/news.py",
+          "tradingagents/dataflows/vendors/yahoo/ohlcv.py",
+          "tradingagents/dataflows/vendors/yahoo/price_observation.py",
+          "tradingagents/dataflows/vendors/yahoo/snapshot.py",
+          "tradingagents/graph/trading_graph.py"
+        ],
+        "summary": "Independent frozen-manifest audit of Build R1 (evidence assembly) for TradingAgents, range 730bbe04 (confirmed R5 staging, seven green CI jobs) \u2192 f7fec67e (frozen head), 71 changed files. Stage: local feature candidate, unpushed; this run is the required independent Claude Fable review after two provider-402 failures (both preserved, zero findings, no verdict; retry explicitly user-approved under unchanged $50/$80, 100/160-turn caps).\n\nVERDICTS \u2014 Merge integrity: PASS on the frozen range: the diff is coherent, confined to R1-owned files plus its fixtures/tests/review artifacts and the plan-status/checkbox updates; checkpoint identity is correctly advanced (shared_source_brief 4\u21925 in trading_graph.py with the extended version-separation regression), and the historical Build2 drill freezes only R1's new optional sensitivity output while explicitly denying current-resume compatibility. Feature acceptance: PASS on frozen evidence \u2014 every material requirement traces to implementation and a named test (coverage below), the wired source proof reports the plan's defining outcomes (ATM in brief; 15 accepted/0 rejected deterministic acquisition and gate records; six valid/three originally-rejected model records with identical original reasons; FY2026 outlook blocks 39\u201352 intact at 36,000 chars; RPO history and labeled maturity line in brief and canonical context; dated/degraded news; finance_equipment 70.52/all_leases 65.31 vs base 77.73 and cautious 37.88/32.98 on unchanged base targets); acceptance rests partly on hashed builder receipts since this runner cannot execute. Full-suite health: GREEN PER BUILDER RECEIPT (3448 passed/10 skipped/1 deselected/100 subtests at 87845f5a; the two earlier 1-fail runs are correctly treated as historical, each diagnosed as fixture/version-expectation conflicts, not aggregated); independently UNVERIFIED. Remote CI: UNVERIFIED/NOT YET APPLICABLE \u2014 no run exists for any R1 candidate; only the predecessor baseline 730bbe04 has the green exact-SHA receipt.\n\nREQUIREMENT COVERAGE \u2014 R1.1 financing in brief: implemented by rebinding the deterministic issuer_events matcher (extended to dated notes/credit-agreement quotes, fail-closed on undated/future text) into build_shared_source_brief; tests test_brief_includes_retained_atm_8k / test_brief_omits_financing_outside_window / test_brief_reuses_source_matcher_for_notes_and_credit_events; financing_sensitivities now excludes non-ATM types. COVERED. R1.2 guidance runs: extract_sections groups heading-delimited outlook/guidance runs as atomic selection units with max-of-block priorities, whole-drop plus one named gap; tests incl. adjacent-headings case. COVERED. R1.3 identity dedupe: new collapse_quote_packages merges immutable views by full identity tuple, rejects hash/identity/block/inline-fact conflicts with 'conflicting document metadata', preserves source order, fail-closed to REVIEW at the gate; the second root cause (complete qualified sentences lacking a numeric sub-span) is fixed by reusing the existing finite qualified-span/lower-bound matchers without rewriting submissions; 6-accepted/3-still-rejected proved on the recorded corpus. COVERED. R1.4/G7: new retained_kpi_context renders RPO year-ago/FY/current/prior/next-12-months with per-piece source IDs, strict note-unit and reporting-currency checks, recast label, and the undiscounted/present-value maturity line with total+interest=PV consistency check; 10-K-primary post-freeze correction included with its red log; extensive fail-closed negatives. COVERED. R1.5: UTC publish timestamps, explicit 'Publication time unavailable', degraded search-fallback coverage propagated through news_tool_coverage. COVERED. R1.6: warning dedupe preserving checks; model-rejection vs source-gap split plus named missing optional detail; `$`\u2192USD only on same-accession XBRL/stated-currency binding with conflict staying unresolved; priceHint-bounded display precision that cannot zero a subunit price (post-freeze correction, red logs retained). COVERED. R1.7: diagnosis-first (empty sensitivities traced to borrowings-only submissions, recorded in baseline JSON before code), then _source_bound_lease_requests reuses price_case on separately labelled requests, preserves original request/base target (asserted in tests), holds 2026-09-30 balances constant through 2027-12-31 with explicit assumption text, withholds on ambiguity/currency/date/basis incompatibility (parameterized negatives). COVERED. G2 bands: 252-completed-session window kept separate from observed closes (missing-close disclosure, no stale substitution), exact Decimal bounds with distinct sub-unit labels, cutoff-safe, retained-DOCN-source end-to-end test matching the plan's exact March values. COVERED. G4: 15/0 acceptance of the 16416b7e corpus with the five required guided records and order-independence; corpus-differences JSON records the bounded-view block variance (42/43/47/49) as the reproduced retention defect. COVERED. G5: ambiguity drop only for non-consumed metrics in peer packages with recorded gap surfaced in the reference brief; Revenue/Gross Profit/Shares and subject packages still strict; NBIS exclusion now names consumed Revenues@2023-12-31. COVERED.\n\nFINDINGS \u2014 No blocking finding. No proven Critical/High/Medium defect was identified in the frozen scope; three low, non-blocking observations are listed (one robustness guard, one label wording, one spec-compliant disclosure gap). Global constraints hold on inspection: no rating-eligibility/gate-rule change except the specified identity-dedupe and message changes; fail-closed behavior preserved or strengthened at every changed boundary; source IDs retained on every new model input; no new vendor calls. The reconciled contradictions (two historical full-suite failures vs the final green receipt; two failed audit attempts vs this one; pre-freeze vs post-freeze corrections with red/green logs) are all consistently documented and none converts into a source defect. R1 remains a local verified feature candidate: staging integration/push, exact-SHA remote CI, Sequence 6\u20137 paid baselines, and all later builds remain separately gated and incomplete.",
+        "limitations": [
+          "Frozen-evidence-only executor: no test execution, no network, no GitHub queries, no repository reads outside the single frozen request.json. The 3448-pass full suite, full-repo Ruff, source proof and 4-attempt CLI proof at 87845f5a5a are hashed builder receipts (logs identified by SHA-256 in the verification JSON), accepted as builder evidence, not independently rerun; full-suite-health is therefore green-per-receipt, independently unverified.",
+          "The frozen head f7fec67e differs from the tested/proof commit 87845f5a only by docs/evidence commits according to builder-recorded Git tree/blob OIDs; frozen evidence cannot independently verify Git ancestry or tree equality, so the claim that head source equals the tested source is builder-asserted, with the frozen head diff itself as the audited source of truth.",
+          "No remote CI run exists for any R1 candidate SHA (branch is local and unpushed by design); the green seven-job CI receipt applies only to the predecessor staging baseline 730bbe04. A local unpushed candidate cannot receive a green remote-CI verdict.",
+          "Gzipped fixture bytes (corpora, SEC wrappers, OHLCV CSV) were audited via manifest hashes, recorded block counts, the corpus-differences inventory and the 29 bounded verbatim source excerpts; no independent decompression or byte-level inspection was performed.",
+          "Private originals (cfae95e9 full state, OHLCV cache), /tmp proof logs, and the two failed external Fable run artifact directories are referenced by hash/path only and were not read, per the frozen-manifest constraint.",
+          "Scope is extra large (71 files, ~350KB diff over a 1.48MB requirements payload); production code and all named tests were read in full, but binary fixtures and some long doc-review JSON bodies were sampled rather than exhaustively read.",
+          "This audit covers R1 local feature acceptance only; staging integration/push, Sequence 6\u20137 paid baseline runs, dependent builds R2\u2013R4/R3/Na/Nb, and any release remain separately gated and incomplete by design."
+        ],
+        "findings": [
+          {
+            "severity": "low",
+            "title": "build_shared_source_brief validates filing_evidence without a local exception guard: issuer_supplement() runs DisclosurePackage.model_validate(state['filing_evidence']) inside the brief builder with no surrounding try/except, so a malformed (non-None) filing_evidence dict would raise ValidationError out of the brief instead of degrading to a brief without financing lines. Reachability requires corrupted self-produced state and was not reproduced; existing neighbors (financing_sensitivities) catch ValueError for the same call. Corrective direction: wrap the financing block in the same (ValueError, TypeError) guard used elsewhere in the brief; verification: a unit test feeding a malformed filing_evidence through build_shared_source_brief.",
+            "path": "tradingagents/agents/context.py"
+          },
+          {
+            "severity": "low",
+            "title": "get_global_news_yfinance unconditionally labels results 'degraded: search_fallback, headlines_only' although Yahoo search is its only/primary acquisition path, not a fallback; the reason string slightly misstates the mechanism for global news (headlines_only and sample-coverage are accurate; 'search_fallback' is not). Honest-labeling intent is met and ticker-news labeling is exactly per spec (R1.5); display/coverage wording only, no gate effect. Corrective direction: a distinct reason string (e.g. 'search_sample, headlines_only') for the global path with its one-line test; non-blocking.",
+            "path": "tradingagents/dataflows/vendors/yahoo/news.py"
+          },
+          {
+            "severity": "low",
+            "title": "Prior-close band table silently omits closes above the latest completed close: bands run only from the latest close down to the lowest (as the approved G2 spec literally defines), so an in-window higher close appears in no band and no row or note discloses that, while the header says counts cover the completed-session window. test_band_table_respects_cutoff encodes this as intended (80.00 absent). Spec-compliant, so not a defect; flagged because a reader may infer no higher prior trading existed. Corrective direction (optional requirement, needs plan owner decision): one disclosure line counting closes above the latest close.",
+            "path": "tradingagents/dataflows/vendors/yahoo/snapshot.py"
+          }
+        ],
+        "classification": {
+          "declared_build_size": "large",
+          "effective_build_size": "extra large",
+          "escalation_reasons": [
+            "Frozen scope changes more than 10 files or more than 500 lines.",
+            "Frozen scope changes more than 30 files or more than 2,000 lines."
+          ]
+        },
+        "progress": {
+          "observed_events": 7224,
+          "last_activity_at": "2026-11-08T07:01:02.946Z",
+          "last_activity_kind": "stdout"
+        },
+        "ledger": {
+          "soft_budget_usd": 50,
+          "hard_budget_usd": 80,
+          "soft_turn_limit": 100,
+          "turn_limit": 160,
+          "wall_clock_limit_minutes": 360,
+          "actual_cost_usd": 7.401058499999999,
+          "actual_elapsed_ms": 2521460,
+          "soft_limit_reached": false
+        },
+        "stop_reason": "reviewer_completed"
+      },
+      "findings_review": [
+        {
+          "id": "L1",
+          "classification": "confirmed",
+          "material": false,
+          "action": "defer",
+          "evidence": "Malformed internal filing_evidence raises ValidationError; valid fixture succeeds. Acquisition serializes validated DisclosurePackage; no reachable normal-source unsafe acceptance established."
+        },
+        {
+          "id": "L2",
+          "classification": "confirmed",
+          "material": false,
+          "action": "defer",
+          "evidence": "Actual global news builder with synthetic Yahoo Search response labels its primary search as fallback; degraded/headlines-only and gate behavior unchanged."
+        },
+        {
+          "id": "L3",
+          "classification": "confirmed",
+          "material": false,
+          "action": "no_action",
+          "evidence": "Approved G2 specifies downward bands; existing cutoff/above-latest builder regression freshly passes. Additional above-latest count is optional scope."
+        }
+      ],
+      "validator_passed_at_frozen_head": true,
+      "artifact_sha256": {
+        "manifest.json": "4a6d70abee75e16c463e10e54ccc7c5dd4dd6a083e72a29450f334456f4aedc5",
+        "executor-result.json": "82c170f4aaa7a707e73c3a660c2d9b5cd58b3858afa6879d21832eb44879f9da",
+        "audit.md": "fdcc76d9b4b74a6cea1df1478fe774a3468f26bb4684d283860f378f51697fa9",
+        "findings-review.md": "ebf73696ec4c51019d18b474f77857d2fa0d9dbd17775b155fb61b8c872f6624",
+        "handoff.md": "ccf94eb8cd8a94db8390d3f5a3852b6ee5dbf3a888c80e63555953b33867e283"
+      },
+      "closure": "No material findings remain. Full-range completed review includes both pre-review builder corrections; no separate finding-closure audit or implementation plan needed."
+    },
+    "all_attempts_reported_total_usd": 10.304611
   },
   "limitations": [
     "Default optional Bedrock/private-source skips retained; integration marker deselected.",
@@ -1203,7 +1372,7 @@
     ],
     "frozen_commit": "bc8c64abaad6026b4fc63e207897047f9d2a40a8"
   },
-  "audit_context_map": {
+  "historical_audit_context_map_f7fec67e": {
     "semantics": "Requirements string is trimmed HEAD files joined in request order with one newline; 1-based decoded line ranges; no filename headers. Raw SHA-256 includes surrounding whitespace. Verification file last; no self hash.",
     "verification_file_is_last": true,
     "verification_starts_at_decoded_line": 25478,
@@ -1700,6 +1869,7 @@
         "decoded_end_line": 25477,
         "raw_sha256": "6779829a4829d2137e13b274a8da768ec459865ef4bda97eee4644fbb9f19572"
       }
-    ]
+    ],
+    "frozen_commit": "f7fec67e7d5196f45e5b1efec78ad280012e623b"
   }
 }
