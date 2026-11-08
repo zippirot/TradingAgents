@@ -121,8 +121,13 @@ Ground conclusions in specific evidence. Weigh competing cases independently of 
 ## Advisory thesis continuity
 
 Supply thesis_candidate in this call: rationale, assumptions, canonical references
-and measurable advisory conditions, never hard rules. Use exact canonical metric
-and metric_definition, unit/basis, period and expiry. Gross Margin uses Gross
+and every material advisory condition you state, never hard rules. Use kind metric
+for canonical measures with exact metric and metric_definition, unit/basis, period
+and expiry; kind price_level for a positive completed-close threshold, comparator,
+instrument quote currency and expiry; kind event for an observable description,
+the specific evidence that would confirm it (for example, an 8-K reporting note
+settlement), and expiry, without threshold or comparator. Do not derive structured
+conditions from unstated implications. Gross Margin uses Gross
 Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAAP.
 Set thesis_role: supports_thesis supports the current thesis; reconsideration_trigger
 means reconsider if met; unspecified means unknown intent. A trigger not met is

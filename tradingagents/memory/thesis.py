@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import suppress
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, localcontext
 from fractions import Fraction
@@ -20,14 +21,18 @@ from tradingagents.dataflows.financial_evidence import ADDITIVE_METRICS, Evidenc
 
 class ThesisCondition(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True, allow_inf_nan=False)
-    metric: str = Field(min_length=1, max_length=120)
-    metric_definition: str = Field(min_length=1, max_length=500)
+    kind: Literal['metric', 'price_level', 'event'] = 'metric'
+    metric: str | None = Field(default=None, min_length=1, max_length=120)
+    metric_definition: str | None = Field(default=None, min_length=1, max_length=500)
     period_start: date | None = None
-    period_end: date
-    comparator: Literal['>=', '>', '<=', '<', '==']
-    threshold: Decimal
-    unit: str = Field(min_length=1, max_length=40)
-    basis: str = Field(min_length=1, max_length=80)
+    period_end: date | None = None
+    comparator: Literal['>=', '>', '<=', '<', '=='] | None = None
+    threshold: Decimal | None = None
+    unit: str | None = Field(default=None, min_length=1, max_length=40)
+    basis: str | None = Field(default=None, min_length=1, max_length=80)
+    currency: str | None = Field(default=None, pattern=r'^[A-Z]{3}$')
+    description: str | None = Field(default=None, min_length=1, max_length=500)
+    confirming_evidence: str | None = Field(default=None, min_length=1, max_length=500)
     expiry: date
     rationale: str = Field(min_length=1, max_length=1000)
     thesis_role: Literal['supports_thesis', 'reconsideration_trigger', 'unspecified'] = Field(
@@ -35,11 +40,34 @@ class ThesisCondition(BaseModel):
 
     @model_validator(mode='after')
     def dates(self):
-        if self.period_start and self.period_start > self.period_end:
-            raise ValueError('reversed condition period')
-        if self.expiry < self.period_end:
-            raise ValueError('condition expires before its measurement period')
+        if self.kind == 'metric':
+            required = ('metric', 'metric_definition', 'period_end', 'comparator', 'threshold', 'unit', 'basis')
+            if any(getattr(self, field) is None for field in required):
+                raise ValueError('metric condition requires metric, definition, period, comparison, unit and basis')
+            if any(getattr(self, field) is not None for field in ('currency', 'description', 'confirming_evidence')):
+                raise ValueError('metric condition has nonmetric fields')
+            if self.period_start and self.period_start > self.period_end:
+                raise ValueError('reversed condition period')
+            if self.expiry < self.period_end:
+                raise ValueError('condition expires before its measurement period')
+        elif self.kind == 'price_level':
+            if self.comparator is None or self.threshold is None or not self.threshold.is_finite() or self.threshold <= 0 or self.currency is None:
+                raise ValueError('price level requires positive threshold, comparator and quote currency')
+            if any(getattr(self, field) is not None for field in ('metric', 'metric_definition', 'period_start', 'period_end', 'unit', 'basis', 'description', 'confirming_evidence')):
+                raise ValueError('price level has incompatible metric or event fields')
+        else:
+            if not self.description or not self.description.strip() or not self.confirming_evidence or not self.confirming_evidence.strip():
+                raise ValueError('event requires description and confirming evidence')
+            if any(getattr(self, field) is not None for field in ('metric', 'metric_definition', 'period_start', 'period_end', 'comparator', 'threshold', 'unit', 'basis', 'currency')):
+                raise ValueError('event cannot contain a threshold, comparison or metric fields')
         return self
+
+
+def _row_data(condition):
+    # Historical metric snapshots and their hashes use precisely this old shape.
+    if condition.kind == 'metric':
+        return condition.model_dump(mode='json', exclude={'kind', 'currency', 'description', 'confirming_evidence'})
+    return condition.model_dump(mode='json', exclude_none=True)
 
 
 # Only spelling/case/spacing aliases of existing canonical labels. This is not
@@ -59,6 +87,8 @@ def _package(value):
 
 
 def _normalize_condition(condition, package=None):
+    if condition.kind != 'metric':
+        return condition, {}
     updates = {}
     for field in ('metric', 'metric_definition'):
         value = getattr(condition, field)
@@ -79,7 +109,9 @@ def _normalize_condition(condition, package=None):
 def _id(condition):
     # Measurement identity excludes explanatory prose. Tuple normalization is
     # exact even beyond Decimal's default context precision (no normalize()).
-    payload = condition.model_dump(mode='json', exclude={'rationale', 'thesis_role'})
+    payload = {k:v for k,v in _row_data(condition).items() if k not in {'rationale', 'thesis_role'}}
+    if condition.threshold is None:
+        return 'condition-' + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:24]
     sign, digits, exponent = condition.threshold.as_tuple()
     digits = list(digits)
     if not any(digits):
@@ -102,7 +134,7 @@ def _valid_id(value):
             and all(c in '0123456789abcdef' for c in value[10:]))
 
 
-def _conditions(values, *, preserve_ids=False, package=None):
+def _conditions(values, *, preserve_ids=False, package=None, quote_currency=None):
     accepted, warnings, by_measurement = [], [], {}
     if not isinstance(values, (list, tuple)):
         return [], ['Invalid advisory conditions: expected a list']
@@ -112,6 +144,8 @@ def _conditions(values, *, preserve_ids=False, package=None):
         try:
             payload = dict(item)
             condition, originals = _normalize_condition(_condition(payload), package)
+            if condition.kind == 'price_level' and not preserve_ids and condition.currency != quote_currency:
+                raise ValueError('price level currency does not match a validated instrument quote currency')
             saved_originals = payload.get('original_labels', {}) if preserve_ids else {}
             if isinstance(saved_originals, dict):
                 originals = {**{k:v for k,v in saved_originals.items()
@@ -130,7 +164,7 @@ def _conditions(values, *, preserve_ids=False, package=None):
                 aliases = list(dict.fromkeys([*row.get('condition_aliases', []), identifier, *aliases]))
                 warnings.append(f'Equivalent advisory measurement coalesced into {row["condition_id"]}.')
             else:
-                row = {**condition.model_dump(mode='json'), 'condition_id':identifier}
+                row = {**_row_data(condition), 'condition_id':identifier}
                 if originals:
                     row['original_labels'] = originals
                 by_measurement[key] = row
@@ -139,8 +173,9 @@ def _conditions(values, *, preserve_ids=False, package=None):
             if aliases:
                 row['condition_aliases'] = aliases[:8]
                 warnings.append(f'Condition {row["condition_id"]} aliases: ' + ', '.join(aliases[:8]))
-        except (ValidationError, ValueError, TypeError):
-            warnings.append(f'Invalid advisory condition at index {index}; retained only in raw diagnostics')
+        except (ValidationError, ValueError, TypeError) as exc:
+            reason = (exc.errors()[0]['msg'] if isinstance(exc, ValidationError) else str(exc))[:300]
+            warnings.append(f'Condition at index {index} stated but not retained: {reason}')
     return accepted, warnings
 
 
@@ -208,9 +243,45 @@ def observe_conditions(prior: dict | None, state: dict) -> list[dict]:
     observations = []
     for row in rows:
         condition = _condition(row)
-        observation = {**row, 'status':'unknown', 'reason':'Compatible canonical evidence unavailable',
+        observation = {**row, 'status':'unobserved' if condition.kind != 'metric' else 'unknown',
+                       'reason':'Compatible canonical evidence unavailable',
                        'observed_value':None, 'observed_date':None, 'fact_ids':[], 'source_ids':[]}
         observations.append(observation)
+        if condition.kind == 'event':
+            observation['reason'] = 'Open question; confirming evidence not automatically matched'
+            continue
+        if condition.kind == 'price_level':
+            observation['reason'] = 'Dated compatible completed close unavailable'
+            try:
+                from tradingagents.dataflows.vendors.yahoo.price_observation import (
+                    validate_price_observation,
+                )
+                ticker = state.get('company_of_interest') or state.get('ticker')
+                asof = state.get('trade_date') or (str(package.as_of) if package else None)
+                quote = validate_price_observation(state.get('price_observation'), ticker, asof)
+                if quote['currency'] != condition.currency or quote['session_status'] != 'completed':
+                    continue
+                if condition.expiry < date.fromisoformat(str(asof)):
+                    observation['reason'] = 'Condition expired; no current compliance conclusion'
+                    continue
+                value = Decimal(quote['close'])
+                met = {'>=': value >= condition.threshold, '>': value > condition.threshold,
+                       '<=': value <= condition.threshold, '<': value < condition.threshold,
+                       '==': value == condition.threshold}[condition.comparator]
+                observation.update(status='met' if met else 'breached', observed_value=str(value),
+                                   observed_date=quote['session_date'],
+                                   reason='Validated completed close satisfies advisory condition' if met else
+                                          'Validated completed close does not satisfy advisory condition')
+            except (ValueError, TypeError, KeyError):
+                pass
+            continue
+        analysis_date = package.as_of if package else None
+        if analysis_date is None and state.get('trade_date'):
+            with suppress(TypeError, ValueError):
+                analysis_date = date.fromisoformat(str(state['trade_date']))
+        if analysis_date is not None and condition.period_end > analysis_date:
+            observation['reason'] = 'Period not yet reported; measurement period ends after analysis date'
+            continue
         if condition.metric_definition != condition.metric:
             observation['reason'] = 'Unsupported metric definition; canonical metric scope must match exactly'
             continue
@@ -275,19 +346,29 @@ def _texts(value, count, length):
     return [item[:length] for item in value[:count] if isinstance(item, str)] if isinstance(value, list) else []
 
 
-def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financial_evidence=None) -> dict:
+def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financial_evidence=None,
+                   price_observation=None, ticker=None) -> dict:
     """Prepare an idempotent JSON proposal; publication supplies its known-at time."""
     UUID(run_id)
     date.fromisoformat(asof)
     candidate = candidate if isinstance(candidate, dict) else {}
     prior = prior if isinstance(prior, dict) else {}
     package = _package(financial_evidence)
+    quote_currency = None
+    if price_observation is not None and ticker:
+        try:
+            from tradingagents.dataflows.vendors.yahoo.price_observation import (
+                validate_price_observation,
+            )
+            quote_currency = validate_price_observation(price_observation, ticker, asof)['currency']
+        except (ValueError, TypeError, KeyError):
+            pass
     prior_conditions, warnings = _conditions(prior.get('conditions', []), preserve_ids=True, package=package)
     proposed = candidate.get('conditions')
     if proposed is None:
         conditions = prior_conditions
     else:
-        conditions, proposal_warnings = _conditions(proposed, package=package)
+        conditions, proposal_warnings = _conditions(proposed, package=package, quote_currency=quote_currency)
         warnings.extend(proposal_warnings)
         if proposal_warnings and not conditions and proposed != []:
             conditions = prior_conditions
@@ -408,6 +489,11 @@ def _display(value, limit=300):
     return text + (' [truncated]' if truncated else '')
 
 
+def _prompt_display(value, limit=300):
+    text = ' '.join(str(value if value is not None else 'unknown').split())
+    return text[:limit] + (' [truncated]' if len(text) > limit else '')
+
+
 def condition_role_label(row):
     return {'supports_thesis': 'Supports current thesis',
             'reconsideration_trigger': 'Reconsideration trigger'}.get(row.get('thesis_role'), 'Unspecified thesis role')
@@ -416,6 +502,8 @@ def condition_role_label(row):
 def condition_status_label(row):
     """Separate observed predicate truth from the model's advisory thesis intent."""
     status = row.get('status', 'unknown')
+    if status == 'unobserved':
+        return 'Unobserved; advisory question remains open'
     role = row.get('thesis_role', 'unspecified')
     if role == 'supports_thesis':
         return {'met': 'Support condition met', 'breached': 'Support condition breached'}.get(status, 'Support condition unknown')
@@ -425,14 +513,24 @@ def condition_status_label(row):
             'breached': 'Comparison not satisfied; thesis role unspecified'}.get(status, 'Comparison unknown; thesis role unspecified')
 
 
-def _condition_line(row):
+def _condition_line(row, display=_display):
+    if row.get('kind') == 'event':
+        return (f"{display(row.get('condition_id'), 100)}: event {display(row.get('description'), 500)}; "
+                f"confirming evidence {display(row.get('confirming_evidence'), 500)}; "
+                f"expires {display(row.get('expiry'), 20)}; role {display(condition_role_label(row), 40)} "
+                '(unvalidated research intent)')
+    if row.get('kind') == 'price_level':
+        return (f"{display(row.get('condition_id'), 100)}: completed close "
+                f"{display(row.get('comparator'), 10)} {display(row.get('threshold'), 100)} "
+                f"{display(row.get('currency'), 10)}; expires {display(row.get('expiry'), 20)}; "
+                f"role {display(condition_role_label(row), 40)} (unvalidated research intent)")
     start = row.get('period_start')
     period = f"{start} to {row.get('period_end', 'unknown')}" if start else row.get('period_end', 'unknown')
-    return (f"{_display(row.get('condition_id'), 100)}: {_display(row.get('metric'), 120)}; "
-            f"period {_display(period, 50)}; {_display(row.get('comparator'), 10)} "
-            f"{_display(row.get('threshold'), 100)} {_display(row.get('unit'), 40)}; "
-            f"basis {_display(row.get('basis'), 80)}; expires {_display(row.get('expiry'), 20)}; "
-            f"role {_display(condition_role_label(row), 40)} (unvalidated research intent)")
+    return (f"{display(row.get('condition_id'), 100)}: {display(row.get('metric'), 120)}; "
+            f"period {display(period, 50)}; {display(row.get('comparator'), 10)} "
+            f"{display(row.get('threshold'), 100)} {display(row.get('unit'), 40)}; "
+            f"basis {display(row.get('basis'), 80)}; expires {display(row.get('expiry'), 20)}; "
+            f"role {display(condition_role_label(row), 40)} (unvalidated research intent)")
 
 
 def _bounded_rows(value):
@@ -445,18 +543,18 @@ def render_prior_thesis(prior) -> str:
     if not isinstance(prior, dict):
         return 'Prior advisory thesis unavailable; legacy prose has unknown authority.'
     lines = ['Prior thesis conditions are advisory, not binding; they cannot force a rating.',
-             f"Version: {_display(prior.get('version_id'), 100)}; prior rating: {_display(prior.get('canonical_rating'), 40)}."]
+             f"Version: {_prompt_display(prior.get('version_id'), 100)}; prior rating: {_prompt_display(prior.get('canonical_rating'), 40)}."]
     rows, omitted = _bounded_rows(prior.get('observations', prior.get('conditions', [])))
     for row in rows:
-        lines.append(f"- {_condition_line(row)}; {_display(condition_status_label(row), 100)}; "
-                     f"observed {_display(row.get('observed_value'), 100)} on {_display(row.get('observed_date'), 20)}. "
-                     f"Observation: {_display(row.get('reason', 'observation unavailable'))}.")
+        lines.append(f"- {_condition_line(row, _prompt_display)}; {_prompt_display(condition_status_label(row), 100)}; "
+                     f"observed {_prompt_display(row.get('observed_value'), 100)} on {_prompt_display(row.get('observed_date'), 20)}. "
+                     f"Observation: {_prompt_display(row.get('reason', 'observation unavailable'))}.")
     if not rows:
         lines.append('No structured prior conditions available.')
     if omitted:
         lines.append(f'{omitted} additional conditions omitted from this bounded display.')
     if prior.get('rationale'):
-        lines.append('Prior rationale (unvalidated research, not verified evidence): ' + _display(prior['rationale']))
+        lines.append('Prior rationale (unvalidated research, not verified evidence): ' + _prompt_display(prior['rationale'], 1000))
     return '\n'.join(lines)
 
 
@@ -470,7 +568,7 @@ def render_thesis(thesis) -> str:
              f"recommendation {_display(thesis.get('recommendation_disposition'), 40)}.",
              'Rationale, assumptions, proposed conditions and departure reasons are unvalidated research, '
              'not verified evidence, authoritative price targets or position-sizing instructions.',
-             'Rationale (unvalidated research): ' + _display(thesis.get('rationale', 'rationale not supplied'))]
+             'Rationale (unvalidated research): ' + _display(thesis.get('rationale', 'rationale not supplied'), 1000)]
     assumptions = thesis.get('assumptions')
     if isinstance(assumptions, list):
         lines.extend('- Assumption (unvalidated research): ' + _display(item) for item in assumptions[:8])
@@ -495,7 +593,9 @@ def render_thesis(thesis) -> str:
         lines.append(f'{omitted} additional prior conditions omitted from this bounded display.')
     warnings = thesis.get('warnings')
     if isinstance(warnings, list):
-        lines.extend('Coverage: ' + _display(warning) for warning in warnings[:8])
+        visible = [warning for warning in warnings if isinstance(warning, str) and 'stated but not retained' in warning]
+        visible.extend(warning for warning in warnings if warning not in visible)
+        lines.extend('Coverage: ' + _display(warning) for warning in visible[:8])
     return '\n'.join(lines)
 
 
@@ -528,7 +628,7 @@ def legacy_thesis_context(entries, ticker, asof, *, historical=False) -> str:
     if not eligible:
         return ''
     labelled_date, entry = max(eligible, key=lambda pair: pair[0])
-    quoted = _display(entry['decision'], 2300)
+    quoted = _prompt_display(entry['decision'], 2300)
     if len(quoted) > 2500:
         quoted = quoted[:2480] + ' [truncated]'
     return (f'Legacy decision labelled {labelled_date}: publication time unknown; '

@@ -319,7 +319,7 @@ class ThesisProposal(BaseModel):
     assumptions: list[str] = Field(default_factory=list, max_length=8)
     evidence_refs: list[str] = Field(default_factory=list, max_length=16)
     conditions: list[ThesisCondition] | None = Field(default=None, max_length=8,
-        description="Advisory conditions only. Use exact canonical metric labels for metric and metric_definition, exact period/unit/basis, threshold, expiry and thesis_role (supports_thesis, reconsideration_trigger, or unspecified). The role is unvalidated intent, not enforcement. None retains prior conditions; [] explicitly retires them. No hard rules.")
+        description="Advisory conditions of kind metric (default legacy shape: canonical metric/definition, period, comparison, threshold, unit, basis), price_level (positive completed-close threshold, comparator, instrument quote currency, expiry), or event (observable description, confirming evidence, expiry; no threshold/comparator). Every kind needs rationale and thesis_role. None retains prior conditions; [] explicitly retires them. These are research questions, never trading rules.")
     dispositions: list[AdvisoryDisposition] = Field(default_factory=list, max_length=8,
         description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
 
@@ -371,7 +371,7 @@ class PortfolioDecision(BaseModel):
         ),
     )
     thesis_candidate: ThesisProposal | None = Field(default=None,
-        description="Persistent advisory thesis: material assumptions, exact evidence references, measurable future conditions and reason for each prior condition disposition. Research proposals are not verified facts or automatic trading rules.")
+        description="Persistent advisory thesis: material assumptions, exact evidence references, metric, completed-close price and observable event conditions, and reason for each prior disposition. Research proposals are not verified facts or automatic trading rules.")
     _unvalidated_thesis_candidate: object = PrivateAttr(default=None)
     _unvalidated_valuation_request: object = PrivateAttr(default=None)
 
