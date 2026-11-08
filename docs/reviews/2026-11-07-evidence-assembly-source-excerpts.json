@@ -1,0 +1,264 @@
+{
+  "purpose": "Bounded verbatim source-block excerpts, re-extracted by current parser from hash-verified public fixture raw bytes; not an independently decoded reviewer input. Full compressed originals and input hashes remain in the fixture manifest.",
+  "sources": [
+    {
+      "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+      "content_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+      "filed_date": "2026-02-24",
+      "report_date": "2025-12-31",
+      "blocks": [
+        {
+          "locator": "block-911",
+          "section": "Document",
+          "text": "NOTES TO CONSOLIDATED FINANCIAL STATEMENTS",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-912",
+          "section": "Document",
+          "text": "(in thousands, except share and per share amounts)",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-928",
+          "section": "Document",
+          "text": "The reporting currency of the Company is the United States dollar (“USD”). The functional currency of the Company is USD, and the functional currency of the Company’s subsidiaries is primarily the local currency of the jurisdiction in which the foreign subsidiary is located. The assets and liabilities of the Company’s subsidiaries are translated to USD at exchange rates in effect at the balance sheet date. All income statement accounts are translated at monthly average exchange rates. Resulting foreign currency translation adjustments are recorded directly in accumulated other comprehensive loss.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-1084",
+          "section": "Document",
+          "text": "The Company has performance obligations associated with commitments in customer contracts for future services that have not yet been recognized in the consolidated financial statements. As of December 31, 2025, the aggregate transaction price allocated to the remaining performance obligations, which includes contracts with expected term of one year or less, is $134,085 with a weighted-average life of 2.0 years. As of December 31, 2025, the Company expects to recognize $72,799 of its remaining performance obligations as revenue over the next 12 months, with the remainder recognized thereafter over the remaining life of the contracts.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        }
+      ]
+    },
+    {
+      "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm",
+      "content_hash": "e5702f82329f857c41a948e957efbcda16c5eaa9132004baec404bfd8669e076",
+      "filed_date": "2026-11-03",
+      "report_date": "2026-11-02",
+      "blocks": [
+        {
+          "locator": "block-4",
+          "section": "Document",
+          "text": "Raising Q4 2026 exit revenue growth outlook to 44-45% and increasing expected 2027 revenue growth to 60%+",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-11",
+          "section": "Document",
+          "text": "Third Quarter 2026 Financial Highlights(1):",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-12",
+          "section": "Document",
+          "text": "•Revenue was $321 million, an increase of 40%.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-17",
+          "section": "Document",
+          "text": "•Adjusted operating income was $74 million, an increase of 6%, and adjusted operating income margin was 23%.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-24",
+          "section": "Document",
+          "text": "•Remaining Performance Obligation (“RPO”)(2) was $800 million, of which, $345 million is expected to be recognized over the next 12 months. RPO was $61 million in the third quarter of 2025.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-35",
+          "section": "Document",
+          "text": "(1)All growth rates are year-over-year unless otherwise specified.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-36",
+          "section": "Document",
+          "text": "(2)Beginning in the fourth quarter of 2025, the RPO amount represents all contracts regardless of the duration of their original expected term. Prior periods have been recast to conform to the current period presentation. Refer to our Annual Report on Form 10-K for the year ended December 31, 2025 for further details.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-39",
+          "section": "Document",
+          "text": "Financial Outlook:",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-40",
+          "section": "Document",
+          "text": "DigitalOcean is providing guidance for the fourth quarter ending December 31, 2026 as follows:",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-41",
+          "section": "Document",
+          "text": "•Total revenue of $348 to $351 million, up 44% to 45% year-over-year.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-42",
+          "section": "Document",
+          "text": "•Adjusted EBITDA margin of 42% to 43%.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-43",
+          "section": "Document",
+          "text": "•Non-GAAP diluted net income per share of $0.30 to $0.32.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-44",
+          "section": "Document",
+          "text": "•Fully diluted weighted average shares outstanding of approximately 128 to 129 million shares.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-45",
+          "section": "Document",
+          "text": "For the full year 2026, we now expect:",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-46",
+          "section": "Document",
+          "text": "•Total revenue of $1.208 to $1.211 billion, up approximately 34% year-over-year.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-47",
+          "section": "Document",
+          "text": "•Adjusted EBITDA margin of 41% to 42%.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-48",
+          "section": "Document",
+          "text": "•Adjusted free cash flow margin in the range of 20% to 22% of revenue.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-49",
+          "section": "Document",
+          "text": "•Non-GAAP diluted net income per share of $1.60 to $1.62",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-50",
+          "section": "Document",
+          "text": "•Fully diluted weighted average shares outstanding of approximately 122 to 123 million shares.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-51",
+          "section": "Document",
+          "text": "A reconciliation of non-GAAP outlook measures to corresponding GAAP measures is not available on a forward-looking basis without unreasonable effort due to the uncertainty regarding, and the potential variability of, expenses that may be incurred in the future. For example, stock-based compensation expense-related charges are impacted by the timing of employee stock transactions, the future fair market value of our common stock, and our future hiring and retention needs, all of which are difficult to predict and subject to constant change. Accordingly, a reconciliation is not available without unreasonable effort and we are unable to assess the probable significance of the unavailable information, although it is important to note that these factors could be material to our results computed in accordance with GAAP.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-52",
+          "section": "Document",
+          "text": "The financial guidance presented in this release are estimates based on information available to management as of the date of this release. There can be no assurance that our actual results will not differ from the financial guidance presented in this release.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        }
+      ]
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filed_date": "2026-11-03",
+      "report_date": "2026-09-30",
+      "blocks": [
+        {
+          "locator": "block-89",
+          "section": "Document",
+          "text": "NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-147",
+          "section": "Document",
+          "text": "Remaining Performance Obligations",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-148",
+          "section": "Document",
+          "text": "The Company has performance obligations associated with commitments in customer contracts for future services that have not yet been recognized in the condensed consolidated financial statements. As of September 30, 2026, the aggregate transaction price allocated to the remaining performance obligations, which includes contracts with expected term of one year or less, was $799,707 with a weighted-average life of 3.7 years. As of September 30, 2026, the Company expects to recognize $345,111 of its remaining performance obligations as revenue over the next 12 months, with the remainder recognized thereafter over the remaining life of the contracts.",
+          "truncated": false,
+          "currency": null,
+          "currency_locator": null
+        },
+        {
+          "locator": "block-226",
+          "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+          "text": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | | $ | 187,420 | | | $ | 923,599 | ; Less: Finance lease liabilities and equipment financing obligations, current | (159,047) | | | (45,731) | | | (204,778) | ; Finance lease liabilities and equipment financing obligations, long-term | $ | 577,132 | | | $ | 141,689 | | | $ | 718,821 |",
+          "truncated": false,
+          "currency": "USD",
+          "currency_locator": "inline XBRL unitRef usd -> iso4217:USD"
+        }
+      ]
+    }
+  ]
+}

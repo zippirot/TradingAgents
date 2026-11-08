@@ -63,6 +63,7 @@ def test_filing_brief_version_separates_predecessor_checkpoint_identity():
     graph.config = dict(DEFAULT_CONFIG)
     graph.selected_analysts = ["fundamentals"]
     current = graph._run_signature("stock")
-    assert "shared_source_brief=4" in current
-    predecessor = current.replace("shared_source_brief=4", "shared_source_brief=3")
-    assert thread_id("DOCN", "2026-11-06", current) != thread_id("DOCN", "2026-11-06", predecessor)
+    assert "shared_source_brief=5" in current
+    for version in (3, 4):
+        predecessor = current.replace("shared_source_brief=5", f"shared_source_brief={version}")
+        assert thread_id("DOCN", "2026-11-06", current) != thread_id("DOCN", "2026-11-06", predecessor)
