@@ -18,8 +18,10 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, convert_to_messages
+from langchain_core.outputs import ChatGeneration, LLMResult
 from langchain_core.runnables import Runnable
+from langchain_core.runnables.config import get_callback_manager_for_config
 from langgraph.config import get_config as graph_config
 
 import cli.run as cli_run
@@ -53,6 +55,30 @@ class OfflineModel(Runnable):
         return OfflineModel(self.calls, self.control, schema)
 
     def invoke(self, prompt, config=None, **kwargs):
+        # Emulate the provider's public callback boundary; these token counts and
+        # model identities are synthetic, never measurements of a paid model.
+        messages = (prompt.to_messages() if hasattr(prompt, "to_messages") else
+                    [HumanMessage(content=prompt)] if isinstance(prompt, str) else
+                    convert_to_messages(prompt))
+        managers = get_callback_manager_for_config(config or graph_config()).on_chat_model_start(
+            {"name": "OfflineModel"}, [messages],
+            invocation_params={"model": "offline-requested-synthetic"})
+        try:
+            result = self._response(prompt)
+        except BaseException as error:
+            for manager in managers:
+                manager.on_llm_error(error)
+            raise
+        message = result if isinstance(result, AIMessage) else AIMessage(content=result.model_dump_json())
+        message = message.model_copy(update={
+            "usage_metadata": {"input_tokens": 17, "output_tokens": 9, "total_tokens": 26},
+            "response_metadata": {"model_name": "offline-returned-synthetic"}})
+        response = LLMResult(generations=[[ChatGeneration(message=message)]])
+        for manager in managers:
+            manager.on_llm_end(response)
+        return result
+
+    def _response(self, prompt):
         node = graph_config().get("metadata", {}).get("langgraph_node", "unknown")
         self.calls.append((node, self.schema.__name__ if self.schema else "text"))
         if node == "Trader" and self.control.pop("interrupt_trader", False):
@@ -142,11 +168,20 @@ def _comparison_pair(root, cfg, common_flags):
             for line in path.read_text().splitlines()]
     assert any(row["event"] == "source_replayed" for row in rows)
     assert all(row["event"] != "replay_miss" for row in rows)
+    model_starts = [row for row in rows if row["event"] == "model_start"]
+    model_ends = [row for row in rows if row["event"] == "model_end"]
+    assert model_starts and len(model_starts) == len(model_ends)
+    assert all(row["prompts"] for row in model_starts)
+    assert all(row["outputs"] for row in model_ends)
+    assert {row["requested_model"] for row in model_starts} == {"offline-requested-synthetic"}
+    assert {row["actual_model"] for row in model_ends} == {"offline-returned-synthetic"}
     assert all(SECRET not in path.read_text(errors="ignore") for path in candidate.rglob("*") if path.is_file())
     assert (candidate / "reports/complete_report.html").is_file()
     return {"baseline": str(baseline), "candidate": str(candidate),
             "source_replay_hits": sum(row["event"] == "source_replayed" for row in rows),
             "replay_misses": 0, "starting_snapshot_equal": True,
+            "model_callback_starts": len(model_starts), "model_callback_ends": len(model_ends),
+            "model_identity_and_usage": "synthetic provider fixture; no live identity or billed usage claim",
             "baseline_stores_unchanged_by_candidate": True,
             "candidate_publication_id": candidate_state["publication_record"]["decision_id"],
             "candidate_state_sha256": hashlib.sha256(json.dumps(candidate_state, sort_keys=True).encode()).hexdigest()}
