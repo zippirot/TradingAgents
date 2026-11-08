@@ -22,7 +22,7 @@ def source_state(monkeypatch):
 def test_shared_brief_retains_price_fact_definitions_and_bound(monkeypatch):
     state = source_state(monkeypatch)
     text = context.build_shared_source_brief(state)
-    assert "20 USD" in text and "2026-10-19" in text
+    assert "20.00 USD" in text and "2026-10-19" in text
     assert state["price_observation"]["source_id"] in text
     assert "Common Shares Outstanding" in text and "2026-06-30" in text
     assert "source_ids" in text and "period_start" in text and "basis" in text
@@ -39,7 +39,7 @@ def test_integrity_failure_keeps_price_but_no_financial_endorsement(monkeypatch)
     state["evidence_acquisition"]["source_checks"][0]["message"] = "Conflicting source lineage"
     text = context.build_shared_source_brief(state)
     assert "Conflicting source lineage" in text
-    assert "20 USD" in text and "Common Shares Outstanding" not in text
+    assert "20.00 USD" in text and "Common Shares Outstanding" not in text
     state["price_observation"] = {"status": "unavailable", "reason": "No completed source bar"}
     assert "No completed source bar" in context.build_shared_source_brief(state)
 

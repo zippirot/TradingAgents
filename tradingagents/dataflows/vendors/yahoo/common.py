@@ -32,15 +32,17 @@ def recorded_history(symbol, *, source_factory=None, include_metadata=True, **re
         return fetch()
 
     def acquire():
-        from tradingagents.dataflows.vendors.yahoo.price_observation import _now
+        from tradingagents.dataflows.vendors.yahoo.price_observation import _now, _price_precision
 
         history, metadata = fetch()
         if history is None:
             return {"csv": None, "metadata": metadata, "retrieved_at": _now().isoformat()}
-        return {**_frame_payload(history),
-                "metadata": {key: metadata.get(key) for key in (
-                    "symbol", "currency", "exchangeTimezoneName", "currentTradingPeriod")},
-                "retrieved_at": _now().isoformat()}
+        retained_metadata = {key: metadata.get(key) for key in (
+            "symbol", "currency", "exchangeTimezoneName", "currentTradingPeriod")}
+        precision = _price_precision(metadata.get("priceHint"))
+        if precision is not None:
+            retained_metadata["priceHint"] = precision
+        return {**_frame_payload(history), "metadata": retained_metadata, "retrieved_at": _now().isoformat()}
 
     raw = external_input("yahoo_history", {"symbol": symbol, "request": request,
                                            "include_metadata": include_metadata}, acquire)

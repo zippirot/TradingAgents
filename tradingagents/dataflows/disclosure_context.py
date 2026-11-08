@@ -66,6 +66,11 @@ def qualified_value_spans(quote, kind):
     n = _NUMBER
     if kind == 'historical':
         match = re.fullmatch(
+            r"(?P<amount>Revenue was \$" + n + r" (?:million|billion)), an (?:increase|decrease) of "
+            + n + r"%\.", quote, re.I)
+        if match:
+            return (match['amount'],)
+        match = re.fullmatch(
             r"(?P<amount>(?P<metric>Adjusted operating income|Adjusted EBITDA) was \$" + n
             + r" (?:million|billion)), an (?:increase|decrease) of " + n
             + r"%, and (?P<margin>(?P<margin_metric>adjusted operating income|adjusted EBITDA) margin was "
@@ -239,7 +244,7 @@ def validate_context(claim, blocks, packages):
         value_block = source(claim.locator)
         if claim.comparator == "at_least":
             bound = lower_bound_clause(value_block.text.strip())
-            if bound is None or claim.quote != bound['quote']:
+            if bound is None or claim.quote not in (bound['quote'], value_block.text.strip()):
                 raise ValueError("lower-bound clause lacks its supported complete source headline")
         if not scoped:
             return False, False, None

@@ -1,0 +1,82 @@
+[
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+    "before_hash": "08549ed25733257842cef8fa9f2c02fdf12dcc54612112f3c7c6505e404a6e98",
+    "after_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+    "old_blocks": 1391,
+    "new_blocks": 1391,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm",
+    "before_hash": "8f6fa50d949703be12a622f4568299a6b655e8382709f67d84756525d48db13e",
+    "after_hash": "97280aa532a85b0d08d2794fd661032cb10a0d6e7e1c00cd0f78fdbed2c7faa6",
+    "old_blocks": 505,
+    "new_blocks": 505,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000110465926121722/tm2628707d1_424b5.htm",
+    "before_hash": "937fe5017daae13ff630e00667dcf5ce153c35b02f350eceaa2a865439a43367",
+    "after_hash": "937fe5017daae13ff630e00667dcf5ce153c35b02f350eceaa2a865439a43367",
+    "old_blocks": 370,
+    "new_blocks": 370,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/docn-20261103.htm",
+    "before_hash": "7894747485c93330428a981e3fa9f385effe853a80c0a8774e45420c443de29a",
+    "after_hash": "1668d74c6a17c99a51f86d721cb5e51101921178f2d36d9f5100823b59a7f82b",
+    "old_blocks": 45,
+    "new_blocks": 45,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/ex11-equitydistributionagr.htm",
+    "before_hash": "ee5ab4b9b66b5206ca84fab9eb97db76dd2330d967c2027c5d1119625526459c",
+    "after_hash": "ee5ab4b9b66b5206ca84fab9eb97db76dd2330d967c2027c5d1119625526459c",
+    "old_blocks": 413,
+    "new_blocks": 413,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/ex51opinionoffreshfieldsus.htm",
+    "before_hash": "986137c03ad6898e7f039aaa483f450b81d03cff4277219cdbcb7cc497c2028b",
+    "after_hash": "986137c03ad6898e7f039aaa483f450b81d03cff4277219cdbcb7cc497c2028b",
+    "old_blocks": 20,
+    "new_blocks": 20,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm",
+    "before_hash": "c4060c33f967164d4f79d532579b43ef655ce3156265c711ceaf4b4105c1c6b3",
+    "after_hash": "e5702f82329f857c41a948e957efbcda16c5eaa9132004baec404bfd8669e076",
+    "old_blocks": 151,
+    "new_blocks": 151,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  },
+  {
+    "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+    "before_hash": "ce31022f3663c2126809c55128ef3d993acae66a02ca15e2901954534208ae5e",
+    "after_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+    "old_blocks": 523,
+    "new_blocks": 523,
+    "added_locators": [],
+    "removed_locators": [],
+    "changed_text_locators": []
+  }
+]

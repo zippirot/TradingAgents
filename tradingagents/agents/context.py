@@ -231,8 +231,17 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             state.get("price_observation") or {}, state["company_of_interest"],
             date.fromisoformat(state["trade_date"]),
         )
+        from decimal import Decimal
+
+        from tradingagents.agents.valuation_comparison import display_number
+
+        price = display_number(quote['close'])
+        if quote.get('price_precision') is not None:
+            rounded = f"{Decimal(quote['close']):.{quote['price_precision']}f}"
+            if Decimal(rounded) != 0:
+                price = rounded
         lines.append(
-            f"Canonical completed price: {quote['close']} {quote['currency']}; session {quote['session_date']}; "
+            f"Canonical completed price: {price} {quote['currency']}; session {quote['session_date']}; "
             f"timezone {quote['exchange_timezone']}; basis {quote['adjustment_basis']}; "
             f"source_id {quote['source_id']}. Dated completed close, not an executable or intraday quote."
         )
@@ -299,15 +308,29 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
         # retained filing package rather than trusting a later event summary.
         financing = issuer_supplement({}, state.get("filing_evidence"),
                                      cik=package.cik, as_of=str(package.as_of))
-        forms = {event["source_id"]: event["form"] for event in financing["events"]}
         for event in financing["financing_records"]:
+            if event['type'] != 'at_the_market_program':
+                lines.append(
+                    f"Financing disclosure: {event['form']} filed {event['known_at']}; "
+                    f"source_id {event['source_id']}, {event['locator']}; "
+                    f"reporting currency {event['currency'] or 'unresolved'}. Source statement: {event['quote']}"
+                )
+                continue
             denomination = event["currency"] or "source $; denomination unknown"
             lines.append(
-                f"Financing authorization: {forms[event['source_id']]} filed {event['known_at']}; "
+                f"Financing authorization: {event['form']} filed {event['known_at']}; "
                 f"at-the-market program up to {event['authorized_amount']} {denomination}; "
                 f"source_id {event['source_id']}, {event['locator']}. "
                 "Authorized capacity does not establish issuance; remaining capacity is unknown."
             )
+        from tradingagents.agents.retained_kpi_context import (
+            render_lease_maturities,
+            render_retained_kpi_history,
+        )
+
+        for retained_context in (render_retained_kpi_history(state), render_lease_maturities(state)):
+            if retained_context:
+                lines.append(retained_context)
         # Latest records from each metric, plus annual earnings/revenue baselines.
         # Round-robin selection avoids rich history crowding out other definitions.
         groups = {}

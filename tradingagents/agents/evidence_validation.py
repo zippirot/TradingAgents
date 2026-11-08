@@ -462,7 +462,8 @@ def assess_financial_package(
     from tradingagents.agents.document_access import validated_document_corpus
     from tradingagents.dataflows.vendors.sec_edgar import confirm_current_marketable_securities
 
-    package = confirm_current_marketable_securities(package, validated_document_corpus(state))
+    corpus = validated_document_corpus(state)
+    package = confirm_current_marketable_securities(package, corpus)
     if rpo_comparison is not None:
         from tradingagents.agents.kpi_comparisons import replay_rpo_comparison
 
@@ -478,7 +479,8 @@ def assess_financial_package(
             search_packages = retained_search_packages(state)
         except ValueError as exc:
             source_errors.append(f"Retained document search integrity: {exc}")
-    quote_packages = tuple(([disclosures] if disclosures is not None else []) + search_packages)
+    quote_packages = tuple(([disclosures] if disclosures is not None else [])
+                           + ([corpus] if corpus is not None else []) + search_packages)
     if quote_packages:
         from tradingagents.dataflows.disclosure_context import collapse_quote_packages
 
@@ -705,9 +707,10 @@ def assess_financial_package(
             # flooding decision/report coverage with per-record diagnostics.
             # Full rejects and warnings remain in the extraction evidence.
             checks.append({"code": "optional_disclosure_summary", "status": "unavailable",
-                "message": (f"Model submission rejected: {len(model_grounded.rejected) if model_grounded else 0} record(s); "
-                            f"source extraction rejected: {len(discovered.rejected)} record(s). "
-                            "Raw details retained in disclosure evidence. "
+                "message": ((f"Model submission rejected: {len(model_grounded.rejected)} record(s); "
+                             if model_grounded is not None else "Model submissions not yet assessed; ")
+                            + f"source extraction rejected: {len(discovered.rejected)} record(s). "
+                            "raw details retained in disclosure evidence. "
                             + ("Missing optional disclosure detail: " + "; ".join(dict.fromkeys(grounded.warnings))
                                if grounded.warnings else "")
                             + (" No supported operating KPI or guidance record extracted." if not grounded.claims else ""))})
@@ -804,6 +807,14 @@ def assess_financial_package(
     terms = render_filing_terms(state)
     if terms:
         update["canonical_financial_context"] += "\n\n" + terms
+    from tradingagents.agents.retained_kpi_context import (
+        render_lease_maturities,
+        render_retained_kpi_history,
+    )
+
+    for retained_context in (render_retained_kpi_history(state), render_lease_maturities(state)):
+        if retained_context:
+            update["canonical_financial_context"] += "\n\n" + retained_context
     if source_only:
         if extraction is not None:
             update["filing_fact_extraction"] = extraction.model_dump(mode="json")

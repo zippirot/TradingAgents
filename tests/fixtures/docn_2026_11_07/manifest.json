@@ -113,6 +113,31 @@
       "sha256": "e674e46328a94af25f476fcc644d4c570e0422c7dc65d33eebf25513f1898d42",
       "decoded_sha256": "de15f4df70171544b21842a43576111f01ccc0da75f67234e23a9a92c6fd869c",
       "decoded_bytes": 708282
+    },
+    "raw-companyfacts-docn.json.gz": {
+      "sha256": "e61ab71fb3c5c7d3cb5a5cd98901cd1159364a2eded47383c7b31634ce138581",
+      "decoded_sha256": "56488831d3ff677631aa8ae79c9a4ae1102d2c7a7519af533fddb2f65ec35ae3",
+      "decoded_bytes": 1528882
+    },
+    "raw-companyfacts-nbis.json.gz": {
+      "sha256": "ee3847e91c313ddab8bf497bbae16b4ec92b8689a444aefc803fc00151031ea2",
+      "decoded_sha256": "a4785853f2121a1c28590c801af749e2168b6d225ffba53ae4d1f3f36cc03478",
+      "decoded_bytes": 1568737
+    },
+    "issuer-map.json.gz": {
+      "sha256": "d191b013872f45b440f74735f7a6a8f21af1433d0cd8debe0a16140e21e4b571",
+      "decoded_sha256": "4637cf1e5bffa71e33e11bb4f113955811d7f6aeb6b52aff8cb0117e7ff6c2f6",
+      "decoded_bytes": 796507
+    },
+    "docn-submissions.json.gz": {
+      "sha256": "0e33f4f3abeb915162df369b25e7b27d74002eae07dff04275b2660bb882caf9",
+      "decoded_sha256": "500fe82c054f9129c4877502d622c830c7c603eee5de3318335c1d6b0edd104e",
+      "decoded_bytes": 124452
+    },
+    "cfae95e9-price-source.json.gz": {
+      "sha256": "06cade75a5e14f5b0cdd3e09902d1d7ea356b8e6385a85b486b6be09308b7d9d",
+      "decoded_sha256": "d7521140d95945fd16cb62bf91003b02ba4c33d3b5989e32b7764b88d7c00242",
+      "decoded_bytes": 4376
     }
   },
   "recorded_discovery_counts": {

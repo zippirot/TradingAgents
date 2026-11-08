@@ -146,3 +146,16 @@ def test_peer_fetch_passes_three_calendar_year_floor(monkeypatch):
     assert result["status"] == "available", result
     assert calls == [(("PEER", "2026-10-19"),
                       {"peer_revenue_definitions": True, "period_floor": date(2023, 10, 19)})]
+
+
+def test_recorded_nbis_exclusion_names_consumed_revenue_metric(monkeypatch, tmp_path):
+    from tests.docn_workflow_fixture import source_json
+
+    mapping = source_json('issuer-map.json.gz')
+    raw = source_json('raw-companyfacts-nbis.json.gz')
+    monkeypatch.setattr(sec_edgar, 'get_config', lambda: {'data_cache_dir': str(tmp_path)})
+    monkeypatch.setattr(sec_edgar, '_cached_json',
+                        lambda url, name: mapping if name == 'company_tickers.json' else raw)
+    with pytest.raises(VendorUnavailableError, match='Revenues at 2023-12-31'):
+        sec_edgar.get_financial_evidence('NBIS', '2026-11-07', peer_revenue_definitions=True,
+                                         period_floor=date(2023, 11, 7))

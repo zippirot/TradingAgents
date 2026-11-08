@@ -280,6 +280,9 @@ def _project(raw):
         "content_hash": _hash(raw),
         "raw_source": raw,
     }
+    precision = _price_precision(metadata.get("priceHint"))
+    if precision is not None:
+        result["price_precision"] = precision
     missing_later = sorted(day for day in missing_completed if day > session)
     if missing_later:
         result["price_fallback"] = {
@@ -289,6 +292,11 @@ def _project(raw):
             "missing_completed_session_dates": [str(day) for day in missing_later],
         }
     return result
+
+
+def _price_precision(value):
+    """Provider display precision only; never changes the retained numeric close."""
+    return value if type(value) is int and 0 <= value <= 10 else None
 
 
 def _source_close(value):
@@ -361,6 +369,9 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
                 for index, row in history.iterrows()
             ],
         }
+        precision = _price_precision(metadata.get("priceHint"))
+        if precision is not None:
+            raw["metadata"]["priceHint"] = precision
         from tradingagents.dataflows.config import get_config
         observation_cutoff = get_config().get("_market_observation_cutoff")
         if observation_cutoff:

@@ -209,7 +209,12 @@ def validate_disclosure_claims(
     """
     if len(claims) > 32:
         raise ValueError("at most 32 disclosure records may be extracted")
-    from tradingagents.dataflows.disclosure_context import collapse_quote_packages, validate_context
+    from tradingagents.dataflows.disclosure_context import (
+        collapse_quote_packages,
+        lower_bound_clause,
+        qualified_value_spans,
+        validate_context,
+    )
 
     try:
         packages = collapse_quote_packages(packages)
@@ -220,9 +225,25 @@ def validate_disclosure_claims(
     accepted, rejected, warnings = [], [], []
     for index, claim in enumerate(claims):
         text = blocks.get((claim.source_id, claim.locator))
-        period_external, definition_external, context_error = validate_context(claim, blocks, packages)
+        effective = claim
+        # Recognize the same finite qualified source forms as discovery. Keep
+        # the original submitted sentence and every qualification in the record;
+        # only its numeric proof uses the uniquely matching supported sub-span.
+        if claim.value_quote is None and claim.period_locator:
+            matches = []
+            for span in qualified_value_spans(claim.quote, claim.kind):
+                candidate = claim.model_copy(update={"quote": span})
+                if (_phrase(span, claim.metric) and _phrase(span, claim.unit)
+                        and _value_has_unit(candidate) and _unambiguous_association(candidate, True)):
+                    matches.append(span)
+            if len(matches) == 1:
+                effective = claim.model_copy(update={"value_quote": matches[0]})
+        period_external, definition_external, context_error = validate_context(effective, blocks, packages)
         reason = None
-        numeric = claim.model_copy(update={"quote": claim.value_quote}) if claim.value_quote else claim
+        numeric = effective.model_copy(update={"quote": effective.value_quote}) if effective.value_quote else effective
+        bound = lower_bound_clause(claim.quote) if claim.comparator == "at_least" and claim.value_quote is None else None
+        if bound:
+            numeric = claim.model_copy(update={"quote": bound['quote']})
         plus_bound = any(Decimal(m.replace(",", "")) == claim.value
                          for m in re.findall(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*%\+", numeric.quote))
         # Quotation containment alone must not allow a numeric qualifier to be

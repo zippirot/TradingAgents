@@ -16,6 +16,7 @@ def test_16416b7e_corpus_accepts_guided_shares_and_margin_guides():
     package = source_json('16416b7e-corpus.json.gz')
     result = discover_disclosures((package,))
     assert not result.rejected
+    assert len(result.claims) == 15
     required = {
         ('Fully diluted weighted average shares outstanding', '128', '129'),
         ('Fully diluted weighted average shares outstanding', '122', '123'),
@@ -54,3 +55,42 @@ def test_brief_omits_financing_outside_window():
     for doc in state['filing_evidence']['documents']:
         doc['filing']['filed_date'] = '2026-11-08'
     assert 'Financing authorization' not in build_shared_source_brief(state)
+
+
+def test_source_acquisition_grounds_full_retained_corpus_before_analysts():
+    from tradingagents.agents.document_access import _scope
+    from tradingagents.agents.evidence_validation import assess_financial_package
+    from tradingagents.dataflows.filing_search import corpus_hash
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    state = source_state()
+    corpus = DisclosurePackage.model_validate(source_json('cfae95e9-corpus.json.gz'))
+    state['document_sources'] = {**_scope(state), 'status': 'ready', 'cik': corpus.cik,
+                                 'corpus': corpus.model_dump(mode='json'), 'corpus_hash': corpus_hash(corpus)}
+    result = assess_financial_package(state, EvidencePackage.model_validate(state['financial_evidence']),
+                                     DisclosurePackage.model_validate(state['filing_evidence']), source_only=True)
+    extraction = result['disclosure_evidence']['deterministic_extraction']
+    assert len(extraction['claims']) == 15
+    assert not extraction['rejected']
+
+
+def test_rpo_context_includes_year_ago_and_fiscal_year_end():
+    from tests.test_retained_kpi_context import _state
+    from tradingagents.agents.evidence_validation import assess_financial_package
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+
+    state = _state()
+    brief = build_shared_source_brief(state)
+    result = assess_financial_package(state, EvidencePackage.model_validate(state['financial_evidence']),
+                                     DisclosurePackage.model_validate(state['filing_evidence']), source_only=True)
+    for text in (brief, result['canonical_financial_context']):
+        for fragment in ('$61 million', 'third quarter of 2025', '134,085,000 USD',
+                         '893,828,000 USD', '799,707,000 USD', '345,111,000 USD',
+                         'prior periods recast to include all contracts', 'sec-document-'):
+            assert fragment in text
+        assert 'Finance lease and equipment maturities (undiscounted, include imputed interest)' in text
+        assert '2027 $250.0M' in text and 'present value $923.6M' in text
+        assert 'Scheduled payments are not principal.' in text
+    assert len(brief) <= 18000

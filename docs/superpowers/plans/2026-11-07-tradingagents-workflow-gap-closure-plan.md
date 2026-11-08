@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 is starting in its separate `evidence-assembly` worktree from that confirmed commit, including Amendment 1 R1 tasks. Later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is integrated and pushed to staging at `730bbe04ce7ba382367463dccca57bc39b7e0e92` under explicit approval; all seven exact-staging CI jobs passed. R1 implementation and focused/source proofs are prepared in its separate `evidence-assembly` worktree from that confirmed commit, including Amendment 1 R1 tasks; complete-suite and independent Claude Fable acceptance remain pending. Later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -104,32 +104,32 @@ This standalone metadata restates the existing overall plan size for the audit-p
 ### R1.1 Financing events in the shared brief (SA1)
 **Files:** `tradingagents/agents/context.py::build_shared_source_brief`, `tradingagents/agents/evidence_validation.py` (~:407).
 - When `filing_evidence` contains an 8-K Item 8.01 or 1.01 financing disclosure (ATM, notes, credit agreement) dated within the brief window, render one line per event: form, filed date, stated amount and currency, source ID. Build it from the same deterministic matcher that later builds `issuer_event_evidence.financing_records`, moved earlier and reused, not duplicated.
-- [ ] `test_brief_includes_retained_atm_8k` (DOCN fixture: "$1.0 billion" ATM line present with source ID), `test_brief_omits_financing_outside_window`.
+- [x] `test_brief_includes_retained_atm_8k` (DOCN fixture: "$1.0 billion" ATM line present with source ID), `test_brief_omits_financing_outside_window`.
 
 ### R1.2 Text limits never cut inside a guidance run (SA2)
 **Files:** `tradingagents/dataflows/vendors/sec_documents.py` (block selection under the text limit), the contiguity validator named in part A SA2.
 - When a document hits its text limit, keep or drop contiguous runs of blocks under the same outlook or guidance heading **as a unit**. If a run is dropped, record one gap naming the heading, rather than leaving holes the contiguity check rejects.
-- [ ] `test_outlook_run_survives_text_limit` (DOCN press release: blocks 41–50 kept together, FY2026 adjusted FCF margin 20–22 % and diluted shares 128–129M accepted), `test_dropped_run_records_named_gap`.
+- [x] `test_outlook_run_survives_text_limit` (DOCN press release: blocks 41–50 kept together, FY2026 adjusted FCF margin 20–22 % and diluted shares 128–129M accepted), `test_dropped_run_records_named_gap`.
 
 ### R1.3 One document, one package (FA1)
 **Files:** `tradingagents/agents/evidence_validation.py` (~:481), `tradingagents/dataflows/disclosure_context.py` (~:161).
 - Deduplicate `quote_packages` by **document identity plus content**: issuer CIK, accession, primary-document URL or `source_id`, and `content_hash`. Identical identity and hash → collapse to one package. The same hash with conflicting identity metadata, or the same identity with a different hash → reject with an explicit "conflicting document metadata" reason. Never silently pick one. Issuer binding and known-at cutoff checks run on the collapsed package exactly as today.
 - Bounded and full versions of one document: combine their blocks by locator. A block present in both must have identical text, otherwise reject as conflicting. A block present only in the full version is added. The combined package keeps the full version's block order, so contiguity checks see the real sequence.
-- [ ] `test_same_document_from_two_paths_is_one_source` (DOCN fixture: the 6 previously rejected records are accepted, and the 3 genuinely bad ones are still rejected with their original reasons), `test_same_hash_conflicting_accession_rejected`, `test_same_identity_different_hash_rejected`, `test_bounded_and_full_blocks_merge_by_locator`, `test_conflicting_block_text_rejected`, `test_cutoff_and_issuer_checks_unchanged_after_dedupe`.
+- [x] `test_same_document_from_two_paths_is_one_source` (DOCN fixture: the 6 previously rejected records are accepted, and the 3 genuinely bad ones are still rejected with their original reasons), `test_same_hash_conflicting_accession_rejected`, `test_same_identity_different_hash_rejected`, `test_bounded_and_full_blocks_merge_by_locator`, `test_conflicting_block_text_rejected`, `test_cutoff_and_issuer_checks_unchanged_after_dedupe`.
 
 ### R1.4 Metric history, not just the latest change (BB1)
 **Files:** the canonical context builder in `tradingagents/agents/context.py`, which renders the "RPO 893,828,000 → 799,707,000 −10.53 %" line.
 - For each period-comparison KPI (RPO first; the mechanism is generic over the existing KPI comparisons in `kpi_comparisons.py`), also render the same quarter a year earlier and the latest fiscal year-end when they are in the retained corpus, each with its source ID. Label any recast ("prior periods recast to include all contracts") when the source says so.
-- [ ] `test_rpo_context_includes_year_ago_and_fiscal_year_end` (DOCN: $61M Q3 2025, $134.1M FY2025, $893.8M Q2, $799.7M Q3, with $345.1M due within 12 months).
+- [x] `test_rpo_context_includes_year_ago_and_fiscal_year_end` (DOCN: $61M Q3 2025, $134.1M FY2025, $893.8M Q2, $799.7M Q3, with $345.1M due within 12 months).
 
 ### R1.5 Dated news and an honest coverage status (SE2, NE2)
 **Files:** `tradingagents/dataflows/vendors/yahoo/news.py::_format_articles` (~:83), the news coverage builder.
 - Print each article's publish date (UTC, ISO) and publisher. When the quote feed failed and the search fallback supplied the items, set coverage to `degraded: search_fallback, headlines_only` instead of `available`.
-- [ ] `test_formatted_articles_show_publish_date`, `test_search_fallback_marks_coverage_degraded`.
+- [x] `test_formatted_articles_show_publish_date`, `test_search_fallback_marks_coverage_degraded`.
 
 ### R1.6 Small evidence corrections (EC1, EC3, SA3)
 - Deduplicate warning messages; split "model submission rejected" from "source coverage gap" in the evidence-quality message. State in the evidence-quality message which optional evidence is missing, so "limited" carries an actionable meaning (EC2; the PM receives this line via N1.4). Map a `$` source unit to USD only when the same filing binds the reporting currency (an XBRL `USD` unit or a stated "U.S. dollars" reporting currency for that filing). Otherwise leave the currency unresolved, as today. Format the brief's price to source precision.
-- [ ] One test each, plus `test_dollar_sign_without_currency_binding_stays_unresolved`.
+- [x] One test each, plus `test_dollar_sign_without_currency_binding_stays_unresolved`.
 
 ### R1.7 Lease-inclusive sensitivities: find where they are lost, then fix there (FA2)
 **Files:** `tradingagents/agents/valuation_cases.py::price_case` (~:67–124), `tradingagents/agents/shared_valuation.py` (~:80–157).
@@ -137,7 +137,7 @@ This standalone metadata restates the existing overall plan size for the audit-p
 - Fix at that point only. No second calculation path. If the cause is a missing input, supply it from the canonical obligations already retained. If it is delivery, render the existing sensitivities on the card.
 - Every rendered sensitivity states its assumption explicitly: obligations as of their balance-sheet date (2026-09-30) held constant against the case's future period (for example FY2027), with no growth or repayment assumed. No change to which case is the base.
 - Preserve the analyst's original submitted request, base-case capital assumptions and base target. Reuse `price_case` with a separately labelled source-bound sensitivity request when missing categories need to be supplied; do not silently rewrite the accepted base case. Missing/incompatible canonical categories remain unavailable, never zero or guessed. Verify original request/base target unchanged alongside the sensitivity result.
-- [ ] A regression test named for the root cause found, plus `test_docn_case_renders_finance_equipment_and_all_leases_sensitivities` (lower per-share figures than the $77.73 borrowings-only base) and `test_sensitivity_states_obligation_date_assumption`.
+- [x] A regression test named for the root cause found, plus `test_docn_case_renders_finance_equipment_and_all_leases_sensitivities` (lower per-share figures than the $77.73 borrowings-only base) and `test_sensitivity_states_obligation_date_assumption`.
 
 ### Approved Amendment 1 tasks activated for R1
 
@@ -147,16 +147,16 @@ This standalone metadata restates the existing overall plan size for the audit-p
 
 - Append a "Prior closes by price band" table to the snapshot: from the latest completed close down to the lowest close of the last 252 completed sessions, in bands of 5% of the latest close. Each band lists the number of closes in it, the most recent date and the lowest and highest close. Bands with no closes say "no closes in the last 252 sessions". Point-in-time: only sessions on or before the analysis cutoff.
 - No new vendor call: reuse the OHLCV the snapshot already loads, extending its window if it is shorter than 252 sessions.
-- [ ] `test_band_table_lists_march_closes_below_lower_band` (DOCN fixture, close 72.48 on 2026-11-06: the 65.2–68.9 band reports closes including 66.22 and 68.63/68.69 dated March 2026, and the 61.6–65.2 band reports 62.01), `test_band_table_respects_cutoff`, `test_empty_band_says_no_closes`.
+- [x] `test_band_table_lists_march_closes_below_lower_band` (DOCN fixture, close 72.48 on 2026-11-06: the 65.2–68.9 band reports closes including 66.22 and 68.63/68.69 dated March 2026, and the 61.6–65.2 band reports 62.01), `test_band_table_respects_cutoff`, `test_empty_band_says_no_closes`.
 
 ### G4 Guidance grounding is stable on the same corpus
 
 This is an acceptance check on R1.2 and R1.3, not new code unless it fails.
 
 - Add a fixture for the `16416b7e` retained corpus next to R1's `tests/fixtures/docn_2026_11_07/` (same privacy rules: retained source bytes only, no memory or secrets).
-- [ ] `test_16416b7e_corpus_accepts_guided_shares_and_margin_guides`: deterministic discovery accepts Q4 2026 diluted weighted shares 128–129M, FY2026 diluted weighted shares 122–123M, Q4 and FY2026 adjusted EBITDA margin guides, and the FY2026 adjusted FCF margin guide.
-- [ ] `test_discovery_is_order_independent`: the same corpus with documents and blocks in shuffled order yields an identical accepted set and identical record IDs.
-- [ ] R1 proof records accepted counts for both the `913554d4` and `16416b7e` corpora, before and after. If the two corpora themselves differ (different blocks retained), record which blocks differ and why; a difference in retention is an R1.2 defect, not an acceptable run-to-run variation.
+- [x] `test_16416b7e_corpus_accepts_guided_shares_and_margin_guides`: deterministic discovery accepts Q4 2026 diluted weighted shares 128–129M, FY2026 diluted weighted shares 122–123M, Q4 and FY2026 adjusted EBITDA margin guides, and the FY2026 adjusted FCF margin guide.
+- [x] `test_discovery_is_order_independent`: the same corpus with documents and blocks in shuffled order yields an identical accepted set and identical record IDs.
+- [x] R1 proof records accepted counts for both the `913554d4` and `16416b7e` corpora, before and after. If the two corpora themselves differ (different blocks retained), record which blocks differ and why; a difference in retention is an R1.2 defect, not an acceptable run-to-run variation.
 
 ### G5 Peer exclusion only for facts the peer statistics read
 
@@ -164,15 +164,15 @@ This is an acceptance check on R1.2 and R1.3, not new code unless it fails.
 
 - At build start, list the metrics `calculate_peer_statistics` and the peer render actually read (expected: Revenue, Gross Profit, Common Shares Outstanding; verify). For peer packages only, an ambiguity in any other metric drops that metric from the package with a recorded gap ("Assets ambiguous at 2023-12-31; not used for peer statistics") instead of raising. An ambiguity in a metric the statistics read still excludes the peer with today's reason.
 - Subject-issuer packages are unchanged: ambiguity still raises.
-- [ ] `test_peer_ambiguity_in_unused_metric_keeps_peer` (synthetic companyfacts: conflicting `Assets` at 2023-12-31, clean revenue and shares: peer status `available`, gap recorded), `test_peer_ambiguity_in_revenue_still_excludes`, `test_subject_ambiguity_still_raises`.
-- [ ] R1 proof: NBIS from the `16416b7e` recorded inputs is either accepted or excluded for a reason that names a metric the statistics read.
+- [x] `test_peer_ambiguity_in_unused_metric_keeps_peer` (synthetic companyfacts: conflicting `Assets` at 2023-12-31, clean revenue and shares: peer status `available`, gap recorded), `test_peer_ambiguity_in_revenue_still_excludes`, `test_subject_ambiguity_still_raises`.
+- [x] R1 proof: NBIS from the `16416b7e` recorded inputs is either accepted or excluded for a reason that names a metric the statistics read.
 
 ### G7 Maturity totals labelled as undiscounted, with present value beside them
 
 **Files:** the canonical context builder in `tradingagents/agents/context.py`; the filing-cell extraction that already reads the lease table (`block-226` in DOCN).
 
 - When the retained finance-lease and equipment maturity table yields both a per-year undiscounted schedule and its present-value total, render one line: "Finance lease and equipment maturities (undiscounted, include imputed interest): 2027 $250.0M; total $X; less imputed interest $Y; present value $923.6M (F25). Scheduled payments are not principal." Values come only from the retained table with source IDs; if any piece is missing, render nothing for that piece.
-- [ ] `test_maturity_line_labels_undiscounted_and_present_value` (DOCN fixture), `test_partial_table_renders_only_present_pieces`.
+- [x] `test_maturity_line_labels_undiscounted_and_present_value` (DOCN fixture), `test_partial_table_renders_only_present_pieces`.
 
 ### R1 proof
 Full `pytest -q` and `ruff check` green at one commit. A DOCN fixture replay of Source Acquisition through Evidence Check shows: ATM in brief; 0 false disclosure rejections; FY2026 outlook accepted; RPO history in context; dated news; lease-inclusive sensitivities on both DOCN cases. Record before and after counts in `docs/reviews/<date>-evidence-assembly.md`.

@@ -1,0 +1,71 @@
+{
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/r1-evidence-assembly-4e3afj6m",
+  "source_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+  "original_unchanged": true,
+  "source_fixture_manifest_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f",
+  "source_corpus_hash": "e60b9e0c475ed6a4392769677ed5becc07b0de707b59b2717806caf5c1c84199",
+  "full_corpus_blocks": 3418,
+  "source_only_disclosures": {
+    "accepted": 15,
+    "rejected": 0
+  },
+  "model_disclosures": {
+    "accepted": 6,
+    "rejected": 3
+  },
+  "deterministic_disclosures": {
+    "accepted": 15,
+    "rejected": 0
+  },
+  "quality": "limited",
+  "news_fixture": {
+    "synthetic": true,
+    "timestamp_and_publisher_visible": true,
+    "coverage": {
+      "status": "degraded",
+      "tool": "get_news",
+      "calls": 1,
+      "failed_calls": 0,
+      "reason": "search_fallback, headlines_only"
+    }
+  },
+  "case_targets": [
+    {
+      "base": "77.734375",
+      "sensitivities": {
+        "finance_equipment": "70.5187578125",
+        "all_leases": "65.310859375",
+        "guided diluted weighted average low (128000000 shares, fourth quarter ending December 31, 2026)": "77.734375",
+        "guided diluted weighted average high (129000000 shares, fourth quarter ending December 31, 2026)": "77.1317829457364341085271317829457364341085271317829457364341"
+      }
+    },
+    {
+      "base": "44.6691176470588235294117647058823529411764705882352941176471",
+      "sensitivities": {
+        "finance_equipment": "37.8779485294117647058823529411764705882352941176470588235294",
+        "all_leases": "32.9763970588235294117647058823529411764705882352941176470588",
+        "guided diluted weighted average low (128000000 shares, fourth quarter ending December 31, 2026)": "47.4609375000000000000000000000000000000000000000000000000001",
+        "guided diluted weighted average high (129000000 shares, fourth quarter ending December 31, 2026)": "47.0930232558139534883720930232558139534883720930232558139536"
+      }
+    }
+  ],
+  "saved_state_reopened": true,
+  "report_evidence_reopened": true,
+  "export_hashes": {
+    "evidence.json": "8a1834e50f8a4fb695fe413d3827077d12b9b6f2676b74ca117ffd6643276e28",
+    "complete_report.md": "7661b612fca32047cb9ebfebaaad1b41a64f4482df9fcb988e271f953b8ceaff",
+    "quality.json": "0b6f07e2a43ca1df37566a81ec39d25fb745ddbad151b4b297c0ac2e48e785a2",
+    "executive_summary.json": "2fdab651f9ce361f6e8f2b0858f0ba68bd334a097cedfe4fd2c4a7e9b824ce93",
+    ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "complete_report.html": "3c0eba75a53b8ccf444a112857c3eee5767ccc576f983ede1ecab7599fd29b2e",
+    "operational_audit.md": "0216b451fb1c1a64e81efe2ca721622b768e71fb1f3a3cdf127438a906ac797b"
+  },
+  "limitations": [
+    "SEC transport and Yahoo completed-price replies are recorded doubles; no live provider claim.",
+    "Original model report is scripted input; no model compliance or paid comparison claim.",
+    "News timestamp/publisher are explicitly synthetic; actual news formatting/coverage paths execute.",
+    "Source/evidence nodes execute directly, not a new CLI/whole-graph proof.",
+    "Reference/peer and transcript acquisition disabled in this source-family proof; separately tested.",
+    "All writes are in disposable stores; no publication or private input is mutated."
+  ]
+}

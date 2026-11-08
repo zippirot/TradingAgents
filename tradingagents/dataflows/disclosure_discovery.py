@@ -105,6 +105,9 @@ def discover_disclosures(packages) -> DisclosureResult:
                         r'(?P<quote>(?P<metric>Revenue|AI Customer ARR) was \$(?P<value>' + _NUMBER
                         + r') (?P<unit>million|billion)), an (?:increase|decrease) of (?P<growth>'
                         + _NUMBER + r')%', text, re.I):
+                        if any(p['source_id'] == doc.source_id and p['locator'] == block.locator
+                               and p['metric'] == match['metric'] for p in proposed):
+                            continue  # The complete qualified-sentence path already proposed this value.
                         definition = definitions.get(match['metric'])
                         data = {'source_id': doc.source_id, 'locator': block.locator,
                             'metric': match['metric'], 'value': _decimal(match['value']), 'unit': match['unit'],
