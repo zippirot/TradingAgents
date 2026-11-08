@@ -1,5 +1,5 @@
 {
-  "stage": "Corrected combined R4 candidate after accepted R2 staging; actual independent closure and R4 staging CI pending",
+  "stage": "Local combined R4 feature accepted after actual independent Fable closure; post-commit R4 staging/CI acceptance is separate",
   "source_commit": "8ad5e1727deefa15d3f7b4c2da3e535da2ed7074",
   "full_pytest": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
@@ -36,7 +36,6 @@
     "exit_code": 0
   },
   "pending": [
-    "Actual independent Claude Fable closure of current R4 candidate",
     "R4 staging integration and exact final published-SHA CI",
     "R3 and subsequent Goal stages"
   ],
@@ -419,7 +418,9 @@
     "part_C_delivery": "Complete exact BASE content embedded in source-excerpts JSON; original path excluded from manifest due public filename false positive.",
     "closure_omitted_unchanged_paths": [
       "tests/test_memory_log.py"
-    ]
+    ],
+    "applies_to_frozen_head": "9c0cf5e639bfdd4cbd862760ed8b7b06f18e3227",
+    "scope_note": "Archived closure input map at this exact frozen HEAD, not a map of later documentation-only records."
   },
   "source_oids": {
     "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
@@ -481,15 +482,24 @@
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "initial_complete_material_corrections_ready_for_closure",
+    "status": "local_feature_closed_no_in_scope_critical_high_medium",
     "initial_frozen_head": "da2b14cd5bade8d7c23b0e3deb7fae2181158d0d",
     "initial_run_id": "eae4465e-a666-4e42-84d4-75c4d7098857",
     "initial_turns": 52,
     "initial_cost_usd": 4.307448,
     "initial_stop_reason": "reviewer_completed",
     "initial_manifest_validation_exit": 0,
-    "medium": "Confirmed portable fixture/traceability portion corrected; no independent closure claimed yet",
-    "lows": "Unlinked-call link loss fixed; unused batch API deferred; missing quote currency not inferred; source-OID equality and period-end/filing-date limitation disclosed"
+    "medium": "Closed by independent reviewer and main portable BASE/current fixture verification; no missing private pass invented",
+    "lows": "Unlinked-call link loss fixed; unused batch API deferred; missing quote currency not inferred; source-OID equality and period-end/filing-date limitation disclosed",
+    "closure_frozen_head": "9c0cf5e639bfdd4cbd862760ed8b7b06f18e3227",
+    "closure_run_id": "ad080c54-fb75-4f1e-bf1c-11d7c3c10c0b",
+    "closure_requested_model": "~anthropic/claude-fable-latest",
+    "closure_served_model": "~anthropic/claude-fable-latest",
+    "closure_turns": 49,
+    "closure_cost_usd": 5.07441675,
+    "closure_stop_reason": "reviewer_completed",
+    "closure_manifest_validation_exit": 0,
+    "remaining_in_scope_material": 0
   },
   "R4_acceptance_test_resolution": [
     {
@@ -606,5 +616,28 @@
       }
     ],
     "production_unchanged": "9ade69bf155d1b25699d3aecfff3c1b07752aff0"
-  }
+  },
+  "exact_frozen_source_test_proof_oids": {
+    "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+    "tradingagents": "0516be9760d857d7881f80bfe4d181f6cea71f72",
+    "tests": "5924cc18aa3276cf412664ab236d2696bde49297",
+    "tests/fixtures/thesis_legacy_metric": "4c489e51d830ae3693ec03f56bd4b89218b1a358",
+    "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+    "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd",
+    "docs/reviews/memory-continuity-proof.py": "04b9163372b4d214992cc8b9bcf4f7e26bb8dd2a",
+    "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+    "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+  },
+  "post_commit_staging_acceptance": {
+    "artifact_root": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r4-fable-closure-1",
+    "integration_receipt": "staging-integration.json",
+    "exact_sha_ci_receipt": "staging-ci-result.json",
+    "meaning": "This commit establishes local acceptance. Subsequent exact final published SHA and CI outcome are separate post-commit receipts; no unrun remote CI pass is asserted."
+  },
+  "deferred_low_observations": [
+    "Unused exported batch outcome API lacks captured-entry guard; production settlement guarded",
+    "New price conditions require validated instrument quote currency; missing eligibility visibly rejected, retained conditions stay unobserved",
+    "Hypothetical manually corrupted settled-plus-pending duplicate not repaired; current writers cannot create it",
+    "Documented period-end vs filing-date wording interpretation; strict future-evidence rejection preserved"
+  ]
 }
