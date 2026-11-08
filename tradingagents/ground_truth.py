@@ -26,7 +26,7 @@ DEFAULT_MAX_SECONDS = 7200
 DEFAULT_MAX_TOKENS = 10_000_000
 DEFAULT_OUTPUT_TOKEN_RESERVATION = 65536
 _EVIDENCE_KEYS = (
-    "ground_truth_source_documents", "ground_truth_source_acquisition", "shared_source_brief",
+    "ground_truth_source_documents", "ground_truth_source_acquisition", "shared_source_brief", "target_validation",
     "financial_evidence", "filing_evidence", "disclosure_evidence", "financial_calculations",
     "valuation_reference", "vendor_expectations", "price_observation", "market_observation_cutoff", "event_comparison", "issuer_event_evidence",
     "document_sources", "transcript_sources", "audit_market_tool_evidence",
@@ -364,10 +364,13 @@ def _source_index(state):
     market, market_gaps = market_sources(state)
     sources.update(market)
     gaps.extend(market_gaps)
-    from tradingagents.ground_truth_context import context_sources
+    from tradingagents.ground_truth_context import context_sources, target_control_sources
     contexts, context_gaps = context_sources(state)
     sources.update(contexts)
     gaps.extend(context_gaps)
+    target_controls, target_gaps = target_control_sources(state)
+    sources.update(target_controls)
+    gaps.extend(target_gaps)
     from tradingagents.ground_truth_calculations import calculation_sources
     calculations, calculation_gaps = calculation_sources(state, validated_sources=sources)
     sources.update(calculations)
@@ -424,7 +427,14 @@ def _relevance(text, source):
     explicit = 1000 if source["source_id"].casefold() in lowered else 0
     metric = source.get("fact", {}).get("metric", "").casefold()
     metric_match = 150 if metric and re.search(r"\b" + re.escape(metric) + r"\b", lowered) else 0
-    numbers = {n for n in _numeric_values(text) if not (n == n.to_integral_value() and (0 <= n <= 12 or 1900 <= n <= 2100))}
+    financial_numbers = set()
+    for match in _NUMBER.finditer(text):
+        token = match.group()
+        if ("%" in token or any(symbol in token for symbol in "$€£¥")
+                or re.search(r"(?:billion|million|thousand|[MBK])$", token, re.I)):
+            financial_numbers.update(_numeric_values(token))
+    numbers = {n for n in _numeric_values(text) if n in financial_numbers or not (
+        n == n.to_integral_value() and (0 <= n <= 12 or 1900 <= n <= 2100))}
     available = _numeric_values(source["text"])
     if re.search(r"(?:USD|dollars?|in)\s+millions?|millions?\s+of", body, re.I):
         available |= {number * 1_000_000 for number in available}
@@ -451,6 +461,37 @@ def _brief_scope_claim(text):
         r"\b(?:retained|supplied|shared|missing|absent|unsupported|source|no|not)\b", text, re.I))
 
 
+
+def _target_declaration_value(text):
+    """Recognize only a standalone explicit report target field."""
+    clean = text.strip().replace("**", "").replace("__", "")
+    clean = re.sub(r"^(?:[-+*•] |\#{1,6} )", "", clean).strip().strip("|").strip()
+    match = re.fullmatch(r"(?:(?:final|our|current)\s+)?(?:price\s+target|target\s+price)"
+                         r"\s*[:—-]\s*(.+)", clean, re.I)
+    return match[1].strip().rstrip(".").casefold() if match and "\n" not in clean else None
+
+
+def _target_declaration_query(text):
+    return any(_target_declaration_value(line) is not None for line in text.splitlines())
+
+
+def _target_declaration_claim(text, source, outcome):
+    value = _target_declaration_value(text)
+    declared = _target_declaration_value(source.get("declaration", ""))
+    if value is None or declared is None:
+        return False
+    basic = bool(re.fullmatch(
+        r"(?:not provided|not available|unavailable|unsupported|none|null|n/a|"
+        r"[$€£¥]?\s*[-+]?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*(?:USD|EUR|GBP|JPY)(?:\s+per\s+share)?)?)",
+        value, re.I))
+    # Elaborated reasons must be the literal validated renderer's declaration,
+    # not a new financial or causal assertion attached to a target label.
+    if not basic and value != declared:
+        return False
+    same = value == declared or value == declared.split(" — ", 1)[0]
+    return same if outcome == "supported" else not same if outcome == "contradicted" else True
+
+
 def _valuation_reference_question(text):
     historical = bool(re.search(r"\b(?:median|historical|history)\b", text, re.I)
                       and re.search(r"\b(?:own|quarter|quarters|valuation|multiple|multiples)\b", text, re.I))
@@ -463,6 +504,8 @@ def _source_priority(text, source):
     """Prefer scoped typed observations over broad recorded vendor payloads."""
     query = text.casefold()
     kind = source.get("kind", "")
+    if kind.startswith("retained target declaration") and _target_declaration_query(text):
+        return 0
     if kind == "validated retained market observation" and re.search(r"\b(?:price|close|closed)\b", query):
         return 0
     fact = source.get("fact") or {}
@@ -506,7 +549,8 @@ def _source_priority(text, source):
 def _select_sources(text, sources, cap):
     """Prefer explicit citations and exact values before uncommon claim terms."""
     applicable = [source for source in sources.values()
-                  if not source.get("kind", "").startswith("retained report context") or _brief_scope_claim(text)]
+                  if (not source.get("kind", "").startswith("retained report context") or _brief_scope_claim(text))
+                  and (not source.get("kind", "").startswith("retained target declaration") or _target_declaration_query(text))]
     ranked = sorted(applicable, key=lambda source: (
         _source_priority(text, source), -_relevance(text, source), source["source_id"], source["locator"]))
     selected, remaining, omitted = {}, cap, 0
@@ -537,7 +581,10 @@ def _select_followup_sources(assessments, sources, cap):
         applicable = [source for source in sources.values()
                       if not source.get("kind", "").startswith("retained report context")
                       or _brief_scope_claim(claim["quoted_claim"])]
-        scored = [(source, _source_priority(text, source), _relevance(text, source))
+        applicable = [source for source in applicable
+                      if not source.get("kind", "").startswith("retained target declaration")
+                      or _target_declaration_query(claim["quoted_claim"])]
+        scored = [(source, _source_priority(claim["quoted_claim"], source), _relevance(text, source))
                   for source in applicable]
         rankings.append(iter(source for source, _priority, relevance in sorted(
             scored, key=lambda row: (row[1], -row[2], row[0]["source_id"], row[0]["locator"]))
@@ -704,6 +751,14 @@ def _source_context(source):
     """Copy qualifiers exclusively from trusted, packet-bounded index entries."""
     original = source.get("context") or {}
     context = {key: deepcopy(original[key]) for key in _CONTEXT_FIELDS if key in original}
+    if source.get("kind", "").startswith("retained target declaration"):
+        context["target_declaration"] = deepcopy(source.get("declaration"))
+        context["target_control"] = {key: deepcopy(source["control"][key]) for key in
+                                     ("status", "target", "unit", "reasons") if key in source.get("control", {})}
+        decision = (source.get("control") or {}).get("decision_use")
+        if isinstance(decision, dict):
+            context["target_control"]["decision_use"] = {key: deepcopy(decision[key]) for key in
+                ("final_target_eligible", "classification", "suitability") if key in decision}
     fact = source.get("fact")
     if isinstance(fact, dict):
         context["fact"] = {key: deepcopy(fact[key]) for key in _FACT_SCOPE_FIELDS if key in fact}
@@ -742,6 +797,9 @@ def _validate_claim(raw, chunk, sources):
         if (source.get("kind", "").startswith("retained report context")
                 and outcome in {"supported", "contradicted"} and not _brief_scope_claim(quote)):
             raise ValueError("Retained brief context can support only claims about that brief's contents")
+        if (source.get("kind", "").startswith("retained target declaration")
+                and not _target_declaration_claim(quote, source, outcome)):
+            raise ValueError("Retained target declaration supports only the validated report declaration, not financial or forecast truth")
         evidence.append({"source_id": source["source_id"], "locator": source["locator"],
                          "quote": excerpt, "url": source["url"], "known_at": source["known_at"],
                          "kind": source["kind"], "context": _source_context(source),
@@ -828,7 +886,9 @@ def _review_prompt(chunk, sources):
         "Forecasts can be hypotheses with verified premises. Recorded vendor outputs only support "
         "accurate attribution, not independent truth. Retained report context can establish what the "
         "retained brief contains, but cannot establish the underlying truth of a financial assertion. "
-        "Cite that context only for claims explicitly about the brief's contents. A contradicted claim may include correction, "
+        "Cite that context only for claims explicitly about the brief's contents. Retained target declaration "
+        "controls establish only what this run declares about its target, including a missing target; they "
+        "do not establish future prices, financial premises or rating authority. A contradicted claim may include correction, "
         "which must appear verbatim in cited source text or have a strict field-bound fact_check. "
         "A reproduced calculation verifies numeric computation only. It cannot authorize replacement "
         "prose, a different financial metric, causal wording or an investment recommendation. When "

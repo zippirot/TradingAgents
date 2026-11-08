@@ -775,3 +775,134 @@ def test_percentage_computation_matches_percent_notation_but_currency_sum_does_n
     facts[0]["value"], facts[1]["value"] = "90", "20"
     claim = {"quoted_claim": "Margin was 110%.", "outcome": "supported", "calculation": calculation}
     assert _arithmetic(claim, sources) is False
+
+
+def test_followup_domain_priority_uses_asserted_claim_not_negative_vendor_reason():
+    from tradingagents.ground_truth import _select_followup_sources
+
+    sources = {}
+    for index in range(22):
+        source_id = f"vendor-expectations-{index}"
+        sources[(source_id, "row")] = {
+            "source_id": source_id, "locator": "row", "kind": "attributed vendor output",
+            "text": "Vendor consensus revenue forecast for zero-year period, unverified. " * 3}
+    sources[("issuer", "guidance")] = {
+        "source_id": "issuer", "locator": "guidance", "kind": "filing passage",
+        "text": "Full-year revenue guidance: $1.208 to $1.211 billion."}
+    assessment = {"quoted_claim": "The low guidance implies $1.9328 billion after 60% growth.",
+                  "explanation": "The vendor consensus zero-year forecast cannot replace issuer guidance."}
+    packet, _ = _select_followup_sources([assessment], sources, 700)
+    assert ("issuer", "guidance") in packet
+
+
+@pytest.mark.parametrize("token,source_text", [
+    ("6%", "Adjusted operating income increased 6%, to 74 million USD."),
+    ("$6", "Adjusted operating income increased 6 USD."),
+])
+def test_explicit_small_financial_quantity_retains_exact_numeric_retrieval_weight(token, source_text):
+    from tradingagents.ground_truth import _relevance
+
+    source = {"source_id": "issuer", "locator": "income", "kind": "filing passage", "text": source_text}
+    # Bare structural ordinal 6 remains excluded; an explicitly financial amount
+    # is a different retrieval assertion even when its word context is equal.
+    assert _relevance(f"Adjusted operating income increased {token}.", source) >= (
+        _relevance("Adjusted operating income increased 6.", source) + 40)
+
+
+def target_control_state():
+    original = state()
+    original["target_validation"] = {"status": "unsupported", "target": None,
+                                     "reasons": ["no supported structured target provided"]}
+    return original
+
+
+def test_target_control_is_indexed_only_for_report_declarations_and_binds_reuse_identity():
+    from tradingagents.ground_truth import _select_sources, _source_index
+
+    original = target_control_state()
+    field = "**Price Target**: not provided — no supported structured target provided"
+    parts = [("Decision", "5_portfolio", [("PM", "decision.md", field)])]
+    before = inventory(original, parts)
+    changed = {**original, "target_validation": {"status": "supported", "target": "100", "unit": "USD"}}
+    assert before["evidence_digest"] != inventory(changed, parts)["evidence_digest"]
+    sources, _ = _source_index(original)
+    controls = {key: row for key, row in sources.items() if row["kind"].startswith("retained target declaration")}
+    assert len(controls) == 1
+    assert _select_sources(field, controls, 90000)[0]
+    assert not _select_sources("DOCN will reach 100 USD next year because revenue grew.", controls, 90000)[0]
+    absent, _ = _source_index(state())
+    assert not any(row["kind"].startswith("retained target declaration") for row in absent.values())
+
+
+def test_target_record_change_prevents_reusing_a_reviewed_negative_declaration():
+    original = target_control_state()
+    field = "**Price Target**: not provided"
+    parts = [("Decision", "5_portfolio", [("PM", "decision.md", field)])]
+    model = Model({"claims": [{"quoted_claim": field, "outcome": "unsupported", "explanation": "No record yet.", "evidence": []}],
+                   "no_material_claims": False})
+    prior = run_audit(original, model, inventory=inventory(original, parts))
+    changed = {**original, "target_validation": {"status": "unsupported", "target": None, "reasons": ["Changed reason"]}}
+    second = Model(model.output)
+    result = run_audit(changed, second, inventory=inventory(changed, parts), prior_audit=prior)
+    assert second.calls
+    assert result["coverage"]["reused_chunk_ids"] == []
+
+
+@pytest.mark.parametrize("quote", ["DOCN will reach 100 USD next year.",
+                                    "Revenue was 100 USD.",
+                                    "Price Target: $100 because revenue doubled."])
+def test_target_control_cannot_support_future_prices_financial_facts_or_mixed_implications(quote):
+    from tradingagents.ground_truth_context import target_control_sources
+
+    row = next(iter(target_control_sources(target_control_state())[0].values()))
+    claim = {"quoted_claim": quote, "outcome": "supported", "explanation": "Control is not financial evidence.",
+             "evidence": [{"source_id": row["source_id"], "locator": row["locator"], "quote": row["declaration"]}]}
+    chunk = {"chunk_id": "x", "section_id": "x", "start": 0, "text": quote}
+    with pytest.raises(ValueError, match="target declaration"):
+        _validate_claim(claim, chunk, {(row["source_id"], row["locator"]): row})
+
+
+def test_target_control_can_establish_the_literal_negative_declaration_without_pm_authority():
+    from tradingagents.ground_truth_context import target_control_sources
+    from tradingagents.ground_truth_flow import _material_correction
+
+    row = next(iter(target_control_sources(target_control_state())[0].values()))
+    quote = row["declaration"]
+    reference = {"source_id": row["source_id"], "locator": row["locator"], "quote": quote}
+    finding = _validate_claim({"quoted_claim": quote, "outcome": "supported", "explanation": "The run declares no validated target.",
+                               "evidence": [reference]},
+                              {"chunk_id": "x", "section_id": "x", "start": 0, "text": quote},
+                              {(row["source_id"], row["locator"]): row})
+    assert finding["code_verified"] is False
+    correction_quote = "Price Target: $100"
+    correction = _validate_claim({"quoted_claim": correction_quote, "outcome": "contradicted", "decision_material": True,
+                                 "explanation": "The run actually declares no validated target.", "correction": quote,
+                                 "evidence": [reference]},
+                                {"chunk_id": "x", "section_id": "x", "start": 0, "text": correction_quote},
+                                {(row["source_id"], row["locator"]): row})
+    assert correction["correction"] == quote
+    assert not _material_correction(correction)
+
+
+def test_target_control_evidence_retains_typed_unit_and_eligibility_without_model_spoof():
+    from tradingagents.ground_truth_context import target_control_sources
+
+    original = target_control_state()
+    original["target_validation"] = {"status": "supported", "target": "100", "unit": "USD",
+                                     "decision_use": {"final_target_eligible": False,
+                                                      "classification": "forward_scenario", "suitability": "conditional"}}
+    row = next(iter(target_control_sources(original)[0].values()))
+    quote = row["declaration"]
+    claim = {"quoted_claim": quote, "outcome": "supported", "explanation": "Only the report's declared field is established.",
+             "evidence": [{"source_id": row["source_id"], "locator": row["locator"], "quote": quote,
+                           "context": {"target_control": {"unit": "EUR", "decision_use": {"final_target_eligible": True}}}}]}
+    result = _validate_claim(claim, {"chunk_id": "x", "section_id": "x", "start": 0, "text": quote},
+                             {(row["source_id"], row["locator"]): row})
+    control = result["evidence"][0]["context"]["target_control"]
+    assert control["target"] == "100"
+    assert control["unit"] == "USD"
+    assert control["decision_use"] == {"final_target_eligible": False,
+                                       "classification": "forward_scenario", "suitability": "conditional"}
+    row["control"]["decision_use"]["final_target_eligible"] = True
+    assert control["decision_use"]["final_target_eligible"] is False
+    assert result["code_verified"] is False
