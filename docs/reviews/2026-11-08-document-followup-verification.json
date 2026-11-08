@@ -1,16 +1,16 @@
 {
   "stage": "R2 implementation and decisive local checks passed; required independent acceptance and integration pending",
   "base_staging": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
-  "full_suite_commit": "e40a3df6606e86962a58b6425091353763f454a0",
+  "full_suite_commit": "46433fad823fe882eea5a7894b3544ef65de92bd",
   "native_proof_commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
   "full_suite": {
     "exit_code": 0,
-    "passed": 3479,
+    "passed": 3480,
     "skipped": 10,
     "deselected": 1,
     "warnings": 25,
     "subtests": 100,
-    "seconds": 68.09
+    "seconds": 69.35
   },
   "prior_full_suite": {
     "commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
@@ -57,7 +57,19 @@
       "docs/reviews/document-followup-proof.py": "1ac4c4d3c6d43898b28081518ea37e5d51c1b802",
       "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
       "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
-      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c",
+      "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd"
+    },
+    "46433fad823fe882eea5a7894b3544ef65de92bd": {
+      "tradingagents": "898379dc3aa52cb5dee9f6f6cd7921e85b3b2b4d",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "eaae817e9c60a6e7684efbe187a4424319a3e1d6",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/document-followup-proof.py": "1ac4c4d3c6d43898b28081518ea37e5d51c1b802",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "docs/reviews/2026-11-08-document-followup-baseline.json": "1f78a8dc9f58e78692643d219492541a6c732cb7",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c",
+      "tests/docn_workflow_fixture.py": "8f1c19e300b5b67b9b764d35fb9c7854a2b8e1fd"
     }
   },
   "native_evidence_reuse": "Both native proofs actually ran on88acc504. Application, CLI, public fixture, proof scripts, baseline query/input data and pyproject objects match full-suite e40a3df6 exactly; only the extra all-returned RPO acceptance test/naming and evidence documentation differ. The full3479 suite ran on one exact revision, not a union of runs.",
@@ -114,7 +126,20 @@
   "independent_audit": {
     "required": true,
     "model_override": "~anthropic/claude-fable-latest",
-    "status": "not_started"
+    "status": "initial_complete_closure_pending",
+    "initial_run_id": "320f9714-d5c4-4669-805f-1d6ec1dc906e",
+    "initial_frozen_head": "14b4301d708721e40e9f95a6a56f029945a63c49",
+    "initial_cost_usd": 6.14689375,
+    "initial_turns": 48,
+    "initial_stop_reason": "reviewer_completed",
+    "initial_manifest_validation_exit": 0,
+    "medium": "Corrected in tests, independently unclosed until closure report",
+    "low_dispositions": [
+      "Weak guard corrected",
+      "Conservative relevance preserved; Na owns RM interpretation",
+      "Pre-existing corpus-authentic validation without filing-ranking replay deferred",
+      "Stable source/test OIDs and exact-source full suite supplied; integration CI still pending"
+    ]
   },
   "authority": {
     "expires_at_utc": "2026-11-09T05:20:03Z",
@@ -132,7 +157,7 @@
   "audit_context_map": {
     "semantics": "Trimmed HEAD files joined in exact request order with one newline;1-based decoded lines,no filename headings. Raw SHA includes surrounding whitespace. Last verification file does not self-hash.",
     "verification_file_is_last": true,
-    "verification_starts_at_decoded_line": 16661,
+    "verification_starts_at_decoded_line": 16676,
     "files": [
       {
         "path": ".codex/skills/independent-build-audit/templates/independent-audit.v1.md",
@@ -267,191 +292,271 @@
         "raw_sha256": "bac0a55ea0e4687a27299dbc26fafe5c05c99577b5e336408fdb934f9127de5c"
       },
       {
-        "path": "tradingagents/agents/risk_mgmt/aggressive_debator.py",
+        "path": "tradingagents/agents/risk_mgmt/neutral_debator.py",
         "decoded_start_line": 7797,
         "decoded_end_line": 7866,
-        "raw_sha256": "9348f4d8b2284fa487776075972268d21c894a11568a27929fa178297387ab54"
-      },
-      {
-        "path": "tradingagents/agents/risk_mgmt/conservative_debator.py",
-        "decoded_start_line": 7867,
-        "decoded_end_line": 7938,
-        "raw_sha256": "fb021a378857a71e1c6583e44eb3f5852fbd00fffac6382510e3b5998f3ee921"
-      },
-      {
-        "path": "tradingagents/agents/risk_mgmt/neutral_debator.py",
-        "decoded_start_line": 7939,
-        "decoded_end_line": 8008,
         "raw_sha256": "eee34bb2c390ff5458df65363bdc454f8b965f22e229df1e2da29596b0070dcf"
       },
       {
         "path": "tradingagents/graph/trading_graph.py",
-        "decoded_start_line": 8009,
-        "decoded_end_line": 8893,
+        "decoded_start_line": 7867,
+        "decoded_end_line": 8751,
         "raw_sha256": "665f05045c219cc7c6e8f16da927937724851f223e8037a42ded1d3d590217a2"
       },
       {
         "path": "tradingagents/graph/setup.py",
-        "decoded_start_line": 8894,
-        "decoded_end_line": 9230,
+        "decoded_start_line": 8752,
+        "decoded_end_line": 9088,
         "raw_sha256": "8131cfd5783e68dcd674f0cb5b3d952e2005dd5b83899b2aed223c3cc99d7a60"
       },
       {
         "path": "tradingagents/graph/propagation.py",
-        "decoded_start_line": 9231,
-        "decoded_end_line": 9312,
+        "decoded_start_line": 9089,
+        "decoded_end_line": 9170,
         "raw_sha256": "3893f7a13ec4f2ed5802b1e266acb8ae07e04093e35d3546855cfa0fabfb4bb6"
       },
       {
         "path": "tradingagents/graph/checkpointer.py",
-        "decoded_start_line": 9313,
-        "decoded_end_line": 9411,
+        "decoded_start_line": 9171,
+        "decoded_end_line": 9269,
         "raw_sha256": "f1ccb055601a8267f0b136482b06d853bd173a83a63c7d04c30f69ac65f3c295"
       },
       {
         "path": "tradingagents/reporting.py",
-        "decoded_start_line": 9412,
-        "decoded_end_line": 10124,
+        "decoded_start_line": 9270,
+        "decoded_end_line": 9982,
         "raw_sha256": "5ac6d1cf519f8b5b2a2cd6f01f76b93045055ccdb77f0709e54156508c6df96e"
       },
       {
         "path": "tradingagents/memory/publication.py",
-        "decoded_start_line": 10125,
-        "decoded_end_line": 10492,
+        "decoded_start_line": 9983,
+        "decoded_end_line": 10350,
         "raw_sha256": "0b1c1fedf6d91e006c87c294173686dc9ca34e873fcc61b88d4359152a4f04e0"
       },
       {
         "path": "tradingagents/source_replay.py",
-        "decoded_start_line": 10493,
-        "decoded_end_line": 10739,
+        "decoded_start_line": 10351,
+        "decoded_end_line": 10597,
         "raw_sha256": "168c39bf6e69d9b4de1df8488f521661a0dce478efaf0f46f03ceda9bf7dcd7a"
       },
       {
         "path": "cli/run.py",
-        "decoded_start_line": 10740,
-        "decoded_end_line": 11345,
+        "decoded_start_line": 10598,
+        "decoded_end_line": 11203,
         "raw_sha256": "f941cb6406499f7f4ebd711c0b3a201cd98a7968fe2ed5ba6ddb4d6638b85b3d"
       },
       {
         "path": "docs/reviews/operations-cli-proof.py",
-        "decoded_start_line": 11346,
-        "decoded_end_line": 11686,
+        "decoded_start_line": 11204,
+        "decoded_end_line": 11544,
         "raw_sha256": "0d812360ab916ef8777db3bf16373dfbadfaab1c8767a4b5df9996ae32093457"
       },
       {
         "path": "docs/reviews/document-access-proof-tools/live_cli.py",
-        "decoded_start_line": 11687,
-        "decoded_end_line": 12206,
+        "decoded_start_line": 11545,
+        "decoded_end_line": 12064,
         "raw_sha256": "e1070e3fd3930a7fe2113a26329d7b36c772f5b5a4532541585483de86a1e722"
       },
       {
         "path": "docs/reviews/document-followup-proof.py",
-        "decoded_start_line": 12207,
-        "decoded_end_line": 12346,
+        "decoded_start_line": 12065,
+        "decoded_end_line": 12204,
         "raw_sha256": "c6eb2dd07b1987fd1bc7336cef2263dbf327dffb4e87cd0046a57f3f64d47b26"
       },
       {
         "path": "tests/docn_workflow_fixture.py",
-        "decoded_start_line": 12347,
-        "decoded_end_line": 12374,
+        "decoded_start_line": 12205,
+        "decoded_end_line": 12232,
         "raw_sha256": "e8a4bf75dacbfedab28405216efd44d0daf50a63b32de387512118a9b32f5956"
       },
       {
         "path": "tests/fixtures/docn_2026_11_07/manifest.json",
-        "decoded_start_line": 12375,
-        "decoded_end_line": 12547,
+        "decoded_start_line": 12233,
+        "decoded_end_line": 12405,
         "raw_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f"
       },
       {
         "path": "tests/test_document_followup.py",
-        "decoded_start_line": 12548,
-        "decoded_end_line": 12899,
-        "raw_sha256": "0534380822cf3efe911ea698813e208cf27078624e1eb6ea666ab3b59be4b380"
+        "decoded_start_line": 12406,
+        "decoded_end_line": 12765,
+        "raw_sha256": "5420bf8cd00fabe4a45c3555640dfe67a29b8c3f1f563e3109148db281e52e0a"
       },
       {
         "path": "tests/test_document_search_legacy.py",
-        "decoded_start_line": 12900,
-        "decoded_end_line": 12977,
+        "decoded_start_line": 12766,
+        "decoded_end_line": 12843,
         "raw_sha256": "8e422839e0a58ff947c732ff80cc7bbe0c32742c680fb25f0a44e2255fef1484"
       },
       {
         "path": "tests/test_document_search_state.py",
-        "decoded_start_line": 12978,
-        "decoded_end_line": 13307,
+        "decoded_start_line": 12844,
+        "decoded_end_line": 13173,
         "raw_sha256": "e04b1caa96b3d55ff0d71e5a76c4e784f75122002e2c7fb03a482cb4249f2075"
       },
       {
         "path": "tests/test_document_search_reporting.py",
-        "decoded_start_line": 13308,
-        "decoded_end_line": 13353,
+        "decoded_start_line": 13174,
+        "decoded_end_line": 13219,
         "raw_sha256": "f093040b8c7644c4f07f429d861ced85081415e1e23602ce7612e6dcbd3657c2"
       },
       {
         "path": "tests/test_filing_search_backend.py",
-        "decoded_start_line": 13354,
-        "decoded_end_line": 13630,
+        "decoded_start_line": 13220,
+        "decoded_end_line": 13496,
         "raw_sha256": "501500829b20b21b395fe44edb885ed483a98d6bfdff4bf9078d6b126fd36d4f"
       },
       {
         "path": "tests/test_filing_search_acquisition.py",
-        "decoded_start_line": 13631,
-        "decoded_end_line": 13870,
+        "decoded_start_line": 13497,
+        "decoded_end_line": 13736,
         "raw_sha256": "4e8653578d1d7faf760c338a944930a9b72439c263f6d90e81fa3bd05e362ec8"
       },
       {
         "path": "tests/test_filing_terms_graph.py",
-        "decoded_start_line": 13871,
-        "decoded_end_line": 13954,
+        "decoded_start_line": 13737,
+        "decoded_end_line": 13820,
         "raw_sha256": "d215b23d8f8fdfddbfe318ad0970d5efd6597bf154d091db8eb61e6774942886"
       },
       {
         "path": "tests/test_transcript_tool_integration.py",
-        "decoded_start_line": 13955,
-        "decoded_end_line": 14150,
+        "decoded_start_line": 13821,
+        "decoded_end_line": 14016,
         "raw_sha256": "54049cb589a2c6d5f981a3f29d2f492aa332da4036c85c45e77ce23322100912"
       },
       {
         "path": "tests/test_document_retained_replay.py",
-        "decoded_start_line": 14151,
-        "decoded_end_line": 14448,
-        "raw_sha256": "779c6595bb39de24737bac738357767890ca89c2fd5ebaa8020fec3e271575e2"
+        "decoded_start_line": 14017,
+        "decoded_end_line": 14344,
+        "raw_sha256": "c6f7b70c3681ab44640f34c48ad78e90bae1dd654203a45fa1203dd51ac44e4a"
       },
       {
         "path": "tests/test_document_access_proof_guard.py",
-        "decoded_start_line": 14449,
-        "decoded_end_line": 15210,
+        "decoded_start_line": 14345,
+        "decoded_end_line": 15106,
         "raw_sha256": "f79ff1563587a14ce8cf047b31ec9cd389f250680117f75f66e2796d92da4f23"
       },
       {
         "path": "tests/test_build2_continuation_proof.py",
-        "decoded_start_line": 15211,
-        "decoded_end_line": 15625,
+        "decoded_start_line": 15107,
+        "decoded_end_line": 15521,
         "raw_sha256": "e6804bd642bbb4f20c042f303aa80caeb678c7bd9b876c98ac16c7e09048a28c"
       },
       {
         "path": "docs/reviews/2026-11-08-document-followup-baseline.json",
-        "decoded_start_line": 15626,
-        "decoded_end_line": 15829,
+        "decoded_start_line": 15522,
+        "decoded_end_line": 15725,
         "raw_sha256": "b5967d4ebafd222e007cd010c7525664f5e1674c27d867797b67982d40ad2080"
       },
       {
         "path": "docs/reviews/2026-11-08-document-followup-runtime.json",
-        "decoded_start_line": 15830,
-        "decoded_end_line": 16222,
+        "decoded_start_line": 15726,
+        "decoded_end_line": 16118,
         "raw_sha256": "27b5f4fc51749d7a2c850ac42f52505decc861af512faad7b16bb2d0b370bed0"
       },
       {
         "path": "docs/reviews/2026-11-08-document-followup-source-excerpts.json",
-        "decoded_start_line": 16223,
-        "decoded_end_line": 16593,
+        "decoded_start_line": 16119,
+        "decoded_end_line": 16489,
         "raw_sha256": "8f7696110405d596ab70e7fbc64a1f558251d85decdc8830d5fe1400859415da"
       },
       {
         "path": "docs/reviews/2026-11-08-document-followup.md",
-        "decoded_start_line": 16594,
-        "decoded_end_line": 16660,
-        "raw_sha256": "43a40f1412f3e4b9b99467c5109dc4176e0168e807cfe3cb389e93689cedd64c"
+        "decoded_start_line": 16490,
+        "decoded_end_line": 16675,
+        "raw_sha256": "065fb11e49dbe71963b8a076f97b8460d4ef17b2a3344835df1ebb36900f8121"
       }
     ]
-  }
+  },
+  "pre_audit_full_suite": {
+    "commit": "e40a3df6606e86962a58b6425091353763f454a0",
+    "result": {
+      "exit_code": 0,
+      "passed": 3479,
+      "skipped": 10,
+      "deselected": 1,
+      "warnings": 25,
+      "subtests": 100,
+      "seconds": 68.09
+    }
+  },
+  "audit_correction": {
+    "source_commit": "46433fad823fe882eea5a7894b3544ef65de92bd",
+    "material_finding": "Initial Fable audit Medium: stale HTML/CLI captions in skipped original private replay test",
+    "application_changes": false,
+    "focused": {
+      "passed": 27,
+      "private_skipped": 2,
+      "seconds": 4.17
+    },
+    "native_original_path_receipt": {
+      "source_commit": "46433fad823fe882eea5a7894b3544ef65de92bd",
+      "command": [
+        "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_document_retained_replay.py::test_public_docn_passages_reach_actual_decision_nodes"
+      ],
+      "exit_code": 0,
+      "artifact_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/r2-caption-closure-proof-by_d1qik",
+      "file_sha256": {
+        "pytest.stdout": "6262a8e2e6f2ad2d2de112173e9d549955762f82a7ab80d9fb2f247e0426b472",
+        "pytest.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reports/evidence.json": "05ab776c32b1237c21a8d39690e7df8181a57add77832b410f3d12f9160e069a",
+        "reports/complete_report.md": "af1892bc5e1125456bd2815ccf17ae1320aa69d659fa5f97587240ed6c97785e",
+        "reports/complete_report_cli.txt": "95910f21b59cbf199e06e0840a1caace32c00198207d1e9165046212d6a4827d",
+        "reports/quality.json": "8dda7dca8b16ceb19f035771d27d876f336c8e0b6b898e376b35f7c37b1d3f42",
+        "reports/executive_summary.json": "d4885fbe2e6a943127a8b9dd350ca76093105cebee8f6efcf2bf1cc3a60dedc7",
+        "reports/.report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reports/complete_report.html": "13ac853f86bc755655aa2f6b44648cdeeb1f9566ef210ac5e373a93868f81ad7",
+        "reports/operational_audit.md": "c634b864e1542f8627e7eceda1190bb06456673605edb6c3d1a0e685ebbd1089",
+        "reports/5_portfolio/decision.md": "b945d0605aed5e276756942435cd796cde8cec60b092383eb632a0f5f70855e8",
+        "reports/6_evidence/summary.md": "b72544383eb5c87dc9660dd6c160725a2a0d590be3dd340a9822377a5be8b145",
+        "reports/3_trading/trader.md": "53e9a41a67b22e671fa80f99ada03a80d4470279512bdd7670f1305dc5585089",
+        "reports/2_research/manager.md": "d4c8b8541be6852300e64ca41f8c781296f4ffb4e4820e3b81128173f26f025d",
+        "reports/4_risk/neutral.md": "4b45439d7caf99cd6c9242e1c8477917345841822295d4fae1c7b0c64dc0323f"
+      },
+      "input_fixture": "Hash-checked committed Nov7 public SEC corpus projected through strict validation to Nov6 filing cutoff; every filing date checked <=Nov6; sanitized state/scripted models; sockets denied. Not original missing private replay.",
+      "outputs": [
+        "reports/complete_report.md",
+        "reports/complete_report.html",
+        "reports/complete_report_cli.txt"
+      ],
+      "result": ".                                                                        [100%]\n1 passed in 1.73s"
+    },
+    "logs": {
+      "r2-public-node-caption-red.log": {
+        "path": "/tmp/r2-public-node-caption-red.log",
+        "sha256": "1b9cfd37455851dbbf0453697fef8f7ad3d3d5da86cada51c096c2138f40de0b"
+      },
+      "r2-audit-correction-focused.log": {
+        "path": "/tmp/r2-audit-correction-focused.log",
+        "sha256": "02af172e220a2d03f2c705192fe4597e36e2b8cfccdf1984a3b44ac87a0ee3ab"
+      },
+      "r2-audit-corrected-full-pytest.log": {
+        "path": "/tmp/r2-audit-corrected-full-pytest.log",
+        "sha256": "bc2194e4f5bb185096aa58908195d2bb961533b863f36318ddff5971bc067390"
+      }
+    },
+    "unchanged_native_receipts": {
+      "native_source_commit": "88acc5047529671cd3976a3b939d4041f03dd1f1",
+      "git_diff_exit_code": 0,
+      "paths": [
+        "tradingagents",
+        "cli",
+        "tests/docn_workflow_fixture.py",
+        "tests/fixtures/docn_2026_11_07",
+        "docs/reviews/document-followup-proof.py",
+        "docs/reviews/operations-cli-proof.py",
+        "docs/reviews/2026-11-08-document-followup-baseline.json",
+        "pyproject.toml"
+      ],
+      "result": "Exact native runtime/CLI/public-fixture/proof sources unchanged. Existing source-input replay remains distinct from candidate calculations. New test-only proof exercises failed node/report/CLI assertions.",
+      "not_claimed": "No original missing Nov6 private acceptance; no paid product/model behavior."
+    }
+  },
+  "closure_packet_omitted_unchanged_paths": [
+    "tradingagents/agents/risk_mgmt/aggressive_debator.py",
+    "tradingagents/agents/risk_mgmt/conservative_debator.py"
+  ]
 }
