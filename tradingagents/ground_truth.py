@@ -1043,6 +1043,37 @@ def _omitted_targets(chunk, claims):
     missing.extend(match.span("field") for match in _CRITICAL_FIELD.finditer(coverage))
     missing = [(start, end) for start, end in missing
                if not any(left <= start and end <= right for left, right in spans)]
+    def unique_context(start, end):
+        text = chunk["text"]
+        quote = text[start:end].strip()
+        if text.count(quote) == 1:
+            return quote if len(quote) <= 6000 else None
+        # Repeated assertions need literal adjacent report context, not a
+        # guessed occurrence or a reused outcome. Grow at whole-line boundaries
+        # only; the fresh model must assess the entire expanded target.
+        left = text.rfind("\n", 0, start) + 1
+        right = text.find("\n", end)
+        right = len(text) if right < 0 else right
+        while True:
+            quote = text[left:right].strip()
+            if len(quote) <= 6000 and text.count(quote) == 1:
+                return quote
+            candidates = []
+            if left:
+                previous = text.rfind("\n", 0, left - 1) + 1
+                candidates.append((previous, right))
+            if right < len(text):
+                following = text.find("\n", right + 1)
+                candidates.append((left, len(text) if following < 0 else following))
+            candidates = [(a, b) for a, b in candidates if len(text[a:b].strip()) <= 6000]
+            if not candidates:
+                return None
+            candidates.sort(key=lambda span: (len(text[span[0]:span[1]].strip()), span[0]))
+            # Prefer a unique bounded neighbor immediately when either side
+            # distinguishes this occurrence; otherwise extend the shorter side.
+            left, right = next((span for span in candidates
+                                if text.count(text[span[0]:span[1]].strip()) == 1), candidates[0])
+
     targets = []
     for line in re.finditer(r"[^\n]+", chunk["text"]):
         # Financial tables and labelled fields stay whole; prose uses sentence
@@ -1053,8 +1084,8 @@ def _omitted_targets(chunk, claims):
             start = unit.start() if unit is line else line.start() + unit.start()
             end = unit.end() if unit is line else line.start() + unit.end()
             if any(start <= left and right <= end for left, right in missing):
-                quote = chunk["text"][start:end].strip()
-                if quote and len(quote) <= 6000 and chunk["text"].count(quote) == 1:
+                quote = unique_context(start, end)
+                if quote:
                     targets.append({"quoted_claim": quote,
                                     "explanation": "Coverage repair required: an exact numeric or explicit decision-field occurrence was omitted."})
     return list({target["quoted_claim"]: target for target in targets}.values())
