@@ -238,5 +238,136 @@
     "tests": "1c531873367859f87eba4309d35f9739e28c5cf7",
     "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82"
   },
-  "independent_closure_status": "pending corrected committed candidate review"
+  "independent_closure_status": "complete: no confirmed in-scope Critical/High/Medium remains",
+  "claude_closure": {
+    "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r5-fable-closure-1",
+    "run_id": "d017677d-9ee5-42bb-af5d-59eab4a26bd6",
+    "result": {
+      "base_commit": "cc010ccdda675e8db7377f8102a18ffb7110fa88",
+      "head_commit": "7050666f62a32b6b19b451d4bc9684a3f10f677f",
+      "requested_model": "~anthropic/claude-fable-latest",
+      "served_model": "~anthropic/claude-fable-latest",
+      "status": "completed",
+      "actual_turns": 79,
+      "reviewed_files": [
+        "cli/run.py",
+        "docs/reviews/2026-11-07-observability-runtime.json",
+        "docs/reviews/2026-11-07-observability-verification.json",
+        "docs/reviews/2026-11-07-observability.md",
+        "tests/test_source_replay.py",
+        "tradingagents/agents/post_screen.py",
+        "tradingagents/dataflows/date_window.py",
+        "tradingagents/dataflows/vendors/reddit.py",
+        "tradingagents/dataflows/vendors/stocktwits.py",
+        "tradingagents/dataflows/vendors/yahoo/reference_history.py",
+        "tradingagents/source_replay.py"
+      ],
+      "summary": "Independent frozen-manifest closure audit of Build R5 (observability and controlled comparisons) over cc010ccd\u21927050666f, following completed first audit 44749b33 on cc010ccd. Scope: 11 changed paths (~1,278 diff lines; declared large, correctly escalated to extra large). The diff is exactly the builder-disclosed R5.6 closure batch plus committed receipts, and every closure claim maps to real code and a named regression in the frozen tests: (1) direct StockTwits/Reddit acquisitions now journal raw bytes via external_input with current parsing/windowing re-executed (parametrized test proves frozen raw + current render, limit 2\u21921); (2) Yahoo reference history journals raw bars/metadata through recorded_history while _project reruns on the candidate (test injects a candidate projection marker and asserts identical raw_source, zero misses); (3) the threaded TypeSafe screen journals status/parsed-JSON/retry-after only (never headers), propagates contextvars into workers via copy_context, and a screen that leaves requests in flight sets unfinished_sources, which finish() folds into the session-end incomplete flag and ReplaySession._load rejects as a baseline (two-worker race test); (4) comparison scope now binds quick provider, efforts, temperature, max_tokens, retries and tool-round bound \u2014 all keys verified present in default_config \u2014 with a 4-parameter refusal test matching 'scope'; (5) UTF-8 bytes round-trip via a dedicated pack/unpack marker, non-UTF-8 and credential-scrubbed payloads are explicitly non-replayable (replayable = cleaned==packed) so a scrubbed secret forces a visible mixed-input miss rather than a silent replay (test asserts secret and its hex absent from the journal); (6) date_window undated-item and coverage_gap decisions use the session's frozen observed_at inside a session, with reddit's _coverage_dates aligned, so baseline and candidate classify identically (observed_at is restored from the baseline trace on load); (7) reference-history acquisition time is journaled as its own yahoo_reference_clock input bound to ticker+history-start, preserving truthful live acquisition time (22:00 test) and identical replay request windows; (8) cli/run.py exposes unfinished_sources in replay_context. Integrity chain is coherent: loader enforces single start/end, contiguous sequences, payload and identity digests, scope equality, and rejects incomplete/unfinished traces; snapshot capture/clone preserve sizes, hashes and mtime_ns so baseline/candidate starting-snapshot digests legitimately match. The two disproved first-audit Mediums were re-checked against the newly supplied caller bodies and the disproofs hold: structured.py's diagnostic extras are produced for exactly the four production agent_name values that call bind/invoke_structured at HEAD (Trader, Research Manager, Portfolio Manager, Sentiment Analyst \u2014 audit_pass does not use the helper), matching the run_logging allowlist; and R5.6/Sequence 6\u20137 define baseline isolation as the documented disposable-store procedure using capture/clone_starting_snapshot, not automatic diversion of ordinary traced runs. Verdicts \u2014 Merge integrity: consistent; changed paths match the declared closure scope, the post_screen change does not alter whether the screen runs (the plan's not-in-scope item), and no protected contract (publication immutability, rating eligibility, evidence gating) is touched. Feature acceptance (local R5, closure stage): supported by the committed-candidate receipts at 0308e892 (full suite 3358 passed, Ruff clean, repeated native CLI pair with one replay hit/zero misses/equal snapshots/unchanged baseline stores, five publication/evidence hashes verified by strict readers) plus red\u2192green logs for each closure gap; all are builder receipts, not independent execution, and live-provider acceptance correctly remains incomplete pending Sequence 6\u20137. Full-suite health: green only per the builder receipt bound to 0308e892, one evidence-only commit behind HEAD with tree equality builder-recorded (finding 3). Remote CI: unverified \u2014 local unpushed branch, correctly not claimed. No critical, high or medium finding is supported by the frozen evidence; the four findings above are low and non-blocking. Requirement coverage: R5.1\u2013R5.5 unchanged from the first audit and re-confirmed where re-supplied; R5.6 closure items (direct acquisition journaling, worker context, scope binding, byte round-trip, unfinished-source incompleteness, frozen social clock, acquisition clock) each verified implemented with a matching committed regression; prior F1/F2 dispositions verified incorrect as recorded; F3/F4/F5 remain truthfully retained as disclosed non-blocking limits; F6's successor is finding 3 here.",
+      "limitations": [
+        "Frozen-evidence-only audit: no test execution, runtime verification, network, GitHub access, or repository reads beyond the supplied request.json. All pytest/Ruff/native-CLI results (3358 passed at 0308e892; ruff clean; 1 replay hit/0 misses/12 model callback pairs/equal snapshots/unchanged baseline stores) are builder-supplied receipts, not independently rerun.",
+        "The packet supplies one combined diff for cc010ccd\u21927050666f; the split between the code commit 0308e892 and the evidence-only commit 7050666f cannot be independently reconstructed, so code-tree equality at audited HEAD rests on the builder-recorded git tree OIDs (finding 3).",
+        "The committed line map's per-file SHA-256 values could not be independently re-hashed: the sandbox blocked file writes outside the worktree and the hashing utility, and trailing-newline reconstruction from the concatenated blob is ambiguous. Line ranges were instead cross-checked by content (imports, def/class boundaries), which matched for every file inspected.",
+        "Live-provider, live-vendor and paid-run behavior is unproven by design at this stage: StockTwits/Reddit/TypeSafe/Yahoo paths were exercised with synthetic producers and sockets denied per the receipts; real feed encodings, real Retry-After behavior and real TypeSafe payload shapes are unverified. Sequence steps 6\u20137 own that proof.",
+        "Remote CI, staging integration, Phase 1 baselines and Na/Nb comparisons are unperformed approved later stages; a local unpushed candidate cannot receive a green remote-CI verdict and none is claimed by the builder.",
+        "Full-suite receipt excludes 10 skipped tests (optional langchain_aws; private DOCN corpus/valuation/transcript fixtures) and 1 deselected integration marker, as disclosed; private-fixture replay behavior on this candidate is therefore unverified.",
+        "Some unchanged neighbors were inspected only as supplied HEAD bodies (router vendor table, ohlcv cache path, market settlement path); modules not in the packet (e.g., yahoo/news.py, memory context builders) were not inspected and no claim is made about them.",
+        "Thread-interleaving edge cases in post_screen (in-flight worker journal writes racing _ask_each's done() check and session.finish) were analyzed from source only; the analysis shows every late-write path is covered by the unfinished_sources\u2192incomplete\u2192loader-rejection chain, but this was not exercised beyond the builder's synthetic two-worker test receipt."
+      ],
+      "findings": [
+        {
+          "severity": "low",
+          "title": "Comparison scope omits backend endpoint settings: `_prepare_attempt_comparison` binds providers, models, efforts, temperature, max_tokens, retries and tool/debate rounds, but not `backend_url`/`quick_think_backend_url`/`deep_think_backend_url` (used by `create_tier_client` at HEAD lines 2495\u20132510). Two runs pointed at different endpoints serving the same model names satisfy scope equality and can claim a controlled pair. Mitigation already present: per-call requested/actual model identity is recorded by AttemptRecorder, so endpoint-driven identity drift is still observable in the trace. Corrective direction: add the three endpoint keys to the scope settings tuple; verification is one more parametrized case in test_changed_model_settings_cannot_claim_same_comparison_scope. Source-grounded, not runtime-reproduced.",
+          "path": "cli/run.py"
+        },
+        {
+          "severity": "low",
+          "title": "Non-typed acquisition failures remain unreplayable and force mixed-input comparisons: Reddit HTTPError/429 (raised inside acquire(), outside the three typed vendor errors), an oversized recorded feed (http.client.HTTPException re-raised after replay at reddit.py HEAD line ~9362), and requests exceptions in the TypeSafe path are journaled as {unreplayable_error} and re-raised; replay of those occurrences is a recorded miss that goes live. This retains the first audit's disclosed F4 limitation (confirmed, deferred) rather than regressing it: the failure is visible, status becomes mixed_input, and the controlled-proof gate correctly cannot pass. No correction required by the approved plan; a typed wrapper for HTTP-status failures would be the bounded extension if ever needed.",
+          "path": "tradingagents/dataflows/vendors/reddit.py"
+        },
+        {
+          "severity": "low",
+          "title": "Full-suite (3358 passed/10 skipped/1 deselected) and native CLI receipts bind to code commit 0308e892, one evidence-only commit behind audited HEAD 7050666f. Tree equality is supported only by builder-recorded git tree OIDs (cli 9edfbf73, tradingagents 4b36389f, tests 1c531873, proof blob aa44fb91) in the verification JSON; the frozen packet supplies one combined cc010ccd\u21927050666f diff, so the docs-only nature of the final commit cannot be independently separated or re-hashed here. Same class as first-audit F6 (confirmed, action fix), now mitigated by the recorded OIDs and line map but still builder-asserted. Closes with any independent read of the two commits' tree IDs.",
+          "path": "docs/reviews/2026-11-07-observability-verification.json"
+        },
+        {
+          "severity": "low",
+          "title": "Replayed TypeSafe rate-limit responses re-sleep the recorded Retry-After during offline comparisons: system_one's loop sleeps `retry_after` (bounded at 30s by _retry_after/_MAX_WAIT) between replayed occurrences, so a baseline that recorded 429\u2192200 sequences makes the candidate comparison wait the same real seconds per retried post (up to 16 concurrent workers amortize this). Behavioral fidelity is arguably intended; impact is wall-clock only, no correctness effect. Bounded correction if desired: skip the sleep when the next occurrence is already recorded. Source-grounded, not runtime-reproduced.",
+          "path": "tradingagents/agents/post_screen.py"
+        }
+      ],
+      "classification": {
+        "declared_build_size": "large",
+        "effective_build_size": "extra large",
+        "escalation_reasons": [
+          "Frozen scope changes more than 10 files or more than 500 lines."
+        ]
+      },
+      "progress": {
+        "observed_events": 9692,
+        "last_activity_at": "2026-11-08T03:40:52.306Z",
+        "last_activity_kind": "stdout"
+      },
+      "ledger": {
+        "soft_budget_usd": 32,
+        "hard_budget_usd": 50,
+        "soft_turn_limit": 65,
+        "turn_limit": 110,
+        "wall_clock_limit_minutes": 240,
+        "actual_cost_usd": 9.465908250000002,
+        "actual_elapsed_ms": 3278855,
+        "soft_limit_reached": true
+      },
+      "stop_reason": "reviewer_completed"
+    },
+    "verified_dispositions": [
+      {
+        "id": "C1",
+        "classification": "partially_confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "C2",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "C3",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      },
+      {
+        "id": "C4",
+        "classification": "confirmed",
+        "material": false,
+        "action": "defer",
+        "agrees_with_audit": true
+      }
+    ],
+    "artifact_hashes": {
+      "manifest.json": "deed528c71d4b96a4d5274aaecfc53610c1d67b4dc2cb3ea6784bbdc1248888a",
+      "audit-result.json": "cc99f311dd775c42c0d367e931362aad52e5c66f941a106f0dcbd96f3771f757",
+      "handoff.md": "c5a06ad92612974557361161de6d326dc65331a7809801b50ce328bebc1eaf1e",
+      "audit.md": "8a99196f3ccdbd98b1530281329e32ec4a9354bce354f1d5b9bd285c1ea10b52",
+      "findings-review.md": "f85240825d46e22049f06e6cefee091ddc3bcc9584c3842e93a3c26b62118006"
+    },
+    "validation_at_head": "7050666f62a32b6b19b451d4bc9684a3f10f677f",
+    "validation_sha256": "6b3c6d70423389bec789383c06000c89007900b09c598e22c414c9bcd77d644a"
+  },
+  "local_feature_acceptance": "R5 complete; staging integration/push requires separate approval",
+  "overall_plan_status": "incomplete: R1/R2/R4/R3/Na/Nb, integrations and required live proofs remain",
+  "audit_total_reported_cost_usd": 18.5908815,
+  "retained_limits": [
+    "Endpoint identities are not bound into comparison scope; raw URLs are not serialized because they may contain credentials. Nominal settings/raw sources are controlled; model/provider variability remains uncontrolled.",
+    "Unsupported provider exceptions force explicit mixed-input acquisition; nonfinite generic trace events invalidate a baseline.",
+    "Timestamp subclass/sub-microsecond fidelity is not established.",
+    "Frozen-only review cannot independently query the recorded Git trees or rerun tests/CI.",
+    "Replayed TypeSafe retry responses preserve bounded retry sleeps; wall time only.",
+    "Private/optional skipped tests, real providers, remote CI, integration and installed-app acceptance remain unverified or approved later stages."
+  ]
 }

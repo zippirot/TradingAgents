@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is in progress; later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is locally complete with independent Claude Fable closure; staging integration/push awaits explicit approval. Later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -245,25 +245,25 @@ Full suite and Ruff green. Fixture sequence: write the 09:10 entry, then the 16:
 ### R5.1 Every tool return logged (CN1)
 **Files:** `tradingagents/graph/trading_graph.py` (~:790–795).
 - Handle the `$writes` multi-write form when extracting messages from stream updates.
-- [ ] `test_tool_round_with_search_documents_logs_every_return` (the reproduced case from part A CN1).
+- [x] `test_tool_round_with_search_documents_logs_every_return` (the reproduced case from part A CN1).
 
 ### R5.2 Run log names the stage and the error class (SE4, TR2)
 **Files:** `cli/run_logging.py` (~:25–29), `tradingagents/agents/structured.py` (~:92–95).
 - Put the agent name and exception class into the template text, or allowlist those two arguments. Exception messages stay redacted.
-- [ ] `test_structured_fallback_warning_names_agent_and_exception_class`.
+- [x] `test_structured_fallback_warning_names_agent_and_exception_class`.
 
 ### R5.3 All node outputs in the transcript; PM context persisted (H6, ML2)
 - Emit each observed node's output (or a pointer to its state key) to `message_tool.log`. Add `past_context` and `memory_note` to `_log_state`.
-- [ ] `test_transcript_has_line_per_observed_node`, `test_state_log_includes_past_context`.
+- [x] `test_transcript_has_line_per_observed_node`, `test_state_log_includes_past_context`.
 
 ### R5.4 Token totals that add up (M1, M2)
 - Count usage from failed structured attempts when the provider returns it. Append post-graph calls (the executive summary) to `run_metrics`, or label the stored figure "graph only".
-- [ ] `test_run_metrics_include_executive_summary_call`.
+- [x] `test_failed_structured_attempt_counts_usage_when_provider_returns_it` and `test_stored_metrics_explicitly_exclude_post_graph_editorial_calls` (the permitted graph-only labeling alternative; replaces the originally proposed executive-summary-inclusion test name).
 
 ### R5.5 Per-node trace (former D11)
 - Adopt the optional D11 follow-up here; it was expressly excluded from completed Build D. Reuse the existing node/callback and attempt-directory mechanisms. `TRADINGAGENTS_TRACE=1` writes private, operator-removable `<attempt dir>/trace/<NN>-<stage>.jsonl` containing ordered run/stage/call-bound prompt, tool and response events. Keep traces outside report exports and off by default. Do not serialize credentials, request headers/configuration or raw provider diagnostics; redact known credential values from captured text. Partial/interrupted files are marked incomplete and are not silently treated as valid replay inputs. Reuse attempt isolation on restart; no retention service or new database.
 - Retain requested and provider-returned model IDs (when supplied), stage and attempt identity in bounded run metadata available to R3.7 even when full tracing is off. Unknown actual identity remains unknown; this is call provenance, not a new model-selection mechanism.
-- [ ] `test_trace_default_off`, `test_trace_ordering_across_concurrent_stages`, `test_trace_restart_isolation_and_incomplete_write`, `test_trace_excludes_secrets_and_report_exports` (synthetic secrets in prompt/tool/response/error cases). Inspect private paths, sizes and cleanup instructions before a real traced run.
+- [x] `test_trace_default_off`, `test_trace_ordering_across_concurrent_stages`, `test_trace_restart_isolation_and_incomplete_write`, `test_trace_excludes_secrets_and_report_exports` (synthetic secrets in prompt/tool/response/error cases). Inspect private paths, sizes and cleanup instructions before a real traced run.
 
 ### R5.6 Controlled comparison runs
 **Files:** the tool-execution path in `tradingagents/graph/setup.py::_analyst_graph` and `tradingagents/agents/tools.py`; `cli/run.py`.
@@ -271,12 +271,14 @@ Full suite and Ruff green. Fixture sequence: write the 09:10 entry, then the 16:
 - Account for acquisitions outside model tools, including `create_source_acquisition`, verified quote inputs and memory/settlement reads. Reuse the retained corpus, source-byte/hash fixtures and existing offline HTTP boundary from predecessor proofs rather than adding a general replay platform. R5 owns a short boundary inventory in its review receipt and proves unchanged inputs still reach these paths.
 - A call not in the trace may still run live under the existing known-at cutoff, marked `replay_miss` in trace and operational audit. Such a run is **mixed-input**, not controlled; record the returned input and its scope. Prefer answering a new query against the same frozen raw source when the current tool supports it. Material live input drift cannot satisfy the controlled-comparison gate; report the limitation and stop before claiming that proof complete. No automatic paid retry or new vendor behavior is authorized.
 - Capture an immutable starting memory/publication/cache snapshot **before the baseline run**. Give baseline and candidate separate writable copies of that same snapshot using `TRADINGAGENTS_MEMORY_LOG_PATH`, `TRADINGAGENTS_RESULTS_DIR` and `TRADINGAGENTS_CACHE_DIR` (existing configuration keys). Never seed a candidate with baseline-created publications, settlements or lessons. Record hashes, analysis-clock settings, source vintages and resolved write paths. For Nb, use the pre-run snapshot associated with its accepted Na baseline; do not snapshot the Na run's post-run store. The live store is never touched.
-- [ ] `test_replay_serves_recorded_return_for_identical_call`, `test_replay_rebinds_call_ids_and_preserves_command_updates`, `test_replay_covers_source_acquisition_without_reusing_derived_results`, `test_replay_miss_is_live_and_marked_mixed_input`, `test_comparison_uses_prebaseline_snapshot_and_leaves_live_store_untouched`.
+- [x] `test_replay_serves_recorded_return_for_identical_call`, `test_replay_rebinds_call_ids_and_preserves_command_updates`, `test_replay_covers_source_acquisition_without_reusing_derived_results`, `test_replay_miss_is_live_and_marked_mixed_input`, `test_comparison_uses_prebaseline_snapshot_and_leaves_live_store_untouched`.
 
 ### R5 proof
 First implementation milestone: on Machine 2, exercise the actual `cli.run.run_analysis` entry point through `TradingAgentsGraph` and its compiled graph, publication/memory finalization and report export into a disposable results tree. Bootstrap recorded DOCN inputs before this proof; R1 later owns the reusable fixture. Reuse `docs/reviews/operations-cli-proof.py` and the existing provider-boundary doubles with sockets denied; do not replace graph nodes or publication/report logic with test stand-ins. Inspect the persisted decision UUID, publication/evidence hashes, memory link, reopened state, exported report, transcript and per-stage trace. This proves the real local application path, not live-provider behavior.
 
 Run that smallest path after wiring logging/tracing, before completing replay hardening. After R5 corrections, repeat the complete path: every tool return in `message_tool.log`, a line per observed node, trace files for every stage when enabled, and a second recorded-input run with zero `replay_miss`, preserved tool state updates and unchanged protected source files. Exercise a tool failure and an interrupted/restarted attempt using existing fixtures; verify visible diagnostics and attempt separation. Full suite and Ruff green at the final commit; retain the receipt in `docs/reviews/<date>-observability.md`. Live-provider proof remains Sequence steps 6–7, and overall runtime acceptance stays incomplete until those runs succeed.
+
+**Local acceptance checkpoint (2026-11-07, Machine 2):** corrected source `0308e892bba5f7e8d31461637f3c98eb3b23e42e`; complete default suite 3358 passed / 10 skipped / 1 deselected / 100 subtests, Ruff clean, complete native CLI/replay/failure/restart proofs passed. Claude Fable closure on `7050666f62a32b6b19b451d4bc9684a3f10f677f` completed normally with no Critical/High/Medium findings; verified Low limitations retained. Exact source/input/output hashes, code-tree identities, review ledgers and dispositions: `docs/reviews/2026-11-07-observability.md` and its runtime/verification JSON receipts. This is local feature acceptance only. Staging integration/push, remote CI, Sequence 6–7 live-provider acceptance and later stages remain separately approved/unperformed. R1 has not started.
 
 # Phase 2 — Prompts and hand-offs
 

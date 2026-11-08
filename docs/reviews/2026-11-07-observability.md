@@ -1,6 +1,6 @@
 # R5 observability acceptance record
 
-**Current status (2026-11-07, Machine 2): R5 incomplete.** The first independent audit completed on frozen cc010ccd; verified findings dispositions and corrected-source closure are recorded below. The corrected source is committed at 0308e892; exact committed-source receipts and current closure status appear below. Prior commit/tree receipts are historical. No staging integration, push, later build, live-provider acceptance or release is claimed.
+**Current status (2026-11-07, Machine 2): local R5 build accepted and independently closed; staging integration/push awaits explicit user approval. Overall seven-build plan remains incomplete.** The first independent audit completed on frozen cc010ccd; verified findings dispositions and corrected-source closure are recorded below. The corrected source is committed at 0308e892; exact committed-source receipts and current closure status appear below. Prior commit/tree receipts are historical. No staging integration, push, later build, live-provider acceptance or release is claimed.
 
 ## Authority and baseline
 
@@ -233,3 +233,24 @@ The runner concatenates each supplied HEAD file after trimming surrounding white
 | 17748–17933 | `tests/test_analysis_cutoff.py` | `e5476e1a518b94c52acaca3037f0483662c4e762cf8154e57eed0e325baac551` |
 | 17934–18001 | `tests/test_document_tool_integration.py` | `cf3cf2f6f30ca5c605ae8283cbf756a7b69ef86d632fbea2d38e9f3246a1ddf9` |
 | 18002–18342 | `docs/reviews/operations-cli-proof.py` | `0d812360ab916ef8777db3bf16373dfbadfaab1c8767a4b5df9996ae32093457` |
+
+
+## Final local R5 acceptance — 2026-11-07
+
+Claude Fable closure run **d017677d-9ee5-42bb-af5d-59eab4a26bd6** completed on exact frozen **7050666f62a32b6b19b451d4bc9684a3f10f677f**: **79 turns, $9.465908250000002, 3,278,855 ms (54.6 minutes)**, requested/served **~anthropic/claude-fable-latest**, stop reason `reviewer_completed`. The 65-turn soft target was reached; no hard cap was reached. Reduced limits remained 65/110 turns, $32/$50 and 240 minutes, with the 10-minute no-output timeout. Combined reported audit cost is approximately **$18.59**. Neither run was capped or retried. These paid reviews are separate from the synthetic product proofs, which made no paid product/model/vendor calls.
+
+The closure independently mapped every material correction to current code and its regression, upheld both first-audit Medium disproofs after reading the missing real callers, and supported **local R5 feature acceptance with no Critical/High/Medium findings**. Its four findings are Low and verified non-blocking: unbound endpoint identity (raw URLs may contain credentials), retained unsupported-error mixed-input behavior, frozen-only Git/source-tree verification limits, and preserved bounded TypeSafe retry waiting. The latter was reproduced with a synthetic 429/Retry-After=2 followed by success: replay made zero live requests, returned the same answers and requested the same mocked two-second delay. The original nonfinite diagnostic-event and Timestamp subtype/precision limits are also retained. No extra scope, unsafe raw endpoint serialization or performance refactor was added solely to remove Low findings.
+
+Current exact-source verification remains **3358 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests in 58.23s**, full Ruff clean and repeated real CLI/compiled-graph/publication/memory/report/replay plus failure/restart proofs on source **0308e892bba5f7e8d31461637f3c98eb3b23e42e**. Native pair: one source hit, zero misses, 12 model callback pairs, identical pre-run snapshots and unchanged baseline stores. Private trace sequence/permissions/export exclusion, original source hash and five publication/evidence hashes with memory links were inspected. The subsequent evidence-only commit preserves the audited source/test/proof identities; no new full-suite execution is claimed for documentation changes.
+
+All six R5 requirement groups are locally complete. The R5.4 test-name checkpoint is synchronized to the plan's permitted **graph-only labeling alternative**: `test_failed_structured_attempt_counts_usage_when_provider_returns_it` and `test_stored_metrics_explicitly_exclude_post_graph_editorial_calls`. The originally proposed `test_run_metrics_include_executive_summary_call` name assumed the other permitted alternative; no eligibility or acceptance requirement was weakened.
+
+The closure manifest and its four findings dispositions were validated successfully while HEAD was still 7050666f. Complete unmodified report, actual ledger, source-specific receipts, artifact hashes and retained limitations are in the verification JSON and external audit directory. Reviewed-files lists remain inventory rather than individual-inspection certificates. Tests/native runs are builder-executed; Claude performed frozen-source review only. Its line-map/hash, Git-history access and omitted unchanged-module limits remain explicit. Local acceptance does not establish remote CI or live-provider success.
+
+**Stage handoff:** request explicit approval to integrate/push this clean R5 feature branch to canonical staging. Do not merge/push, create a PR, remove the worktree, start R1, release production or install/launch the stable app without the applicable separate authorization. After R5 staging integration is explicitly approved and confirmed, R1 must start in its own new worktree from exact fetched staging containing R5. User-approved Amendment 1 remains unchanged for its future R1/R3/Na hosts. Phase 1 live baselines, Na/Nb pairs, retained-combination proof and exact-production Machine 1 acceptance remain later distinct stages. The overall Goal remains active and its notifier stays enabled.
+
+The context line map above is a historical navigation map for the audited 7050666f packet, not a map of these final status/checkpoint additions.
+
+- `/tmp/r5-closure-low-verification.json` — SHA-256 `ef83dc9e8b3a9133367cec2e2d695bdbc305676878da65d35a5677d78763ffc2`
+
+- `/tmp/r5-closure-audit-validation.json` — SHA-256 `6b3c6d70423389bec789383c06000c89007900b09c598e22c414c9bcd77d644a`
