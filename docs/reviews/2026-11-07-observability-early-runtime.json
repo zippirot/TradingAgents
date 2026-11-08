@@ -1,0 +1,325 @@
+{
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-3p2u3a01",
+  "results_configuration": "relative results; Enter returns displayed default",
+  "recorded_source_sha256": "de15f4df70171544b21842a43576111f01ccc0da75f67234e23a9a92c6fd869c",
+  "copied_source_unchanged": true,
+  "split_actions": "simulated zero actions; no live absence claim",
+  "attempt_count": 4,
+  "model_calls": 32,
+  "roles_exercised": [
+    "Advisory Audit",
+    "Aggressive Analyst",
+    "Bear Researcher",
+    "Bull Researcher",
+    "Conservative Analyst",
+    "Neutral Analyst",
+    "Portfolio Manager",
+    "Research Manager",
+    "Trader",
+    "agent",
+    "wrap_up"
+  ],
+  "attempt_events": [
+    "started",
+    "completed",
+    "started",
+    "completed",
+    "started",
+    "interrupted",
+    "started",
+    "completed"
+  ],
+  "attempts": [
+    {
+      "events": [
+        "started",
+        "completed"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports-retry/.report-export.lock",
+        "reports-retry/1_analysts/market.md",
+        "reports-retry/2_research/bear.md",
+        "reports-retry/2_research/bull.md",
+        "reports-retry/2_research/manager.md",
+        "reports-retry/3_trading/trader.md",
+        "reports-retry/4_risk/aggressive.md",
+        "reports-retry/4_risk/conservative.md",
+        "reports-retry/4_risk/neutral.md",
+        "reports-retry/5_portfolio/decision.md",
+        "reports-retry/6_evidence/summary.md",
+        "reports-retry/complete_report.html",
+        "reports-retry/complete_report.md",
+        "reports-retry/diagnostics.json",
+        "reports-retry/evidence.json",
+        "reports-retry/executive_summary.json",
+        "reports-retry/operational_audit.md",
+        "reports-retry/quality.json",
+        "reports/final_trade_decision.md",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "reports/trader_investment_plan.md",
+        "run.log",
+        "trace/01-memory-log.jsonl",
+        "trace/02-source-acquisition.jsonl",
+        "trace/03-market-analyst.jsonl",
+        "trace/04-evidence-check.jsonl",
+        "trace/05-bull-researcher.jsonl",
+        "trace/06-bear-researcher.jsonl",
+        "trace/07-document-followup.jsonl",
+        "trace/08-research-manager.jsonl",
+        "trace/09-trader.jsonl",
+        "trace/10-aggressive-analyst.jsonl",
+        "trace/11-conservative-analyst.jsonl",
+        "trace/12-neutral-analyst.jsonl",
+        "trace/13-advisory-audit.jsonl",
+        "trace/14-portfolio-manager.jsonl",
+        "trace/15-run-metrics.jsonl"
+      ],
+      "run_log_bytes": 340,
+      "message_log_bytes": 5038
+    },
+    {
+      "events": [
+        "started",
+        "completed"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports/.report-export.lock",
+        "reports/1_analysts/market.md",
+        "reports/2_research/bear.md",
+        "reports/2_research/bull.md",
+        "reports/2_research/manager.md",
+        "reports/3_trading/trader.md",
+        "reports/4_risk/aggressive.md",
+        "reports/4_risk/conservative.md",
+        "reports/4_risk/neutral.md",
+        "reports/5_portfolio/decision.md",
+        "reports/6_evidence/summary.md",
+        "reports/complete_report.html",
+        "reports/complete_report.md",
+        "reports/diagnostics.json",
+        "reports/evidence.json",
+        "reports/executive_summary.json",
+        "reports/final_trade_decision.md",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "reports/operational_audit.md",
+        "reports/quality.json",
+        "reports/trader_investment_plan.md",
+        "run.log",
+        "trace/01-memory-log.jsonl",
+        "trace/02-source-acquisition.jsonl",
+        "trace/03-market-analyst.jsonl",
+        "trace/04-evidence-check.jsonl",
+        "trace/05-bull-researcher.jsonl",
+        "trace/06-bear-researcher.jsonl",
+        "trace/07-document-followup.jsonl",
+        "trace/08-research-manager.jsonl",
+        "trace/09-trader.jsonl",
+        "trace/10-aggressive-analyst.jsonl",
+        "trace/11-conservative-analyst.jsonl",
+        "trace/12-neutral-analyst.jsonl",
+        "trace/13-advisory-audit.jsonl",
+        "trace/14-portfolio-manager.jsonl",
+        "trace/15-run-metrics.jsonl"
+      ],
+      "run_log_bytes": 141,
+      "message_log_bytes": 5859
+    },
+    {
+      "events": [
+        "started",
+        "interrupted"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "run.log",
+        "trace/01-memory-log.jsonl",
+        "trace/02-source-acquisition.jsonl",
+        "trace/03-market-analyst.jsonl",
+        "trace/04-evidence-check.jsonl",
+        "trace/05-bull-researcher.jsonl",
+        "trace/06-bear-researcher.jsonl",
+        "trace/07-document-followup.jsonl",
+        "trace/08-research-manager.jsonl",
+        "trace/09-trader.jsonl"
+      ],
+      "run_log_bytes": 0,
+      "message_log_bytes": 2477
+    },
+    {
+      "events": [
+        "started",
+        "completed"
+      ],
+      "files": [
+        "message_tool.log",
+        "reports/.report-export.lock",
+        "reports/1_analysts/market.md",
+        "reports/2_research/bear.md",
+        "reports/2_research/bull.md",
+        "reports/2_research/manager.md",
+        "reports/3_trading/trader.md",
+        "reports/4_risk/aggressive.md",
+        "reports/4_risk/conservative.md",
+        "reports/4_risk/neutral.md",
+        "reports/5_portfolio/decision.md",
+        "reports/6_evidence/summary.md",
+        "reports/complete_report.html",
+        "reports/complete_report.md",
+        "reports/diagnostics.json",
+        "reports/evidence.json",
+        "reports/executive_summary.json",
+        "reports/final_trade_decision.md",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "reports/operational_audit.md",
+        "reports/quality.json",
+        "reports/trader_investment_plan.md",
+        "run.log",
+        "trace/01-trader.jsonl",
+        "trace/02-aggressive-analyst.jsonl",
+        "trace/03-conservative-analyst.jsonl",
+        "trace/04-neutral-analyst.jsonl",
+        "trace/05-advisory-audit.jsonl",
+        "trace/06-portfolio-manager.jsonl",
+        "trace/07-run-metrics.jsonl"
+      ],
+      "run_log_bytes": 0,
+      "message_log_bytes": 2943
+    }
+  ],
+  "completed_reports": 2,
+  "save_retry_report": true,
+  "market_tool_data_seen": true,
+  "latest_state": true,
+  "state_archives": 3,
+  "distinct_published_runs": 3,
+  "reopened_report_hashes": [
+    "b3b0711cc42d",
+    "13b3c9102d9f",
+    "bdf92f1505d8"
+  ],
+  "html_pages": [
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-3p2u3a01/results/DOCN/2026-11-06/172622-3f6b4630/reports-retry/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-3p2u3a01/results/DOCN/2026-11-06/172622-a7710bdd/reports/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-3p2u3a01/results/DOCN/2026-11-06/172623-dd78a722/reports/complete_report.html"
+  ],
+  "latest_rating": "Hold",
+  "source_hash_matches_state": true,
+  "source_hash_in_report": true,
+  "save_failure_logged": true,
+  "resumed_message": true,
+  "summary": [
+    "Analysis Complete!",
+    "Run log: results/DOCN/2026-11-06/172622-a7710bdd/run.log",
+    "Tokens: unavailable (usage was not observed)",
+    "Analysis Complete!",
+    "Run log: results/DOCN/2026-11-06/172622-3f6b4630/run.log",
+    "Tokens: unavailable (usage was not observed)",
+    "Analysis Complete!",
+    "Run log: results/DOCN/2026-11-06/172623-dd78a722/run.log",
+    "Tokens: unavailable (usage was not observed)"
+  ],
+  "network_blocked": true,
+  "credentials_isolated": true,
+  "secret_found": false,
+  "trace_observations": [
+    {
+      "attempt": "172622-3f6b4630",
+      "stages": [
+        "Advisory Audit",
+        "Aggressive Analyst",
+        "Bear Researcher",
+        "Bull Researcher",
+        "Conservative Analyst",
+        "Document Followup",
+        "Evidence Check",
+        "Market Analyst",
+        "Memory Log",
+        "Neutral Analyst",
+        "Portfolio Manager",
+        "Research Manager",
+        "Run Metrics",
+        "Source Acquisition",
+        "Trader"
+      ],
+      "event_count": 30,
+      "interrupted_stage_count": 0,
+      "private_file_permissions": [
+        "0o600"
+      ]
+    },
+    {
+      "attempt": "172622-a7710bdd",
+      "stages": [
+        "Advisory Audit",
+        "Aggressive Analyst",
+        "Bear Researcher",
+        "Bull Researcher",
+        "Conservative Analyst",
+        "Document Followup",
+        "Evidence Check",
+        "Market Analyst",
+        "Memory Log",
+        "Neutral Analyst",
+        "Portfolio Manager",
+        "Research Manager",
+        "Run Metrics",
+        "Source Acquisition",
+        "Trader"
+      ],
+      "event_count": 32,
+      "interrupted_stage_count": 0,
+      "private_file_permissions": [
+        "0o600"
+      ]
+    },
+    {
+      "attempt": "172623-a0d98ddf",
+      "stages": [
+        "Bear Researcher",
+        "Bull Researcher",
+        "Document Followup",
+        "Evidence Check",
+        "Market Analyst",
+        "Memory Log",
+        "Research Manager",
+        "Source Acquisition",
+        "Trader"
+      ],
+      "event_count": 18,
+      "interrupted_stage_count": 1,
+      "private_file_permissions": [
+        "0o600"
+      ]
+    },
+    {
+      "attempt": "172623-dd78a722",
+      "stages": [
+        "Advisory Audit",
+        "Aggressive Analyst",
+        "Conservative Analyst",
+        "Neutral Analyst",
+        "Portfolio Manager",
+        "Run Metrics",
+        "Trader"
+      ],
+      "event_count": 14,
+      "interrupted_stage_count": 0,
+      "private_file_permissions": [
+        "0o600"
+      ]
+    }
+  ],
+  "early_source_hash": "sha256:d4aa543d84cd4725a1f1f4dd1bf0269441523c74d65c5d29f932c9ac5d442e52",
+  "limitations": [
+    "Recorded DOCN price source and provider doubles; no live provider/model proof.",
+    "OfflineModel does not emit LLM callbacks, so this native run proves stage tracing; actual model callbacks are covered by test_attempt_trace.py.",
+    "Early milestone before metrics/replay completion; not a final R5 proof."
+  ]
+}

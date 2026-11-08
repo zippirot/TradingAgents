@@ -109,6 +109,14 @@ def _save_and_reload(tmp_path, state):
     return json.loads(path.read_text())
 
 
+def test_state_log_includes_past_context(tmp_path):
+    state, _ = _state()
+    state.update(past_context="Dated prior lesson", memory_note="No outcomes due")
+    saved = _save_and_reload(tmp_path, state)
+    assert saved["past_context"] == state["past_context"]
+    assert saved["memory_note"] == state["memory_note"]
+
+
 def test_log_reload_preserves_a4_corpus_journal_questions_and_report(tmp_path):
     state, _ = _state()
     trace = run_document_search(

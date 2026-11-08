@@ -81,6 +81,33 @@ def test_a_retry_with_only_one_usage_receipt_is_partial():
     assert metrics["token_usage_started_calls"] == 2
 
 
+def test_failed_structured_attempt_counts_usage_when_provider_returns_it():
+    counter = StatsCallbackHandler()
+    counter.on_llm_start({}, ["failed structured attempt"])
+    counter.on_llm_error(RuntimeError("private-provider-payload"), run_id="failed",
+                         response=response({"input_tokens": 23, "output_tokens": 8, "total_tokens": 31}))
+    assert counter.get_stats()["tokens_in"] == 23
+    # A repeated terminal callback must not double-count the receipt.
+    counter.on_llm_end(response({"input_tokens": 23, "output_tokens": 8, "total_tokens": 31}), run_id="failed")
+    complete(counter, 11, 7)
+    stats = counter.get_stats()
+    assert stats["tokens_in"] == 34 and stats["tokens_out"] == 15
+    assert stats["token_usage_calls"] == 2
+    assert stats["token_usage_scope"] == "complete_observed"
+
+
+def test_stored_metrics_explicitly_exclude_post_graph_editorial_calls():
+    counter = StatsCallbackHandler()
+    graph = owner(counter)
+    initial = graph._initial_run_metrics()
+    complete(counter)
+    stored = graph._observe_run_metrics({"run_metrics": initial})
+    complete(counter, 3, 2)  # later editorial summary
+    assert stored["call_boundary"] == "graph_only"
+    assert stored["model_calls"] == 1
+    assert "research graph only" in reporting.render_token_usage(stored)
+
+
 def test_resume_preserves_known_totals_but_never_restores_complete_scope():
     counter = StatsCallbackHandler()
     graph = owner(counter)

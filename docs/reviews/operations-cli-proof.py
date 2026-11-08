@@ -142,6 +142,7 @@ def main():
              patch.object(socket.socket, "connect", _deny_network), \
              patch.object(socket, "create_connection", _deny_network), \
              patch.dict(os.environ, {"OPENAI_API_KEY": SECRET, "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
+                                    "TRADINGAGENTS_TRACE": "1",
                                     "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
                                     "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
                                     "TRADINGAGENTS_MAX_RISK_ROUNDS": "1",

@@ -36,6 +36,13 @@ from .setup import GraphSetup
 logger = logging.getLogger(__name__)
 
 
+def _task_messages(value):
+    """Unwrap LangGraph's multi-write channel envelope without changing messages."""
+    if isinstance(value, dict) and isinstance(value.get("$writes"), list):
+        return [message for write in value["$writes"] for message in _task_messages(write)]
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
 def _state_log_path(config, ticker, trade_date, run_id=None):
     directory = Path(config["results_dir"]) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
     suffix = "_" + safe_ticker_component(str(run_id)[:8]) if run_id else ""
@@ -237,6 +244,7 @@ class TradingAgentsGraph:
         self._metrics_start = self._callback_calls()
         self._tokens_start = self._token_snapshot()
         return {
+            "call_boundary": "graph_only",
             "model_calls": 0 if self._metrics_start is not None else None,
             "model_call_scope": "complete_observed" if self._metrics_start is not None else "unavailable",
             "observer_id": self._metrics_observer_id,
@@ -274,6 +282,7 @@ class TradingAgentsGraph:
         risk_turns = max(0, risk.get("count", 0)) if type(risk.get("count")) is int else 0
         result = {
             **previous,
+            "call_boundary": "graph_only",
             "research_turns": research_turns, "risk_turns": risk_turns,
             "research_rounds_completed": research_turns // 2,
             "risk_rounds_completed": risk_turns // 3,
@@ -792,9 +801,9 @@ class TradingAgentsGraph:
                     if isinstance(result, dict):
                         report = {k: v for k, v in result.items() if k != "messages" and v}
                         if result.get("messages") or report:
-                            yield provisional_messages(result.get("messages", [])), provisional_state(report or None)
+                            yield provisional_messages(_task_messages(result.get("messages", []))), provisional_state(report or None)
                 elif mode == "values":
-                    yield provisional_messages(chunk.get("messages", [])), provisional_state(chunk)
+                    yield provisional_messages(_task_messages(chunk.get("messages", []))), provisional_state(chunk)
         finally:
             context.run(stream.close)
 
@@ -831,6 +840,10 @@ class TradingAgentsGraph:
             "final_rating": run_rating(final_state),
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
+
+        for field in ("past_context", "memory_note", "model_call_metadata"):
+            if field in final_state:
+                entry[field] = final_state[field]
 
         for field in ("operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "filing_terms_evidence", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:

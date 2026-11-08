@@ -87,11 +87,29 @@ def observed_node(node, stage, *, report_key=None, expected_stages=None):
             return runnable.invoke(state, config)
         events = {}
         token = _active.set((state, stage, events, Lock()))
+        from tradingagents.attempt_trace import recorder_from_config
+
+        recorder = recorder_from_config(config)
+        capture = recorder.stage(stage, state) if recorder else None
+        callbacks = [_Outcomes()]
+        if capture:
+            callbacks.append(capture)
+            capture.emit('stage_start', state_keys=sorted(state))
         try:
             from langchain_core.runnables.config import merge_configs
-            result = runnable.invoke(state, merge_configs(config, {'callbacks': [_Outcomes()]}))
+            result = runnable.invoke(state, merge_configs(config, {'callbacks': callbacks}))
+        except BaseException as exc:
+            if capture:
+                capture.emit('stage_error', incomplete=True, error_class=type(exc).__name__)
+                recorder.transcript(stage, state, [], failed=True)
+            raise
         finally:
             _active.reset(token)
+        if capture:
+            capture.emit('stage_end', incomplete=False, state_keys=sorted(result))
+            recorder.transcript(stage, state, result)
+            if capture.calls:
+                result = {**result, 'model_call_metadata': capture.calls}
         code = 'empty_output' if report_key and not result.get(report_key) else 'completed'
         extra = {}
         if expected_stages is not None:

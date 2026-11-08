@@ -1,6 +1,7 @@
 """A replaceable, sanitized warning log for one analysis attempt."""
 
 import logging
+import re
 import traceback
 from pathlib import Path
 
@@ -27,6 +28,13 @@ class _SafeRunFormatter(logging.Formatter):
             # Keep their types for diagnosis without evaluating __str__/__repr__.
             args = record.args.values() if isinstance(record.args, dict) else record.args
             message += " [arg types: " + ", ".join(type(arg).__name__ for arg in args) + "]"
+        if record.name == "tradingagents.agents.structured":
+            agent = getattr(record, "diagnostic_agent", None)
+            error = getattr(record, "diagnostic_error_class", None)
+            if agent in {"Trader", "Portfolio Manager", "Research Manager", "Sentiment Analyst"}:
+                message += f" [agent: {agent}]"
+            if isinstance(error, str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,79}", error):
+                message += f" [exception class: {error}]"
         timestamp = self.formatTime(record, self.datefmt)
         rendered = f"{timestamp} {record.levelname} {record.name}: {message}"
         if record.exc_info:

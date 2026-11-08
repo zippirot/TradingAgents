@@ -19,6 +19,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
         self.tokens_out = 0
         self.token_usage_calls = 0
         self.token_usage_missing = 0
+        self._usage_receipts = set()
 
     def on_llm_start(
         self,
@@ -58,11 +59,22 @@ class StatsCallbackHandler(BaseCallbackHandler):
                      for key in ("input_tokens", "output_tokens")))
         with self._lock:
             if valid:
+                identity = kwargs.get("run_id")
+                if identity is not None and str(identity) in self._usage_receipts:
+                    return
+                if identity is not None:
+                    self._usage_receipts.add(str(identity))
                 self.tokens_in += usage_metadata["input_tokens"]
                 self.tokens_out += usage_metadata["output_tokens"]
                 self.token_usage_calls += 1
             else:
                 self.token_usage_missing += 1
+
+    def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:
+        """A failed structured/provider attempt may still have a usage receipt."""
+        response = kwargs.get("response")
+        if isinstance(response, LLMResult):
+            self.on_llm_end(response, **{key: value for key, value in kwargs.items() if key != "response"})
 
     def on_tool_start(
         self,

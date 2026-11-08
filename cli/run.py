@@ -145,6 +145,9 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
     stats_handler = StatsCallbackHandler()
+    from tradingagents.attempt_trace import AttemptRecorder
+
+    attempt_recorder = AttemptRecorder(results_dir, attempt_id)
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
@@ -156,7 +159,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         selected_analyst_keys,
         config=config,
         debug=True,
-        callbacks=[stats_handler],
+        callbacks=[stats_handler, attempt_recorder],
     )
 
     message_buffer.init_for_analysis(selected_analyst_keys)
@@ -246,7 +249,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+        args = graph.propagator.get_graph_args(callbacks=[stats_handler, attempt_recorder])
 
         # Recompile with a checkpointer and inject the thread_id so --checkpoint
         # actually saves and resumes on the CLI path (#1249); a no-op when

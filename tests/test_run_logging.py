@@ -65,3 +65,20 @@ def test_cleanup_restores_root_level_and_other_handlers(tmp_path):
         assert other in root.handlers
     finally:
         root.removeHandler(other)
+
+
+@pytest.mark.unit
+def test_structured_fallback_warning_names_agent_and_exception_class(tmp_path):
+    from tradingagents.agents.structured import invoke_structured
+
+    class BrokenProvider:
+        def invoke(self, prompt):
+            raise TimeoutError("secret-provider-token")
+
+    path = configure_run_logging(tmp_path)
+    assert invoke_structured(BrokenProvider(), "private prompt", "Trader") is None
+    contents = path.read_text()
+    assert "Trader" in contents
+    assert "TimeoutError" in contents
+    assert "secret-provider-token" not in contents
+    assert "private prompt" not in contents
