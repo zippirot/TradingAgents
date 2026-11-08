@@ -199,3 +199,16 @@ def test_failed_numeric_repair_does_not_falsely_cover_repeated_occurrences():
     assert result["coverage"]["reviewed_chunks"] == 0
     assert result["status"] == "partial"
     assert result["unresolved_repairs"][0]["quoted_claim"] == "Cash was 100 EUR."
+
+
+def test_table_date_header_cannot_claim_source_support_without_a_citation():
+    header = "| Perimeter (9/30/2026) | Net obligations | Source |"
+    chunk = {"chunk_id": "table", "section_id": "decision", "start": 0, "text": header}
+    with pytest.raises(ValueError, match="source-backed outcome needs evidence"):
+        _validate_claim(assertion(header, "supported", evidence=[]), chunk, {})
+    declared_scope = _validate_claim(assertion(
+        header, "hypothesis", evidence=[],
+        explanation="Declared table scope only; dated source inputs are needed to verify its rows."), chunk, {})
+    assert declared_scope["outcome"] == "hypothesis"
+    assert not declared_scope["code_verified"]
+    assert declared_scope["verification"]["source_quotes_validated"] is False
