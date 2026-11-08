@@ -1,0 +1,371 @@
+{
+  "semantics": "Verbatim public source blocks from hash-checked fixture and exact BASE code excerpts. These are source text, not validated new claims or independent runtime inspection. All distinct before/after returned SEC blocks are supplied in full for lexical relevance review.",
+  "fixture_manifest_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f",
+  "source_corpus_hash": "a6f5f1ce8ecd860523bab7fee4924e75c61a555644bcc787540ce6e85465a0a5",
+  "public_source_blocks": [
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-226",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9",
+      "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+      "text": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | | $ | 187,420 | | | $ | 923,599 | ; Less: Finance lease liabilities and equipment financing obligations, current | (159,047) | | | (45,731) | | | (204,778) | ; Finance lease liabilities and equipment financing obligations, long-term | $ | 577,132 | | | $ | 141,689 | | | $ | 718,821 |",
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef usd -> iso4217:USD",
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+      "locator": "block-221",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm",
+      "content_hash": "97280aa532a85b0d08d2794fd661032cb10a0d6e7e1c00cd0f78fdbed2c7faa6",
+      "filing": {
+        "accession": "0001628280-26-052556",
+        "cik": "0001582961",
+        "filed_date": "2026-08-04",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260630.htm",
+        "report_date": "2026-06-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm"
+      },
+      "passage_hash": "24d1b1acbf1cf255e07410e02360f7d82f480a8e1568e2d8bc6b3726cc2849b0",
+      "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 8. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations of June 30, 2026 were as follows:",
+      "text": "| | | | | | | | | | | | | | | | | ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2027 | $ | 111,639 | | | $ | 24,778 | | | $ | 136,417 | ; 2028 | 107,530 | | | 50,329 | | | 157,859 | ; 2029 | 107,203 | | | 50,329 | | | 157,532 | ; 2030 | 99,616 | | | 46,495 | | | 146,111 | ; 2031 | 35,545 | | | 12,744 | | | 48,289 | ; Thereafter | 1,552 | | | 6,523 | | | 8,075 | ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 463,085 | | | $ | 191,198 | | | $ | 654,283 | ; Less: Imputed interest | (53,251) | | | (23,312) | | | (76,563) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 409,834 | | | $ | 167,886 | | | $ | 577,720 | ; Less: Finance lease liabilities and equipment financing obligations, current | (89,836) | | | (39,941) | | | (129,777) | ; Finance lease liabilities and equipment financing obligations, long-term | $ | 319,998 | | | $ | 127,945 | | | $ | 447,943 |",
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef usd -> iso4217:USD",
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-223",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "9be78ddb49254b9adddfcb36024e1ea33ee2fe66d9e61d25d657755b146b624b",
+      "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Weighted-average remaining term and discount rate of finance lease liabilities and equipment financing obligations were as follows:",
+      "text": "| | | | | | | | | | | ; ; | September 30, 2026 | | December 31, 2025 ; Finance Leases | | | ; Weighted-average remaining term (in years) | 5.7 | | 0.9 ; Weighted-average discount rate | 7% | | 7% ; | | | ; Equipment Financing Obligations | | | ; Weighted-average remaining term (in years) | 3.9 | | 3.9 ; Weighted-average discount rate | 7% | | 7%",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-200",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "8f7a294d5f8dcf156eaa34f8f4bda2fe3f7cbebbc43abdb8d496596dd7a0dbf8",
+      "section": "Document",
+      "text": "The Company was issued letters of credit under the letter of credit sublimit of its Revolving Facility of $9,734 and $15,584 during the three and nine months ended September 30, 2026, respectively. No drawdowns have been made under the Company\u2019s letters of credit and the Revolving Facility. The Company\u2019s total available borrowing capacity under the Revolving Facility was $396,916 as of September 30, 2026.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+      "locator": "block-24",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm",
+      "content_hash": "e5702f82329f857c41a948e957efbcda16c5eaa9132004baec404bfd8669e076",
+      "filing": {
+        "accession": "0001628280-26-069125",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "8-K",
+        "items": "2.02,8.01,9.01",
+        "primary_document": "docn-20261103.htm",
+        "report_date": "2026-11-02",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/docn-20261103.htm"
+      },
+      "passage_hash": "2833c879183c1ae9da0ca6a6124bab9a28ca8cb539b69a2524de8b33375c60ec",
+      "section": "Document",
+      "text": "\u2022Remaining Performance Obligation (\u201cRPO\u201d)(2) was $800 million, of which, $345 million is expected to be recognized over the next 12 months. RPO was $61 million in the third quarter of 2025.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+      "locator": "block-149",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm",
+      "content_hash": "97280aa532a85b0d08d2794fd661032cb10a0d6e7e1c00cd0f78fdbed2c7faa6",
+      "filing": {
+        "accession": "0001628280-26-052556",
+        "cik": "0001582961",
+        "filed_date": "2026-08-04",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260630.htm",
+        "report_date": "2026-06-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm"
+      },
+      "passage_hash": "138ac55afd554c77fc163e8e0dcb23dc2f85b87700c1ff9b07e8d93dbe48500f",
+      "section": "Document",
+      "text": "The Company has performance obligations associated with commitments in customer contracts for future services that have not yet been recognized in the condensed consolidated financial statements. As of June 30, 2026, the aggregate transaction price allocated to the remaining performance obligations, which includes contracts with expected term of one year or less, is $893,828 with a weighted-average life of 3.7 years. As of June 30, 2026, the Company expects to recognize $365,901 of its remaining performance obligations as revenue over the next 12 months, with the remainder recognized thereafter over the remaining life of the contracts.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+      "locator": "block-1084",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+      "content_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+      "filing": {
+        "accession": "0001582961-26-000019",
+        "cik": "0001582961",
+        "filed_date": "2026-02-24",
+        "form": "10-K",
+        "items": "",
+        "primary_document": "docn-20251231.htm",
+        "report_date": "2025-12-31",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm"
+      },
+      "passage_hash": "4420e091570bf8b9a4126a0a3d4dd9619739a17c25574392193a66363bc37486",
+      "section": "Document",
+      "text": "The Company has performance obligations associated with commitments in customer contracts for future services that have not yet been recognized in the consolidated financial statements. As of December 31, 2025, the aggregate transaction price allocated to the remaining performance obligations, which includes contracts with expected term of one year or less, is $134,085 with a weighted-average life of 2.0 years. As of December 31, 2025, the Company expects to recognize $72,799 of its remaining performance obligations as revenue over the next 12 months, with the remainder recognized thereafter over the remaining life of the contracts.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+      "locator": "block-218",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm",
+      "content_hash": "97280aa532a85b0d08d2794fd661032cb10a0d6e7e1c00cd0f78fdbed2c7faa6",
+      "filing": {
+        "accession": "0001628280-26-052556",
+        "cik": "0001582961",
+        "filed_date": "2026-08-04",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260630.htm",
+        "report_date": "2026-06-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026052556/docn-20260630.htm"
+      },
+      "passage_hash": "8b07e2148e3e765aded87dbc2d3f6cfbbea1725d7c6cb1a098778d46cfe060b5",
+      "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 8. Finance Leases and Equipment Financing Obligations ; Weighted-average remaining term and discount rate of finance lease liabilities and equipment financing obligations were as follows:",
+      "text": "| | | | | | | | | | | ; ; | June 30, 2026 | | December 31, 2025 ; Finance Leases | | | ; Weighted-average remaining term (in years) | 5.9 | | 0.9 ; Weighted-average discount rate | 6% | | 7% ; | | | ; Equipment Financing Obligations | | | ; Weighted-average remaining term (in years) | 3.9 | | 3.9 ; Weighted-average discount rate | 7% | | 7%",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-148",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "4b05d938124d0277322d2abb9fd32a0552d20ebaa55eefcb655390fa66aec014",
+      "section": "Document",
+      "text": "The Company has performance obligations associated with commitments in customer contracts for future services that have not yet been recognized in the condensed consolidated financial statements. As of September 30, 2026, the aggregate transaction price allocated to the remaining performance obligations, which includes contracts with expected term of one year or less, was $799,707 with a weighted-average life of 3.7 years. As of September 30, 2026, the Company expects to recognize $345,111 of its remaining performance obligations as revenue over the next 12 months, with the remainder recognized thereafter over the remaining life of the contracts.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+      "locator": "block-396",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+      "content_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+      "filing": {
+        "accession": "0001582961-26-000019",
+        "cik": "0001582961",
+        "filed_date": "2026-02-24",
+        "form": "10-K",
+        "items": "",
+        "primary_document": "docn-20251231.htm",
+        "report_date": "2025-12-31",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm"
+      },
+      "passage_hash": "f919d14690d281d3eccbd1c13118dfee3f6a1b0be168687c9ccc0ffcee41d86e",
+      "section": "Document",
+      "text": "On May 5, 2025, we entered into the Credit Agreement, which provides for the Term Loan Facility and the Revolving Facility (collectively, the \u201c2025 Credit Facility\u201d). Upon entry into the Credit Agreement, we terminated the 2022 Credit Facility. In addition, on August 14, 2025, we issued $625.0 million aggregate principal amount of 0.00% convertible senior notes due 2030 (the \u201c2030 Convertible Notes\u201d) in a private placement. We used approximately $83.9 million of the net proceeds from the 2030 Convertible Notes offering to pay the cost of related capped call transactions, and approximately $1.131 billion, consisting of approximately $606.1 million of the net proceeds from the 2030 Convertible Notes offering, together with $380.0 million of term loans under the Term Loan Facility and cash on hand, to repurchase in cash approximately $1.188 billion aggregate principal amount of our 0.00% Convertible Senior Notes due 2026. As of December 31, 2025, we had $420.0 million borrowing capacity available under our 2025 Credit Facility.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+      "locator": "block-1156",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+      "content_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+      "filing": {
+        "accession": "0001582961-26-000019",
+        "cik": "0001582961",
+        "filed_date": "2026-02-24",
+        "form": "10-K",
+        "items": "",
+        "primary_document": "docn-20251231.htm",
+        "report_date": "2025-12-31",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm"
+      },
+      "passage_hash": "93f6047494b2aa463a3a5a36758121b989116a3f0d2b08473342dd4431667685",
+      "section": "Document",
+      "text": "On May 5, 2025, the Company entered into a credit agreement (the \u201cCredit Agreement\u201d) by and among the Company, its wholly owned subsidiary, DigitalOcean, LLC, as borrower (the \u201cBorrower\u201d), with Morgan Stanley Senior Funding, Inc., as administrative agent (in such capacity, the \u201cAgent\u201d), and the lenders party thereto (the \u201cLenders\u201d). The Credit Agreement provides for a $500,000 senior secured delayed draw term loan facility (\u201cTerm Loan Facility\u201d, and any loans thereunder \u201cTerm Loans\u201d) and a $300,000 senior secured revolving credit facility (\u201cRevolving Facility\u201d, and any loans thereunder \u201cRevolving Loans\u201d) which includes a $30,000 sublimit for the issuance of letters of credit (collectively the \u201c2025 Credit Facility\u201d). The Term Loan Facility and Revolving Facility mature on May 5, 2030, and are subject to a springing maturity date in the event certain conditions occur as described in the Credit Agreement. Revolving Loans may be borrowed, repaid and reborrowed, until their maturity date. Term Loans may be borrowed between May 5, 2025 and February 5, 2026 and once borrowed and repaid, cannot be reborrowed.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-432",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "0cd3b40a63e209f604c4c94642e79844887c0c5761283a490b90a92ef0561647",
+      "section": "Document",
+      "text": "As of September 30, 2026, we had $666.1 million in cash and cash equivalents, $178.6 million in marketable securities, as well as $396.9 million of available borrowing capacity available under our Revolving Facility and $725 million of available commitments under our Equipment Lease Facility. On October 6, 2026, we exercised an additional $60.0 million of the accordion feature under our Equipment Lease Facility, increasing the total available borrowing capacity to $785.0 million. Our cash and cash equivalents primarily consist of cash and money market funds. Our marketable securities consist of U.S. Treasury securities and commercial paper. We believe our existing cash and cash equivalents, cash flow from operations and availability under our Revolving Facility and Equipment Lease Facility will be sufficient to support our requirements for working capital and capital expenditures, outstanding contractual commitments, debt and finance lease liabilities and equipment financing obligations both over the next 12 months and beyond.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-85",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "88368e7d53ba87f71a6ab09c400b5fdceb24032d62127bc16fec0fa18e7128c8",
+      "section": "Document ; CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+      "text": "| | | | | | | | | | | ; | Nine Months Ended September 30, ; | 2026 | | 2025 ; Purchases of capped calls related to 2030 Convertible Notes | \u2014 | | | (83,875) | ; Proceeds from 2025 Credit Facility, net of issuance costs | \u2014 | | | 375,919 | ; Repayments of 2026 Convertible Notes including related costs | \u2014 | | | (1,131,458) | ; Proceeds from financing arrangements | 75,143 | | | 27,622 | ; Principal repayments of finance leases and financing arrangements | (39,895) | | | (4,154) | ; Repurchase and retirement of common stock including related costs | \u2014 | | | (82,124) | ; Net cash provided by (used in) financing activities | 475,796 | | | (307,177) | ; | | | ; Effect of exchange rate changes on cash, cash equivalents, and restricted cash | (319) | | | (7) | ; Increase (decrease) in cash, cash equivalents and restricted cash | 411,619 | | | (193,632) | ; Cash, cash equivalents and restricted cash - beginning of period | 254,633 | | | 430,193 | ; Cash, cash equivalents and restricted cash - end of period | $ | 666,252 | | | $ | 236,561 | ; | | | ; Supplemental disclosures of cash flow information: | | | ; Cash paid for interest | $ | 25,240 | | | $ | 2,722 | ; Cash paid for taxes, net of refunds | 3,389 | | | 4,910 | ; Operating cash flows paid for operating leases | 118,645 | | | 95,738 | ; Non-cash investing and financing activities: | | | ; Capitalized stock-based compensation | $ | 3,599 | | | $ | 1,627 | ; Property and equipment received but not yet paid, included in accounts payable and accrued other expenses | 57,578 | | | 76,345 | ; ; ; ; Debt and equipment lease facility issuance costs incurred but not yet paid, included in accounts payable and accrued liabilities | 35 | | | 750 | ; ; Operating right-of-use assets obtained in exchange for operating lease liabilities | 492,929 | | | 161,219 | ; Finance right-of-use assets obtained in exchange for finance lease liabilities | 750,038 | | | 1,486 | ;",
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef usd -> iso4217:USD",
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+      "locator": "block-907",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm",
+      "content_hash": "4fbb958dba186dea045ae97108db60aabd122727e54f913173cb0632ece2c7e3",
+      "filing": {
+        "accession": "0001582961-26-000019",
+        "cik": "0001582961",
+        "filed_date": "2026-02-24",
+        "form": "10-K",
+        "items": "",
+        "primary_document": "docn-20251231.htm",
+        "report_date": "2025-12-31",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm"
+      },
+      "passage_hash": "b77aea19d5b41ff764ec01ef976d721bb97ba3831650c7fc896580a9bc3064d5",
+      "section": "Document ; CONSOLIDATED STATEMENTS OF CASH FLOWS ; (in thousands)",
+      "text": "| | | | | | | | | | | | | | | | | ; | Year Ended December 31, ; | 2025 | | 2024 | | 2023 ; Proceeds from financing arrangements | 126,829 | | | \u2014 | | | \u2014 | ; Principal repayments of finance leases and financing arrangements | (8,298) | | | (5,475) | | | (2,260) | ; Repurchase and retirement of common stock including related costs | (82,124) | | | (59,788) | | | (488,455) | ; Net cash used in financing activities | (216,909) | | | (76,446) | | | (468,903) | ; | | | | | ; | | | | | ; Effect of exchange rate changes on cash, cash equivalents, and restricted cash | 30 | | | (264) | | | (15) | ; (Decrease) increase in cash, cash equivalents and restricted cash | (175,560) | | | 111,210 | | | 167,176 | ; Cash, cash equivalents and restricted cash - beginning of period | 430,193 | | | 318,983 | | | 151,807 | ; Cash, cash equivalents and restricted cash - end of period | $ | 254,633 | | | $ | 430,193 | | | $ | 318,983 | ; | | | | | ; Supplemental disclosures of cash flow information: | | | | | ; Cash paid for interest | $ | 9,688 | | | $ | 1,048 | | | $ | 916 | ; Cash paid for taxes, net of refunds | 6,282 | | | 19,667 | | | 2,723 | ; Operating cash flows paid for operating leases | 133,360 | | | 83,070 | | | 74,248 | ; Non-cash investing and financing activities: | | | | | ; Capitalized stock-based compensation | $ | 2,209 | | | $ | 2,807 | | | $ | 1,440 | ; Property and equipment received but not yet paid, included in accounts payable and accrued other expenses | 30,572 | | | 55,260 | | | 4,826 | ; ; ; ; Operating right-of-use assets obtained in exchange for operating lease liabilities | 178,200 | | | 113,230 | | | 73,440 | ; Finance right-of-use assets obtained in exchange for finance lease liabilities | 2,760 | | | 324 | | | 11,938 | ;",
+      "currency": "USD",
+      "currency_locator": "inline XBRL unitRef usd -> iso4217:USD",
+      "truncated": false
+    },
+    {
+      "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+      "locator": "block-218",
+      "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm",
+      "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+      "filing": {
+        "accession": "0001628280-26-069141",
+        "cik": "0001582961",
+        "filed_date": "2026-11-03",
+        "form": "10-Q",
+        "items": "",
+        "primary_document": "docn-20260930.htm",
+        "report_date": "2026-09-30",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "passage_hash": "b4535f978ce889936b5b0f42ddaa6e9711d50b2f5f2d6832da34876b1c37de64",
+      "section": "Document",
+      "text": "As of September 30, 2026, the Company had $2,955,158 of estimated undiscounted fixed payment obligations primarily for leases of co-location space at data center facilities that have not yet commenced and were not included in the condensed consolidated balance sheets. These leases are scheduled to commence between November 2026 and June 2028, and have a weighted-average lease term of 11.1 years.",
+      "currency": null,
+      "currency_locator": null,
+      "truncated": false
+    }
+  ],
+  "base_source_excerpts": [
+    {
+      "commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+      "path": "tradingagents/dataflows/filing_search.py",
+      "raw_file_sha256": "78fe03d039c05351886fc4875e036b2b8a8c9b221ab5871823aa8ad1fe56a18a",
+      "start_line": 1,
+      "end_line": 198,
+      "text": "\"\"\"Deterministic, offline lookup over a retained full-source SEC corpus.\"\"\"\n\nfrom __future__ import annotations\n\nimport hashlib\nimport json\nimport re\n\nfrom tradingagents.dataflows.vendors.sec_documents import DisclosurePackage\n\nMAX_PASSAGES = 3\nMAX_CHARS = 12_000\nMAX_QUERY_CHARS = 200\n_WORD = re.compile(r\"[a-z0-9]+\")\n_STOP = {\"a\", \"an\", \"and\", \"for\", \"in\", \"of\", \"the\", \"to\", \"what\", \"which\"}\n_ALIASES = {\n    \"rpo\": \"remaining performance obligations\",\n    \"backlog\": \"remaining performance obligations\",\n}\n_NAMED_NOTES = re.compile(r\"\\b(20\\d{2})\\s+convertible\\s+notes\\b\")\n_COORDINATED_NOTES = re.compile(r\"\\b(20\\d{2})\\s+and\\s+(20\\d{2})\\s+convertible\\s+notes\\b\")\n\n\ndef corpus_hash(corpus: DisclosurePackage) -> str:\n    \"\"\"Hash the exact retained package, including source hashes and block text.\"\"\"\n    data = json.dumps(corpus.model_dump(mode=\"json\"), sort_keys=True, separators=(\",\", \":\"))\n    return hashlib.sha256(data.encode()).hexdigest()\n\n\ndef _terms(query: str) -> tuple[str, list[str]]:\n    normalized = \" \".join(_WORD.findall(query.lower()))\n    for short, expanded in _ALIASES.items():\n        normalized = re.sub(r\"\\b\" + short + r\"\\b\", expanded, normalized)\n    words = [word for word in normalized.split() if word not in _STOP]\n    return normalized, words\n\n\ndef _contains(text: str, term: str) -> bool:\n    suffix = \"s?\" if len(term) >= 4 and not term.endswith(\"s\") else \"\"\n    return re.search(r\"\\b\" + re.escape(term) + suffix + r\"\\b\", text) is not None\n\n\ndef _note_years(text: str) -> set[str]:\n    \"\"\"Recognize an explicit year attached to Convertible Notes, not a date nearby.\"\"\"\n    lowered = text.lower()\n    years = set(_NAMED_NOTES.findall(lowered))\n    for first, second in _COORDINATED_NOTES.findall(lowered):\n        years.update((first, second))\n    return years\n\n\ndef search_filing_evidence(\n    corpus: DisclosurePackage, query: str, *, max_passages: int = MAX_PASSAGES,\n    max_chars: int = MAX_CHARS,\n) -> dict:\n    \"\"\"Return whole source blocks, never a shortened table or a new network fetch.\n\n    Callers retain this response alongside the corpus. Returned text is unvalidated\n    source material; claims still require the disclosure evidence validator.\n    \"\"\"\n    if not 1 <= max_passages <= MAX_PASSAGES or not 1 <= max_chars <= MAX_CHARS:\n        raise ValueError(f\"Search limit exceeded: at most {MAX_PASSAGES} passages and {MAX_CHARS} characters\")\n    if not isinstance(query, str) or not query.strip() or len(query) > MAX_QUERY_CHARS:\n        raise ValueError(f\"Search query must contain 1-{MAX_QUERY_CHARS} characters\")\n    phrase, terms = _terms(query)\n    if not terms:\n        raise ValueError(\"Search query has no searchable terms\")\n    requested_notes = _note_years(query)\n    section_window = {}\n    if len(terms) <= 2:\n        ordered = sorted(\n            corpus.documents,\n            key=lambda doc: (doc.filing.filed_date, doc.filing.accession), reverse=True,\n        )\n        for document in ordered:\n            filing = document.filing\n            if filing.cik != corpus.cik or filing.filed_date > corpus.as_of or (\n                filing.report_date and filing.report_date > corpus.as_of\n            ):\n                continue\n            for index, block in enumerate(document.blocks):\n                heading = block.text.strip()\n                if (\n                    len(heading) > 120 or \"|\" in heading\n                    or not (re.match(r\"^(?:Note|Item) \\d+[. ]\", heading) or heading.istitle())\n                    or not all(_contains(heading.lower(), term) for term in terms)\n                ):\n                    continue\n                for offset, nearby in enumerate(document.blocks[index:index + max_passages]):\n                    if offset and (\n                        re.match(r\"^(?:Note|Item) \\d+[. ]\", nearby.text)\n                        or nearby.text.istitle()\n                    ):\n                        break\n                    section_window[(document.source_id, nearby.locator)] = 100 - offset * 10\n                break\n            if section_window:\n                break\n    candidates = []\n    gaps = list(corpus.gaps)\n    eligible_notes = set()\n    incomplete_notes = set()\n    for document in corpus.documents:\n        filing = document.filing\n        if filing.cik != corpus.cik or filing.filed_date > corpus.as_of or (\n            filing.report_date is not None and filing.report_date > corpus.as_of\n        ):\n            gaps.append(f\"{filing.accession}: excluded by issuer or analysis cutoff\")\n            continue\n        if document.source_id != \"sec-document-\" + hashlib.sha256(document.url.encode()).hexdigest():\n            gaps.append(f\"{filing.accession}: source identity mismatch\")\n            continue\n        for block in document.blocks:\n            block_notes = _note_years(block.section + \" \" + block.text) & requested_notes\n            if block.truncated:\n                gaps.append(f\"{filing.accession} {block.locator}: incomplete source block omitted\")\n                incomplete_notes.update(block_notes)\n                continue\n            if requested_notes and not block_notes:\n                continue\n            eligible_notes.update(block_notes)\n            heading = block.section.lower()\n            body = block.text.lower()\n            heading_hits = sum(_contains(heading, term) for term in terms)\n            body_hits = sum(_contains(body, term) for term in terms)\n            if not heading_hits and not body_hits and (document.source_id, block.locator) not in section_window:\n                continue\n            score = (\n                section_window.get((document.source_id, block.locator), 0)\n                + 8 * (phrase in heading) + 10 * (phrase in body)\n                + 2 * heading_hits + body_hits + 4 * (body_hits == len(terms))\n            )\n            candidates.append((score, document, block, block_notes))\n    candidates.sort(key=lambda item: (\n        -item[1].filing.filed_date.toordinal(), -item[0],\n        item[1].filing.accession, item[2].locator,\n    ) if requested_notes else (\n        -item[0], -item[1].filing.filed_date.toordinal(),\n        item[1].filing.accession, item[2].locator,\n    ))\n    passages = []\n    used = 0\n    returned_notes = set()\n    oversized_notes = set()\n    # Reserve one ranked passage per requested instrument before filling spare slots.\n    if len(requested_notes) > 1:\n        chosen = []\n        for year in sorted(requested_notes):\n            match = next((item for item in candidates if year in item[3] and item not in chosen), None)\n            if match is not None:\n                chosen.append(match)\n        candidates = chosen + [item for item in candidates if item not in chosen]\n    for _, document, block, block_notes in candidates:\n        if len(passages) >= max_passages:\n            break\n        if len(block.text) > max_chars - used:\n            gaps.append(\n                f\"{document.filing.accession} {block.locator}: passage omitted by search size limit\"\n            )\n            oversized_notes.update(block_notes)\n            continue\n        filing = document.filing\n        passages.append({\n            \"source_id\": document.source_id,\n            \"locator\": block.locator,\n            \"section\": block.section,\n            \"text\": block.text,\n            \"truncated\": False,\n            \"currency\": block.currency,\n            \"currency_locator\": block.currency_locator,\n            \"filing_form\": filing.form,\n            \"filing_date\": filing.filed_date.isoformat(),\n            \"filing_accession\": filing.accession,\n            \"url\": document.url,\n            \"content_hash\": document.content_hash,\n            \"passage_hash\": hashlib.sha256(block.text.encode()).hexdigest(),\n        })\n        used += len(block.text)\n        returned_notes.update(block_notes)\n    for year in sorted(requested_notes):\n        if year in returned_notes:\n            continue\n        if year in oversized_notes:\n            gaps.append(f\"{year} Convertible Notes: passage omitted by search size limit\")\n        elif year in eligible_notes:\n            gaps.append(f\"{year} Convertible Notes: omitted by search passage limit\")\n        elif year in incomplete_notes:\n            gaps.append(f\"{year} Convertible Notes: incomplete source block omitted\")\n        else:\n            gaps.append(f\"no passage names the {year} Convertible Notes\")\n    if not passages and not requested_notes:\n        gaps.append(\"not found in retained filings\")\n    return {\n        \"query\": query,\n        \"corpus_hash\": corpus_hash(corpus),\n        \"passages\": passages,\n        \"gaps\": list(dict.fromkeys(gaps)),\n    }\n"
+    },
+    {
+      "commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+      "path": "tradingagents/agents/document_access.py",
+      "raw_file_sha256": "d305e94ec028a8b5dfd8f6ec5dee08e18042477a60ff6df1208eb2bb591d0cd1",
+      "start_line": 265,
+      "end_line": 293,
+      "text": "def _validate_search_trace(trace, corpus):\n    if not isinstance(trace, dict):\n        raise ValueError(\"Malformed document search trace\")\n    counts = dict.fromkeys(_ROLES, 0)\n    for key, entry in trace.items():\n        if (not isinstance(entry, dict) or entry.get(\"role\") not in _ROLES\n                or not isinstance(entry.get(\"call_id\"), str) or not entry[\"call_id\"]\n                or key != f\"{entry['role']}:{entry['call_id']}\"\n                or type(entry.get(\"counted\")) is not bool):\n            raise ValueError(\"Malformed document search journal entry\")\n        status = entry.get(\"status\")\n        if status not in {\"ok\", \"not_found\", \"invalid_query\", \"unavailable\", \"limit_reached\"}:\n            raise ValueError(\"Malformed document search journal status\")\n        if entry[\"counted\"] != (status != \"limit_reached\"):\n            raise ValueError(\"Invalid document search counted status\")\n        counts[entry[\"role\"]] += entry[\"counted\"]\n        if counts[entry[\"role\"]] > _LIMIT:\n            raise ValueError(\"Retained document search call limit exceeded\")\n        passages = entry.get(\"passages\")\n        if (not isinstance(passages, list) or len(passages) > 3\n                or any(not isinstance(p, dict) or not isinstance(p.get(\"text\"), str) for p in passages)\n                or sum(len(p[\"text\"]) for p in passages) > 12000):\n            raise ValueError(\"Document search passage limit exceeded\")\n        if bool(passages) != (status == \"ok\"):\n            raise ValueError(\"Document search passage status mismatch\")\n        if passages and corpus is None:\n            raise ValueError(\"Document passages exist without retained corpus\")\n        if entry.get(\"corpus_hash\") != (corpus_hash(corpus) if corpus else None):\n            raise ValueError(\"Document search journal corpus mismatch\")\n"
+    },
+    {
+      "commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+      "path": "tradingagents/agents/document_access.py",
+      "raw_file_sha256": "d305e94ec028a8b5dfd8f6ec5dee08e18042477a60ff6df1208eb2bb591d0cd1",
+      "start_line": 296,
+      "end_line": 354,
+      "text": "def retained_search_packages(state) -> list[DisclosurePackage]:\n    \"\"\"Reconstruct quoteable packages solely from exact journal-returned blocks.\"\"\"\n    corpus = validated_document_corpus(state)\n    trace = state.get(\"document_search_trace\") or {}\n    _validate_search_trace(trace, corpus)\n    if corpus is None:\n        if any(not isinstance(entry, dict) or entry.get(\"passages\") for entry in trace.values()):\n            raise ValueError(\"Document passages exist without retained corpus\")\n        return []\n    documents = {doc.source_id: doc for doc in corpus.documents}\n    packages = []\n    for key, entry in trace.items():\n        if isinstance(entry.get(\"query\"), str) and entry[\"query\"].casefold().startswith(\"transcript:\"):\n            from tradingagents.agents.transcript_access import validated_transcript_record\n\n            validated_transcript_record(state)\n            if entry.get(\"transcript_hash\") != (state.get(\"transcript_sources\") or {}).get(\"record_hash\"):\n                raise ValueError(\"Retained transcript search source changed\")\n        if not isinstance(entry, dict) or key != f\"{entry.get('role')}:{entry.get('call_id')}\" or entry.get(\"role\") not in _ROLES:\n            raise ValueError(\"Malformed document search journal entry\")\n        if entry.get(\"corpus_hash\") != corpus_hash(corpus):\n            raise ValueError(\"Document search journal corpus mismatch\")\n        passages = entry.get(\"passages\")\n        if not isinstance(passages, list) or len(passages) > 3 or sum(len(p.get(\"text\", \"\")) for p in passages) > 12000:\n            raise ValueError(\"Document search passage limit exceeded\")\n        if not passages:\n            continue\n        if not entry.get(\"counted\") or entry.get(\"status\") != \"ok\":\n            raise ValueError(\"Uncounted document search passage\")\n        try:\n            expected = search_retained_document_sources(state, entry[\"query\"], max_passages=3, max_chars=12000)\n        except (KeyError, ValueError) as exc:\n            raise ValueError(\"Invalid retained document search query\") from exc\n        if expected[\"passages\"] != passages:\n            raise ValueError(\"Document search passage differs from retained source\")\n        chosen = {}\n        for passage in passages:\n            if passage.get(\"provider\") == \"Alpha Vantage\":\n                continue  # Exact vendor return validated above; never accepted filing evidence.\n            doc = documents.get(passage[\"source_id\"])\n            if doc is None or passage[\"content_hash\"] != doc.content_hash:\n                raise ValueError(\"Document search source mismatch\")\n            block = next((b for b in doc.blocks if b.locator == passage[\"locator\"]), None)\n            if block is None or block.truncated or passage[\"passage_hash\"] != hashlib.sha256(block.text.encode()).hexdigest():\n                raise ValueError(\"Document search block mismatch\")\n            chosen.setdefault(doc.source_id, set()).add(block.locator)\n        if not chosen:\n            continue\n        selected = tuple(\n            doc.model_copy(update={\"blocks\": tuple(\n                block for block in doc.blocks if block.locator in chosen.get(doc.source_id, ())\n            )})\n            for doc in corpus.documents if doc.source_id in chosen\n        )\n        packages.append(corpus.model_copy(update={\n            \"documents\": selected,\n            \"selected_accessions\": tuple(dict.fromkeys(doc.filing.accession for doc in selected)),\n        }))\n    return packages\n"
+    },
+    {
+      "commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+      "path": "tradingagents/agents/document_questions.py",
+      "raw_file_sha256": "a492564e7c46c97d5b956d72ab91050d6d80020edab0c988387f97affd9c3873",
+      "start_line": 124,
+      "end_line": 198,
+      "text": "def _check_retained(record: dict, scope: dict, records: dict, corpus, state) -> None:\n    if (\n        not isinstance(record, dict) or record.get(\"schema_version\") != 1\n        or record.get(\"scope\") != scope or record.get(\"question_records\") != records\n        or record.get(\"query_set_hash\") != _digest(records)\n        or record.get(\"corpus_hash\") != (corpus_hash(corpus) if corpus else None)\n        or record.get(\"transcript_hash\") != (state.get(\"transcript_sources\") or {}).get(\"record_hash\")\n    ):\n        raise ValueError(\"Document follow-up scope, questions or corpus mismatch\")\n    seal = {key: value for key, value in record.items() if key != \"record_hash\"}\n    if record.get(\"record_hash\") != _digest(seal):\n        raise ValueError(\"Document follow-up record hash mismatch\")\n    expected_questions = [\n        (role, question) for role in _ROLES\n        for question in records[role][\"questions\"]\n    ]\n    results = record.get(\"results\")\n    if not isinstance(results, list) or len(results) != len(expected_questions):\n        raise ValueError(\"Document follow-up result count mismatch\")\n    sources = {document.source_id: document for document in corpus.documents} if corpus else {}\n    for result, (role, question) in zip(results, expected_questions, strict=True):\n        if not isinstance(result, dict) or any(\n            result.get(field) != value for field, value in (\n                (\"role\", role), (\"question_id\", question[\"question_id\"]),\n                (\"query\", question[\"query\"]),\n            )\n        ):\n            raise ValueError(\"Document follow-up question mismatch\")\n        passages = result.get(\"passages\")\n        if (\n            not isinstance(passages, list) or len(passages) > _MAX_PASSAGES\n            or sum(len(p.get(\"text\", \"\")) for p in passages if isinstance(p, dict)) > _MAX_CHARS\n        ):\n            raise ValueError(\"Document follow-up passage limit exceeded\")\n        if result.get(\"status\") == \"found\" and not passages:\n            raise ValueError(\"Document follow-up found status has no passage\")\n        if result.get(\"status\") != \"found\" and passages:\n            raise ValueError(\"Document follow-up passage status mismatch\")\n        if result.get(\"status\") not in {\"found\", \"not_found\", \"unavailable\", \"invalid_query\"}:\n            raise ValueError(\"Invalid document follow-up status\")\n        if question[\"query\"].casefold().startswith(\"transcript:\") and passages:\n            expected = search_retained_document_sources(state, question[\"query\"],\n                                                       max_passages=_MAX_PASSAGES, max_chars=_MAX_CHARS)\n            if expected[\"passages\"] != passages:\n                raise ValueError(\"Document follow-up transcript differs from retained source\")\n            continue\n        for passage in passages:\n            if not isinstance(passage, dict):\n                raise ValueError(\"Malformed document follow-up passage\")\n            document = sources.get(passage.get(\"source_id\"))\n            block = next(\n                (b for b in document.blocks if b.locator == passage.get(\"locator\")),\n                None,\n            ) if document else None\n            if document is None or block is None or block.truncated:\n                raise ValueError(\"Document follow-up passage source missing\")\n            filing = document.filing\n            expected = {\n                \"source_id\": document.source_id,\n                \"locator\": block.locator,\n                \"section\": block.section,\n                \"text\": block.text,\n                \"truncated\": False,\n                \"currency\": block.currency,\n                \"currency_locator\": block.currency_locator,\n                \"filing_form\": filing.form,\n                \"filing_date\": filing.filed_date.isoformat(),\n                \"filing_accession\": filing.accession,\n                \"url\": document.url,\n                \"content_hash\": document.content_hash,\n                \"passage_hash\": hashlib.sha256(block.text.encode()).hexdigest(),\n                \"citation_ref\": f\"{document.source_id}#{block.locator}\",\n            }\n            if passage != expected:\n                raise ValueError(\"Document follow-up passage differs from retained source\")\n"
+    }
+  ]
+}

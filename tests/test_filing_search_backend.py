@@ -154,7 +154,7 @@ def test_named_notes_prefer_latest_eligible_filing_and_respect_cutoff_and_issuer
     assert search_filing_evidence(wrong, query)["passages"] == []
 
 
-def test_question_shaped_rpo_queries_rank_q3_note_above_lease_and_release():
+def test_question_shaped_rpo_query_returns_rpo_note():
     from tests.docn_workflow_fixture import source_json
 
     package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
@@ -172,12 +172,22 @@ def test_question_shaped_rpo_queries_rank_q3_note_above_lease_and_release():
         assert "$345,111" in first["text"]
 
 
-def test_docn_keyword_queries_still_find_rpo_and_uncommenced_leases():
+def test_keyword_queries_unchanged():
     from tests.docn_workflow_fixture import source_json
 
     package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
     assert search_filing_evidence(package, "remaining performance obligations next 12 months")["passages"][0]["locator"] == "block-148"
     assert search_filing_evidence(package, "leases not yet commenced")["passages"][0]["locator"] == "block-218"
+
+
+def test_bull1_query_no_longer_returns_lease_tables():
+    from tests.docn_workflow_fixture import source_json
+
+    package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
+    result = search_filing_evidence(package, "What does the 10-Q say caused remaining performance "
+                                   "obligations to decline from June 30 to September 30, 2026?")
+    assert result["passages"]
+    assert all("performance obligations" in p["text"].lower() for p in result["passages"])
 
 
 def test_content_terms_and_relevance_use_body_with_meaningful_constraints():
