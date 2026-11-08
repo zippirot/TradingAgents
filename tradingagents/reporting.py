@@ -24,6 +24,21 @@ from tradingagents.agents.schemas import label_legacy_trader_price
 from tradingagents.agents.valuation_comparison import display_number
 from tradingagents.dataflows.files import locked, replace_file
 
+UNVALIDATED_RESEARCH_NOTICE_SENTENCES = (
+    "The following is model-authored research, not validated instructions.",
+    "Its numbers, targets, allocations and execution proposals are unverified claims.",
+    "The canonical rating, evidence scope, target result and sizing limits remain authoritative.",
+)
+UNVALIDATED_RESEARCH_NOTICE = " ".join(UNVALIDATED_RESEARCH_NOTICE_SENTENCES)
+
+
+def is_application_policy_notice(text):
+    """Only exact generated software framing lies outside company-fact scope."""
+    return isinstance(text, str) and text.strip() in (
+        *UNVALIDATED_RESEARCH_NOTICE_SENTENCES, UNVALIDATED_RESEARCH_NOTICE,
+        "### Unvalidated model research\n\n" + UNVALIDATED_RESEARCH_NOTICE,
+    )
+
 
 def render_token_usage(metrics: dict | None) -> str:
     """One bounded usage footer; counts are observations, never billing estimates."""
@@ -332,11 +347,7 @@ def prepare_report_state(final_state: dict) -> dict:
 
     def research(text):
         return (
-            "### Unvalidated model research\n\n"
-            "The following is model-authored research, not validated instructions. "
-            "Its numbers, targets, allocations and execution proposals are unverified claims. "
-            "The canonical rating, evidence scope, target result and sizing limits remain authoritative.\n\n"
-            + text
+            "### Unvalidated model research\n\n" + UNVALIDATED_RESEARCH_NOTICE + "\n\n" + text
         )
 
     for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report",

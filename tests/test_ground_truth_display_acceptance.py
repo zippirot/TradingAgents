@@ -39,7 +39,8 @@ def test_handled_correction_is_suppressed_while_unsupported_claim_remains():
     handled = claim(1, outcome='contradicted')
     unresolved = claim(2)
     state = {'ground_truth_reassessment': {'status': 'completed', 'corrections': [deepcopy(handled)]}}
-    text = audit_assessment(record([handled, unresolved]), state)
+    bound = {**record([handled, unresolved]), 'reassessment_history': deepcopy(state['ground_truth_reassessment'])}
+    text = audit_assessment(bound, state)
     assert 'Revenue claim 1' not in text
     assert 'Revenue claim 2 was 99 million USD.' in text
     assert 'Recommendation needs review' in text

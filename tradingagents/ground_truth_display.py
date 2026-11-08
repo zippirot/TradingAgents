@@ -53,24 +53,23 @@ def project_report(state, parts, summary):
     parts = _diagnostic_parts(state, parts)
     inventory = build_report_inventory(state, parts, summary)
     record = resolve_audit(state, saved, inventory=inventory)
-    updated = corrected_parts(deepcopy(parts), record)
+    # Software framing is retained verbatim; raw model dispositions remain in
+    # the full detail, not as factual correction annotations to the notice.
+    company_record = {**record, "claims": _company_fact_claims(record)}
+    updated = corrected_parts(deepcopy(parts), company_record)
     from tradingagents.reporting import _summary_markdown
 
     summary = {**summary, "_ground_truth_text": corrected_text(
-        "summary/summary.md", _diagnostic_text(state, _summary_markdown(summary)), record)}
+        "summary/summary.md", _diagnostic_text(state, _summary_markdown(summary)), company_record)}
     text = audit_assessment(record, state) + "\n\n" + render_audit(record)
     unresolved_material = _recommendation_needs_review(record, state)
     if unresolved_material:
         text += "\n\n**Recommendation needs review.** Material factual questions remain in the delivered conclusion or its premises."
     reassessment = state.get("ground_truth_reassessment")
-    if isinstance(reassessment, dict):
-        from tradingagents.reporting import _plain_markdown
-
-        if reassessment.get("status") != "completed":
-            text += "\n\n**Recommendation needs review.** The requested reassessment could not be completed."
-        else:
-            text += "\n\nOne Portfolio Manager reassessment completed. Original rating " + _plain_markdown(
-                str(reassessment.get("original_rating") or "unavailable")) + "."
+    if isinstance(reassessment, dict) and reassessment.get("status") != "completed":
+        # A failed attempt still needs review. Completed historical text comes
+        # only from the matching, checksummed audit record rendered above.
+        text += "\n\n**Recommendation needs review.** The requested reassessment could not be completed."
     return updated, summary, text, record
 
 
@@ -81,12 +80,17 @@ def audit_assessment(record, state):
     from tradingagents.reporting import _plain_markdown
 
     coverage = record.get("coverage") or {}
-    counts = Counter(claim.get("outcome") for claim in record.get("claims", []))
+    company_claims = _company_fact_claims(record)
+    excluded = len(record.get("claims", [])) - len(company_claims)
+    counts = Counter(claim.get("outcome") for claim in company_claims)
     text = "### Ground Truth Audit\n\nStatus **" + _plain_markdown(str(record.get("status", "unavailable"))) + "**. "
     text += f"Reviewed {coverage.get('reviewed_chunks', 0)} of {coverage.get('total_chunks', 0)} report chunks. "
     text += f"Contradicted claims {counts['contradicted']}, unsupported claims {counts['unsupported']}."
     text += ("\n\nCode checks source quotations and the calculation proofs shown in the detail. "
              "Other arithmetic and source interpretation use model review.")
+    if excluded:
+        text += (f"\n\n{excluded} exact generated application-policy notice finding(s) excluded from company-fact counts "
+                 "and material recommendation findings. Raw model outcomes and explanations remain in the Full Ground Truth Audit.")
     if _recommendation_needs_review(record, state):
         text += "\n\n**Recommendation needs review.** Material factual questions remain or reassessment was unavailable."
     issues = _unresolved_material_claims(record, state)
@@ -116,6 +120,14 @@ def audit_assessment(record, state):
     return text
 
 
+
+def _company_fact_claims(record):
+    from tradingagents.reporting import is_application_policy_notice
+
+    return [claim for claim in record.get("claims", [])
+            if not is_application_policy_notice(claim.get("quoted_claim"))]
+
+
 def _correction_key(claim):
     refs = tuple(sorted((str(ref.get("source_id")), str(ref.get("locator")))
                         for ref in claim.get("evidence", [])))
@@ -123,10 +135,11 @@ def _correction_key(claim):
 
 
 def _recommendation_needs_review(record, state):
-    reassessment = state.get("ground_truth_reassessment") or {}
-    if not isinstance(reassessment, dict):
-        return True
-    if reassessment and reassessment.get("status") != "completed":
+    attempted = state.get("ground_truth_reassessment") or {}
+    if not isinstance(attempted, dict) or attempted and attempted.get("status") != "completed":
+        return True  # An unbound failed marker may conservatively require review.
+    reassessment = record.get("reassessment_history") or {}
+    if not isinstance(reassessment, dict) or reassessment and reassessment.get("status") != "completed":
         return True
     corrections = reassessment.get("corrections", [])
     if not isinstance(corrections, list) or any(not isinstance(c, dict) for c in corrections):
@@ -135,14 +148,14 @@ def _recommendation_needs_review(record, state):
 
 
 def _unresolved_material_claims(record, state):
-    reassessment = state.get("ground_truth_reassessment") or {}
+    reassessment = record.get("reassessment_history") or {}
     corrections = reassessment.get("corrections", []) if isinstance(reassessment, dict) else []
     handled = set()
     if (isinstance(reassessment, dict) and reassessment.get("status") == "completed"
             and isinstance(corrections, list) and all(isinstance(c, dict) for c in corrections)):
         handled = {_correction_key(c) for c in corrections}
     issues = []
-    for claim in record.get("claims", []):
+    for claim in _company_fact_claims(record):
         if claim.get("decision_material") is not True:
             continue
         if claim.get("outcome") == "unsupported" or claim.get("outcome") == "contradicted" and (

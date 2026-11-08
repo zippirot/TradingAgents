@@ -598,3 +598,126 @@ def test_public_entry_points_export_the_completed_summary(tmp_path, monkeypatch,
     for extension in ("md", "html"):
         output = (dest / f"complete_report.{extension}").read_text()
         assert all(item["text"] in output for item in response["sentences"])
+
+
+class AuditWiringModel(ScriptedModel):
+    """Identify audit-stage calls without pretending to adjudicate fixture facts."""
+    audit_prompts: list = Field(default_factory=list)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        import json
+
+        prompt = messages[-1].content if messages else ''
+        if isinstance(prompt, str) and '\nREPORT CHUNK:\n' in prompt and '\nSUPPLIED SOURCES' in prompt:
+            self._count()
+            self.audit_prompts.append(prompt)
+            chunk = json.loads(prompt.split('REPORT CHUNK:\n', 1)[1].split('\nSUPPLIED SOURCES', 1)[0])
+            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=json.dumps({
+                'no_material_claims': False, 'claims': [{'quoted_claim': chunk['text'], 'outcome': 'hypothesis',
+                    'decision_material': False, 'explanation': 'Scripted entrypoint wiring fixture only.', 'evidence': []}]})))])
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+
+@pytest.mark.parametrize('entry', ['cli', 'python'])
+@pytest.mark.parametrize('enabled', [False, True], ids=['audit-no', 'audit-yes'])
+@pytest.mark.parametrize('save', [False, True], ids=['no-save', 'save'])
+def test_public_entrypoints_finalize_optional_audit_without_extra_disabled_calls(
+    tmp_path, monkeypatch, offline, entry, enabled, save,
+):
+    """Normal graph/CLI finalization and export, with no provider or network calls."""
+    import json
+    import socket
+    from io import StringIO
+    from types import SimpleNamespace
+
+    from rich.console import Console
+
+    import cli.display as display
+    import cli.run as cli_run
+    from cli.models import AnalystType
+    from tests.test_cli_config_precedence import SELECTIONS
+    from tests.test_cli_memory_log import _FakeBuffer, _NullLive
+    from tradingagents.report_summary import SummaryOutput
+
+    network = []
+    def forbid_network(*args, **kwargs):
+        network.append(True)
+        raise AssertionError('Network forbidden in scripted entrypoint fixture')
+    monkeypatch.setattr(socket.socket, 'connect', forbid_network)
+    monkeypatch.setenv('HOME', str(tmp_path / 'home'))
+    monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path / 'preferences'))
+    monkeypatch.setenv('LANGCHAIN_TRACING_V2', 'false')
+    monkeypatch.setenv('LANGSMITH_TRACING', 'false')
+    for key in ('TRADINGAGENTS_MAX_DEBATE_ROUNDS', 'TRADINGAGENTS_MAX_RISK_ROUNDS'):
+        monkeypatch.delenv(key, raising=False)
+    summary = {'sentences': [
+        {'text': 'The analysts contributed market and company research.', 'sections': ['1_analysts']},
+        {'text': 'The research debate informed the trading proposal.', 'sections': ['2_research', '3_trading']},
+        {'text': 'The risk discussion informed the final decision.', 'sections': ['4_risk', '5_portfolio']},
+        {'text': 'Evidence coverage limits the valuation assessment.', 'sections': ['6_evidence']},
+    ]}
+    monkeypatch.setitem(STRUCTURED, SummaryOutput, summary)
+    model = AuditWiringModel(structured=True)
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
+    cfg.update(results_dir=str(tmp_path / 'results'), data_cache_dir=str(tmp_path / 'cache'),
+               memory_log_path=str(tmp_path / 'memory.md'), checkpoint_enabled=False,
+               max_debate_rounds=1, max_risk_discuss_rounds=1, ground_truth_audit=enabled)
+    monkeypatch.setattr(trading_graph, 'create_tier_client', lambda config, tier, **kwargs: _Client(model))
+    output = StringIO()
+    console = Console(file=output, width=160)
+    monkeypatch.setattr(cli_run, 'console', console)
+    monkeypatch.setattr(display, 'console', console)
+    if entry == 'python':
+        graph = trading_graph.TradingAgentsGraph(config=cfg, selected_analysts=('market', 'social', 'news'))
+        state, signal = graph.propagate('NVDA', TRADE_DATE)
+        assert signal == state['final_rating'] == 'Overweight'
+        display.display_complete_report(state)
+        if save:
+            graph.save_reports(state, 'NVDA', tmp_path / 'report')
+    else:
+        monkeypatch.setattr(cli_run, 'DEFAULT_CONFIG', cfg)
+        monkeypatch.setattr(cli_run, 'sys', SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
+        monkeypatch.setattr(cli_run, 'get_user_selections', lambda flags=None: {
+            **SELECTIONS, 'research_depth': 1, 'ticker': 'NVDA', 'analysis_date': TRADE_DATE,
+            'asset_type': 'stock', 'analysts': [AnalystType.MARKET, AnalystType.SOCIAL, AnalystType.NEWS],
+            'ground_truth_audit': enabled})
+        monkeypatch.setattr(cli_run, 'message_buffer', _FakeBuffer())
+        monkeypatch.setattr(cli_run, 'Live', _NullLive)
+        monkeypatch.setattr(cli_run, 'create_layout', lambda: None)
+        monkeypatch.setattr(cli_run, 'update_display', lambda *args, **kwargs: None)
+        # Real run_analysis, config construction, stream, finalizer, engine,
+        # publication/state writer, offer_reports and final display remain intact.
+        cli_run.run_analysis(flags={'save': save, 'show': True, 'html': True, 'ground_truth_audit': enabled})
+        state = json.loads(next(tmp_path.rglob('full_states_log_*.json')).read_text())
+        graph = None
+    logs = list(tmp_path.rglob('full_states_log_*.json'))
+    assert len(logs) == 1
+    logged = json.loads(logs[0].read_text())
+    assert bool(state.get('ground_truth_audit')) is enabled
+    assert bool(logged.get('ground_truth_audit')) is enabled
+    audits = len(model.audit_prompts)
+    # The unchanged scripted graph plus summary makes sixteen baseline calls.
+    assert len(model.calls) - audits == 16
+    if enabled:
+        assert audits > 0
+        assert state['ground_truth_execution']['requests'] == audits
+        assert 'Ground Truth Audit' in output.getvalue()
+        assert state['executive_summary']['status'] == 'completed'
+    else:
+        assert audits == 0
+    reports = list(tmp_path.rglob('complete_report.md'))
+    assert bool(reports) is save
+    if save:
+        assert len(reports) == 1
+        text = reports[0].read_text()
+        html = reports[0].with_suffix('.html').read_text()
+        assert ('Ground Truth Audit' in text) is enabled
+        assert ('Ground Truth Audit' in html) is enabled
+        if enabled:
+            companion = next(reports[0].parent.glob('ground_truth_audit-*.md'))
+            assert 'Full Ground Truth Audit' in companion.read_text()
+        # The writer is shared by both entrypoints, and re-export stays offline.
+        from tradingagents.reporting import write_report_tree
+        write_report_tree(state, 'NVDA', tmp_path / 'offline-reexport')
+        assert len(model.audit_prompts) == audits
+    assert not network

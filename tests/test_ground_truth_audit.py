@@ -293,7 +293,7 @@ def test_corrections_use_exact_chunk_location_and_preserve_table_rows():
     assert output.startswith("Q1\n\nRevenue was 9 USD.\n\nQ2\n\nRevenue was 9 USD.")
     assert output.index("Revenue was 10 USD.") > output.index("Q2")
     assert "| Revenue | 9 USD |\n| Cash | 8 USD |" in output
-    assert output.index("Source-based correction: 10 USD") > output.index("| Cash | 8 USD |")
+    assert output.index("Supporting source excerpt: 10 USD") > output.index("| Cash | 8 USD |")
 
 
 def test_ambiguous_repeated_quote_is_retained_as_finding_without_auto_annotation():

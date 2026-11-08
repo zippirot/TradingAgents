@@ -21,10 +21,21 @@ Status: **completed with findings**.
 Reviewed 4 of 4 report chunks.
 Source quotations and arithmetic checks are distinct from model assessments of meaning.
 
+Reviewed chunks can still contain unsupported or contradicted claims.
+
+Reviewed chunk locations:
+- summary/summary.md@0:381
+- 5_portfolio/decision.md@0:215
+- 1_analysts/market.md@0:147
+- 6_evidence/summary.md@0:264
+
+Not fully reviewed chunk locations (partial or unattempted):
+- None.
+
 - **Material to the recommendation — contradicted** — Revenue was 100 USD.
   Location: 1_analysts/market.md@0:147
-  Compared with the explicitly fictional dated fixture passage.
-  Correction: Revenue was 120 USD.
+  Auditor scope assessment (model): Compared with the explicitly fictional dated fixture passage.
+  Supporting source excerpt: Revenue was 120 USD.
   Source: [synthetic-sec-shaped-source/synthetic-quarterly-figures](https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm). Quote: Revenue was 120 USD.
   Source kind: filing passage; known at: 2026-11-03.
   Source qualifiers: {"date_scope":"Filing report date is metadata, not an inferred accounting period.","filing_form":"10-Q","filing_report_date":"2026-09-30","preceding_introductions":&#91;&#93;,"source_section":"Synthetic example"}
@@ -32,8 +43,8 @@ Source quotations and arithmetic checks are distinct from model assessments of m
 
 - **Material to the recommendation — contradicted** — The final paragraph claims gross margin was 99%.
   Location: 1_analysts/market.md@0:147
-  Compared with the explicitly fictional dated fixture passage.
-  Correction: Gross margin was 25%.
+  Auditor scope assessment (model): Compared with the explicitly fictional dated fixture passage.
+  Supporting source excerpt: Gross margin was 25%.
   Source: [synthetic-sec-shaped-source/synthetic-quarterly-figures](https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm). Quote: Gross margin was 25%.
   Source kind: filing passage; known at: 2026-11-03.
   Source qualifiers: {"date_scope":"Filing report date is metadata, not an inferred accounting period.","filing_form":"10-Q","filing_report_date":"2026-09-30","preceding_introductions":&#91;&#93;,"source_section":"Synthetic example"}

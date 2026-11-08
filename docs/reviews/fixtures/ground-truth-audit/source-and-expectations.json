@@ -84,11 +84,11 @@
     "tests/test_ground_truth_audit.py::test_inventory_preserves_all_characters_and_binds_report_sources_run_and_summary"
   ],
   "files": {
-    "complete_report.md": "3586cd93f30e21eefeda44f0ba7b74de3c7521ef7aed12cf5d45f461f4517ffd",
-    "complete_report.html": "b617cb179fd9d6aeb6a14644c52bf422814a4d9076641899ab0ff23c391a903b",
+    "complete_report.md": "11ee4b6557d0b757dff306b74a09dbdfb87d8fff0594f2ecbe7c497af133b8cd",
+    "complete_report.html": "54cef3c8a64ac3622ffbd7e64edba5d830b86118bb383b0d5c56c871f73bda94",
     "evidence.json": "84b2b891313f546b3ac2065b39f3d9e630d918d9d82e9ecbc12126e5b9fdb81b",
     "quality.json": "8dda7dca8b16ceb19f035771d27d876f336c8e0b6b898e376b35f7c37b1d3f42",
-    "ground_truth_audit-be8a744e5d464af76ca8.md": "be8a744e5d464af76ca877c2b40a2ed45adcb42693fb13ae4dc2bf66c58ffab3",
+    "ground_truth_audit-966f60861aa0871b8d42.md": "966f60861aa0871b8d425c6869809e2ba8a1176e7f7ec54dfcb812b4cc8f348b",
     "operational_audit.md": "4ecec55b8d76d43e8f659cb5a2eacf7de05b6a4fac1f16741a5e840fafe01684"
   }
 }

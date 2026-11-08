@@ -48,11 +48,22 @@ def _audit_pass(state, llm, config):
     progress['requests'] += result.get('usage', {}).get('requests', 0)
     progress['budget_tokens'] += result.get('usage', {}).get('budget_tokens', 0)
     progress['elapsed_seconds'] += time.monotonic() - started
+    history = state.get('ground_truth_reassessment')
+    if isinstance(history, dict):
+        from tradingagents.ground_truth import seal_audit
+
+        result['reassessment_history'] = deepcopy({key: history[key] for key in (
+            'status', 'original_rating', 'original_decision', 'corrections', 'reason') if key in history})
+        result = seal_audit(result)
     return result
 
 
 def _material_correction(claim):
     """A literal validated observation or rederived fact may prompt PM review."""
+    from tradingagents.reporting import is_application_policy_notice
+
+    if is_application_policy_notice(claim.get('quoted_claim')):
+        return False
     correction = claim.get('correction')
     if (claim.get('outcome') != 'contradicted' or claim.get('decision_material') is not True
             or claim.get('ambiguous_location') is True
@@ -104,9 +115,16 @@ def audit_before_publication(state, llm, config, *, reassess=None, validate=None
         state['ground_truth_reassessment'] = {'status': 'unavailable', 'reason': 'Audit budget exhausted. Recommendation needs review.'}
         return
     saved = deepcopy(state)
+    from tradingagents.ground_truth_display import build_report_inventory
+
+    # Preserve the actual readable PM version, including labelled model prose,
+    # rather than only the separately validated canonical decision field.
+    original_decision = next((section['text'] for section in build_report_inventory(saved)['sections']
+                              if section['section_id'] == '5_portfolio/decision.md'),
+                             saved.get('final_trade_decision'))
     record = {'status': 'unavailable', 'original_rating': saved.get('final_rating'),
-              'original_decision': saved.get('final_trade_decision'),
-              'corrections': corrections, 'reason': 'Recommendation needs review.'}
+              'original_decision': original_decision,
+              'corrections': deepcopy(corrections), 'reason': 'Recommendation needs review.'}
     state['ground_truth_reassessment'] = record
     if not checkpoint(state, config):
         record['reason'] = 'Reassessment intent could not be saved. Recommendation needs review.'
@@ -122,7 +140,14 @@ def audit_before_publication(state, llm, config, *, reassess=None, validate=None
             'rating change from an unsupported hypothesis, missing source or the auditor alone.\n'
         )
         update = reassess(review_input, corrections, _BudgetedModel(llm, progress, config, on_reserve=lambda: checkpoint(state, config)))
-        candidate = {**saved, **update}
+        candidate = deepcopy({**saved, **update})
+        # A PM revision inherits the previous diagnostic cache. Refresh only
+        # its readable decision, retaining new structured target/horizon data.
+        # Validation runs on a private candidate so failure cannot mutate state.
+        if isinstance(update.get('final_trade_decision'), str):
+            originals = deepcopy(candidate.get('unvalidated_outputs') or {})
+            originals['final_trade_decision'] = update['final_trade_decision']
+            candidate['unvalidated_outputs'] = originals
         if validate:
             candidate.update(validate(candidate))
         state.update(candidate)

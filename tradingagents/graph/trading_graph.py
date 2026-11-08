@@ -710,7 +710,7 @@ class TradingAgentsGraph:
                     return create_portfolio_manager(model)(candidate)
 
                 audit_before_publication(
-                    final_state, getattr(self, "deep_thinking_llm", None), self.config,
+                    final_state, getattr(self, "audit_llm", None), self.config,
                     reassess=reassess,
                     validate=lambda candidate: enforce_publication(candidate, publication_config=self.config),
                 )
@@ -748,7 +748,7 @@ class TradingAgentsGraph:
                 final_state["executive_summary"] = recovered
         if frozen is None and self.config.get("ground_truth_audit") is True:
             from tradingagents.ground_truth_flow import audit_after_summary
-            audit_after_summary(final_state, getattr(self, "deep_thinking_llm", None), self.config)
+            audit_after_summary(final_state, getattr(self, "audit_llm", None), self.config)
         elif frozen is not None:
             recovered = _recover_logged_ground_truth(self.config, company_name, trade_date, record)
             for field, value in recovered.items():

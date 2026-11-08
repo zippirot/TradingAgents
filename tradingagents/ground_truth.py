@@ -1178,6 +1178,74 @@ def _prose(value):
     return escape(str(value), quote=False).replace("[", "&#91;").replace("]", "&#93;").replace("*", "&#42;").replace("`", "&#96;")
 
 
+
+def _correction_label(claim):
+    if (claim.get("code_verified") is True
+            and (claim.get("verification") or {}).get("financial_fields_validated") is True):
+        return "Field-validated correction: "
+    return "Supporting source excerpt: "
+
+
+def _readable_source_scope(context):
+    """Literal unit/period context for the passage; full metadata stays in detail."""
+    from tradingagents.reporting import _plain_markdown
+
+    parts = []
+    def add(label, value):
+        if value is not None and str(value).strip():
+            parts.append(label + _plain_markdown(str(value)))
+    section = context.get("source_section")
+    if section != "Document":
+        add("Source section: ", section)
+    for key, label in (("headings", "Source heading: "), ("table_headers", "Table heading: "),
+                       ("table_context", "Table context: ")):
+        for value in context.get(key) or []:
+            if str(value).strip() and not re.fullmatch(r"[\s|:\-]+", str(value)):
+                add(label, value)
+    for index, intro in enumerate(context.get("preceding_introductions") or []):
+        add("Nearest source introduction: " if index == 0 else "Earlier source introduction: ", intro.get("text"))
+    def fact_scope(fact, include_metric=True):
+        fields = []
+        if include_metric and fact.get("metric"):
+            fields.append(str(fact["metric"]))
+        if fact.get("unit"):
+            fields.append("unit " + str(fact["unit"]))
+        if fact.get("period_end"):
+            fields.append((str(fact["period_start"]) + " to " if fact.get("period_start") else "at ") + str(fact["period_end"]))
+        if fact.get("basis"):
+            fields.append("basis " + str(fact["basis"]))
+        return "; ".join(fields)
+    if isinstance(context.get("fact"), dict):
+        add("Canonical field: ", fact_scope(context["fact"]))
+    calculation = context.get("calculation") or {}
+    if isinstance(calculation, dict) and calculation:
+        add("Source calculation: ", calculation.get("message") or calculation.get("method"))
+        add("Calculation unit: ", calculation.get("unit"))
+        scopes = dict.fromkeys(fact_scope(fact, False) for fact in context.get("inputs") or [] if isinstance(fact, dict))
+        for scope in scopes:
+            add("Calculation input scope: ", scope)
+    return parts
+
+
+def _correction_annotation(claim):
+    """Keep the passage readable; retain all raw evidence in the full audit."""
+    from urllib.parse import quote
+
+    from tradingagents.reporting import _plain_markdown
+
+    parts = ["Ground Truth Audit — " + _correction_label(claim) + _plain_markdown(str(claim["correction"])),
+             "Auditor scope assessment (model): " + _plain_markdown(str(claim.get("explanation") or
+                "Scope explanation unavailable; review the cited source before applying this excerpt."))]
+    for source in claim.get("evidence") or []:
+        parts.extend(_readable_source_scope(source.get("context") or {}))
+        label = _plain_markdown("Source " + str(source.get("locator") or "location unavailable")
+                                + "; available " + str(source.get("known_at") or "date unavailable"))
+        url = source.get("url") or ""
+        parts.append("[" + label + "](" + quote(url, safe=":/?&=#%") + ")"
+                     if isinstance(url, str) and url.startswith("https://") else label)
+    return " ".join(parts)
+
+
 def corrected_text(section_id, text, record):
     """Annotate complete paragraphs at validated original character locations.
 
@@ -1198,8 +1266,10 @@ def corrected_text(section_id, text, record):
         if boundary < 0:
             boundary = len(text)
         correction = claim.get("correction")
-        note = "Ground Truth Audit — " + ("Source-based correction: " + _prose(correction)
-                if correction else "Unresolved claim: " + _prose(claim.get("explanation", "")))
+        from tradingagents.reporting import _plain_markdown
+
+        note = (_correction_annotation(claim) if correction else
+                "Ground Truth Audit — Unresolved claim: " + _plain_markdown(str(claim.get("explanation", ""))))
         notes.setdefault(boundary, []).append(note)
     for boundary, entries in sorted(notes.items(), reverse=True):
         block = "\n\n" + "\n\n".join("> " + entry for entry in dict.fromkeys(entries)) + "\n\n"
@@ -1213,26 +1283,101 @@ def corrected_parts(parts, record):
             for heading, folder, written in parts]
 
 
+
+def _render_reassessment_history(history):
+    """Render retained prior-version text as history, never as current findings."""
+    if not isinstance(history, dict):
+        return []
+    from urllib.parse import quote
+
+    from tradingagents.reporting import _plain_markdown
+
+    def literal(value):
+        return _plain_markdown(str(value))
+    lines = ["", "### Historical reassessment record", "",
+             "This is the retained PM version from before reassessment and its proposed source-backed corrections. "
+             "Current recommendation and findings are shown separately. Historical findings do not add to current claim counts or coverage.",
+             "Reassessment status: " + literal(history.get("status") or "unavailable")
+             + ". Original rating: " + literal(history.get("original_rating") or "unavailable") + "."]
+    if history.get("reason"):
+        lines.append("Historical reassessment limitation: " + literal(history["reason"]))
+    if history.get("original_decision"):
+        lines += ["", "Original PM wording (historical):", ""]
+        lines.extend("> " + literal(line) for line in str(history["original_decision"]).splitlines())
+    for finding in history.get("corrections") or []:
+        if not isinstance(finding, dict):
+            continue
+        lines += ["", "- Historical original claim: " + literal(finding.get("quoted_claim") or "unavailable"),
+                  "  Before-reassessment location: " + literal(finding.get("chunk_id") or finding.get("section_id") or "unavailable"),
+                  "  Original finding: " + literal(finding.get("outcome") or "unavailable") + ". "
+                  + "Retained auditor scope assessment: " + literal(finding.get("explanation") or ""),
+                  "  Historical " + _correction_label(finding).lower() + literal(finding.get("correction") or "unavailable")]
+        arithmetic = (finding.get("verification") or {}).get("arithmetic_proof")
+        if arithmetic:
+            lines.append("  Retained numeric proof: " + literal(_json(arithmetic)))
+        for source in finding.get("evidence") or []:
+            label = literal(str(source.get("source_id") or "unknown") + "/" + str(source.get("locator") or "unknown"))
+            url = source.get("url") or ""
+            link = ("[" + label + "](" + quote(url, safe=":/?&=#%") + ")"
+                    if isinstance(url, str) and url.startswith("https://") else label)
+            lines += ["  Historical source: " + link + ". Quote: " + literal(source.get("quote") or "unavailable"),
+                      "  Source kind: " + literal(source.get("kind") or "unknown")
+                      + "; known at: " + literal(source.get("known_at") or "unknown") + "."]
+            if source.get("context"):
+                lines.append("  Retained units, periods and qualifiers: " + literal(_json(source["context"])))
+            if source.get("original_locator"):
+                lines.append("  Original source location: " + literal(source["original_locator"])
+                             + "; characters " + literal(source.get("source_character_start", "unknown"))
+                             + " to " + literal(source.get("source_character_end", "unknown")) + ".")
+    return lines
+
+
 def render_audit(record):
     """Render escaped findings using only code-retained source addresses."""
+    from tradingagents.reporting import is_application_policy_notice
+
     coverage = record.get("coverage") or {}
     lines = ["### Full Ground Truth Audit", "", f"Status: **{_prose(record.get('status', 'unavailable'))}**.",
              f"Reviewed {coverage.get('reviewed_chunks', 0)} of {coverage.get('total_chunks', 0)} report chunks.",
              "Source quotations and arithmetic checks are distinct from model assessments of meaning."]
     if record.get("reason"):
         lines.append(_prose(record["reason"]))
+    from tradingagents.reporting import _plain_markdown
+
+    lines += ["", "Reviewed chunks can still contain unsupported or contradicted claims."]
+    for key, label in (("reviewed_chunk_ids", "Reviewed chunk locations"),
+                       ("remaining_chunks", "Not fully reviewed chunk locations (partial or unattempted)")):
+        lines += ["", label + ":"]
+        locations = coverage.get(key)
+        if isinstance(locations, list):
+            lines.extend("- " + _plain_markdown(str(location)) for location in locations)
+            if not locations:
+                lines.append("- None.")
+        else:
+            lines.append("- Location list was not retained in this audit record.")
     findings = sorted(record.get("claims") or [], key=lambda claim: (
+        is_application_policy_notice(claim.get("quoted_claim")),
         claim.get("outcome") not in {"contradicted", "unsupported"},
         claim.get("decision_material") is not True,
     ))
+    notices_started = False
     for claim in findings:
-        label = _prose(claim["outcome"])
-        if claim.get("decision_material") is True and claim.get("outcome") in {"contradicted", "unsupported"}:
+        notice = is_application_policy_notice(claim.get("quoted_claim"))
+        if notice and not notices_started:
+            notices_started = True
+            lines += ["", "### Application policy notices — outside company-fact scope", "",
+                      "These exact generated software notices are excluded from company-fact counts, material recommendation findings and PM reassessment triggers. "
+                      "The original model dispositions below are retained unchanged; no financial claim is marked supported by this exclusion."]
+        label = ("Raw model outcome: " if notice else "") + _prose(claim["outcome"])
+        if not notice and claim.get("decision_material") is True and claim.get("outcome") in {"contradicted", "unsupported"}:
             label = "Material to the recommendation — " + label
         lines += ["", f"- **{label}** — {_prose(claim['quoted_claim'])}",
-                  "  Location: " + _prose(claim["chunk_id"]), "  " + _prose(claim["explanation"])]
+                  "  Location: " + _prose(claim["chunk_id"]),
+                  ("  Auditor scope assessment (model): " if claim.get("correction") else "  ") + _prose(claim["explanation"])]
+        if notice:
+            lines.append("  Raw model decision_material flag: " + _prose(claim.get("decision_material")))
         if claim.get("correction"):
-            lines.append("  Correction: " + _prose(claim["correction"]))
+            lines.append(("  Raw proposed policy correction: " if notice else "  " + _correction_label(claim)) + _prose(claim["correction"]))
         if claim.get("correction_withheld"):
             lines.append("  Correction withheld: " + _prose(claim.get("correction_withheld_reason") or "Proposed wording lacks source support."))
         arithmetic = (claim.get("verification") or {}).get("arithmetic_proof")
@@ -1253,8 +1398,12 @@ def render_audit(record):
                              + "; characters " + _prose(evidence.get("source_character_start", "unknown"))
                              + " to " + _prose(evidence.get("source_character_end", "unknown")) + ".")
         lines.append("  Semantic assessment: model judgment.")
-    for limit in [*coverage.get("source_gaps", []), *record.get("limits", [])]:
+    limits = [*coverage.get("source_gaps", []), *record.get("limits", [])]
+    if notices_started and limits:
+        lines += ["", "### Coverage limits", ""]
+    for limit in limits:
         lines.append("- Coverage limit: " + _prose(limit))
+    lines.extend(_render_reassessment_history(record.get("reassessment_history")))
     return "\n".join(lines) + "\n"
 
 

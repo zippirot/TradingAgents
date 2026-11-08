@@ -19,7 +19,7 @@ The Full Ground Truth Audit contains all findings and source details.
 
 Review used retained sources; independent source retrieval was not performed by this pass.
 
-[Full Ground Truth Audit](./ground_truth_audit-be8a744e5d464af76ca8.md)
+[Full Ground Truth Audit](./ground_truth_audit-966f60861aa0871b8d42.md)
 
 ## Executive summary
 
@@ -38,7 +38,7 @@ REVIEW means no actionable rating was established. The retained decision did not
 
 - Rating: REVIEW
 - Evidence: Legacy export — financial evidence unvalidated
-- Generated: 2026-11-07 16:41:17
+- Generated: 2026-11-07 19:38:25
 - TradingAgents ?: ?, deep ?, quick ?
 - Analysts: ; research debate rounds ?, risk debate rounds ?
 
@@ -63,7 +63,7 @@ Synthetic verification fixture — not investment research.
 
 Revenue was 100 USD.
 
-> Ground Truth Audit — Source-based correction: Revenue was 120 USD.
+> Ground Truth Audit — Supporting source excerpt: Revenue was 120 USD. Auditor scope assessment (model): Compared with the explicitly fictional dated fixture passage. Source section: Synthetic example [Source synthetic-quarterly-figures; available 2026-11-03](https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm)
 
 
 
@@ -71,7 +71,7 @@ Cash was 20 USD.
 
 The final paragraph claims gross margin was 99%.
 
-> Ground Truth Audit — Source-based correction: Gross margin was 25%.
+> Ground Truth Audit — Supporting source excerpt: Gross margin was 25%. Auditor scope assessment (model): Compared with the explicitly fictional dated fixture passage. Source section: Synthetic example [Source synthetic-quarterly-figures; available 2026-11-03](https://www.sec.gov/Archives/edgar/data/9999999999/999999999926000001/synthetic-verification-fixture.htm)
 
 
 
