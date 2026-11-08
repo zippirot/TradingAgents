@@ -457,3 +457,162 @@ Independent audit: required
 **Remaining limits and freeze.** This is a plan-only audit: no new implementation checks, live paid runs, remote CI execution or Machine 1 acceptance occurred. Predecessor CI/audits are retained receipts. Two tickers/one date and model/provider variability limit inference; mixed live inputs are disclosed rather than claimed controlled. Required runtime or comparison evidence that cannot be obtained leaves completion incomplete. No material product decision is needed to freeze this plan; fetching/baseline confirmation, supplemental paid spend if needed, integrations, pushes and stable release remain explicit execution boundaries. Rechecked only affected contracts against `setup.py`, `tools.py`, `evidence_validation.py`, `operational_capture.py`, existing CLI proof, configuration paths, thesis/schema/identity, publication hashing and valuation/search implementations. The resulting single plan is frozen for implementation subject to those boundaries.
 
 **Workflow wording changed:** new isolated feature work starts from fetched/confirmed GitHub staging on Machine 2; verified local feature completion does not integrate or push; staging integration/push needs explicit development approval and stays unreleased; production integration/push needs separate stable-release approval; Machine 1 installation/acceptance uses only the deliberately released exact production commit. No Git/release action was executed by this audit.
+
+---
+
+# Approved Amendment 1 — user-approved 2026-11-07
+
+# Amendment 1 to "TradingAgents workflow gap closure (post A–D)"
+
+Date: 2026-11-07. Author: Claude.
+Status: **approved by the user on 2026-11-07 for appending to the base plan before R1 starts. Planning only.** It adds tasks to builds that have not started yet. It does not authorize implementation, paid runs, integration, push or release beyond what the base plan already states.
+
+**Base plan:** `docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md` in worktree `~/.codex/worktrees/workflow-gap-r5/TradingAgents` (branch `codex/workflow-gap-r5`, R5 in progress at `b3de0456`). Where this amendment and the base plan differ, the base plan's boundaries, constraints and acceptance rules govern; this amendment only adds tasks and acceptance checks.
+
+**Why:** the DOCN run published 2026-11-08T00:26Z (decision `16416b7e`, Opus 5.5 quick / Terra Pro deep, built on post-A–D staging) and two independent reviews of it found seven gaps the base plan does not cover. Each was checked against the source at `b3de0456`.
+
+## How to apply
+
+- Nothing here touches R5, which is in progress. Every task attaches to **R1, R3 or Na**, none of which has started.
+- Append each task under its host build when that build starts. Same worktree rules, same model recommendation as the host build, same independent audit and gap-closure loop. The host build's proof gains the checks listed under each task.
+- The base plan's "Independent audit: required" marker covers these tasks; they are audited as part of their host build, not separately.
+
+## Finding coverage (additions)
+
+| Gap observed in run `16416b7e` | Task | Host build |
+|---|---|---|
+| G1 A case with an accepted audit finding against its inputs still prints on the card as a valid range ($65.89 used the $250M undiscounted 2027 payments as principal) | G1 | R3 |
+| G2 "Little price history until $52–58" repeated by the market analyst and trader; March closes of $62.01–68.69 exist; the prior run's audit had already disproved it | G2 (code) + G2p (prompt) | R1 + Na |
+| G3 The auditor flagged the $57.1M induced-conversion expense as unsupported and the PM accepted it; the figure is verbatim in the retained 10-Q | G3 | R3 |
+| G4 Grounded disclosure excerpts fell from 15 (run `913554d4`) to 7 on the same filing, losing the Q4 and FY2026 guided share counts, both EBITDA-margin guides and the FCF-margin guide | G4 (acceptance) | R1 |
+| G5 NBIS excluded for an ambiguous `Assets` fact at 2023-12-31; that date is inside R1's existing three-year peer window, so the shipped `period_floor` does not help | G5 | R1 |
+| G6 Numbers the Portfolio Manager cites with evidence IDs are never checked against those IDs | G6 | R3 |
+| G7 Agents see the 2027 finance-lease maturity total ($250.0M) without being told it is undiscounted and includes imputed interest | G7 | R1 |
+| G8 Case multiples carry a rationale but no stated reference point, so the multiple drifts run to run (4.5×→5.0×, 6.0×→7.0×, 3.5×→3.0×) | G8p (prompt) | Na |
+| G9 The decision horizon drifts on the same evidence (4, 4–6, then 6 months) | G9 (code) + G9p (prompt) | R3 + Na |
+
+R3.2 (match changes by role, not name) already covers the "16 rows of not present" noise from the same run; no task added.
+
+## Delivery estimate (additions)
+
+| Host build | Tasks | Added active hours |
+|---|---|---|
+| R1 | G2, G4, G5, G7 | 6–9 h |
+| R3 | G1, G3, G6, G9 | 8–12 h |
+| Na | G2p, G8p, G9p | 1.5–2.5 h, judged inside Na's existing comparison runs |
+
+Add 1–2 h to the host builds' audits. **Total 16–26 active hours** on top of the base plan's 57–85. No additional paid runs: G2p and G8p ride Na's existing DOCN and MSFT pairs. Model recommendations unchanged (Astra for R1, Sol for R3 and Na). Engineering estimate, not measured.
+
+---
+
+## R1 additions
+
+### G2 Prior trading inside a price band, computed by code
+
+**Files:** `tradingagents/agents/tools.py::get_verified_market_snapshot` and the builder it calls (`build_verified_market_snapshot`); its tests.
+
+- Append a "Prior closes by price band" table to the snapshot: from the latest completed close down to the lowest close of the last 252 completed sessions, in bands of 5% of the latest close. Each band lists the number of closes in it, the most recent date and the lowest and highest close. Bands with no closes say "no closes in the last 252 sessions". Point-in-time: only sessions on or before the analysis cutoff.
+- No new vendor call: reuse the OHLCV the snapshot already loads, extending its window if it is shorter than 252 sessions.
+- [ ] `test_band_table_lists_march_closes_below_lower_band` (DOCN fixture, close 72.48 on 2026-11-06: the 65.2–68.9 band reports closes including 66.22 and 68.63/68.69 dated March 2026, and the 61.6–65.2 band reports 62.01), `test_band_table_respects_cutoff`, `test_empty_band_says_no_closes`.
+
+### G4 Guidance grounding is stable on the same corpus
+
+This is an acceptance check on R1.2 and R1.3, not new code unless it fails.
+
+- Add a fixture for the `16416b7e` retained corpus next to R1's `tests/fixtures/docn_2026_11_07/` (same privacy rules: retained source bytes only, no memory or secrets).
+- [ ] `test_16416b7e_corpus_accepts_guided_shares_and_margin_guides`: deterministic discovery accepts Q4 2026 diluted weighted shares 128–129M, FY2026 diluted weighted shares 122–123M, Q4 and FY2026 adjusted EBITDA margin guides, and the FY2026 adjusted FCF margin guide.
+- [ ] `test_discovery_is_order_independent`: the same corpus with documents and blocks in shuffled order yields an identical accepted set and identical record IDs.
+- [ ] R1 proof records accepted counts for both the `913554d4` and `16416b7e` corpora, before and after. If the two corpora themselves differ (different blocks retained), record which blocks differ and why; a difference in retention is an R1.2 defect, not an acceptable run-to-run variation.
+
+### G5 Peer exclusion only for facts the peer statistics read
+
+**Files:** `tradingagents/dataflows/vendors/sec_edgar.py` (`_select_facts`, ambiguity raise ~:271), `tradingagents/agents/valuation_reference_flow.py::_fetch_peer` (~:242).
+
+- At build start, list the metrics `calculate_peer_statistics` and the peer render actually read (expected: Revenue, Gross Profit, Common Shares Outstanding; verify). For peer packages only, an ambiguity in any other metric drops that metric from the package with a recorded gap ("Assets ambiguous at 2023-12-31; not used for peer statistics") instead of raising. An ambiguity in a metric the statistics read still excludes the peer with today's reason.
+- Subject-issuer packages are unchanged: ambiguity still raises.
+- [ ] `test_peer_ambiguity_in_unused_metric_keeps_peer` (synthetic companyfacts: conflicting `Assets` at 2023-12-31, clean revenue and shares: peer status `available`, gap recorded), `test_peer_ambiguity_in_revenue_still_excludes`, `test_subject_ambiguity_still_raises`.
+- [ ] R1 proof: NBIS from the `16416b7e` recorded inputs is either accepted or excluded for a reason that names a metric the statistics read.
+
+### G7 Maturity totals labelled as undiscounted, with present value beside them
+
+**Files:** the canonical context builder in `tradingagents/agents/context.py`; the filing-cell extraction that already reads the lease table (`block-226` in DOCN).
+
+- When the retained finance-lease and equipment maturity table yields both a per-year undiscounted schedule and its present-value total, render one line: "Finance lease and equipment maturities (undiscounted, include imputed interest): 2027 $250.0M; total $X; less imputed interest $Y; present value $923.6M (F25). Scheduled payments are not principal." Values come only from the retained table with source IDs; if any piece is missing, render nothing for that piece.
+- [ ] `test_maturity_line_labels_undiscounted_and_present_value` (DOCN fixture), `test_partial_table_renders_only_present_pieces`.
+
+---
+
+## R3 additions
+
+### G1 A case disputed by an accepted audit finding leaves the range
+
+**Files:** `tradingagents/agents/audit_pass.py` (finding schema and prompt), `tradingagents/agents/decision_context.py::render_condition_summary` (range assembly ~:341), the shared valuation record.
+
+- Add an optional `case_id` field to audit findings. The audit prompt asks for it when a finding concerns a valuation case's inputs; the case IDs are already in the supplied material.
+- A case is **disputed** when a finding that names its `case_id` has PM disposition `accepted`. Fallback with no `case_id`: the finding's `quoted_claim` is an exact substring of that case's rationale or assumption text. No other inference.
+- Disputed cases stay in the record and the fundamentals section, marked "disputed by accepted audit finding AF-…; excluded from the conditional range". The card's range and count use undisputed cases only. If every case is disputed, the card says so instead of showing a range. Rejected or unanswered findings change nothing.
+- No recalculation of the disputed case. Correcting inputs is the model's job on the next run; this task only stops a known-bad number from being displayed as valid.
+- [ ] `test_accepted_finding_with_case_id_excludes_case_from_range` (`16416b7e` fixture: AF-44b5… against the base case's finance/equipment roll-forward → range shows 28.57 only, base marked disputed), `test_quoted_claim_substring_fallback`, `test_rejected_finding_keeps_case`, `test_all_cases_disputed_states_no_range`.
+
+### G3 The auditor checks the full retained source before calling a number unsupported
+
+**Files:** `tradingagents/agents/audit_pass.py` (after findings are parsed, before `prepare_audit_dispositions`), `tradingagents/dataflows/filing_search.py::search_filing_evidence`.
+
+- For each `unsupported_claim` finding, extract the amounts in `quoted_claim` and search the run's retained full corpus (the same corpus `search_documents` uses, plus retained transcript text) for each amount in its displayed and filing forms (for example "$57.1M" → "57.1 million", "57,110" in a thousands table, "57,110,000"), requiring at least one non-numeric word from the quote in the same block.
+- When located, keep the finding but relabel it "located in retained source <source_id, locator>; not in the evidence brief" and present it to the PM as a coverage note, not an unsupported claim. Record the original classification. Never delete a finding.
+- Contradictions and numerical inconsistencies are untouched.
+- [ ] `test_unsupported_finding_located_in_10q_is_relabelled` (`16416b7e` fixture: AF-80aa… and AF-9a28… on "$57.1M" locate "total induced conversion expense of $ 57,110" in the 10-Q), `test_truly_absent_amount_stays_unsupported`, `test_number_without_shared_word_is_not_a_match`, `test_contradiction_findings_untouched`.
+
+### G6 Code check of the Portfolio Manager's cited numbers
+
+**Files:** new `tradingagents/agents/citation_check.py`; `tradingagents/agents/decision_context.py` (card line).
+
+- After the PM's structured output, scan its executive summary and thesis for sentences that cite evidence IDs inline (F, C, K, D labels from the canonical brief). For each cited ID with a numeric canonical value, check whether the sentence contains that value within display rounding (millions to one decimal, percent to two decimals). Report "PM citation check: n of m cited figures matched" and list mismatches with the sentence and the canonical value.
+- Display only. No gate, no rewrite, no rating effect. Sentences without IDs are not checked and are counted as "uncited".
+- [ ] `test_pm_cited_revenue_matches` ("$321.2 million … (F46)"), `test_pm_cited_value_mismatch_listed` (altered figure), `test_uncited_sentences_counted_not_checked`, `test_percent_and_millions_rounding`.
+
+### G9 Six-month default decision horizon (user decision 2026-11-07)
+
+**Files:** `tradingagents/default_config.py` (new `decision_horizon_months: 6`, env `TRADINGAGENTS_DECISION_HORIZON_MONTHS`), `tradingagents/agents/decision_context.py::decision_horizon`, the PM schema's horizon field and its `horizon_reason`, card rendering.
+
+- The configured horizon (default six months) is the decision horizon unless the Portfolio Manager states a different one **and** a non-empty reason. A different horizon without a reason is replaced by the default and the card says so. The card shows "Horizon: 6 months (configured default)" or "Horizon: N months (PM override: <reason>)".
+- Keep the existing "horizon required" behavior: a missing or invalid horizon still makes the decision incomplete. No change to rating eligibility.
+- Valuation cases keep their own forecast periods; this task does not change case dates.
+- [ ] `test_default_horizon_is_six_months`, `test_pm_override_with_reason_is_kept_and_labelled`, `test_override_without_reason_falls_back_to_default`, `test_env_override_of_default`.
+
+---
+
+## Na additions (prompt lines, judged by Na's existing comparison runs)
+
+### G2p Price-history claims cite the band table
+
+- Market analyst and trader prompts: any claim about where prior trading did or did not occur must cite the "Prior closes by price band" table from G2.
+- [ ] Rendered-prompt unit test for both roles. Comparison-run rubric item: no claim of missing price history that contradicts the band table.
+
+### G9p The PM is told the default horizon
+
+- Portfolio Manager prompt: the decision horizon is the configured default (six months) unless the evidence gives a specific reason for another; state that reason in `horizon_reason`.
+- [ ] Rendered-prompt unit test. Comparison-run rubric item: horizon equals the default, or differs with a stated evidence-based reason.
+
+### G8p Each case multiple names a same-basis reference
+
+- Fundamentals analyst case instructions: the multiple rationale names its reference point on the same basis and period convention (an own-history figure, a named peer, or the "what the price implies" ratio), or states "no same-basis reference available".
+- No schema change.
+- [ ] Rendered-prompt unit test. Comparison-run rubric item: every case rationale names a reference or states none; keep or drop per Na's rules.
+
+---
+
+## Considered and not included
+
+- **Recalculating a disputed case automatically.** It would need the system to decide the corrected input. G1 removes the bad number from the card; the next run's model corrects it.
+- **A second LLM pass auditing the PM.** G6 does the checkable part in code. A deep-model re-audit adds a call per run and shares the PM's model.
+- **Caching evidence across same-day runs to cut tokens.** The repeat-run pattern is testing, not production use, and the measured cost is about $8–9 per run. Revisit if production runs one ticker more than once a day.
+- **Calibrated scenario probabilities.** There is no track record to calibrate against yet. G8p limits multiple drift without claiming calibration.
+
+## Decisions
+
+**Made here (technical, reversible):** G1 uses explicit `case_id` with an exact-substring fallback only; G3 relabels rather than deletes; G6 is display-only.
+
+**Approved by the user on 2026-11-07:**
+1. Decision horizon: a configurable six-month default the Portfolio Manager must use unless it states a reason (G9, G9p).
+2. Append this amendment to the base plan before R1 starts.
