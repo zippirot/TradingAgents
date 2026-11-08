@@ -99,6 +99,77 @@ def test_pending_memory_follows_latest_publication_when_first_projection_is_dela
     assert len(app.memory_log.load_entries()) == 1
 
 
+def test_concurrent_publication_cannot_pass_an_inflight_memory_projection(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from threading import Event
+
+    from tradingagents.memory.log import TradingMemoryLog
+
+    app, _ = graph_and_state(tmp_path)
+    app.memory_log = TradingMemoryLog({'memory_log_path': str(tmp_path / 'memory.md')})
+    app._log_state = lambda *args: None
+    selected, release = Event(), Event()
+    original_store = app.memory_log.store_decision
+
+    def delayed_store(**kwargs):
+        if kwargs['rating'] == 'Underweight':
+            selected.set()
+            assert release.wait(5), 'test did not release projection'
+        original_store(**kwargs)
+
+    app.memory_log.store_decision = delayed_store
+    first = {'final_rating': 'Underweight', 'final_trade_decision': 'Underweight',
+             'evidence_quality': {'status': 'limited'}}
+    second = {'final_rating': 'Hold', 'final_trade_decision': 'Hold',
+              'evidence_quality': {'status': 'limited'}}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a = pool.submit(app.record_decision, 'DOCN', '2026-11-04', first)
+        assert selected.wait(5)
+        b = pool.submit(app.record_decision, 'DOCN', '2026-11-04', second)
+        try:
+            b.result(timeout=.2)
+        except TimeoutError:
+            pass
+        finally:
+            release.set()
+        a.result(timeout=5)
+        b.result(timeout=5)
+    records = list_records(app.config)
+    latest = max(records, key=lambda r: r['sequence'])
+    entries = app.memory_log.load_entries()
+    assert len(entries) == 1
+    assert entries[0]['decision_id'] == latest['decision_id']
+    assert entries[0]['rating'] == 'Hold'
+
+
+def test_published_rerun_cannot_replace_settled_memory(tmp_path):
+    from hashlib import sha256
+
+    from tradingagents.memory.log import TradingMemoryLog
+    from tradingagents.memory.publication import record_root
+
+    app, _ = graph_and_state(tmp_path)
+    app.memory_log = TradingMemoryLog({'memory_log_path': str(tmp_path / 'memory.md')})
+    app._log_state = lambda *args: None
+    first = {'final_rating': 'Underweight', 'final_trade_decision': 'Underweight',
+             'evidence_quality': {'status': 'limited'}}
+    second = {'final_rating': 'Hold', 'final_trade_decision': 'Hold',
+              'evidence_quality': {'status': 'limited'}}
+    app.record_decision('DOCN', '2026-11-04', first)
+    original_id = app.memory_log.load_entries()[0]['decision_id']
+    original_path = record_root(app.config) / 'records' / f'{original_id}.json'
+    digest = sha256(original_path.read_bytes()).hexdigest()
+    assert app.memory_log.update_with_outcome('DOCN', '2026-11-04', .01, .005, 5,
+                                              'Original settled lesson')
+    app.record_decision('DOCN', '2026-11-04', second)
+    entries = app.memory_log.load_entries()
+    assert len(list_records(app.config)) == 2 and len(entries) == 1
+    assert entries[0]['decision_id'] == original_id
+    assert entries[0]['reflection'] == 'Original settled lesson'
+    assert not entries[0]['pending']
+    assert sha256(original_path.read_bytes()).hexdigest() == digest
+
+
 def test_review_summary_survives_log_and_publication_replay(tmp_path):
     """A resumed terminal checkpoint may lack presentation fields added after publication."""
     from copy import deepcopy

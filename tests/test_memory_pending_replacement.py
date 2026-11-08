@@ -94,3 +94,22 @@ def test_failed_atomic_replacement_leaves_original_pending_readable(tmp_path, mo
         memory.store_decision('DOCN', '2026-11-04', 'Hold revision', 'Hold', str(uuid4()))
     assert path.read_bytes() == before
     assert len(memory.get_pending_entries()) == 1
+
+
+def test_pending_replacement_quarantines_partial_tail_and_preserves_other_entries(tmp_path):
+    path = tmp_path / 'memory.md'
+    memory = TradingMemoryLog({'memory_log_path': str(path)})
+    memory.store_decision('OTHER', '2026-11-03', 'Buy unrelated', 'Buy', str(uuid4()))
+    unrelated = path.read_bytes()
+    memory.store_decision('DOCN', '2026-11-04', 'Underweight original', 'Underweight', str(uuid4()))
+    partial = '[2026-11-04 | DOCN | Hold | pending]\n\nDECISION:\nInterrupted rerun'
+    with path.open('a') as stream:
+        stream.write(partial)
+    latest = str(uuid4())
+    memory.store_decision('DOCN', '2026-11-04', 'Hold completed rerun', 'Hold', latest)
+    assert path.read_bytes().startswith(unrelated)
+    entries = memory.load_entries()
+    assert len(entries) == 2 and entries[-1]['decision_id'] == latest
+    quarantines = list(tmp_path.glob('memory.md.partial-*.md'))
+    assert len(quarantines) == 1 and quarantines[0].read_text() == partial
+    assert partial not in path.read_text()
