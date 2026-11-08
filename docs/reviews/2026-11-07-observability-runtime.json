@@ -1,9 +1,9 @@
 {
-  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m",
   "results_configuration": "relative results; Enter returns displayed default",
   "controlled_comparison": {
-    "baseline": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx/comparison-results/DOCN/2026-11-06/181754-13bd683b",
-    "candidate": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx/comparison-results/DOCN/2026-11-06/181754-68c8bc55",
+    "baseline": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m/comparison-results/DOCN/2026-11-06/193502-b69e41bf",
+    "candidate": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m/comparison-results/DOCN/2026-11-06/193502-c05d16c1",
     "source_replay_hits": 1,
     "replay_misses": 0,
     "starting_snapshot_equal": true,
@@ -11,8 +11,8 @@
     "model_callback_ends": 12,
     "model_identity_and_usage": "synthetic provider fixture; no live identity or billed usage claim",
     "baseline_stores_unchanged_by_candidate": true,
-    "candidate_publication_id": "24085894-a454-4d37-9384-29b2f619e54f",
-    "candidate_state_sha256": "8ab8544ef9f2ae1ac3d16c8d508d67b1647c620e60b47783d511fde9462ddbe6"
+    "candidate_publication_id": "6ea46c48-c547-4a85-8633-9eff1a9f8d9e",
+    "candidate_state_sha256": "95c99321c1d0769b01745e5c101ac98dba3d605720145c62208ab854ab03c67d"
   },
   "recorded_source_sha256": "de15f4df70171544b21842a43576111f01ccc0da75f67234e23a9a92c6fd869c",
   "copied_source_unchanged": true,
@@ -99,40 +99,6 @@
     {
       "events": [
         "started",
-        "interrupted"
-      ],
-      "files": [
-        "comparison-start/cache/DOCN-YFin-data.csv",
-        "comparison-start/cache/checkpoints/DOCN.db",
-        "comparison-start/manifest.json",
-        "comparison-start/memory/memory.md",
-        "comparison-start/publications/evidence/37002d51b0aa36baa8fc91b1b62f0d53dc3d8731a88b8eeea480a5159050353f.json",
-        "comparison-start/publications/evidence/60d072e7338bb25c3ada68318b5668dbc6659586558d844619b74d5057c16b60.json",
-        "comparison-start/publications/outcomes/3dceea0d-00f9-49dd-898c-f375d72a5991.json.lock",
-        "comparison-start/publications/publication.lock",
-        "comparison-start/publications/records/3dceea0d-00f9-49dd-898c-f375d72a5991.json",
-        "comparison-start/publications/records/47d9c3e1-d4c7-43e8-8dc8-8a026a792856.json",
-        "message_tool.log",
-        "reports/investment_plan.md",
-        "reports/market_report.md",
-        "run.log",
-        "trace/01-source-inputs.jsonl",
-        "trace/02-memory-log.jsonl",
-        "trace/03-source-acquisition.jsonl",
-        "trace/04-market-analyst.jsonl",
-        "trace/05-evidence-check.jsonl",
-        "trace/06-bull-researcher.jsonl",
-        "trace/07-bear-researcher.jsonl",
-        "trace/08-document-followup.jsonl",
-        "trace/09-research-manager.jsonl",
-        "trace/10-trader.jsonl"
-      ],
-      "run_log_bytes": 0,
-      "message_log_bytes": 2477
-    },
-    {
-      "events": [
-        "started",
         "completed"
       ],
       "files": [
@@ -140,13 +106,13 @@
         "comparison-start/cache/checkpoints/DOCN.db",
         "comparison-start/manifest.json",
         "comparison-start/memory/memory.md",
-        "comparison-start/publications/evidence/37002d51b0aa36baa8fc91b1b62f0d53dc3d8731a88b8eeea480a5159050353f.json",
-        "comparison-start/publications/evidence/60d072e7338bb25c3ada68318b5668dbc6659586558d844619b74d5057c16b60.json",
-        "comparison-start/publications/outcomes/3dceea0d-00f9-49dd-898c-f375d72a5991.json.lock",
-        "comparison-start/publications/outcomes/47d9c3e1-d4c7-43e8-8dc8-8a026a792856.json.lock",
+        "comparison-start/publications/evidence/757c08d286231de60a894e6eef737f6e91caa21164f82d1051e79474ecff930f.json",
+        "comparison-start/publications/evidence/83074abf0df9f626b661ca35258c62aa15549940af93ba94111db1b0102bf36c.json",
+        "comparison-start/publications/outcomes/e339cc23-fdb5-4643-ace0-b5d335a5bbdb.json.lock",
+        "comparison-start/publications/outcomes/eac314f2-af7e-4934-9639-55b3b8ce1286.json.lock",
         "comparison-start/publications/publication.lock",
-        "comparison-start/publications/records/3dceea0d-00f9-49dd-898c-f375d72a5991.json",
-        "comparison-start/publications/records/47d9c3e1-d4c7-43e8-8dc8-8a026a792856.json",
+        "comparison-start/publications/records/e339cc23-fdb5-4643-ace0-b5d335a5bbdb.json",
+        "comparison-start/publications/records/eac314f2-af7e-4934-9639-55b3b8ce1286.json",
         "message_tool.log",
         "reports/.report-export.lock",
         "reports/1_analysts/market.md",
@@ -187,6 +153,40 @@
     {
       "events": [
         "started",
+        "interrupted"
+      ],
+      "files": [
+        "comparison-start/cache/DOCN-YFin-data.csv",
+        "comparison-start/cache/checkpoints/DOCN.db",
+        "comparison-start/manifest.json",
+        "comparison-start/memory/memory.md",
+        "comparison-start/publications/evidence/757c08d286231de60a894e6eef737f6e91caa21164f82d1051e79474ecff930f.json",
+        "comparison-start/publications/evidence/83074abf0df9f626b661ca35258c62aa15549940af93ba94111db1b0102bf36c.json",
+        "comparison-start/publications/outcomes/e339cc23-fdb5-4643-ace0-b5d335a5bbdb.json.lock",
+        "comparison-start/publications/publication.lock",
+        "comparison-start/publications/records/e339cc23-fdb5-4643-ace0-b5d335a5bbdb.json",
+        "comparison-start/publications/records/eac314f2-af7e-4934-9639-55b3b8ce1286.json",
+        "message_tool.log",
+        "reports/investment_plan.md",
+        "reports/market_report.md",
+        "run.log",
+        "trace/01-source-inputs.jsonl",
+        "trace/02-memory-log.jsonl",
+        "trace/03-source-acquisition.jsonl",
+        "trace/04-market-analyst.jsonl",
+        "trace/05-evidence-check.jsonl",
+        "trace/06-bull-researcher.jsonl",
+        "trace/07-bear-researcher.jsonl",
+        "trace/08-document-followup.jsonl",
+        "trace/09-research-manager.jsonl",
+        "trace/10-trader.jsonl"
+      ],
+      "run_log_bytes": 0,
+      "message_log_bytes": 2477
+    },
+    {
+      "events": [
+        "started",
         "completed"
       ],
       "files": [
@@ -194,9 +194,9 @@
         "comparison-start/cache/checkpoints/DOCN.db",
         "comparison-start/manifest.json",
         "comparison-start/memory/memory.md",
-        "comparison-start/publications/evidence/37002d51b0aa36baa8fc91b1b62f0d53dc3d8731a88b8eeea480a5159050353f.json",
+        "comparison-start/publications/evidence/83074abf0df9f626b661ca35258c62aa15549940af93ba94111db1b0102bf36c.json",
         "comparison-start/publications/publication.lock",
-        "comparison-start/publications/records/3dceea0d-00f9-49dd-898c-f375d72a5991.json",
+        "comparison-start/publications/records/e339cc23-fdb5-4643-ace0-b5d335a5bbdb.json",
         "message_tool.log",
         "reports-retry/.report-export.lock",
         "reports-retry/1_analysts/market.md",
@@ -250,14 +250,14 @@
   "state_archives": 3,
   "distinct_published_runs": 3,
   "reopened_report_hashes": [
-    "43991d6ec9f0",
-    "5c46e68e99f9",
-    "db63a804927e"
+    "d3508789bfac",
+    "064588b1a16f",
+    "823c3dafa199"
   ],
   "html_pages": [
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx/results/DOCN/2026-11-06/181753-9d49e6aa/reports/complete_report.html",
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx/results/DOCN/2026-11-06/181754-c23b96c2/reports/complete_report.html",
-    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-xp284smx/results/DOCN/2026-11-06/181754-ef5c5227/reports-retry/complete_report.html"
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m/results/DOCN/2026-11-06/193501-4adee6ad/reports/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m/results/DOCN/2026-11-06/193502-3670eb23/reports/complete_report.html",
+    "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-wlxir2_m/results/DOCN/2026-11-06/193502-e1b86d43/reports-retry/complete_report.html"
   ],
   "latest_rating": "Hold",
   "source_hash_matches_state": true,
@@ -266,143 +266,132 @@
   "resumed_message": true,
   "summary": [
     "Analysis Complete!",
-    "Run log: results/DOCN/2026-11-06/181753-9d49e6aa/run.log",
+    "Run log: results/DOCN/2026-11-06/193501-4adee6ad/run.log",
     "Tokens: 204 in / 108 out (complete observed)",
     "Analysis Complete!",
-    "Run log: comparison-results/DOCN/2026-11-06/181754-13bd683b/run.log",
+    "Run log: comparison-results/DOCN/2026-11-06/193502-b69e41bf/run.log",
     "Tokens: 204 in / 108 out (complete observed)",
     "Analysis Complete!",
-    "Run log: comparison-results/DOCN/2026-11-06/181754-68c8bc55/run.log",
+    "Run log: comparison-results/DOCN/2026-11-06/193502-c05d16c1/run.log",
     "Tokens: 204 in / 108 out (complete observed)",
     "Analysis Complete!",
-    "Run log: results/DOCN/2026-11-06/181754-ef5c5227/run.log",
+    "Run log: results/DOCN/2026-11-06/193502-e1b86d43/run.log",
     "Tokens: 187 in / 99 out (complete observed)",
     "Analysis Complete!",
-    "Run log: results/DOCN/2026-11-06/181754-c23b96c2/run.log",
+    "Run log: results/DOCN/2026-11-06/193502-3670eb23/run.log",
     "Tokens: 119 in / 63 out (complete observed)"
   ],
   "network_blocked": true,
   "credentials_isolated": true,
   "secret_found": false,
-  "source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
-  "source_fingerprint": "sha256:fc96b763b9c790d82e68c39ec429950448cdfe0be2c02d3848ee5fe1d22714b1",
+  "source_commit": "0308e892bba5f7e8d31461637f3c98eb3b23e42e",
+  "source_fingerprint": "sha256:b1047431c57873f0be5c3225a40c614623b0ad1a903611147af0b34f462867fc",
+  "source_diff_from_cc_sha256": "69b7c2e242241217036457f3ca204b1f7e79a5c0dbf346f93345db5f08ff9091",
   "trace_inspection": [
     {
-      "attempt": "181753-9d49e6aa",
+      "attempt": "193501-4adee6ad",
       "stages": 16,
       "trace_files": 17,
-      "trace_bytes": 287163,
-      "stage_pointers": 16,
+      "trace_bytes": 287608,
       "model_starts": 12,
       "model_ends": 12,
       "model_errors": 0,
-      "incomplete_stage": false,
-      "trace_permissions": "directory 0700; files 0600",
-      "all_observed_stages_have_transcript_pointers": true
+      "incomplete": false,
+      "all_stages_have_transcript_pointers": true,
+      "trace_permissions": "directory 0700; files 0600"
     },
     {
-      "attempt": "181754-9785a939",
-      "stages": 9,
-      "trace_files": 10,
-      "trace_bytes": 54249,
-      "stage_pointers": 9,
-      "model_starts": 5,
-      "model_ends": 4,
-      "model_errors": 1,
-      "incomplete_stage": true,
-      "trace_permissions": "directory 0700; files 0600",
-      "all_observed_stages_have_transcript_pointers": true
-    },
-    {
-      "attempt": "181754-c23b96c2",
+      "attempt": "193502-3670eb23",
       "stages": 8,
       "trace_files": 9,
-      "trace_bytes": 63012,
-      "stage_pointers": 8,
+      "trace_bytes": 63249,
       "model_starts": 7,
       "model_ends": 7,
       "model_errors": 0,
-      "incomplete_stage": true,
-      "trace_permissions": "directory 0700; files 0600",
-      "all_observed_stages_have_transcript_pointers": true
+      "incomplete": true,
+      "all_stages_have_transcript_pointers": true,
+      "trace_permissions": "directory 0700; files 0600"
     },
     {
-      "attempt": "181754-ef5c5227",
+      "attempt": "193502-e13c1b93",
+      "stages": 9,
+      "trace_files": 10,
+      "trace_bytes": 54486,
+      "model_starts": 5,
+      "model_ends": 4,
+      "model_errors": 1,
+      "incomplete": true,
+      "all_stages_have_transcript_pointers": true,
+      "trace_permissions": "directory 0700; files 0600"
+    },
+    {
+      "attempt": "193502-e1b86d43",
       "stages": 16,
       "trace_files": 17,
-      "trace_bytes": 109409,
-      "stage_pointers": 16,
+      "trace_bytes": 109646,
       "model_starts": 11,
       "model_ends": 11,
       "model_errors": 0,
-      "incomplete_stage": false,
-      "trace_permissions": "directory 0700; files 0600",
-      "all_observed_stages_have_transcript_pointers": true
+      "incomplete": false,
+      "all_stages_have_transcript_pointers": true,
+      "trace_permissions": "directory 0700; files 0600"
     }
   ],
-  "limitations": [
-    "Provider-boundary model and Yahoo doubles; sockets denied; no live provider or paid product calls.",
-    "Synthetic model IDs and usage counts; do not infer billed tokens or real provider identity.",
-    "Market analyst path only; not a full four-analyst filing-acquisition run.",
-    "Split actions explicitly simulated zero; not proof of historical absence.",
-    "Focused actual ToolNode tests separately exercise tool failure and Command journal/current-call-ID behavior."
+  "publication_inspection": [
+    {
+      "store": "original",
+      "verified_records": [
+        {
+          "decision_id": "e339cc23-fdb5-4643-ace0-b5d335a5bbdb",
+          "record_sha256": "bd4db0673b14e55bab1835f6a58bdebad710dd02772db7a3fce5de52aaf58d88",
+          "evidence_sha256": "83074abf0df9f626b661ca35258c62aa15549940af93ba94111db1b0102bf36c"
+        },
+        {
+          "decision_id": "eac314f2-af7e-4934-9639-55b3b8ce1286",
+          "record_sha256": "0781eaf855ac386fd8c020e33ad182a6c36f248f24a4cc512b98316019d782b5",
+          "evidence_sha256": "757c08d286231de60a894e6eef737f6e91caa21164f82d1051e79474ecff930f"
+        },
+        {
+          "decision_id": "1e7e2300-d8a3-4dc7-8a2e-619ea8f1cfa6",
+          "record_sha256": "b63c43423a2308a2917397857564dfd194097752f5ec42b3a668450a37c5a6e5",
+          "evidence_sha256": "a548a70a41a767d8c09c071d0c12948808532b2db8737b32c72ab54199f5a36f"
+        }
+      ],
+      "memory_links": [
+        "e339cc23-fdb5-4643-ace0-b5d335a5bbdb"
+      ]
+    },
+    {
+      "store": "baseline",
+      "verified_records": [
+        {
+          "decision_id": "4d65f04c-bf81-4c0b-ab25-9d19b533c8fc",
+          "record_sha256": "85fe2604444a54cbefebcb424fa802d01ca5b04f6599610613de7d67e98a12a9",
+          "evidence_sha256": "5f203623606b367b2cc4cd2c2f61bc96a6faa103700c4e1bd667f69091852c94"
+        }
+      ],
+      "memory_links": [
+        "4d65f04c-bf81-4c0b-ab25-9d19b533c8fc"
+      ]
+    },
+    {
+      "store": "candidate",
+      "verified_records": [
+        {
+          "decision_id": "6ea46c48-c547-4a85-8633-9eff1a9f8d9e",
+          "record_sha256": "7a5710acc67d39cc1bb707dbf061747882965c1e65b0f308d14c93fbe88d186e",
+          "evidence_sha256": "6e19ec3b7834269c8baa5f80a3257f8b3b39231d461acf5139c5018f83169151"
+        }
+      ],
+      "memory_links": [
+        "6ea46c48-c547-4a85-8633-9eff1a9f8d9e"
+      ]
+    }
   ],
-  "post_freeze_publication_inspection": {
-    "runtime_source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
-    "procedure": "Existing strict list_records/load_evidence plus parsed TradingMemoryLog links; no native rerun or source mutation.",
-    "stores": [
-      {
-        "store": "original",
-        "verified_publications": [
-          {
-            "decision_id": "3dceea0d-00f9-49dd-898c-f375d72a5991",
-            "record_sha256": "9ed6fe93eff68c5e6b6f9a328f51efc7405849dbaaf35cabad2991db449e126c",
-            "evidence_snapshot_sha256": "37002d51b0aa36baa8fc91b1b62f0d53dc3d8731a88b8eeea480a5159050353f"
-          },
-          {
-            "decision_id": "47d9c3e1-d4c7-43e8-8dc8-8a026a792856",
-            "record_sha256": "fbba4b24ccb0c56213c1d744a8389bb3363749efb100c4c9fac47dc2346ab84e",
-            "evidence_snapshot_sha256": "60d072e7338bb25c3ada68318b5668dbc6659586558d844619b74d5057c16b60"
-          },
-          {
-            "decision_id": "da91bf89-d269-4711-b1f4-d4569a68ec7e",
-            "record_sha256": "62c95a4e7b63291a436fb65adddd433735be25faf3904a068f533b69924e65b5",
-            "evidence_snapshot_sha256": "8d3374b96dc42d6975a21de8801ba56c6dacb18182c9843fc9e85243482ac27c"
-          }
-        ],
-        "memory_links": [
-          "3dceea0d-00f9-49dd-898c-f375d72a5991"
-        ],
-        "memory_sha256": "64be7cafddd716e6c2f858bf0f74e5c665f696dc8a31b17afcdbe242d963b126"
-      },
-      {
-        "store": "baseline",
-        "verified_publications": [
-          {
-            "decision_id": "8f4f177d-abf6-4e8a-8efa-cefe09d45e93",
-            "record_sha256": "203bc5dac482f5b85c7b58039ab7f3f7b2a269902a01dcd9e748c9bb4ca1c45f",
-            "evidence_snapshot_sha256": "79e48cfb3be1c2abceb5edc8e70678ceb63b277db7c29eeb8e50c843a89468fe"
-          }
-        ],
-        "memory_links": [
-          "8f4f177d-abf6-4e8a-8efa-cefe09d45e93"
-        ],
-        "memory_sha256": "2f04df4d731a697558995015c17e5bdc8ad0f3d0c4ec073458a37dac5ad31fa7"
-      },
-      {
-        "store": "candidate",
-        "verified_publications": [
-          {
-            "decision_id": "24085894-a454-4d37-9384-29b2f619e54f",
-            "record_sha256": "93a6d3a3a4d4e809b5d5af73b8eb7c842f96c9daf1277b68dbf005f05126b67d",
-            "evidence_snapshot_sha256": "d7ae9c1fc22c4b5a7a9a5a76458263ec24d5060fb6b01db0b66fde65b396e8bc"
-          }
-        ],
-        "memory_links": [
-          "24085894-a454-4d37-9384-29b2f619e54f"
-        ],
-        "memory_sha256": "82779bb08a59ce6706f730d67ef93f2c7b6e0812b60b449ad073efc4b0362f67"
-      }
-    ]
-  }
+  "original_private_source_unchanged": true,
+  "limitations": [
+    "Synthetic provider models/usage/IDs, Yahoo boundary doubles and zero split-action fixture; sockets denied, no paid product calls.",
+    "Market analyst native path only; full four-analyst live filing/provider proof is a later approved stage.",
+    "Unsupported provider errors and trace nonfinite callback values retain the disclosed mixed/incomplete behavior."
+  ]
 }

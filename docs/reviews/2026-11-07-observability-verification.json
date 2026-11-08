@@ -1,5 +1,5 @@
 {
-  "source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
+  "source_commit": "0308e892bba5f7e8d31461637f3c98eb3b23e42e",
   "python": "3.12.13",
   "platform": "macOS-26.5.1-arm64-arm-64bit",
   "packages": {
@@ -14,15 +14,15 @@
   "pytest": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
     "exit_code": 0,
-    "passed": 3344,
+    "passed": 3358,
     "skipped": 10,
     "deselected": 1,
     "warnings": 25,
     "subtests_passed": 100,
-    "elapsed_seconds": 58.82,
-    "log_path": "/tmp/r5-final-pytest-5b01bc1f.log",
-    "log_sha256": "e9ca341bfb12d8aa6cf460f1e4318054834b5082e50f252501fd23633686e59b",
-    "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3344 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 58.82s"
+    "elapsed_seconds": 58.23,
+    "log_path": "/tmp/r5-0308e892-full-pytest.log",
+    "log_sha256": "9c70bb2e84320943f4acd8c5f5accee266061d864fcb90acfb41fbcdf9ac6f0a",
+    "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3358 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 58.23s"
   },
   "ruff": {
     "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
@@ -31,7 +31,7 @@
   },
   "native_runtime": "docs/reviews/2026-11-07-observability-runtime.json",
   "remote_ci": "Not run: local unpushed feature branch; no push/integration authority.",
-  "native_runtime_source_fingerprint": "sha256:fc96b763b9c790d82e68c39ec429950448cdfe0be2c02d3848ee5fe1d22714b1",
+  "native_runtime_source_fingerprint": "sha256:b1047431c57873f0be5c3225a40c614623b0ad1a903611147af0b34f462867fc",
   "first_claude_audit": {
     "artifact_dir": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/docs/superpowers/audits/2026-11-08-workflow-gap-r5-fable",
     "run_id": "44749b33-1993-4752-a541-d378ef00cbfe",
@@ -209,5 +209,34 @@
     "validation_at_head": "cc010ccdda675e8db7377f8102a18ffb7110fa88",
     "current_feature_acceptance": "incomplete: material working-copy corrections need committed-candidate closure",
     "manifest_serialization": "One inventory filename is percent-encoded only in the external manifest to avoid its credential-pattern false-positive. The raw result recorded here and in audit-result.json is unmodified."
-  }
+  },
+  "previous_committed_verification": {
+    "source_commit": "5b01bc1f996cff2d61031e268b4ec29baf48295a",
+    "pytest": {
+      "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+      "exit_code": 0,
+      "passed": 3344,
+      "skipped": 10,
+      "deselected": 1,
+      "warnings": 25,
+      "subtests_passed": 100,
+      "elapsed_seconds": 58.82,
+      "log_path": "/tmp/r5-final-pytest-5b01bc1f.log",
+      "log_sha256": "e9ca341bfb12d8aa6cf460f1e4318054834b5082e50f252501fd23633686e59b",
+      "summary": "SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'\nSKIPPED [3] tests/test_document_retained_replay.py:43: Private hash-verified DOCN source inputs are unavailable\nSKIPPED [5] tests/test_price_implied_valuation.py:25: Private DOCN proof input is not present\nSKIPPED [1] tests/test_transcript_tool_integration.py:111: Private retained free DOCN transcript response unavailable\n3344 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 58.82s"
+    },
+    "ruff": {
+      "command": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
+      "exit_code": 0,
+      "result": "All checks passed!"
+    }
+  },
+  "source_diff_from_cc_sha256": "69b7c2e242241217036457f3ca204b1f7e79a5c0dbf346f93345db5f08ff9091",
+  "source_tree_ids": {
+    "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+    "tradingagents": "4b36389fc731c7e727f3d592ad552884290c0d9c",
+    "tests": "1c531873367859f87eba4309d35f9739e28c5cf7",
+    "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82"
+  },
+  "independent_closure_status": "pending corrected committed candidate review"
 }

@@ -1,6 +1,6 @@
 # R5 observability acceptance record
 
-**Current status (2026-11-07, Machine 2): R5 incomplete.** The first independent audit completed on frozen cc010ccd; verified findings dispositions and corrected-source closure are recorded below. The latest uncommitted closure candidate is identified in the final section below; prior commit/tree receipts are historical. No staging integration, push, later build, live-provider acceptance or release is claimed.
+**Current status (2026-11-07, Machine 2): R5 incomplete.** The first independent audit completed on frozen cc010ccd; verified findings dispositions and corrected-source closure are recorded below. The corrected source is committed at 0308e892; exact committed-source receipts and current closure status appear below. Prior commit/tree receipts are historical. No staging integration, push, later build, live-provider acceptance or release is claimed.
 
 ## Authority and baseline
 
@@ -146,3 +146,90 @@ The corrected source still requires its committed-candidate verification and fro
 - `/tmp/r5-audit-low-verification.json` — SHA-256 `268e952cd714c5831defca8c151d3804a993a186b2fde5b4b53b970c1c270bf5`
 
 - `/tmp/r5-first-audit-validation.json` — SHA-256 `4825d4df731eb8c216747049ac8c467d367d03138db8c7afc651dee8fdc2d456`
+
+
+## Corrected committed candidate and closure scope
+
+Exact corrected source/test/proof commit **0308e892bba5f7e8d31461637f3c98eb3b23e42e** passed the required full default suite: **3358 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests in 58.23s**. Full Ruff and diff checks passed. The native CLI proof repeated on that committed candidate and passed save-retry/interruption-resume plus the fresh replay pair (one source hit, zero misses, 12 model starts/ends, equal starting snapshots and unchanged baseline stores). Every observed stage has a transcript pointer; trace sequence/permissions/export exclusion were inspected. Existing strict readers verified all five publication/evidence hashes and all memory links in the new proof stores. Original private source hash is unchanged. Complete source-specific results are in the current runtime/verification JSON receipts. Package source fingerprint is b1047431c57873f0be5c3225a40c614623b0ad1a903611147af0b34f462867fc.
+
+Committed tree/blob identities: package 4b36389fc731c7e727f3d592ad552884290c0d9c; CLI 9edfbf73b9fe38ee2604df4ef2a916e788c77836; tests 1c531873367859f87eba4309d35f9739e28c5cf7; native proof aa44fb91fbfaa38bef830a07f72bad56d82a0f82. The evidence-only commit containing these receipts preserves those identities. These are local source-specific results, not remote CI or live-provider proof.
+
+The next independent run is a **closure review of cc010ccd to the evidence-frozen corrected candidate**, not a repeat of an incomplete/capped audit. It must examine the additional builder-confirmed material fixes and the two disproved Medium claims using the newly supplied real caller bodies. The initial completed review remains evidence for unchanged R5 behavior, with all limitations retained. No finding is waived and no first-review pass is attributed to the corrected source. Ordinary trace-on write behavior remains unchanged; later baseline comparisons use the approved disposable-store procedure with existing capture_starting_snapshot and clone_starting_snapshot, then supply the returned roots through the existing configuration keys. The existing nonempty-store test exercises both baseline and candidate clones against a protected original; automatic forking of ordinary traced analyses is not an additional requirement.
+
+Closure context supplies complete relevant changed producer/consumer bodies, actual structured role callers (including audit_pass), selection/checkpoint code, native trigger and reporting code, vendor/date/error adapters, current focused regressions, first report/dispositions, CI/package definitions and exact-source receipts. Original unchanged SEC/document/numeric-evidence modules inspected in the first run are not re-supplied as complete bodies in this focused closure; no such source is assumed inspected anew. Live providers, remote CI, later builds and stable installation remain unverified approved later stages. Packaging is defined in pyproject.toml; setup.py is absent in this checkout.
+
+### Frozen closure context line map
+
+The runner concatenates each supplied HEAD file after trimming surrounding whitespace and joining with one newline. It does not add filename headers. The table gives **decoded requirements-string line ranges** and raw Git-file SHA-256 for the instruction/package/source/test/proof prefix at 0308e892. These bodies are unchanged in the following evidence-only commit. Runtime and verification JSON plus this report follow the mapped prefix, in that order; the external manifest hashes every supplied path. This map is navigation/provenance evidence, not a claim that Claude inspected every row.
+
+| Decoded lines | Supplied HEAD path | Raw file SHA-256 |
+|---|---|---|
+| 1–21 | `.codex/skills/independent-build-audit/templates/independent-audit.v1.md` | `002ef3fc43c3f6b14b8a96ee43a17d3d8726b4c7f3a004b896f4b62db774bcea` |
+| 22–71 | `.codex/skills/independent-build-audit/SKILL.md` | `1721917f016e94bbadc6ce6145b79ff1766d16b313587d486597994f8260ab8e` |
+| 72–93 | `.codex/skills/independent-build-audit/templates/handoff-preparation.v1.md` | `cf0f16da8d6c59b6e71f9b2fb8ec1e6f96cccfce568dd1fb9a0cb3f34067b2e3` |
+| 94–112 | `.codex/skills/independent-build-audit/templates/findings-review.v1.md` | `d55d1c0c15301f2053c5fd62f17bae8d1353bf0fcb431bb89a7caed2cc915277` |
+| 113–734 | `docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md` | `c99ba552979d50eb0a0766f01983f4d86c6bfe3e2b6798367f2c6ba88baff70c` |
+| 735–834 | `.github/workflows/ci.yml` | `c659766026e6b8032bbdfa65ff9ad9c1a16c0eb34f8560c24a83e7e1fe39f81b` |
+| 835–923 | `pyproject.toml` | `670cd3552c10b5dbb2ea4c420336c7b58af455c27b1a65599727ecbefb4f375c` |
+| 924–1529 | `cli/run.py` | `f941cb6406499f7f4ebd711c0b3a201cd98a7968fe2ed5ba6ddb4d6638b85b3d` |
+| 1530–1608 | `cli/run_logging.py` | `202ee1d90b89bac3da27b7b8ea446d863ea5ec71eb2bd47dc7eb9b1df46ce65d` |
+| 1609–1746 | `cli/stats_handler.py` | `8a049a69c8bd09bec9d1a6386b0087d987ea75145ee7973335d2ce4f876e1a6a` |
+| 1747–2129 | `cli/selections.py` | `c9271d35264144ebf0544c66745ec523cca546dcaa9edbff78f5d77d776f2fd3` |
+| 2130–2349 | `tradingagents/default_config.py` | `817a85243ea133e33b5f4347dd0dd3a5ca432ed5d9b19b98ae5e928c3e41c866` |
+| 2350–2511 | `tradingagents/llm_clients/factory.py` | `56fe4269f35c7850669b8b2a53d1edf4a999df6ff6d8fb78214c72ec1b5afff2` |
+| 2512–2758 | `tradingagents/source_replay.py` | `168c39bf6e69d9b4de1df8488f521661a0dce478efaf0f46f03ceda9bf7dcd7a` |
+| 2759–2930 | `tradingagents/attempt_trace.py` | `b99fb59b73b746ea497cb3b8992d9c322a4886a3938b8a2670ba46741ba9eda1` |
+| 2931–3126 | `tradingagents/comparison_snapshot.py` | `aedb29e48269f7bfe2a06cafd3e60a8508e5885bb8ee9b3bd92be91588da8c92` |
+| 3127–3258 | `tradingagents/operational_capture.py` | `6085d6e56ba183704b8e7df9f77e685515ec8bb44cfcad963c09cdfcf6166dcd` |
+| 3259–3538 | `tradingagents/operational_audit.py` | `317aa7cb7aac23ee18676ad202254cf120a2c0e710f9c1b568091b93b3877f7d` |
+| 3539–4423 | `tradingagents/graph/trading_graph.py` | `cfc022aeeeb5b7df90f073825fa8e042cbb7dd8c61f0eea368405bc823ace41b` |
+| 4424–4760 | `tradingagents/graph/setup.py` | `8131cfd5783e68dcd674f0cb5b3d952e2005dd5b83899b2aed223c3cc99d7a60` |
+| 4761–4859 | `tradingagents/graph/checkpointer.py` | `f1ccb055601a8267f0b136482b06d853bd173a83a63c7d04c30f69ac65f3c295` |
+| 4860–4992 | `tradingagents/agents/state.py` | `fd30392481b7cd409e0e244aa4857ae9405aca7b51d63ca767a8fc756680e69c` |
+| 4993–5108 | `tradingagents/agents/structured.py` | `78538ed248ed978cb535cdea0cda3e33404920b99931a9a8849e70a3f287fae2` |
+| 5109–5212 | `tradingagents/agents/trader/trader.py` | `16853110be8d51e5e9156da915fcef8efc3b641749bb2a311022c2216f823a49` |
+| 5213–5307 | `tradingagents/agents/managers/research_manager.py` | `2644a6c368bc9441d8907a7af0597471448472be251abb23165e979cfb3544a0` |
+| 5308–5524 | `tradingagents/agents/managers/portfolio_manager.py` | `bac0a55ea0e4687a27299dbc26fafe5c05c99577b5e336408fdb934f9127de5c` |
+| 5525–6177 | `tradingagents/agents/audit_pass.py` | `e519296575b48cf3cffb8f8734918ec1b98fc30a4d59440d42c4c7a30922ae12` |
+| 6178–6388 | `tradingagents/agents/analysts/sentiment_analyst.py` | `cef8e3b315c83349ce245631cca1129fe4293d0f0adb91cafcbf1920fe063ef8` |
+| 6389–6588 | `tradingagents/agents/post_screen.py` | `2f9947937f2ad6c4286fbff7b7d1ee4374047a75d2fe297175fe4084bfebb584` |
+| 6589–7106 | `tradingagents/agents/context.py` | `a7598b7cd6617601e67a17eb31167e8eea3c868cc14f4c42864508d57d66ba31` |
+| 7107–7550 | `tradingagents/agents/tools.py` | `b3d18746a14b3c3560c49614bc4ab3740f50489d7b2150c1931b9e2a902976ff` |
+| 7551–8278 | `tradingagents/agents/valuation_reference_flow.py` | `f6d9a18c56acc58e1ecd76d3126717ca589f993b6e819a7d94345b44c50b2ac9` |
+| 8279–8353 | `tradingagents/dataflows/config.py` | `0158c7a3bf506eb8d633896632858eb086ecbd063c78344b58f145201928314f` |
+| 8354–8415 | `tradingagents/dataflows/errors.py` | `aaff347711d4f6452d17bd58193a5d71bf8af9a20dfe8378758e7d0c5b45b51d` |
+| 8416–8620 | `tradingagents/dataflows/date_window.py` | `8791018b2a27caa06c5e71c5fe247cf0b9d6edc5f3604f4bb249c2a4bfb626d4` |
+| 8621–8980 | `tradingagents/dataflows/router.py` | `5d045b5547b1604037f83ab888d9a54c275df37f36fac54ba67243f9f7fc780b` |
+| 8981–9148 | `tradingagents/dataflows/vendors/stocktwits.py` | `68f2f0dbddd8a43ffdc41dbd0643fa67acccaaae03efb47d292c09f327f8ce9b` |
+| 9149–9495 | `tradingagents/dataflows/vendors/reddit.py` | `e67d41e8bd1dad66824ada51639942b5fa0dc96aa1a0fcd4f4a646951ff2cd49` |
+| 9496–9646 | `tradingagents/dataflows/vendors/yahoo/common.py` | `a3162e0ff7923a7134b4654a1436e5da06c458bb4c53c9d90d5c9dabd7d65da0` |
+| 9647–9878 | `tradingagents/dataflows/vendors/yahoo/reference_history.py` | `db250562135f3dacb08c0e5180b2429a33c5c71c5c672073098c97f16e586e47` |
+| 9879–10261 | `tradingagents/dataflows/vendors/yahoo/price_observation.py` | `d40268b3d9ccf666b6e239e0e04216aa9a6232b41a3d0824be354ecbba877a55` |
+| 10262–10689 | `tradingagents/dataflows/vendors/yahoo/ohlcv.py` | `b2387dd98921f791fb92820c57f587df741f2591fa3feba2e81c53b8891fcb53` |
+| 10690–11087 | `tradingagents/dataflows/vendors/yahoo/market.py` | `377343a6318ee026ef30c04718c3f3156fe4b880cfc2a9f890818e1da86f83c5` |
+| 11088–11458 | `tradingagents/dataflows/vendors/yahoo/expectations.py` | `a598c0b7cb304ede1091cf7093323017cabbb080ab7f46b853732e0b9fd99bcb` |
+| 11459–11695 | `tradingagents/dataflows/vendors/yahoo/fundamentals.py` | `c673d0dac38005944821815dc3d67fe329580b5ae8dbf5ffe6dd549c3f09fcb3` |
+| 11696–12063 | `tradingagents/memory/publication.py` | `0b1c1fedf6d91e006c87c294173686dc9ca34e873fcc61b88d4359152a4f04e0` |
+| 12064–12765 | `tradingagents/memory/publication_outcomes.py` | `d01b4fdd823f70457afbe2b0898b36f11ee8dde90aa64ac235340cae6b37bbe5` |
+| 12766–13245 | `tradingagents/memory/settlement.py` | `f5d4385b66ada1153269cdb66242bbfd03d6053bf3631609fdbcce05a0a7bd24` |
+| 13246–13707 | `tradingagents/memory/log.py` | `53c01f19d5c5e811316f349b5df289225a4adb7d012f6b1c9fecd5fb0d41cdf1` |
+| 13708–14420 | `tradingagents/reporting.py` | `5ac6d1cf519f8b5b2a2cd6f01f76b93045055ccdb77f0709e54156508c6df96e` |
+| 14421–14904 | `tests/test_source_replay.py` | `d9706d42709ea3c7e9a4eba08cc4e2ad304d2c51ac5c364aebe11d695c5d5436` |
+| 14905–15056 | `tests/test_attempt_trace.py` | `0ba63f0711a999d9d2286291d682520037919e0085518f7645fd11ba8623209d` |
+| 15057–15183 | `tests/test_comparison_snapshot.py` | `177e9a6acaef5bbd23de78fc3dd5e4db9b62546e52650ed2501763e337ec0e31` |
+| 15184–15267 | `tests/test_run_logging.py` | `9c6312db8eafe78be17776b2cb7032a83fefc07d3bc0080b8e757a1684b9225d` |
+| 15268–15365 | `tests/test_stream_publication.py` | `84bbbef5100ad25af3500992011cad9239f280c1aab891db3390879bdbd09e2c` |
+| 15366–15555 | `tests/test_token_usage_metrics.py` | `0fba6da589aedb41ae4c632bbd612a06d5f56832261a264d7f4a8b0fc07055d7` |
+| 15556–15654 | `tests/test_run_metrics.py` | `23b160752907ebff85a1f8e378adf3c4526c509e71d0b62f70841420d4221bab` |
+| 15655–15815 | `tests/test_document_state_log_replay.py` | `8b1c8f68e855e3e142f991df8e4bb87ecc09e12a2b83cf7df82dc13b0cd02bf3` |
+| 15816–16195 | `tests/test_operational_capture.py` | `8d2ff15e8a366c5824028a79444cab5cc215bc69e8685d427b8d36149039417c` |
+| 16196–16418 | `tests/test_social_lookahead.py` | `286583d1680e38ac7b225becb2ce907d0831d2dbe0e994edce32f30bcb72ec9a` |
+| 16419–16541 | `tests/test_stocktwits_resilience.py` | `4f0b94e6ab8bd81d83bf94c75533ff74123d87f674241fadbffdef7a89bd5701` |
+| 16542–16876 | `tests/test_reddit_fallback.py` | `8c692b88762e0408b17d5c0f9fac95f362e3d07e166e6f00557c3e597e5c88ad` |
+| 16877–17185 | `tests/test_post_screen.py` | `96fc0fd9beaf459b63c4644ace4dfffb15db9201108097b6e2613f93be621fe2` |
+| 17186–17298 | `tests/test_reference_history.py` | `c0495c5c16df291b25bf598efac13b477e6d178cf159262d0ad2e13e3390a950` |
+| 17299–17562 | `tests/test_price_observation.py` | `083837324a8a7278e256159eeae29065a948e50c23a3438cfd0150faa6606f3e` |
+| 17563–17747 | `tests/test_settlement_price_provider.py` | `0e8c26f707aed61176b855a11e0260cbb4927b3062fcb4d6364107d2ffaafdfd` |
+| 17748–17933 | `tests/test_analysis_cutoff.py` | `e5476e1a518b94c52acaca3037f0483662c4e762cf8154e57eed0e325baac551` |
+| 17934–18001 | `tests/test_document_tool_integration.py` | `cf3cf2f6f30ca5c605ae8283cbf756a7b69ef86d632fbea2d38e9f3246a1ddf9` |
+| 18002–18342 | `docs/reviews/operations-cli-proof.py` | `0d812360ab916ef8777db3bf16373dfbadfaab1c8767a4b5df9996ae32093457` |
