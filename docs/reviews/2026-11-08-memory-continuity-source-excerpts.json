@@ -50,6 +50,26 @@
       "source_blob_sha256": "f5d4385b66ada1153269cdb66242bbfd03d6053bf3631609fdbcce05a0a7bd24",
       "excerpt_sha256": "834c04d25e246ad3edbaf1061e3c024cf2387fb882642ac6b363fe425b5211f4",
       "verbatim_excerpt": "                    holding_days=days,\n                )\n            except Exception as exc:\n                # Reflection calls a provider: a transient failure leaves the entry\n                # pending for the next pass rather than stopping the analysis.\n                logger.warning(\"Reflection failed for %s on %s: %s\", ticker, entry[\"date\"], exc)\n                result.failed.append((ticker, entry[\"date\"], f\"reflection failed: {exc}\"))\n                continue\n            if memory_log.update_with_outcome(\n                ticker, entry[\"date\"], raw, alpha, days, reflection, resolution_date=resolution_date\n            ):\n                result.settled.append((ticker, entry[\"date\"]))\n    return result\n\n\n"
+    },
+    {
+      "commit": "deb13a1f83b4c93ebed49c4de88f569e4f77299c",
+      "path": "tradingagents/agents/evidence_validation.py",
+      "first_line": 243,
+      "last_line": 278,
+      "purpose": "Unchanged terminal REVIEW state producer called by publication enforcement",
+      "source_blob_sha256": "bdf4c120fb5ca2fb1af2ad624b011ebfda1d547be045bff32a035f2b0d27de47",
+      "excerpt_sha256": "f433d278e536de7b283edadecde187be4b485ffdf1216790d64a07df82bae4f0",
+      "verbatim_excerpt": "def review_terminal_state(quality: dict) -> dict:\n    \"\"\"Complete skipped-node fields while retaining the graph's saved research.\"\"\"\n    reasons = [\n        check[\"message\"]\n        for check in quality[\"checks\"]\n        if check[\"status\"] in {\"fail\", \"unavailable\"}\n    ]\n    explanation = \"Research incomplete \u2014 REVIEW\\n\\n\" + \"\\n\".join(\n        \"- \" + reason for reason in dict.fromkeys(reasons)\n    )\n    explanation += \"\\n\\nNo actionable trading decision was produced. The research remains available for inspection.\"\n    return {\n        \"evidence_quality\": quality,\n        \"final_rating\": \"REVIEW\",\n        \"final_trade_decision\": explanation,\n        \"investment_plan\": \"\",\n        \"trader_investment_plan\": \"\",\n        \"investment_debate_state\": {\n            \"bull_history\": \"\",\n            \"bear_history\": \"\",\n            \"history\": \"\",\n            \"current_response\": \"\",\n            \"count\": 0,\n        },\n        \"risk_debate_state\": {\n            \"aggressive_history\": \"\",\n            \"conservative_history\": \"\",\n            \"neutral_history\": \"\",\n            \"history\": \"\",\n            \"latest_speaker\": \"\",\n            \"current_aggressive_response\": \"\",\n            \"current_conservative_response\": \"\",\n            \"current_neutral_response\": \"\",\n            \"count\": 0,\n        },\n    }\n"
+    },
+    {
+      "commit": "deb13a1f83b4c93ebed49c4de88f569e4f77299c",
+      "path": "tests/test_portfolio_valuation.py",
+      "first_line": 59,
+      "last_line": 77,
+      "purpose": "Exact synthetic PM input fixture used by integration/native proof",
+      "source_blob_sha256": "15f2d4cae1cfee7cc861fe3e00d4b27970a6ab0910ab60d156cd6d4880cf9709",
+      "excerpt_sha256": "86fb61b31ad7e401d5406f11ce789631e743a386b85f1ce2f36e4cb004dd3811",
+      "verbatim_excerpt": "def state():\n    return {\n        \"company_of_interest\": \"DOCN\",\n        \"trade_date\": \"2026-10-19\",\n        \"investment_plan\": \"Plan\",\n        \"trader_investment_plan\": \"Proposal\",\n        \"financial_evidence\": evidence().model_dump(mode=\"json\"),\n        \"unvalidated_outputs\": {\"earlier\": \"retain me\"},\n        \"risk_debate_state\": {\n            \"history\": \"Debate\",\n            \"aggressive_history\": \"\",\n            \"conservative_history\": \"\",\n            \"neutral_history\": \"\",\n            \"current_aggressive_response\": \"\",\n            \"current_conservative_response\": \"\",\n            \"current_neutral_response\": \"\",\n            \"count\": 1,\n        },\n    }\n"
     }
   ]
 }

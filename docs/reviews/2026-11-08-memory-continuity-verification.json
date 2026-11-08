@@ -40,5 +40,366 @@
     "R2 then R4 staging integration and combined verification",
     "Exact integrated-SHA CI",
     "R3 and subsequent Goal stages"
-  ]
+  ],
+  "audit_packet": {
+    "explicit_path_count": 58,
+    "access": "Frozen diff and trimmed HEAD path contents joined by one newline, no filename headers. Map excludes this final verification document. No runtime or external file access.",
+    "paths_to_concatenated_lines": [
+      {
+        "path": ".codex/skills/independent-build-audit/templates/independent-audit.v1.md",
+        "first_line": 1,
+        "last_line": 21,
+        "trimmed_sha256": "1d4206da26f1ff91c9e66d2037ead26d6d6b698603baaaabd0187b4f325aeea4"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/SKILL.md",
+        "first_line": 22,
+        "last_line": 71,
+        "trimmed_sha256": "d32b251c8a565b88c0e9a3466913009a7138f8070309f7b807729ddc532dd2bc"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/templates/handoff-preparation.v1.md",
+        "first_line": 72,
+        "last_line": 93,
+        "trimmed_sha256": "96d155e4bb426d54a88ecd7be920d4b48e14b9b1278ed93e0db4de47d1cfa3cf"
+      },
+      {
+        "path": ".codex/skills/independent-build-audit/templates/findings-review.v1.md",
+        "first_line": 94,
+        "last_line": 112,
+        "trimmed_sha256": "0e8fd49e251340ec5635f70852d6460d80e0639e26fb59731e0adbe3ef028f71"
+      },
+      {
+        "path": "docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md",
+        "first_line": 113,
+        "last_line": 771,
+        "trimmed_sha256": "e0648c5d0fb4538d9b0753ebbeb54933428afcdaf22510e62cb9124dc1799eed"
+      },
+      {
+        "path": "docs/superpowers/audits/2026-11-07-node-workflow-audit/README.md",
+        "first_line": 772,
+        "last_line": 827,
+        "trimmed_sha256": "b4acfa7b6d67be87ca0534d50025edecdedd6a2db625b5f72dbb6e9ceb6e412f"
+      },
+      {
+        "path": "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-A-sources-analysts-evidence.md",
+        "first_line": 828,
+        "last_line": 1001,
+        "trimmed_sha256": "4b97f98af596c1b8e801d61323a4f14e845222702e099f6fb526562d7b2dc59c"
+      },
+      {
+        "path": "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-C-risk-audit-pm-handoff.md",
+        "first_line": 1002,
+        "last_line": 1201,
+        "trimmed_sha256": "0f6cd38b6308a4d12173be1cc94853dc139e73a983cab1729de30b124d3873a8"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "first_line": 1202,
+        "last_line": 1301,
+        "trimmed_sha256": "35c2b567f0ae16de083932231fb5e619553d2ec8e4aaa9f82687fa5b923f033d"
+      },
+      {
+        "path": "pyproject.toml",
+        "first_line": 1302,
+        "last_line": 1390,
+        "trimmed_sha256": "08ac56a7523575c827bb3164f658101915ba951560570a14150f4681bb48d0b4"
+      },
+      {
+        "path": "tradingagents/memory/thesis.py",
+        "first_line": 1391,
+        "last_line": 2026,
+        "trimmed_sha256": "af4c36116532816b8d5ebfdfb58a5a2ae15816e6212f44bd84ebfb06a27022dd"
+      },
+      {
+        "path": "tradingagents/memory/log.py",
+        "first_line": 2027,
+        "last_line": 2507,
+        "trimmed_sha256": "e9241147a582e494cf22bb16421d75d935d1214c9e9bef5d795761731c716bcf"
+      },
+      {
+        "path": "tradingagents/memory/settlement.py",
+        "first_line": 2508,
+        "last_line": 2988,
+        "trimmed_sha256": "3fab7f6d8be44021cdbcbf9b6c45619ebdeeaf54d22553793bd9a9c8c5be83a0"
+      },
+      {
+        "path": "tradingagents/memory/publication.py",
+        "first_line": 2989,
+        "last_line": 3356,
+        "trimmed_sha256": "9fe2e64992cbe7b8d5994180df649e68f4fe7f76bf4029ee725b3f0297efc3e6"
+      },
+      {
+        "path": "tradingagents/memory/publication_outcomes.py",
+        "first_line": 3357,
+        "last_line": 4058,
+        "trimmed_sha256": "c699bea309d496eccf390981c2d139bcfca9209956ea1b45d4b5157649bbf8b9"
+      },
+      {
+        "path": "tradingagents/dataflows/files.py",
+        "first_line": 4059,
+        "last_line": 4149,
+        "trimmed_sha256": "ddd4e0c53080b4cbfe846891c36c82ef4c86ab6c94a47440839013ec8ac39219"
+      },
+      {
+        "path": "tradingagents/dataflows/financial_evidence.py",
+        "first_line": 4150,
+        "last_line": 4602,
+        "trimmed_sha256": "3b5448eb32de509ca95740099b236680c7f68e33c5893f6922ec463a786e0da5"
+      },
+      {
+        "path": "tradingagents/dataflows/vendors/yahoo/price_observation.py",
+        "first_line": 4603,
+        "last_line": 4996,
+        "trimmed_sha256": "66bafb8e980b5d8bba5524da80a244e455abdafe4c79e0c01ec99061fc1e3827"
+      },
+      {
+        "path": "tradingagents/agents/managers/portfolio_manager.py",
+        "first_line": 4997,
+        "last_line": 5218,
+        "trimmed_sha256": "80e94304c96a2ee612dbfbf22323b502b92cba0d5188816df4cbcb37213dbd49"
+      },
+      {
+        "path": "tradingagents/agents/schemas.py",
+        "first_line": 5219,
+        "last_line": 5873,
+        "trimmed_sha256": "92ba36d803b5066cc7e4343ceb0a4880b16cf0f2c7738a921b0d0e46ce8dcb41"
+      },
+      {
+        "path": "tradingagents/agents/output_validation.py",
+        "first_line": 5874,
+        "last_line": 6106,
+        "trimmed_sha256": "996b0d11fdba6f7908873f48843cb6046242bda1faff7f38eb6906cc13dd8cf5"
+      },
+      {
+        "path": "tradingagents/agents/evidence_presentation.py",
+        "first_line": 6107,
+        "last_line": 6158,
+        "trimmed_sha256": "b202c12ae6059f877d20cb31e063c4d41d5dc3c807f262ff504b2237f443951b"
+      },
+      {
+        "path": "tradingagents/agents/rating.py",
+        "first_line": 6159,
+        "last_line": 6306,
+        "trimmed_sha256": "9ff11b045320e6b4431c17b6ea96ad293abd4f82652395385277fe0c8debb9b0"
+      },
+      {
+        "path": "tradingagents/agents/state.py",
+        "first_line": 6307,
+        "last_line": 6439,
+        "trimmed_sha256": "52387d85146cf2a270fb6c987c0c9c3fe6d12fd711a6492357f35eb156a1b06f"
+      },
+      {
+        "path": "tradingagents/agents/context.py",
+        "first_line": 6440,
+        "last_line": 6995,
+        "trimmed_sha256": "9d0b998e3269dfacdcc351935b645ac8f10cf85da2ab88d97678ee332832acf9"
+      },
+      {
+        "path": "tradingagents/graph/trading_graph.py",
+        "first_line": 6996,
+        "last_line": 7885,
+        "trimmed_sha256": "5c0e17060776d5dcd1241b030ee3491ef2572eb6aa305bd98f7c664321b419ec"
+      },
+      {
+        "path": "tradingagents/graph/setup.py",
+        "first_line": 7886,
+        "last_line": 8222,
+        "trimmed_sha256": "385c19fa5a1fd0e63c1fba2a3b9cc57c376548b1432f33138cb1687412ddd8bf"
+      },
+      {
+        "path": "tradingagents/graph/propagation.py",
+        "first_line": 8223,
+        "last_line": 8304,
+        "trimmed_sha256": "828986ac906c7d6a83815b87f3c971771c4e8b0fe0a044254534c57f0f524e85"
+      },
+      {
+        "path": "tradingagents/graph/checkpointer.py",
+        "first_line": 8305,
+        "last_line": 8403,
+        "trimmed_sha256": "0f4e34cfe0c3b96371e2155483124aa7a1920591286bf1a9c3bf5ef3639ce3c0"
+      },
+      {
+        "path": "tradingagents/reporting.py",
+        "first_line": 8404,
+        "last_line": 9116,
+        "trimmed_sha256": "67ca2cbfb17a4b1a5621086972ce18bf9ab7a36fc0c7177abf83b96bdcaca4c3"
+      },
+      {
+        "path": "tradingagents/report_html.py",
+        "first_line": 9117,
+        "last_line": 9592,
+        "trimmed_sha256": "f6d760fcea3254604ff1240e4ed106d0b9a5bee39236b4ed99603ca2265e3ef6"
+      },
+      {
+        "path": "cli/run.py",
+        "first_line": 9593,
+        "last_line": 10198,
+        "trimmed_sha256": "bb95193ebc370ef3519ba2a3d9f114ae2331703b2aa726a340c69c97b06837fa"
+      },
+      {
+        "path": "docs/reviews/operations-cli-proof.py",
+        "first_line": 10199,
+        "last_line": 10539,
+        "trimmed_sha256": "da835426245a309141fb922e66bfe9d00e098cdde398bba0c078ef85b80245a0"
+      },
+      {
+        "path": "docs/reviews/memory-continuity-proof.py",
+        "first_line": 10540,
+        "last_line": 10816,
+        "trimmed_sha256": "26dad41c3bffbd68350086155a9dfea0125bbf557f3ce4c43b4d15e4c4d78c83"
+      },
+      {
+        "path": "tests/test_memory_pending_replacement.py",
+        "first_line": 10817,
+        "last_line": 10931,
+        "trimmed_sha256": "efc09ea862c0c65d84064a312fcbc796d6d1222cf9aca37b8498017c426bede6"
+      },
+      {
+        "path": "tests/test_memory_log.py",
+        "first_line": 10932,
+        "last_line": 12310,
+        "trimmed_sha256": "5d2ee04c1f18d034fc595ea227271c7e7b20d782e666087282f424db08334fb1"
+      },
+      {
+        "path": "tests/test_memory_pointintime.py",
+        "first_line": 12311,
+        "last_line": 12411,
+        "trimmed_sha256": "e99a6d762d3d31c41beb0b95a84a5fb30a9110911473341803d7e3c7da5bbd4e"
+      },
+      {
+        "path": "tests/test_publication_graph.py",
+        "first_line": 12412,
+        "last_line": 12670,
+        "trimmed_sha256": "5106e8652c82820cee186473c9e71d2fbd61bb700424874d055a8e58c6162c91"
+      },
+      {
+        "path": "tests/test_publication_records.py",
+        "first_line": 12671,
+        "last_line": 12834,
+        "trimmed_sha256": "d3683120262ffbff5c7d74a5d4964dda332673ef258d781c865d9c269ded6c6d"
+      },
+      {
+        "path": "tests/test_thesis.py",
+        "first_line": 12835,
+        "last_line": 13310,
+        "trimmed_sha256": "8e77fcc810c0baabd0fa1d25f6806d4979957f783f2c663a154f19eb55731464"
+      },
+      {
+        "path": "tests/test_thesis_condition_kinds.py",
+        "first_line": 13311,
+        "last_line": 13464,
+        "trimmed_sha256": "7e17c1d00b32334ebb0eac3b96fd6cf09e04d8e940cc3bf46a6a631f81c06f30"
+      },
+      {
+        "path": "tests/test_thesis_aliases.py",
+        "first_line": 13465,
+        "last_line": 13554,
+        "trimmed_sha256": "3450c302484fdc4ddd7115061c0b32e1226e7a04dd47e1eab64b6b8ec4814898"
+      },
+      {
+        "path": "tests/test_thesis_integration.py",
+        "first_line": 13555,
+        "last_line": 13662,
+        "trimmed_sha256": "7e84d9bf6ffb0034bd54b25054b71f355995ca22a872bee711a10bc8b86a6d4d"
+      },
+      {
+        "path": "tests/test_thesis_graph_roles.py",
+        "first_line": 13663,
+        "last_line": 13770,
+        "trimmed_sha256": "2dc48a3f4819b85cb076aa4d8e5bfe78b7bbf867881a617446d3d6145c860aaa"
+      },
+      {
+        "path": "tests/test_checkpoint_resume.py",
+        "first_line": 13771,
+        "last_line": 14030,
+        "trimmed_sha256": "75f4c0ce9f747a9998d6c158bb613a9f7abd91d184156d0065081a1875d3719b"
+      },
+      {
+        "path": "tests/test_build2_continuation_proof.py",
+        "first_line": 14031,
+        "last_line": 14442,
+        "trimmed_sha256": "ba84f0d1b3c104c2b1c4df3cc4d344d70ac091cbb779b16c80c7576e8b594b8f"
+      },
+      {
+        "path": "tests/test_graph_end_to_end.py",
+        "first_line": 14443,
+        "last_line": 15080,
+        "trimmed_sha256": "dce2399bc58a5a4ebc8288bbe4c16f51e1d9cea611b0e242a644ef6a48597e3c"
+      },
+      {
+        "path": "tests/test_settlement_pass.py",
+        "first_line": 15081,
+        "last_line": 15331,
+        "trimmed_sha256": "4f0c09c7e7bfad1d2822c47de8b4dfdab56eefdbd8b41ea32b630e09f6496b09"
+      },
+      {
+        "path": "tests/test_settlement_retry_boundaries.py",
+        "first_line": 15332,
+        "last_line": 15662,
+        "trimmed_sha256": "b42c50d6cc80fcbc76750e10330364c9bbf955361bb0d9ff89b02d48b1e3e304"
+      },
+      {
+        "path": "tests/test_review_memory_backtest.py",
+        "first_line": 15663,
+        "last_line": 15886,
+        "trimmed_sha256": "bc61ff1536c65995db5bbc2763ef744e2a37b33f1562a22cfee3b5d420ba0dc1"
+      },
+      {
+        "path": "tests/test_cli_memory_log.py",
+        "first_line": 15887,
+        "last_line": 16097,
+        "trimmed_sha256": "8c011d08495cfa531026b8dc7ab8f04416d8634cb8b6b371374a05658051f910"
+      },
+      {
+        "path": "tests/test_price_observation.py",
+        "first_line": 16098,
+        "last_line": 16361,
+        "trimmed_sha256": "8bd4854f4bc96b8c2990c67f51b5f48189c029ccf60ed2bd9fb41276f6596e48"
+      },
+      {
+        "path": "tests/test_report_html.py",
+        "first_line": 16362,
+        "last_line": 16579,
+        "trimmed_sha256": "e11be1b57a0f90cbe46203faebeec5b7ef65943e49b5523ba21958ab2d723974"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-memory-continuity-baseline.json",
+        "first_line": 16580,
+        "last_line": 16602,
+        "trimmed_sha256": "e47a9006da4852775960105ce4b2ef89e9e4cbfb77a0f80536df43b49e2b0387"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-memory-continuity-runtime.json",
+        "first_line": 16603,
+        "last_line": 16981,
+        "trimmed_sha256": "afb6f60355265e9168ec57e533c29cddcbe7bc738843e456a36eeadd0478ee02"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-memory-continuity-source-excerpts.json",
+        "first_line": 16982,
+        "last_line": 17056,
+        "trimmed_sha256": "5fbaef933743168b446a6ed8f84f3fd2c57c5530b16276e2e0692b440b16c00d"
+      },
+      {
+        "path": "docs/reviews/2026-11-08-memory-continuity.md",
+        "first_line": 17057,
+        "last_line": 17097,
+        "trimmed_sha256": "e5f4c430e9266d23f9f0d37032e3ee30a8fee6858d0a44aef8fe5246b2e02b80"
+      }
+    ],
+    "omitted_full_files": [
+      "docs/superpowers/audits/2026-11-07-node-workflow-audit/part-B-debate-manager-trader.md",
+      "tradingagents/agents/evidence_validation.py",
+      "tests/test_portfolio_valuation.py"
+    ]
+  },
+  "source_oids": {
+    "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+    "tradingagents": "8cbb471933d91c05eac38ea6b81f8186745dab43",
+    "tests": "272be3ade32134f2feb70f71c771c68f0fc97d79",
+    "docs/reviews/memory-continuity-proof.py": "04b9163372b4d214992cc8b9bcf4f7e26bb8dd2a",
+    "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+    "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+  }
 }
