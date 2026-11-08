@@ -19,5 +19,34 @@
       "end_line": 559,
       "text": "\ndef _bounded_rows(value):\n    rows = value if isinstance(value, list) else []\n    return [row for row in rows[:8] if isinstance(row, dict)], max(0, len(rows) - 8)\n\n\ndef render_prior_thesis(prior) -> str:\n    \"\"\"Compact PM context with exact condition IDs for disposition references.\"\"\"\n    if not isinstance(prior, dict):\n        return 'Prior advisory thesis unavailable; legacy prose has unknown authority.'\n    lines = ['Prior thesis conditions are advisory, not binding; they cannot force a rating.',\n             f\"Version: {_prompt_display(prior.get('version_id'), 100)}; prior rating: {_prompt_display(prior.get('canonical_rating'), 40)}.\"]\n    rows, omitted = _bounded_rows(prior.get('observations', prior.get('conditions', [])))\n    for row in rows:\n        lines.append(f\"- {_condition_line(row, _prompt_display)}; {_prompt_display(condition_status_label(row), 100)}; \"\n                     f\"observed {_prompt_display(row.get('observed_value'), 100)} on {_prompt_display(row.get('observed_date'), 20)}. \"\n                     f\"Observation: {_prompt_display(row.get('reason', 'observation unavailable'))}.\")\n    if not rows:\n        lines.append('No structured prior conditions available.')\n    if omitted:\n        lines.append(f'{omitted} additional conditions omitted from this bounded display.')\n    if prior.get('rationale'):\n        lines.append('Prior rationale (unvalidated research, not verified evidence): ' + _prompt_display(prior['rationale'], 1000))\n    return '\\n'.join(lines)\n\n"
     }
+  ],
+  "unchanged_prompt_chain_context": [
+    {
+      "commit": "7385890c6b7d35c006a6b1dbfc584c9eab6d283f",
+      "path": "tradingagents/graph/trading_graph.py",
+      "full_source_sha256": "ff6c251d6b126fa53e7a18106a170c06bcd5d367c8185493447577ce1982093e",
+      "start_line": 617,
+      "end_line": 641,
+      "verbatim": "        try:\n            if self.config.get(\"results_dir\"):\n                from tradingagents.memory.thesis import load_latest_thesis\n                prior = load_latest_thesis(self.config, state[\"company_of_interest\"], cutoff)\n        except Exception as exc:\n            logger.warning(\"Reading prior thesis failed: %s\", exc)\n            note = (note + \" Prior thesis unavailable; retained publication needs inspection.\").strip()\n        legacy_context = \"\"\n        if prior is None:\n            try:\n                from tradingagents.memory.thesis import legacy_thesis_context\n                legacy_entries = self.memory_log.load_entries()\n                legacy_read_at = datetime.now(UTC)\n                legacy_available = (\n                    legacy_read_at.astimezone(analysis_zone).date().isoformat() == str(state[\"trade_date\"])\n                    and legacy_read_at <= cutoff_instant)\n                legacy_context = legacy_thesis_context(\n                    legacy_entries, state[\"company_of_interest\"], str(state[\"trade_date\"]),\n                    historical=not legacy_available)\n            except Exception as exc:\n                logger.warning(\"Reading legacy thesis context failed: %s\", exc)\n                note = (note + \" Legacy thesis context unavailable.\").strip()\n        return {\"past_context\": past_context, \"memory_note\": note, \"outcome_summary\": summary,\n                \"prior_thesis\": prior, \"thesis_context\": legacy_context,\n                \"analysis_clock\": clock}\n",
+      "scope": "Bounded unchanged source excerpt only; not a runtime result or complete graph body."
+    },
+    {
+      "commit": "7385890c6b7d35c006a6b1dbfc584c9eab6d283f",
+      "path": "tradingagents/graph/setup.py",
+      "full_source_sha256": "8131cfd5783e68dcd674f0cb5b3d952e2005dd5b83899b2aed223c3cc99d7a60",
+      "start_line": 282,
+      "end_line": 309,
+      "verbatim": "        add_node(\"Source Acquisition\", create_source_acquisition(selected_analysts))\n        workflow.add_edge(START, \"Source Acquisition\")\n        for spec in plan.specs:\n            workflow.add_edge(\"Source Acquisition\", spec.agent_node)\n        if memory_node is not None:\n            workflow.add_edge(START, \"Memory Log\")\n        evidence_gate = create_evidence_gate(selected_analysts)\n\n        def evidence_with_scenarios(state):\n            from tradingagents.agents.shared_valuation import prepare_shared_valuation\n\n            checked = evidence_gate(state)\n            if state.get(\"prior_thesis\"):\n                from tradingagents.memory.thesis import observe_conditions, render_prior_thesis\n                usable = {**state, **checked} if checked.get(\"evidence_quality\", {}).get(\"status\") in {\"sufficient\", \"limited\"} else {}\n                prior = {**state[\"prior_thesis\"], \"observations\": observe_conditions(state[\"prior_thesis\"], usable)}\n                checked.update(prior_thesis=prior, thesis_context=render_prior_thesis(prior))\n            from tradingagents.agents.event_comparison import prepare_event_comparison\n            from tradingagents.agents.valuation_reference_flow import finalize_peer_reference\n            from tradingagents.dataflows.config import get_config\n\n            checked.update(finalize_peer_reference({**state, **checked}, get_config()))\n            event = prepare_event_comparison({**state, **checked}, get_config())\n            scenarios = prepare_shared_valuation({**state, **checked})\n            return {**checked, \"shared_valuation_scenarios\": scenarios, \"event_comparison\": event}\n\n        add_node(\"Evidence Check\", evidence_with_scenarios)\n        workflow.add_edge(first_steps, \"Evidence Check\")\n",
+      "scope": "Bounded unchanged source excerpt only; not a runtime result or complete graph body."
+    },
+    {
+      "commit": "7385890c6b7d35c006a6b1dbfc584c9eab6d283f",
+      "path": "tradingagents/agents/context.py",
+      "full_source_sha256": "da1e822f1adf867fa6364a93dd608e65564e9628ed97cadd24088c15f1190f1a",
+      "start_line": 480,
+      "end_line": 490,
+      "verbatim": "            render_event_comparison,\n            replay_event_comparison,\n        )\n        try:\n            event = replay_event_comparison(state, state[\"event_comparison\"])\n            context += \"\\n\\n\" + render_event_comparison(event)\n        except (ValueError, TypeError, KeyError):\n            context += \"\\n\\nEvent comparison unavailable: retained projections could not be verified.\"\n    if state.get(\"thesis_context\"):\n        context += \"\\n\\n\" + state[\"thesis_context\"]\n    if state.get(\"price_observation\") and not brief:\n",
+      "scope": "Bounded unchanged source excerpt only; not a runtime result or complete graph body."
+    }
   ]
 }

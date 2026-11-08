@@ -179,6 +179,42 @@ def test_render_preserves_all_retained_conditions_and_handles_absent_thesis():
     assert 'additional conditions omitted' not in rendered
 
 
+def test_repeated_keeps_grow_collection_until_explicit_retirement():
+    """The aggregate policy preserves open questions; PM dispositions reduce them."""
+    from tradingagents.agents.schemas import ThesisProposal
+
+    prior = None
+    for cycle in range(4):
+        previous = (prior or {}).get('conditions', [])
+        proposal = {'conditions': [{**condition(), 'threshold': str(cycle * 8 + index)}
+                                   for index in range(8)],
+                    'dispositions': [{'condition_id': row['condition_id'],
+                                      'disposition': 'kept', 'reason': 'Still relevant'}
+                                     for row in previous]}
+        ThesisProposal.model_validate(proposal)
+        current = thesis.prepare_thesis(proposal, prior, 'Hold', '2026-11-04', str(uuid4()))
+        assert len(current['conditions']) == (cycle + 1) * 8
+        assert current['conditions'][:len(previous)] == previous
+        current['observations'] = thesis.observe_conditions(current, state())
+        assert len(current['observations']) == len(current['conditions'])
+        assert all(row['condition_id'] in thesis.render_prior_thesis(current)
+                   for row in current['conditions'])
+        prior = current
+    original_ids = {row['condition_id'] for row in prior['conditions']}
+    retirement = {'conditions': None, 'dispositions': [
+        {'condition_id': row['condition_id'], 'disposition': 'retired',
+         'reason': 'Research question no longer relevant'} for row in prior['conditions'][:8]]}
+    ThesisProposal.model_validate(retirement)
+    reduced = thesis.prepare_thesis(retirement, prior, 'Hold', '2026-11-04', str(uuid4()))
+    assert len(reduced['conditions']) == 24
+    assert {row['condition_id'] for row in reduced['conditions']} == {
+        row['condition_id'] for row in prior['conditions'][8:]}
+    assert {row['condition_id'] for row in prior['conditions']} == original_ids
+    cleared = thesis.prepare_thesis({'conditions': []}, reduced, 'Hold', '2026-11-04', str(uuid4()))
+    assert cleared['conditions'] == []
+    assert cleared['canonical_rating'] == reduced['canonical_rating'] == 'Hold'
+
+
 @pytest.mark.parametrize('proposal', [None, 'bad-list', [{'threshold':'NaN'}]])
 def test_missing_or_wholly_malformed_conditions_retain_prior(proposal):
     prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
