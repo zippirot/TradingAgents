@@ -21,16 +21,18 @@ def no_network(monkeypatch):
     monkeypatch.setattr(socket.socket, 'connect', lambda *args: (_ for _ in ()).throw(AssertionError('Network forbidden')))
 
 
-def clients_from_constructor(tmp_path, monkeypatch, failure):
+def clients_from_constructor(tmp_path, monkeypatch, failure, max_tokens=None):
     attempts = {'deep': 0, 'quick': 0, 'audit': 0}
-    clients, calls = [], []
+    clients, calls, audit_payloads = [], [], []
     callback = BaseCallbackHandler()
 
     def factory(config, tier, **extra):
         label = 'audit' if config.get('llm_max_retries') == 0 else tier
         def handle(request):
             attempts[label] += 1
-            if attempts[label] == 1:
+            if label == 'audit':
+                audit_payloads.append(json.loads(request.content))
+            if attempts[label] == 1 and failure != 'success':
                 if failure == 'timeout':
                     raise httpx.ReadTimeout('synthetic timeout', request=request)
                 return httpx.Response(429, headers={'retry-after-ms': '1'}, json={'error': {'message': 'synthetic limit', 'type': 'rate_limit_error'}}, request=request)
@@ -44,15 +46,18 @@ def clients_from_constructor(tmp_path, monkeypatch, failure):
         pass
     monkeypatch.setattr(graph, 'create_tier_client', factory)
     monkeypatch.setattr(graph, 'TradingMemoryLog', lambda *a: (_ for _ in ()).throw(StopAfterClients()))
-    config = {**DEFAULT_CONFIG, 'llm_provider': 'openai', 'deep_think_provider': 'openai', 'quick_think_provider': 'openai', 'deep_think_llm': 'gpt-4o', 'quick_think_llm': 'gpt-4o', 'llm_max_retries': None, 'backend_url': 'https://fixture.invalid/v1', 'results_dir': str(tmp_path / 'constructor'), 'data_cache_dir': str(tmp_path / 'cache')}
+    config = {**DEFAULT_CONFIG, 'llm_provider': 'openai', 'deep_think_provider': 'openai', 'quick_think_provider': 'openai', 'deep_think_llm': 'gpt-4o', 'quick_think_llm': 'gpt-4o', 'llm_max_retries': None, 'max_tokens': max_tokens, 'backend_url': 'https://fixture.invalid/v1', 'results_dir': str(tmp_path / 'constructor'), 'data_cache_dir': str(tmp_path / 'cache')}
     built = object.__new__(graph.TradingAgentsGraph)
     with pytest.raises(StopAfterClients):
         built.__init__(config=config, callbacks=[callback])
     assert built.deep_thinking_llm is not built.audit_llm
     assert built.deep_thinking_llm.root_client.max_retries == 2
     assert built.audit_llm.root_client.max_retries == 0
-    assert {k: v for k, v in calls[0][0].items() if k != 'llm_max_retries'} == {k: v for k, v in calls[2][0].items() if k != 'llm_max_retries'}
+    assert {k: v for k, v in calls[0][0].items() if k not in {'llm_max_retries', 'max_tokens'}} == {k: v for k, v in calls[2][0].items() if k not in {'llm_max_retries', 'max_tokens'}}
     assert calls[0][1:] == calls[2][1:] == ('deep', {'callbacks': [callback]})
+    assert calls[0][0]['max_tokens'] == calls[1][0]['max_tokens'] == max_tokens
+    assert calls[2][0]['max_tokens'] == (16384 if max_tokens in (None, '') else max_tokens)
+    built._test_audit_payloads = audit_payloads
     return built, attempts, clients
 
 
@@ -143,3 +148,18 @@ def test_both_audit_phases_use_constructor_audit_client_summary_keeps_deep(tmp_p
     finally:
         for transport in transports:
             transport.close()
+
+
+@pytest.mark.parametrize('output_cap', [None, '', 8192])
+def test_audit_only_output_default_is_sent_on_one_actual_http_request(tmp_path, monkeypatch, output_cap):
+    built, attempts, clients = clients_from_constructor(tmp_path, monkeypatch, 'success', max_tokens=output_cap)
+    try:
+        built.audit_llm.invoke('Synthetic output-bound proof')
+        assert attempts == {'deep': 0, 'quick': 0, 'audit': 1}
+        assert len(built._test_audit_payloads) == 1
+        assert built._test_audit_payloads[0]['max_completion_tokens'] == (16384 if output_cap in (None, '') else output_cap)
+        assert built.audit_llm.root_client.max_retries == 0
+        assert built.deep_thinking_llm.max_tokens == (None if output_cap in (None, '') else output_cap)
+    finally:
+        for client in clients:
+            client.close()

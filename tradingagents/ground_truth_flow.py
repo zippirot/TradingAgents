@@ -17,8 +17,8 @@ def _remaining_config(state, config):
     progress.setdefault('budget_tokens', 0)
     return {**config,
             'ground_truth_max_requests': max(0, _positive(config, 'ground_truth_max_requests', DEFAULT_MAX_REQUESTS, 512) - progress['requests']),
-            'ground_truth_max_seconds': max(0, _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 7200) - progress['elapsed_seconds']),
-            'ground_truth_max_tokens': max(0, _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 20_000_000) - progress['budget_tokens'])}
+            'ground_truth_max_seconds': max(0, _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 14400) - progress['elapsed_seconds']),
+            'ground_truth_max_tokens': max(0, _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 25_000_000) - progress['budget_tokens'])}
 
 
 def _audit_pass(state, llm, config):
@@ -181,7 +181,7 @@ class _BudgetedModel:
         self.progress = progress
         self.config = config
         self.progress.setdefault('budget_tokens', 0)
-        self.deadline = deadline if deadline is not None else (time.monotonic() + max(0, _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 7200) - progress['elapsed_seconds']))
+        self.deadline = deadline if deadline is not None else (time.monotonic() + max(0, _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 14400) - progress['elapsed_seconds']))
 
     def with_structured_output(self, *args, **kwargs):
         return _BudgetedModel(self.model.with_structured_output(*args, **kwargs), self.progress, self.config, self.deadline, self.on_reserve)
@@ -194,7 +194,7 @@ class _BudgetedModel:
         prompt = args[0] if args else kwargs
         reservation = len(str(prompt).encode('utf-8')) + 8192 + _positive(
             self.config, 'ground_truth_output_token_reservation', DEFAULT_OUTPUT_TOKEN_RESERVATION, 100000)
-        token_limit = _positive(self.config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 20_000_000)
+        token_limit = _positive(self.config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 25_000_000)
         if self.progress['budget_tokens'] + reservation > token_limit:
             raise RuntimeError('Audit token budget exhausted')
         self.progress['requests'] += 1

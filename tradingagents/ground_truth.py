@@ -21,9 +21,9 @@ from zoneinfo import ZoneInfo
 from pydantic import ValidationError
 
 SCHEMA_VERSION = 5
-DEFAULT_MAX_REQUESTS = 128
-DEFAULT_MAX_SECONDS = 7200
-DEFAULT_MAX_TOKENS = 10_000_000
+DEFAULT_MAX_REQUESTS = 192
+DEFAULT_MAX_SECONDS = 14400
+DEFAULT_MAX_TOKENS = 25_000_000
 DEFAULT_OUTPUT_TOKEN_RESERVATION = 65536
 _EVIDENCE_KEYS = (
     "ground_truth_source_documents", "ground_truth_source_acquisition", "shared_source_brief", "target_validation",
@@ -1100,8 +1100,8 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
     config = config or {}
     inv = inventory or build_inventory(state)
     max_requests = _positive(config, "ground_truth_max_requests", DEFAULT_MAX_REQUESTS, 512)
-    max_seconds = _positive(config, "ground_truth_max_seconds", DEFAULT_MAX_SECONDS, 7200)
-    token_limit = _positive(config, "ground_truth_max_tokens", DEFAULT_MAX_TOKENS, 20_000_000)
+    max_seconds = _positive(config, "ground_truth_max_seconds", DEFAULT_MAX_SECONDS, 14400)
+    token_limit = _positive(config, "ground_truth_max_tokens", DEFAULT_MAX_TOKENS, 25_000_000)
     output_reservation = _positive(config, "ground_truth_output_token_reservation", DEFAULT_OUTPUT_TOKEN_RESERVATION, 100000)
     source_cap = _positive(config, "ground_truth_max_source_characters", 90000, 120000)
     error_limit = max(1, _positive(config, "ground_truth_max_consecutive_errors", 3, 20))

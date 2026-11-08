@@ -144,9 +144,10 @@ class TradingAgentsGraph:
         extra = {"callbacks": self.callbacks} if self.callbacks else {}
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
-        self.audit_llm = create_tier_client(
-            {**self.config, "llm_max_retries": 0}, "deep", **extra
-        ).get_llm()
+        audit_config = {**self.config, "llm_max_retries": 0}
+        if audit_config.get("max_tokens") in (None, ""):
+            audit_config["max_tokens"] = 16384
+        self.audit_llm = create_tier_client(audit_config, "deep", **extra).get_llm()
 
         self.memory_log = TradingMemoryLog(self.config)
 

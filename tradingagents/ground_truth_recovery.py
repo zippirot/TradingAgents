@@ -39,8 +39,8 @@ def checkpoint(state, config, *, reserve=False):
         )
         snapshot['ground_truth_execution'] = {
             'requests': _positive(config, 'ground_truth_max_requests', DEFAULT_MAX_REQUESTS, 512),
-            'elapsed_seconds': _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 7200),
-            'budget_tokens': _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 20_000_000),
+            'elapsed_seconds': _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 14400),
+            'budget_tokens': _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 25_000_000),
         }
         snapshot['ground_truth_recovery_limit'] = 'An interrupted audit has unknown usage; the remaining allowance was reserved.'
     payload = {'schema_version': 1, 'run_id': state['run_id'], 'binding': state[_RECOVERY_KEY], 'state': snapshot}
@@ -77,8 +77,8 @@ def restore(state, config):
         )
         state['ground_truth_execution'] = {
             'requests': _positive(config, 'ground_truth_max_requests', DEFAULT_MAX_REQUESTS, 512),
-            'elapsed_seconds': _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 7200),
-            'budget_tokens': _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 20_000_000),
+            'elapsed_seconds': _positive(config, 'ground_truth_max_seconds', DEFAULT_MAX_SECONDS, 14400),
+            'budget_tokens': _positive(config, 'ground_truth_max_tokens', DEFAULT_MAX_TOKENS, 25_000_000),
         }
         state['ground_truth_reassessment'] = {'status': 'unavailable', 'reason': 'Recovery record unavailable. Recommendation needs review.'}
         return

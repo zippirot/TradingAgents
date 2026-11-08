@@ -84,7 +84,7 @@ def acquire_sources(state, config):
                 "ground_truth_source_acquisition": deepcopy(previous)}
     documents, errors, attempted = [], [], []
     requests = 0
-    seconds = min(30, _positive(config, "ground_truth_max_seconds", DEFAULT_MAX_SECONDS, 7200))
+    seconds = min(30, _positive(config, "ground_truth_max_seconds", DEFAULT_MAX_SECONDS, 14400))
     if candidates and seconds <= 0:
         limits.append("Supplemental retrieval skipped because the audit time allowance is exhausted.")
     if candidates and seconds > 0:
