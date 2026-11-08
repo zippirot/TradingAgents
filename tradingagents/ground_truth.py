@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 DEFAULT_MAX_REQUESTS = 128
 DEFAULT_MAX_SECONDS = 7200
 DEFAULT_MAX_TOKENS = 10_000_000
@@ -1111,6 +1111,7 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
         selected, omitted = _select_sources(chunk["text"], sources, source_cap)
         omitted_source_count += omitted
         validated_this_chunk = 0
+        chunk_followup_incomplete = False
         try:
             output = _request_review(llm, _review_prompt(chunk, selected), usage, limits,
                                      max_requests=max_requests, deadline=started + max_seconds,
@@ -1162,13 +1163,16 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
                         invalid_claims = [item for item in invalid_claims if item["quoted_claim"] not in revised]
                         if follow_invalid or set(revised) != set(targets):
                             followup_incomplete = True
+                            chunk_followup_incomplete = True
                             limits.append("Some claim-dependent follow-up or repair findings failed validation or remained omitted.")
                     except Exception as exc:
                         followup_incomplete = True
+                        chunk_followup_incomplete = True
                         limits.append("Claim-dependent source follow-up or citation/coverage repair was incomplete; unresolved claims remain unverified.")
                         errors.append({"chunk_id": chunk["chunk_id"], "category": type(exc).__name__, "stage": "source_followup"})
                 elif relevant_new:
                     followup_incomplete = True
+                    chunk_followup_incomplete = True
                     limits.append("Relevant retained passages could not fit the follow-up source allowance.")
             for quote, item in repair.items():
                 if quote not in repaired:
@@ -1196,7 +1200,11 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
                     raise ValueError("unaccounted explicit decision field occurrence")
             if time.monotonic() - started > max_seconds:
                 raise ValueError("elapsed review budget exceeded")
-            reviewed.append(chunk["chunk_id"])
+            # A numerically covered initial finding does not complete a
+            # requested follow-up. Keep the findings, but leave this chunk
+            # pending so exact resume/post-summary reuse cannot erase the debt.
+            if not chunk_followup_incomplete:
+                reviewed.append(chunk["chunk_id"])
             consecutive_errors = 0
         except Exception as exc:
             errors.append({"chunk_id": chunk["chunk_id"], "category": type(exc).__name__})
@@ -1216,7 +1224,7 @@ def run_audit(state, llm, config=None, *, inventory=None, prior_audit=None):
     if omitted_source_count:
         limits.append("Source selection was bounded; uncited source material may contain additional evidence.")
     if not inv["chunks"] or not reviewed:
-        status = "partial" if any(e["category"] == "ValueError" for e in errors) else "unavailable"
+        status = "partial" if claims or followup_incomplete or any(e["category"] == "ValueError" for e in errors) else "unavailable"
     elif remaining or gaps or followup_incomplete:
         status = "partial"
     elif any(c["outcome"] in {"contradicted", "unsupported"} for c in claims):
