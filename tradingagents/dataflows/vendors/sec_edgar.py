@@ -190,6 +190,27 @@ def _fetch_json(url: str) -> dict:
 
 
 def _cached_json(url: str, name: str) -> dict:
+    from tradingagents.source_replay import current_session, external_input
+
+    if current_session() is None:
+        return _cached_json_live(url, name)
+    path = Path(get_config()["data_cache_dir"]) / "sec_edgar" / name
+
+    def acquire():
+        data = _cached_json_live(url, name)
+        return {"data": data, "mtime": path.stat().st_mtime}
+
+    retained = external_input("sec_json", {"url": url, "name": name}, acquire)
+    if current_session().baseline is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        replace_file(path, lambda temp: Path(temp).write_text(json.dumps(retained["data"]), encoding="utf-8"))
+        import os
+
+        os.utime(path, (retained["mtime"], retained["mtime"]))
+    return retained["data"]
+
+
+def _cached_json_live(url: str, name: str) -> dict:
     path = Path(get_config()["data_cache_dir"]) / "sec_edgar" / name
     if path.exists() and time.time() - path.stat().st_mtime < _CACHE_TTL_SECONDS:
         try:

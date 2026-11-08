@@ -608,6 +608,18 @@ class DocumentClient:
             or parsed.fragment
         ):
             raise VendorUnavailableError("Unsupported SEC document URL")
+        from tradingagents.source_replay import external_input
+
+        value = external_input("sec_document", {"url": url}, lambda: self._fetch(url))
+        raw = value["text"].encode()
+        if (value["url"] != url or len(raw) > self.max_bytes
+                or hashlib.sha256(raw).hexdigest() != value["content_hash"]):
+            raise VendorUnavailableError("Recorded SEC document identity/hash/size mismatch")
+        return value
+
+    def _fetch(self, url: str):
+        global _LAST_REQUEST
+
         key = hashlib.sha256(url.encode()).hexdigest()
         path = Path(get_config()["data_cache_dir"]) / "sec_documents" / (key + ".json")
         if (

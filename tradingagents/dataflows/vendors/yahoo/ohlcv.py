@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from collections.abc import Mapping
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -14,7 +14,7 @@ from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.files import replace_file
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
-from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, recorded_history, yf_retry
 from tradingagents.dataflows.vendors.yahoo.price_observation import (
     ADJUSTMENT,
     _number,
@@ -45,8 +45,10 @@ def _retrieval_time():
 
 def _source_metadata(source, downloaded, canonical, retrieved):
     method = getattr(source, "get_history_metadata", None)
-    metadata = method() if method is not None else {}
+    metadata = source if isinstance(source, Mapping) else method() if method is not None else {}
     metadata = metadata if isinstance(metadata, Mapping) else {}
+    if metadata.get("_trace_retrieved_at"):
+        retrieved = datetime.fromisoformat(metadata["_trace_retrieved_at"])
     zone = metadata.get("exchangeTimezoneName") or str(getattr(downloaded.index, "tz", "") or "")
     end = metadata.get("currentTradingPeriod", {}).get("regular", {}).get("end")
     return {
@@ -298,7 +300,9 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     as_of_dt = pd.to_datetime(as_of_date).normalize()
 
     # One cache file per symbol, holding the latest 5y-to-today download.
-    now = pd.Timestamp.today()
+    from tradingagents.source_replay import current_session, source_now
+
+    now = pd.Timestamp(source_now().astimezone().replace(tzinfo=None)) if current_session() else pd.Timestamp.today()
     start_date = now - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     # End is exclusive. An exchange can already be on the next UTC date;
@@ -341,13 +345,12 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         # yf.download catches every error, a rate limit included, and returns
         # an empty frame. Ticker.history raises the rate limit, so it is retried.
         def fetch():
-            source = yf.Ticker(canonical)
-            downloaded = source.history(
-                start=start_str, end=end_str, auto_adjust=False, actions=True,
+            downloaded, metadata = recorded_history(
+                canonical, source_factory=yf.Ticker, start=start_str, end=end_str, auto_adjust=False, actions=True,
             )
             if downloaded is None or downloaded.empty:
                 return None
-            return downloaded, _source_metadata(source, downloaded, canonical, _retrieval_time())
+            return downloaded, _source_metadata(metadata, downloaded, canonical, _retrieval_time())
 
         response = yf_retry(fetch)
         downloaded, source_metadata = response if response is not None else (None, None)

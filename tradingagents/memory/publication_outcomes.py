@@ -34,7 +34,9 @@ _SPY_CLOSED_2026 = {'2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03',
 
 
 def _now():
-    return datetime.now(UTC)
+    from tradingagents.source_replay import current_session, source_now
+
+    return source_now(UTC) if current_session() else datetime.now(UTC)
 
 
 def _aware(value):

@@ -22,6 +22,7 @@ from tradingagents.dataflows.vendors.alpha_vantage.common import (
     get_api_key,
 )
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+from tradingagents.source_replay import source_now
 
 _LABEL = "vendor transcript, wording unverified"
 _MONTHS = (
@@ -251,7 +252,7 @@ def parse_transcript_response(
         "label": _LABEL, "reason": "", "date_evidence": date_evidence,
         "source_id": "vendor-transcript-" + _hash(f"{ticker}:{fiscal_quarter}:{source_hash}"),
         "content_hash": source_hash,
-        "retrieved_at": retrieved_at or datetime.now(UTC).isoformat(),
+        "retrieved_at": retrieved_at or source_now(UTC).isoformat(),
         "qa_start": qa_start, "turns": turns,
     }
     record["record_hash"] = _json_hash(record)
@@ -265,6 +266,13 @@ def _cache_path(ticker: str, quarter: str) -> Path:
 
 def _request_transcript(ticker: str, fiscal_quarter: str) -> str:
     """One bounded free-key request; preserve raw notices for accurate classification."""
+    from tradingagents.source_replay import external_input
+
+    return external_input("vendor_transcript", {"ticker": ticker, "quarter": fiscal_quarter},
+                          lambda: _request_transcript_live(ticker, fiscal_quarter))
+
+
+def _request_transcript_live(ticker: str, fiscal_quarter: str) -> str:
     api_key = get_api_key()
     response = get_scrubbed(
         API_BASE_URL,

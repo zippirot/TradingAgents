@@ -20,7 +20,7 @@ import yfinance as yf
 from pydantic import BaseModel, Field
 
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import recorded_estimate, yf_retry
 
 LABEL = "vendor consensus, unverified"
 SOURCE = "Yahoo Finance via yfinance"
@@ -165,7 +165,9 @@ def get_vendor_expectations(
     """
     canonical = normalize_symbol(ticker)
     requested = date.fromisoformat(as_of) if isinstance(as_of, str) else as_of
-    observed = observed_at or datetime.now(UTC)
+    from tradingagents.source_replay import source_now
+
+    observed = observed_at or source_now(UTC)
     if observed.tzinfo is None or observed.utcoffset() is None:
         raise ValueError("observed_at must include a timezone")
     observed = observed.astimezone(UTC)
@@ -216,7 +218,7 @@ def get_vendor_expectations(
     ):
         try:
             results[name] = yf_retry(
-                lambda method=method: getattr(yf.Ticker(canonical), method)(), max_retries=0
+                lambda method=method: recorded_estimate(canonical, method, yf.Ticker), max_retries=0
             )
         except Exception as exc:  # one failed Yahoo field does not erase the others
             failures.append(f"{name}: {type(exc).__name__}")

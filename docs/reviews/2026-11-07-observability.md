@@ -4,6 +4,8 @@
 
 Governing requirements: `docs/superpowers/plans/2026-11-07-tradingagents-workflow-gap-closure-plan.md`, Build R5. Machine 2 worktree `/Users/zipp/.codex/worktrees/workflow-gap-r5/TradingAgents`, branch `codex/workflow-gap-r5`; exact fetched local/GitHub staging predecessor `8920ffac07d1063001291799e99963403955582a`. Preparation-only requirements commit `4a4c723f895501df232ad1a00c5dc1ffdfa37475`. No merge/push, installation, live-data mutation or paid product calls are authorized for this local code-build proof.
 
+User-approved Amendment 1 was appended verbatim in `e6ded03c54855a25f7aee18b6c9e93d09037c410`, including the six-month default horizon. Its R1/R3/Na additions do not alter R5 requirements and are not claimed implemented or accepted here. This record covers local R5 only, not whole-plan, staging, release or installed-app acceptance.
+
 The native Goal is active. Its requested notifier key is `thread:01a1b86a-d32d-7852-a6ae-c06d24f933aa:goal:1794097364`; opt-in is enabled and both privacy-minimal dry-run bodies were verified. No incident/test push was sent; provider/phone delivery is not claimed.
 
 ## First vertical milestone
@@ -26,8 +28,29 @@ Observed red regressions: three logging/retained-state probes failed before thei
 
 Current combined milestone check: **133 passed in 3.01s** across token/run metrics, attempt tracing, run logging, stream publication, document-state replay, operational capture, structured agents and headless CLI tests. Full repository `ruff check .` and `git diff --check` passed. Log: `/tmp/workflow-r5-milestone-pytest.log`. This focused milestone is not the required final full suite or independent audit.
 
+## Controlled source replay and starting stores
+
+R5.6 is implemented. `TRADINGAGENTS_TRACE=1` captures a verified `comparison-start` snapshot before graph construction. A `TRADINGAGENTS_REPLAY_TRACE=<baseline attempt>` candidate clones that starting snapshot into its own `comparison-run`; it never copies the baseline's post-run store. The snapshot contains only publications (including companion ledgers/outcomes/theses), cache, and memory. Manifests retain hashes and cache mtimes; changed/incomplete/symlink/overlapping snapshots are rejected. The snapshots are private and read-only; clones are private and writable. Normal trace-on runs retain the caller's runtime destinations: an operator preparing a comparison baseline must first point the existing config/environment paths at disposable baseline stores, as in the native proof. Trace-on by itself does not silently divert ordinary user memory updates.
+
+| Existing boundary | Frozen input | Current behavior still executed |
+|---|---|---|
+| SEC companyfacts/issuer map | `_cached_json` data and acquisition mtime | Issuer/cutoff selection, fact validation, accounting and KPI calculations |
+| SEC document client, including peer-cover shares | URL-bound raw text/hash/retrieval wrapper | URL/size/hash checks, extraction, source selection, source/corpus validation |
+| Yahoo market/verified quote/split check/settlement | Raw bars, dtype/index/timezone, provider metadata and retrieval instant | Completed-session, adjustment, missing/invalid price checks; indicators; valuation and settlement calculations |
+| Routed news, statements and optional vendor inputs | Per-vendor input returned to the agent, or safe typed source failure | Configured-vendor ordering, fallback classification, tool wrapping and downstream validation |
+| Yahoo identity and estimate inputs | Raw profile and raw estimate tables/dicts | Identity projection and current estimate/consensus validation; no stale process-global identity projection is reused for comparisons |
+| Vendor transcript | Raw transcript response or existing snapshotted raw cache | SEC dating, parsing, source/corpus and known-at validation |
+| Document search/follow-up | Existing frozen retained source corpus | Real search and ToolNode `Command` updates rerun; current call IDs and journals are produced by current code |
+| Memory and publication reads | Pre-baseline snapshot plus the baseline observation clock | Current observation/settlement, reflection, thesis/publication and report logic; no baseline derived decisions substituted |
+
+Input identity binds ticker, analysis clock, settings, stage, effective arguments and repeated-call occurrence. Payload and identity hashes are checked. Incomplete traces and scope mismatches are rejected before graph/model construction. Replayed inputs are retained in the candidate's journal so accepted Na can become Nb's baseline. Raw nonfinite values retain their invalid identity instead of becoming zero or missing; current validators still decide their meaning. Failure receipts contain types and established safe taxonomy fields, not raw provider diagnostics. Secret-scrubbed or unsupported error payloads cannot masquerade as identical replay inputs. Missing calls use the existing live path and produce explicit `replay_miss`/mixed-input trace and operational observations; no controlled acceptance is claimed for material live drift.
+
+The comparison's source/date/cache clock is held at its baseline observation instant. Actual new provider acquisitions use their real observation time, including live misses. Ordinary non-comparison clock behavior and existing clock-injection tests are preserved. The immutable publication retains graph-only metrics; the post-graph editorial stage is separately traced and its call metadata retained in the saved projection.
+
+The extended actual CLI proof adds a fresh baseline/candidate pair with equal pre-run snapshots, at least one raw source replay hit, zero replay misses, an independently reopened candidate publication/report, and unchanged baseline publications/cache/memory after the candidate. Its preliminary run passed, alongside the original save-retry and interruption/resume drills. This must be repeated on the frozen final candidate before acceptance. New focused private-boundary checks: **28 passed in 1.14s**; source adapters **173 passed**; integrated replay/CLI/publication/settlement checks **107 passed**; clock compatibility **38 passed**. These are development checks, not a single complete suite at one revision.
+
 ## Remaining acceptance
 
-R5.6 controlled replay and pre-baseline snapshot isolation are **not implemented**. Before final acceptance, exercise source acquisition outside model tools, tool Command state effects/current call IDs, current candidate computations against frozen raw sources, and explicit mixed-input replay misses. Complete realistic tool failure/restart/privacy checks, repeat the full native path on the final candidate, run the required full pytest/Ruff checks, freeze a clean committed candidate, then run the required independent Claude Fable audit and verified gap closure through the repository executor. No independent audit has started and no final R5 acceptance is claimed.
+Repeat the full native path on the final candidate, run the required full pytest/Ruff checks, freeze a clean committed candidate, then run the required independent Claude Fable audit and verified gap closure through the repository executor. No independent audit has started and no final R5 acceptance is claimed. Supplementary source fixtures and actual ToolNode tests exercise raw SEC acquisition/current candidate arithmetic, fresh search call IDs/journals, raw Yahoo precision/timezones, empty settlement coverage, typed failures, missing inputs and secret exclusion; these do not claim live providers or a full four-analyst DOCN run.
 
 The code-review graph reported zero indexed files for this checkout; important claims were checked directly against current source and the installed LangGraph multi-write producer. No graph coverage was assumed.

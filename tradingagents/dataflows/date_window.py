@@ -60,7 +60,9 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
 
 def get_current_date() -> str:
     """Today's date, YYYY-MM-DD."""
-    return date.today().strftime("%Y-%m-%d")
+    from tradingagents.source_replay import current_session, source_today
+
+    return (source_today() if current_session() else date.today()).strftime("%Y-%m-%d")
 
 
 def is_historical(run_date) -> bool:

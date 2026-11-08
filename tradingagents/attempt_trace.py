@@ -33,7 +33,7 @@ class AttemptRecorder(BaseCallbackHandler):
     def __init__(self, directory, attempt_id):
         self.directory = Path(directory)
         self.attempt_id = str(attempt_id)
-        self.enabled = os.getenv("TRADINGAGENTS_TRACE") == "1"
+        self.enabled = os.getenv("TRADINGAGENTS_TRACE") == "1" or bool(os.getenv("TRADINGAGENTS_REPLAY_TRACE"))
         self.lock = Lock()
         self.sequence = 0
         self.stages = {}

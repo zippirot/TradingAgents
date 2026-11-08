@@ -27,6 +27,7 @@ from tradingagents.reporting import (
     verified_publication,
     write_report_tree,
 )
+from tradingagents.source_replay import current_session, source_now
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -547,7 +548,8 @@ class TradingAgentsGraph:
         state["run_settings"]["source_hash"] = state["publication_versions"]["code"]
         state["analysis_clock"] = self._analysis_cutoff(trade_date)
         state["market_observation_cutoff"] = min(
-            datetime.now(UTC), datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
+            source_now(UTC) if current_session() else datetime.now(UTC),
+            datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
         ).isoformat()
         return state
 
@@ -569,7 +571,7 @@ class TradingAgentsGraph:
         # Existing unstamped memory is demonstrably available at this read only
         # on the current analysis day, before its explicit cutoff. Historical
         # replays cannot infer when an old entry was first published or settled.
-        read_at = datetime.now(UTC)
+        read_at = source_now(UTC) if current_session() else datetime.now(UTC)
         current_read = (read_at.astimezone(analysis_zone).date().isoformat()
                         == str(state["trade_date"])
                         and read_at <= cutoff_instant)
@@ -695,9 +697,27 @@ class TradingAgentsGraph:
                 context = summary_input_for_report(prepare_report_state(final_state))
                 saved = final_state.get("executive_summary")
                 if not saved or resolve_summary(context, saved)["status"] != "completed":
-                    final_state["executive_summary"] = generate_summary(
-                        context, getattr(self, "deep_thinking_llm", None)
+                    from tradingagents.attempt_trace import (
+                        merge_call_metadata,
+                        recorder_from_config,
                     )
+                    from tradingagents.operational_audit import merge_observations
+                    from tradingagents.operational_capture import observed_node
+
+                    callbacks = getattr(self, "callbacks", [])
+                    if recorder_from_config({"callbacks": callbacks}):
+                        summary = observed_node(
+                            lambda _: {"executive_summary": generate_summary(
+                                context, getattr(self, "deep_thinking_llm", None))},
+                            "Executive Summary")(final_state, {"callbacks": callbacks})
+                        final_state["executive_summary"] = summary["executive_summary"]
+                        final_state["operational_observations"] = merge_observations(
+                            final_state.get("operational_observations"), summary.get("operational_observations"))
+                        final_state["model_call_metadata"] = merge_call_metadata(
+                            final_state.get("model_call_metadata"), summary.get("model_call_metadata"))
+                    else:
+                        final_state["executive_summary"] = generate_summary(
+                            context, getattr(self, "deep_thinking_llm", None))
             except Exception as exc:
                 # An editorial adapter failure cannot cancel a published decision.
                 # Provider exceptions can include private prompt text or endpoints.
@@ -841,7 +861,7 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("past_context", "memory_note", "model_call_metadata"):
+        for field in ("past_context", "memory_note", "model_call_metadata", "replay_context"):
             if field in final_state:
                 entry[field] = final_state[field]
 

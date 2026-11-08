@@ -12,6 +12,7 @@ import pandas as pd
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.market import get_closes, get_settlement_closes
 from tradingagents.memory.log import is_trading_entry
+from tradingagents.source_replay import source_now
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ class PricePass:
             cutoff = max(cutoff, datetime.combine(stamp.date(), datetime.min.time()))
         before = datetime.strptime(self.before, '%Y-%m-%d')
         if zone is not None:
-            before = min(before, datetime.combine(datetime.now(zone).date(), datetime.min.time()))
+            before = min(before, datetime.combine(source_now(zone).date(), datetime.min.time()))
         cleaned = _by_day(value)
         return cleaned[(cleaned.index > cutoff) & (cleaned.index < before)], cutoff, before
 
@@ -193,7 +194,7 @@ def fetch_outcome(
     # the completed cutoff so an old fixed end date cannot strand a mature run.
     from tradingagents.dataflows.date_window import get_current_date
     before = datetime.strptime(prices_before or get_current_date(), "%Y-%m-%d")
-    before = min(before, datetime.combine(datetime.now().date(), datetime.min.time()))
+    before = min(before, datetime.combine(source_now().astimezone().date(), datetime.min.time()))
     if request_start >= before:
         return None
     end = (calendar_exit_date(request_start, calendar_months) + timedelta(days=21)
@@ -214,7 +215,7 @@ def fetch_outcome(
             stock_timezone = timezone
             timezone_observed = True
         if timezone is not None:
-            exchange_today = datetime.now(timezone).date()
+            exchange_today = source_now(timezone).date()
             before = min(before, datetime.combine(exchange_today, datetime.min.time()))
         if publication is not None and not raw.empty:
             if timezone is None:
@@ -275,7 +276,7 @@ def fetch_outcome(
     benchmark_before = before
     benchmark_timezone = getattr(benchmark_prices.index, "tz", None)
     if benchmark_timezone is not None:
-        benchmark_today = datetime.now(benchmark_timezone).date()
+        benchmark_today = source_now(benchmark_timezone).date()
         benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
     bench = bench[bench.index < benchmark_before]
 

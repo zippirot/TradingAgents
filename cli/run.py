@@ -1,5 +1,7 @@
 """Running one analysis from the CLI: build the graph, stream it into the live view, save the report."""
 
+import hashlib
+import json
 import logging
 import os
 import sys
@@ -29,12 +31,16 @@ from cli.run_logging import cleanup_run_logging, configure_run_logging
 from cli.selections import depth_from_env, get_user_selections, unattended_gaps
 from cli.stats_handler import StatsCallbackHandler, render_usage_cost
 from tradingagents.agents.rating import is_review, run_rating
+from tradingagents.attempt_trace import AttemptRecorder
+from tradingagents.comparison_snapshot import capture_starting_snapshot, clone_starting_snapshot
+from tradingagents.dataflows.date_window import resolve_analysis_cutoff
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph, record_attempt_event
+from tradingagents.source_replay import ReplaySession, current_session, session_context, set_session
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +63,48 @@ def _cleanup_run(function):
         methods = {name: getattr(message_buffer, name) for name in (
             "add_message", "add_tool_call", "update_report_section")}
         try:
-            return function(*args, **kwargs)
+            with session_context(None):
+                succeeded = False
+                try:
+                    result = function(*args, **kwargs)
+                    succeeded = True
+                    return result
+                finally:
+                    session = current_session()
+                    if session:
+                        session.finish(succeeded)
         finally:
             for name, method in methods.items():
                 setattr(message_buffer, name, method)
             cleanup_run_logging()
     return invoke
+
+
+def _prepare_attempt_comparison(config, results_dir, selections, recorder):
+    """Snapshot before graph construction; candidates get fresh pre-baseline stores."""
+    if not recorder.enabled:
+        return config
+    baseline = os.getenv("TRADINGAGENTS_REPLAY_TRACE")
+    config = dict(config)
+    if baseline:
+        config.update(clone_starting_snapshot(
+            Path(baseline).expanduser().resolve() / "comparison-start",
+            (results_dir / "comparison-run").resolve()))
+    roots = {key: str(Path(config[key]).expanduser().resolve())
+             for key in ("results_dir", "data_cache_dir", "memory_log_path")}
+    manifest = capture_starting_snapshot(roots, (results_dir / "comparison-start").resolve())
+    digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    clock = resolve_analysis_cutoff(str(selections["analysis_date"]),
+                                   config.get("analysis_timezone", "America/Denver"),
+                                   config.get("analysis_cutoff_utc"))
+    scope = {"ticker": selections["ticker"], "analysis_date": str(selections["analysis_date"]),
+             "asset_type": selections["asset_type"], "analysis_clock": clock,
+             "starting_snapshot_sha256": digest,
+             "settings": {key: config.get(key) for key in (
+                 "quick_think_llm", "deep_think_llm", "llm_provider", "deep_think_provider",
+                 "max_debate_rounds", "max_risk_discuss_rounds", "output_language")}}
+    set_session(ReplaySession(recorder, scope, baseline=Path(baseline).expanduser().resolve() if baseline else None))
+    return config
 
 
 def _announce_checkpoint_state(graph, ticker: str, trade_date: str) -> None:
@@ -145,9 +187,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
     stats_handler = StatsCallbackHandler()
-    from tradingagents.attempt_trace import AttemptRecorder
-
     attempt_recorder = AttemptRecorder(results_dir, attempt_id)
+    config = _prepare_attempt_comparison(config, results_dir, selections, attempt_recorder)
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
@@ -375,6 +416,17 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             final_state = {}
             for chunk in trace:
                 final_state.update(chunk)
+            session = current_session()
+            if session:
+                final_state["replay_context"] = {"status": session.status, "scope": session.scope,
+                                                  "misses": list(session.misses)}
+                if session.misses:
+                    from tradingagents.operational_audit import merge_observations, observation
+
+                    event = observation(final_state, "Source Replay", code="replay_miss",
+                                        scope="mixed-input comparison", count=len(session.misses))
+                    final_state["operational_observations"] = merge_observations(
+                        final_state.get("operational_observations"), {event["event_id"]: event})
 
             # Clean run: log the decision, then drop this run's checkpoint so a
             # later run starts fresh. A mid-stream failure skips both, keeping

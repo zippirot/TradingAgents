@@ -271,7 +271,16 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            value = impl_func(*args, **kwargs)
+            from tradingagents.source_replay import external_input
+
+            # Price and indicator calculations execute against recorded raw bars.
+            # Other routed outputs are untrusted vendor material supplied to agents.
+            if vendor == "yfinance" and method in {"get_stock_data", "get_indicators"}:
+                value = impl_func(*args, **kwargs)
+            else:
+                value = external_input(f"vendor:{vendor}:{method}",
+                                       {"args": args, "kwargs": kwargs},
+                                       lambda impl_func=impl_func: impl_func(*args, **kwargs))
             if failed_vendors:
                 record_operation('vendor_fallback_recovered', scope=f'{method} via {vendor} after {" ".join(failed_vendors)}')
             return value

@@ -111,7 +111,11 @@ def resolve_instrument_identity(ticker: str) -> dict:
     (``XAUUSD`` -> ``GC=F``, #983).
     """
     try:
-        return _identity(ticker)
+        from tradingagents.source_replay import current_session
+
+        # A process-global identity cache cannot supply a comparison's source
+        # journal. Re-run this small projection against its recorded raw profile.
+        return _identity.__wrapped__(ticker) if current_session() else _identity(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}

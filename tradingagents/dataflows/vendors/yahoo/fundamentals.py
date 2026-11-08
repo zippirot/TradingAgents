@@ -230,4 +230,8 @@ def get_insider_transactions(
 
 def get_company_profile(ticker: str) -> dict:
     """Yahoo's current profile for ``ticker``: name, sector, industry and the like."""
-    return yf_retry(lambda: yf.Ticker(normalize_symbol(ticker)).info) or {}
+    from tradingagents.source_replay import external_input
+
+    canonical = normalize_symbol(ticker)
+    return external_input("yahoo_profile", {"symbol": canonical},
+                          lambda: yf_retry(lambda: yf.Ticker(canonical).info)) or {}

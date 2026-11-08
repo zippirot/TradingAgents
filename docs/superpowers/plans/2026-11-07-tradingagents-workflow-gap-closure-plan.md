@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status:** decisions D1–D4 approved by the user on 2026-11-07. Plan not yet started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
+**Status:** decisions D1–D4 approved by the user on 2026-11-07. R5 is in progress; later builds have not started. Post-plan audit on 2026-11-07: **revised and ready**, frozen after the affected-area recheck recorded below. This is plan readiness, not implementation, integration, spend or release authorization. This document supersedes `2026-11-07-tradingagents-rearchitecture-followup-plan.md` and `2026-11-07-tradingagents-node-workflow-plan.md`, which are kept for history.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;

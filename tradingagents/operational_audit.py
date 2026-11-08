@@ -38,6 +38,7 @@ REASONS = {
     "model_output_truncated": (3, "A model response was truncated before the full output was available."),
     "tool_error": (3, "A tool failed, reducing support for the affected section."),
     "summary_unavailable": (3, "The executive summary is unavailable; the underlying research and decision remain available."),
+    "replay_miss": (3, "A comparison used a live external input absent from its baseline; input control is incomplete."),
     "stage_unusable": (2, "A required stage has no trustworthy usable completion."),
     "incomplete_history": (2, "Execution history is incomplete, so required work cannot be fully established."),
     "publication_mismatch": (1, "The saved report conflicts with the authoritative publication."),

@@ -2,7 +2,9 @@
 
 import logging
 import time
+from io import StringIO
 
+import pandas as pd
 import yfinance as yf
 from yfinance.exceptions import YFPricesMissingError, YFRateLimitError
 
@@ -13,6 +15,75 @@ from tradingagents.operational_capture import record_operation
 logger = logging.getLogger(__name__)
 
 YAHOO_HOST = "https://query2.finance.yahoo.com"
+
+
+def recorded_history(symbol, *, source_factory=None, include_metadata=True, **request):
+    """Replay raw Yahoo bars/metadata; callers still run all current validation."""
+    from tradingagents.source_replay import current_session, external_input
+
+    def fetch():
+        source = (source_factory or yf.Ticker)(symbol)
+        history = source.history(**request)
+        method = getattr(source, "get_history_metadata", None)
+        metadata = method() if method and include_metadata else {}
+        return history, metadata
+
+    if current_session() is None:
+        return fetch()
+
+    def acquire():
+        from tradingagents.dataflows.vendors.yahoo.price_observation import _now
+
+        history, metadata = fetch()
+        if history is None:
+            return {"csv": None, "metadata": metadata, "retrieved_at": _now().isoformat()}
+        return {**_frame_payload(history),
+                "metadata": {key: metadata.get(key) for key in (
+                    "symbol", "currency", "exchangeTimezoneName", "currentTradingPeriod")},
+                "retrieved_at": _now().isoformat()}
+
+    raw = external_input("yahoo_history", {"symbol": symbol, "request": request,
+                                           "include_metadata": include_metadata}, acquire)
+    metadata = {**raw["metadata"], "_trace_retrieved_at": raw["retrieved_at"]}
+    if raw["csv"] is None:
+        return None, metadata
+    return _frame_from_payload(raw), metadata
+
+
+def _frame_payload(frame):
+    return {"csv": frame.to_csv(index=True, index_label="__trace_index"),
+            "datetime_index": isinstance(frame.index, pd.DatetimeIndex),
+            "index_timezone": str(frame.index.tz) if isinstance(frame.index, pd.DatetimeIndex)
+            and frame.index.tz is not None else None,
+            "index_name": frame.index.name,
+            "column_dtypes": [str(dtype) for dtype in frame.dtypes]}
+
+
+def _frame_from_payload(raw):
+    frame = pd.read_csv(StringIO(raw["csv"]), index_col="__trace_index", float_precision="round_trip")
+    for column, dtype in zip(frame.columns, raw["column_dtypes"], strict=True):
+        frame[column] = frame[column].astype(dtype)
+    if raw["datetime_index"]:
+        frame.index = pd.to_datetime(frame.index, utc=bool(raw["index_timezone"]))
+        if raw["index_timezone"]:
+            frame.index = frame.index.tz_convert(raw["index_timezone"])
+    frame.index.name = raw["index_name"]
+    return frame
+
+
+def recorded_estimate(symbol, method, source_factory):
+    """Freeze Yahoo's five raw estimate inputs, not their deterministic projections."""
+    from tradingagents.source_replay import current_session, external_input
+
+    if current_session() is None:
+        return getattr(source_factory(symbol), method)()
+
+    def acquire():
+        value = getattr(source_factory(symbol), method)()
+        return {"frame": _frame_payload(value)} if isinstance(value, pd.DataFrame) else {"value": value}
+
+    raw = external_input("yahoo_estimate", {"symbol": symbol, "method": method}, acquire)
+    return _frame_from_payload(raw["frame"]) if "frame" in raw else raw["value"]
 
 
 def raise_for_empty(symbol: str, canonical: str, what: str) -> None:

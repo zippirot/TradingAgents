@@ -10,7 +10,7 @@ from stockstats import wrap
 
 from tradingagents.dataflows.errors import NoMarketDataError, VendorError, VendorUnavailableError
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, recorded_history, yf_retry
 from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv, market_provenance_lines
 
 logger = logging.getLogger(__name__)
@@ -266,7 +266,10 @@ def get_stockstats_indicator(
 def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     """Daily closes from ``start_date`` up to, not including, ``end_date``."""
     canonical = normalize_symbol(symbol)
-    history = yf_retry(lambda: yf.Ticker(canonical).history(start=start_date, end=end_date, auto_adjust=True))
+    response = yf_retry(lambda: recorded_history(canonical, source_factory=yf.Ticker,
+                                                include_metadata=False, start=start_date,
+                                                end=end_date, auto_adjust=True))
+    history = response[0] if response is not None else None
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 
@@ -319,13 +322,16 @@ def get_settlement_closes(symbol: str, start_date: str, end_date: str) -> pd.Ser
         raise ValueError("settlement price window must have a positive length")
 
     source = None
+    def factory(symbol):
+        nonlocal source
+        source = yf.Ticker(symbol)
+        return source
+
     try:
         # yfinance 1.7.0 accepts raise_errors in PriceHistory.history. Without
         # it, transport and Yahoo errors can become a plausible empty frame.
-        source = yf.Ticker(canonical)
-        history = source.history(
-            start=start_date, end=end_date, auto_adjust=True, raise_errors=True
-        )
+        history, _ = recorded_history(canonical, source_factory=factory, include_metadata=False,
+                                      start=start_date, end=end_date, auto_adjust=True, raise_errors=True)
     except Exception as exc:
         zero = _explicit_settlement_zero(exc, source, canonical, start, end)
         if zero is not None:

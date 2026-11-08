@@ -107,6 +107,51 @@ def _deny_network(*args, **kwargs):
     raise AssertionError("offline proof blocked network access")
 
 
+def _store_hashes(config):
+    paths = [Path(config["memory_log_path"])]
+    for root in (Path(config["results_dir"]) / "publications", Path(config["data_cache_dir"])):
+        paths.extend(path for path in root.rglob("*") if path.is_file())
+    return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths if path.is_file()}
+
+
+def _comparison_pair(root, cfg, common_flags):
+    """Run the actual CLI twice, then inspect the candidate's reopened publication."""
+    pair_config = {**cfg, "results_dir": "comparison-results",
+                   "data_cache_dir": str(root / "comparison-input-cache"),
+                   "memory_log_path": str(root / "comparison-input-memory.md")}
+    calls, control = [], {}
+    with patch.object(cli_run, "DEFAULT_CONFIG", pair_config), \
+         patch.object(trading_graph, "create_tier_client", side_effect=lambda *a, **k: OfflineModel(calls, control)):
+        cli_run.run_analysis(checkpoint=False, flags={**common_flags, "save": True})
+        attempts_root = root / "comparison-results" / "DOCN" / DAY
+        baseline = next(attempts_root.glob("*-*"))
+        protected = _store_hashes(pair_config)
+        calls.clear()
+        with patch.dict(os.environ, {"TRADINGAGENTS_REPLAY_TRACE": str(baseline)}):
+            cli_run.run_analysis(checkpoint=False, flags={**common_flags, "save": True})
+        candidate = next(path for path in attempts_root.glob("*-*") if path != baseline)
+    assert _store_hashes(pair_config) == protected
+    original_manifest = json.loads((baseline / "comparison-start/manifest.json").read_text())
+    candidate_manifest = json.loads((candidate / "comparison-start/manifest.json").read_text())
+    assert candidate_manifest == original_manifest
+    candidate_state = json.loads((candidate / "comparison-run/DOCN/TradingAgentsStrategy_logs"
+                                 / f"full_states_log_{DAY}.json").read_text())
+    assert candidate_state["replay_context"]["status"] == "replayed"
+    assert candidate_state["replay_context"]["misses"] == []
+    rows = [json.loads(line) for path in (candidate / "trace").glob("*.jsonl")
+            for line in path.read_text().splitlines()]
+    assert any(row["event"] == "source_replayed" for row in rows)
+    assert all(row["event"] != "replay_miss" for row in rows)
+    assert all(SECRET not in path.read_text(errors="ignore") for path in candidate.rglob("*") if path.is_file())
+    assert (candidate / "reports/complete_report.html").is_file()
+    return {"baseline": str(baseline), "candidate": str(candidate),
+            "source_replay_hits": sum(row["event"] == "source_replayed" for row in rows),
+            "replay_misses": 0, "starting_snapshot_equal": True,
+            "baseline_stores_unchanged_by_candidate": True,
+            "candidate_publication_id": candidate_state["publication_record"]["decision_id"],
+            "candidate_state_sha256": hashlib.sha256(json.dumps(candidate_state, sort_keys=True).encode()).hexdigest()}
+
+
 def main():
     calls = []
     control = {}
@@ -152,6 +197,7 @@ def main():
             common_flags = {"ticker": "DOCN", "date": DAY, "analysts": "market",
                             "show": False, "html": True}
             cli_run.run_analysis(checkpoint=True, flags={**common_flags, "save": True})
+            comparison_receipt = _comparison_pair(root, cfg, common_flags)
             original_save = trading_graph.TradingAgentsGraph.save_reports
             save_calls = []
 
@@ -199,6 +245,7 @@ def main():
         for row in event_rows:
             events_by_short_id.setdefault(row["attempt_id"][:8], []).append(row["event"])
         receipt = {"disposable_root": str(root), "results_configuration": "relative results; Enter returns displayed default",
+                   "controlled_comparison": comparison_receipt,
                    "recorded_source_sha256": original_hash,
                    "copied_source_unchanged": hashlib.sha256(source_copy.read_bytes()).hexdigest() == original_hash,
                    "split_actions": "simulated zero actions; no live absence claim",

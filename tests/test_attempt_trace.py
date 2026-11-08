@@ -103,3 +103,50 @@ def test_model_call_metadata_available_without_full_trace(tmp_path, monkeypatch)
     metadata = list(result["model_call_metadata"].values())
     assert len(metadata) == 1 and metadata[0]["stage"] == "Market Analyst"
     assert "prompt" not in str(metadata) and "output" not in str(metadata)
+
+
+def test_post_graph_summary_is_in_attempt_trace(tmp_path, monkeypatch):
+    from tests.test_publication_graph import graph_and_state
+
+    monkeypatch.setenv("TRADINGAGENTS_TRACE", "1")
+    app, final_state = graph_and_state(tmp_path / "records")
+    app.callbacks = [AttemptRecorder(tmp_path / "attempt", "attempt-one")]
+    app.record_decision("DOCN", "2026-11-04", final_state)
+    rows = events(tmp_path / "attempt")
+    assert {row["stage"] for row in rows} == {"Executive Summary"}
+    assert rows[-1]["event"] == "stage_end"
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_real_tool_arguments_returns_and_errors_exclude_secrets(tmp_path, monkeypatch, fail):
+    from langchain_core.messages import AIMessage
+    from langchain_core.tools import tool
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.prebuilt import ToolNode
+
+    from tradingagents.agents.state import AgentState
+
+    monkeypatch.setenv("TRADINGAGENTS_TRACE", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-private-token")
+
+    @tool
+    def echo(value: str) -> str:
+        """Return the requested text for a controlled provider-boundary proof."""
+        if fail:
+            raise RuntimeError(value)
+        return value
+
+    graph = StateGraph(AgentState)
+    graph.add_node("tools", ToolNode([echo], handle_tool_errors=lambda error: "unavailable"))
+    graph.add_edge(START, "tools")
+    graph.add_edge("tools", END)
+    initial = {**state(), "messages": [AIMessage(content="", tool_calls=[{
+        "name": "echo", "args": {"value": "synthetic-private-token"}, "id": "call"
+    }])]}
+    observed_node(graph.compile(), "Market Analyst")(
+        initial, {"callbacks": [AttemptRecorder(tmp_path, "attempt-one")]})
+    rows = events(tmp_path)
+    assert "synthetic-private-token" not in str(rows)
+    assert "[REDACTED]" in str(rows)
+    assert "tool_start" in {row["event"] for row in rows}
+    assert ("tool_error" if fail else "tool_end") in {row["event"] for row in rows}

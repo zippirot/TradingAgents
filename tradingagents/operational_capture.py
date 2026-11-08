@@ -78,6 +78,11 @@ class _Outcomes(BaseCallbackHandler):
             record_operation('tool_error')
 
 
+def current_operation_scope():
+    active = _active.get()
+    return (active[0], active[1]) if active is not None else ({}, "Invocation")
+
+
 def observed_node(node, stage, *, report_key=None, expected_stages=None):
     """Wrap a node while retaining LangGraph config and subgraph execution."""
     runnable = node if hasattr(node, 'invoke') else RunnableLambda(node)
