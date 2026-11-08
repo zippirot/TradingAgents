@@ -275,7 +275,7 @@ def prepare_decision_context(state: dict) -> dict:
     observations = observe_conditions(prior, state if eligible else {})
     condition_rows = []
     for observed in observations:
-        matches = [d for d in dispositions[:8] if isinstance(d, dict) and d.get('condition_id') == observed['condition_id']]
+        matches = [d for d in dispositions if isinstance(d, dict) and d.get('condition_id') == observed['condition_id']]
         supplied = matches[0] if len(matches) == 1 else {}
         disposition = supplied.get('disposition')
         if disposition not in {'kept', 'overridden', 'retired', 'superseded'}:

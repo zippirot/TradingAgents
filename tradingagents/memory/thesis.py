@@ -138,9 +138,11 @@ def _conditions(values, *, preserve_ids=False, package=None, quote_currency=None
     accepted, warnings, by_measurement = [], [], {}
     if not isinstance(values, (list, tuple)):
         return [], ['Invalid advisory conditions: expected a list']
-    if len(values) > 8:
-        warnings.append('Advisory condition limit reached; only first eight considered')
-    for index, item in enumerate(values[:8]):
+    if not preserve_ids and len(values) > 8:
+        warnings.append(f'{len(values) - 8} additional conditions stated but not retained: new proposal limit is eight')
+    # The proposal bound does not truncate conditions already retained on disk.
+    considered = values if preserve_ids else values[:8]
+    for index, item in enumerate(considered):
         try:
             payload = dict(item)
             condition, originals = _normalize_condition(_condition(payload), package)
@@ -381,7 +383,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
             if previous.get('condition_aliases'):
                 row['condition_aliases'] = list(previous['condition_aliases'])
     dispositions = candidate.get('dispositions', [])
-    dispositions = dispositions[:8] if isinstance(dispositions, list) else []
+    dispositions = dispositions if isinstance(dispositions, list) else []
     preserved = []
     retired = set()
     for previous in prior_conditions:
@@ -396,7 +398,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
             preserved.append(previous)
             if not any(c['condition_id'] == identifier for c in conditions):
                 warnings.append(f'Kept condition {identifier} omitted from proposal; prior condition retained')
-    # Preserve explicit keeps before adding new proposals; bound remains eight.
+    # Bound new proposals independently; explicit keeps must not consume their slots.
     combined = {row['condition_id']: row for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
@@ -407,12 +409,10 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
                     warnings.append(f"Condition {row['condition_id']} role set by this version’s proposal; prior observations retain their original interpretation.")
             else:
                 combined.setdefault(row['condition_id'], row)
-    if len(combined) > 8:
-        warnings.append('Condition limit reached after preserving prior conditions; additional proposals omitted')
-    conditions = list(combined.values())[:8]
+    conditions = list(combined.values())
     prior_rows = []
     active = {row['condition_id'] for row in conditions}
-    for row in prior.get('observations', [])[:8]:
+    for row in prior.get('observations', []):
         previous = next((c for c in prior_conditions if row.get('condition_id') in {c['condition_id'], *c.get('condition_aliases', [])}), row)
         matches = _matches(previous, dispositions)
         supplied = matches[0] if matches and not _ambiguous(matches) else {}
@@ -533,9 +533,9 @@ def _condition_line(row, display=_display):
             f"role {display(condition_role_label(row), 40)} (unvalidated research intent)")
 
 
-def _bounded_rows(value):
+def _condition_rows(value):
     rows = value if isinstance(value, list) else []
-    return [row for row in rows[:8] if isinstance(row, dict)], max(0, len(rows) - 8)
+    return [row for row in rows if isinstance(row, dict)]
 
 
 def render_prior_thesis(prior) -> str:
@@ -544,15 +544,13 @@ def render_prior_thesis(prior) -> str:
         return 'Prior advisory thesis unavailable; legacy prose has unknown authority.'
     lines = ['Prior thesis conditions are advisory, not binding; they cannot force a rating.',
              f"Version: {_prompt_display(prior.get('version_id'), 100)}; prior rating: {_prompt_display(prior.get('canonical_rating'), 40)}."]
-    rows, omitted = _bounded_rows(prior.get('observations', prior.get('conditions', [])))
+    rows = _condition_rows(prior.get('observations', prior.get('conditions', [])))
     for row in rows:
         lines.append(f"- {_condition_line(row, _prompt_display)}; {_prompt_display(condition_status_label(row), 100)}; "
                      f"observed {_prompt_display(row.get('observed_value'), 100)} on {_prompt_display(row.get('observed_date'), 20)}. "
                      f"Observation: {_prompt_display(row.get('reason', 'observation unavailable'))}.")
     if not rows:
         lines.append('No structured prior conditions available.')
-    if omitted:
-        lines.append(f'{omitted} additional conditions omitted from this bounded display.')
     if prior.get('rationale'):
         lines.append('Prior rationale (unvalidated research, not verified evidence): ' + _prompt_display(prior['rationale'], 1000))
     return '\n'.join(lines)
@@ -574,14 +572,12 @@ def render_thesis(thesis) -> str:
         lines.extend('- Assumption (unvalidated research): ' + _display(item) for item in assumptions[:8])
         if len(assumptions) > 8:
             lines.append(f'{len(assumptions)-8} additional assumptions omitted.')
-    rows, omitted = _bounded_rows(thesis.get('conditions'))
+    rows = _condition_rows(thesis.get('conditions'))
     lines.append('Current proposed advisory conditions (unvalidated research):')
     lines.extend('- ' + _condition_line(row) for row in rows)
     if not rows:
         lines.append('No current structured conditions.')
-    if omitted:
-        lines.append(f'{omitted} additional conditions omitted from this bounded display.')
-    rows, omitted = _bounded_rows(thesis.get('prior_conditions'))
+    rows = _condition_rows(thesis.get('prior_conditions'))
     if rows:
         lines.append('Prior condition observations and dispositions:')
     for row in rows:
@@ -589,8 +585,6 @@ def render_thesis(thesis) -> str:
                      f"observed {_display(row.get('observed_value'), 100)} on {_display(row.get('observed_date'), 20)}; "
                      f"disposition {_display(row.get('disposition', 'unknown'), 30)}. "
                      f"Reason (unvalidated research): {_display(row.get('disposition_reason') or 'reason not supplied')}.")
-    if omitted:
-        lines.append(f'{omitted} additional prior conditions omitted from this bounded display.')
     warnings = thesis.get('warnings')
     if isinstance(warnings, list):
         visible = [warning for warning in warnings if isinstance(warning, str) and 'stated but not retained' in warning]

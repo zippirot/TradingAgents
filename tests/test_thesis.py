@@ -169,12 +169,14 @@ def test_current_render_discloses_missing_reason_and_truncates_unvalidated_text(
     assert prior['version_id'] in rendered
 
 
-def test_render_bounds_conditions_and_handles_absent_thesis():
+def test_render_preserves_all_retained_conditions_and_handles_absent_thesis():
     assert 'unavailable' in thesis.render_prior_thesis(None).lower()
-    row = {**condition(), 'condition_id':'condition-example'}
-    rendered = thesis.render_thesis({'conditions':[row]*10,'prior_conditions':[]})
-    assert rendered.count('condition-example') == 8
-    assert '2 additional conditions omitted' in rendered
+    rows = [{**condition(), 'threshold': str(index),
+             'condition_id': f'condition-{index:024x}'} for index in range(10)]
+    rendered = thesis.render_thesis({'conditions':rows,'prior_conditions':[]})
+    assert all(row['condition_id'] in rendered for row in rows)
+    assert rendered.count('condition-') == 10
+    assert 'additional conditions omitted' not in rendered
 
 
 @pytest.mark.parametrize('proposal', [None, 'bad-list', [{'threshold':'NaN'}]])
@@ -288,7 +290,7 @@ def test_kept_but_omitted_condition_is_preserved_with_visible_warning():
     assert next_thesis['warnings']
 
 
-def test_duplicate_dispositions_preserve_prior_and_condition_limit():
+def test_duplicate_dispositions_preserve_prior_without_consuming_new_proposal_slots():
     prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
     prior['observations'] = thesis.observe_conditions(prior,state())
     identifier = prior['conditions'][0]['condition_id']
@@ -296,12 +298,13 @@ def test_duplicate_dispositions_preserve_prior_and_condition_limit():
     item = thesis.prepare_thesis({'conditions':proposals, 'dispositions':[
         {'condition_id':identifier,'disposition':'kept'},
         {'condition_id':identifier,'disposition':'retired'}]},prior,'Hold','2026-11-04',str(uuid4()))
-    assert len(item['conditions']) == 8
+    assert len(item['conditions']) == 9
     assert item['conditions'][0] == prior['conditions'][0]
+    assert {row['threshold'] for row in item['conditions']} == {'100', *map(str, range(8))}
     assert item['prior_conditions'][0]['disposition'] == 'kept'
     assert item['prior_conditions'][0]['disposition_reason'] == 'reason not supplied'
     assert any('Ambiguous' in warning for warning in item['warnings'])
-    assert any('limit' in warning for warning in item['warnings'])
+    assert not any('additional proposals omitted' in warning for warning in item['warnings'])
 
 
 def test_condition_identity_ignores_rationale_and_exact_decimal_spelling():

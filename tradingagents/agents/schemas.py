@@ -320,7 +320,7 @@ class ThesisProposal(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list, max_length=16)
     conditions: list[ThesisCondition] | None = Field(default=None, max_length=8,
         description="Advisory conditions of kind metric (default legacy shape: canonical metric/definition, period, comparison, threshold, unit, basis), price_level (positive completed-close threshold, comparator, instrument quote currency, expiry), or event (observable description, confirming evidence, expiry; no threshold/comparator). Every kind needs rationale and thesis_role. None retains prior conditions; [] explicitly retires them. These are research questions, never trading rules.")
-    dispositions: list[AdvisoryDisposition] = Field(default_factory=list, max_length=8,
+    dispositions: list[AdvisoryDisposition] = Field(default_factory=list,
         description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
 
 
