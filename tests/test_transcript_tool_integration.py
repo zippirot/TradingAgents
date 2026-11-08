@@ -60,9 +60,9 @@ def test_debate_transcript_lookup_labels_unverified_final_citation(monkeypatch):
     state["investment_debate_state"] = {"document_questions": {
         "bull": parse_document_questions('\x60\x60\x60document_questions\n["transcript:capacity"]\n\x60\x60\x60', "bull")}}
     state.update(lookup_document_questions(state))
-    assert state["document_followups"]["results"][0]["status"] == "found"
+    assert state["document_followups"]["results"][0]["status"] == "relevant_passages_found"
     assert "vendor transcript, wording unverified" in document_followup_context(state)
-    assert "source passages retrieved; final-decision citation not verified." in render_document_followups(state, "Hold without a citation")
+    assert "final-decision citation not verified." in render_document_followups(state, "Hold without a citation")
     assert lookup_document_questions(state) == {}
 
 

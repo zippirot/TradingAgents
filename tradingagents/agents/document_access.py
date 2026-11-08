@@ -14,7 +14,11 @@ from pydantic import ValidationError
 
 from tradingagents.dataflows.date_window import resolve_analysis_cutoff
 from tradingagents.dataflows.errors import NoMarketDataError, VendorError
-from tradingagents.dataflows.filing_search import corpus_hash, search_filing_evidence
+from tradingagents.dataflows.filing_search import (
+    corpus_hash,
+    replay_legacy_filing_evidence,
+    search_filing_evidence,
+)
 from tradingagents.dataflows.router import no_data_available
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
@@ -238,6 +242,7 @@ def run_document_search(state, query, *, role: str, call_id: str) -> dict:
         return {"document_search_trace": {key: prior}, "result": dict(prior)}
     result = {
         "query": query, "role": role, "call_id": call_id,
+        "search_version": 3,
         "status": "unavailable", "counted": position < _LIMIT,
         "corpus_hash": corpus_hash(corpus) if corpus else None,
         "passages": [], "gaps": [], "reason": "",
@@ -272,6 +277,9 @@ def _validate_search_trace(trace, corpus):
                 or key != f"{entry['role']}:{entry['call_id']}"
                 or type(entry.get("counted")) is not bool):
             raise ValueError("Malformed document search journal entry")
+        version = entry.get("search_version", 2)
+        if type(version) is not int or version not in {2, 3}:
+            raise ValueError("Unknown document search journal version")
         status = entry.get("status")
         if status not in {"ok", "not_found", "invalid_query", "unavailable", "limit_reached"}:
             raise ValueError("Malformed document search journal status")
@@ -323,7 +331,10 @@ def retained_search_packages(state) -> list[DisclosurePackage]:
         if not entry.get("counted") or entry.get("status") != "ok":
             raise ValueError("Uncounted document search passage")
         try:
-            expected = search_retained_document_sources(state, entry["query"], max_passages=3, max_chars=12000)
+            if entry.get("search_version", 2) == 2 and not entry["query"].casefold().startswith("transcript:"):
+                expected = replay_legacy_filing_evidence(corpus, entry["query"], max_passages=3, max_chars=12000)
+            else:
+                expected = search_retained_document_sources(state, entry["query"], max_passages=3, max_chars=12000)
         except (KeyError, ValueError) as exc:
             raise ValueError("Invalid retained document search query") from exc
         if expected["passages"] != passages:

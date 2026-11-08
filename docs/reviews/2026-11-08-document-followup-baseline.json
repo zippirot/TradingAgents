@@ -1,0 +1,204 @@
+{
+  "stage": "R2 baseline before implementation",
+  "base_staging": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+  "original_state_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+  "corpus_hash": "a6f5f1ce8ecd860523bab7fee4924e75c61a555644bcc787540ce6e85465a0a5",
+  "fixture": "tests/fixtures/docn_2026_11_07/cfae95e9-corpus.json.gz",
+  "questions": [
+    {
+      "role": "bull",
+      "question_id": "bull-1",
+      "query": "What does the 10-Q say caused remaining performance obligations to decline from June 30 to September 30, 2026?",
+      "before_passages": [
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-226",
+          "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9"
+        },
+        {
+          "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+          "locator": "block-221",
+          "passage_hash": "24d1b1acbf1cf255e07410e02360f7d82f480a8e1568e2d8bc6b3726cc2849b0"
+        },
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-223",
+          "passage_hash": "9be78ddb49254b9adddfcb36024e1ea33ee2fe66d9e61d25d657755b146b624b"
+        }
+      ],
+      "before_top": {
+        "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+        "locator": "block-226",
+        "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+        "filing_date": "2026-11-03",
+        "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+        "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "before_top_excerpt": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | |",
+      "before_status": "found"
+    },
+    {
+      "role": "bull",
+      "question_id": "bull-2",
+      "query": "What revolving credit facility and equipment financing capacity was available and undrawn at September 30, 2026?",
+      "before_passages": [
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-226",
+          "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9"
+        },
+        {
+          "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+          "locator": "block-221",
+          "passage_hash": "24d1b1acbf1cf255e07410e02360f7d82f480a8e1568e2d8bc6b3726cc2849b0"
+        },
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-200",
+          "passage_hash": "8f7a294d5f8dcf156eaa34f8f4bda2fe3f7cbebbc43abdb8d496596dd7a0dbf8"
+        }
+      ],
+      "before_top": {
+        "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+        "locator": "block-226",
+        "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+        "filing_date": "2026-11-03",
+        "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+        "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "before_top_excerpt": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | |",
+      "before_status": "found"
+    },
+    {
+      "role": "bear",
+      "question_id": "bear-1",
+      "query": "What reason does the 10-Q give for the decrease in remaining performance obligations, and what portion is expected to be recognized within the next 12 months?",
+      "before_passages": [
+        {
+          "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+          "locator": "block-24",
+          "passage_hash": "2833c879183c1ae9da0ca6a6124bab9a28ca8cb539b69a2524de8b33375c60ec"
+        },
+        {
+          "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+          "locator": "block-149",
+          "passage_hash": "138ac55afd554c77fc163e8e0dcb23dc2f85b87700c1ff9b07e8d93dbe48500f"
+        },
+        {
+          "source_id": "sec-document-aafc402d97499c459f519dac9c0ca7b6288754b680b4b17b7e2af334e48c11ac",
+          "locator": "block-1084",
+          "passage_hash": "4420e091570bf8b9a4126a0a3d4dd9619739a17c25574392193a66363bc37486"
+        }
+      ],
+      "before_top": {
+        "source_id": "sec-document-50c5238792c42c2bf334f42aa055cd50ac35a81abfbd5ee8b35885b46e7f7092",
+        "locator": "block-24",
+        "section": "Document",
+        "filing_date": "2026-11-03",
+        "content_hash": "e5702f82329f857c41a948e957efbcda16c5eaa9132004baec404bfd8669e076",
+        "passage_hash": "2833c879183c1ae9da0ca6a6124bab9a28ca8cb539b69a2524de8b33375c60ec",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069125/a2026-q3dopressrelease.htm"
+      },
+      "before_top_excerpt": "\u2022Remaining Performance Obligation (\u201cRPO\u201d)(2) was $800 million, of which, $345 million is expected to be recognized over the next 12 months. RPO was $61 million in the third quarter of 2025.",
+      "before_status": "found"
+    },
+    {
+      "role": "bear",
+      "question_id": "bear-2",
+      "query": "What is the year-by-year future payment schedule for finance leases and for leases not yet commenced as of September 30, 2026?",
+      "before_passages": [
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-226",
+          "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9"
+        },
+        {
+          "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+          "locator": "block-223",
+          "passage_hash": "9be78ddb49254b9adddfcb36024e1ea33ee2fe66d9e61d25d657755b146b624b"
+        },
+        {
+          "source_id": "sec-document-83c4f740252e2978ae3107b40cbd06713d4aec34afbdc3cc83fee9445b857804",
+          "locator": "block-218",
+          "passage_hash": "8b07e2148e3e765aded87dbc2d3f6cfbbea1725d7c6cb1a098778d46cfe060b5"
+        }
+      ],
+      "before_top": {
+        "source_id": "sec-document-02d285d6cb4cead34fa7351525a07aded51354a8c97f69833d48f1e35ad54877",
+        "locator": "block-226",
+        "section": "Document ; NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS ; (in thousands, except share and per share amounts) ; Note 9. Finance Leases and Equipment Financing Obligations ; Maturities of finance lease liabilities and equipment financing obligations as of September 30, 2026 were as follows:",
+        "filing_date": "2026-11-03",
+        "content_hash": "a1270eb5c1bd3afa9edf7aa5735abc55f4dadab3aeda7ac7c1b513f31510460a",
+        "passage_hash": "cd6afdf20ab88b5feb9b80da2a4055ac5fb22a13238a13cf2027250ccceb7ee9",
+        "url": "https://www.sec.gov/Archives/edgar/data/1582961/000162828026069141/docn-20260930.htm"
+      },
+      "before_top_excerpt": "| | | | | | | | | | | | | | | | | ; ; | Finance Leases | | Equipment Financing Obligations | | Total ; 2026 | $ | 56,696 | | | $ | 13,732 | | | $ | 70,428 | ; 2027 | 192,716 | | | 57,309 | | | 250,025 | ; 2028 | 191,904 | | | 57,198 | | | 249,102 | ; 2029 | 191,855 | | | 53,364 | | | 245,219 | ; 2030 | 145,125 | | | 19,613 | | | 164,738 | ; 2031 | 67,769 | | | 11,895 | | | 79,664 | ; ; Total undiscounted finance lease liabilities and equipment financing obligations | $ | 846,065 | | | $ | 213,111 | | | $ | 1,059,176 | ; Less: Imputed interest | (109,886) | | | (25,691) | | | (135,577) | ; Total present value of finance lease liabilities and equipment financing obligations | $ | 736,179 | | |",
+      "before_status": "found"
+    }
+  ],
+  "source_input_only": true,
+  "no_paid_calls": true,
+  "original_input_unchanged": true,
+  "baseline_checks": {
+    "focused_tests": 32,
+    "result": "passed",
+    "seconds": 2.29,
+    "log": "/tmp/r2-baseline-focused.log"
+  },
+  "R1_integration": {
+    "stage": "R1 staging integration complete; exact-published-SHA CI passed all seven jobs",
+    "authority": "User 24-hour advance approval, recorded 2026-11-08T05:20:03Z, expires 2026-11-09T05:20:03Z; verification and review gates preserved",
+    "previous_staging": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
+    "feature_and_published_staging": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+    "integration": "Local staging atomic update from exact confirmed baseline; push origin staging succeeded; remote readback matched",
+    "production_unchanged": "9ade69bf155d1b25699d3aecfff3c1b07752aff0",
+    "worktree": "/Users/zipp/.codex/worktrees/evidence-assembly/TradingAgents",
+    "feature_branch": "codex/evidence-assembly",
+    "worktree_clean": true,
+    "independent_audit": "707b0bd1-3db6-4bab-b414-fd1d22148a74 completed, zero Critical/High/Medium, three verified nonmaterial Low observations retained",
+    "ci_run_id": 42457304605,
+    "ci_url": "https://github.com/zippirot/TradingAgents/actions/runs/42457304605",
+    "ci_status": "completed_success",
+    "later_builds_started": false,
+    "limitations": "No production promotion, stable-app installation, Machine1 acceptance or later live baseline performed. This post-audit integration receipt was not supplied in the frozen reviewer context.",
+    "ci_jobs": [
+      {
+        "conclusion": "success",
+        "name": "tests (py3.12, America/New_York)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "tests (py3.14, UTC)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "clean-install smoke",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "tests (py3.11, UTC)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "tests (py3.13, UTC)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "tests (py3.12, UTC)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "ruff (strict, full repo)",
+        "status": "completed"
+      }
+    ]
+  }
+}

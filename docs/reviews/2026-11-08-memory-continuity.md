@@ -157,3 +157,7 @@ Original independent report below is immutable audit output with its stated froz
   "stop_reason": "reviewer_completed"
 }
 ```
+
+Explicit R2 integration into R4: fresh fetch confirmed canonical staging `ccecd32599fe63754e2b2c4de3f17fac88139b2c` with all7 exact-SHA CI checks passed, production unchanged `9ade69bf155d1b25699d3aecfff3c1b07752aff0`. R4 correction parent is `52718fa206cb2be0ec985bb9535451c6735ecff6`. A real merge of confirmed staging into this feature branch, preserving both histories, had one textual conflict in the historical Build2 offline signature adapter. Resolution preserves all original-only mappings: source brief5→3, advisory thesis3→2, document search3→2, follow-up3→2, and removal of the old operational-delivery token only inside the historical fixture. Production retains advisory_thesis3/document_search3/document_followup3, so it does not resume old checkpoints. No application-source conflict occurred, and no reset/rebase was used.
+
+Combined focused checks on this merge content:60 passed,2 unavailable-private-input tests skipped in13.45s (`/tmp/r4-r2-combined-focused.log`); complete default Ruff and diff check passed. Original source/budget/pending-node/role assertions in the historical native continuation are unchanged and pass. Full suite and fresh affected native proofs on the committed combined candidate remain next; no current independent material closure is claimed yet.

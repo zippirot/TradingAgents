@@ -67,3 +67,18 @@ def test_filing_brief_version_separates_predecessor_checkpoint_identity():
     for version in (3, 4):
         predecessor = current.replace("shared_source_brief=5", f"shared_source_brief={version}")
         assert thread_id("DOCN", "2026-11-06", current) != thread_id("DOCN", "2026-11-06", predecessor)
+
+
+def test_retrieval_semantics_separate_predecessor_checkpoint_identity():
+    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.graph.checkpointer import thread_id
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = dict(DEFAULT_CONFIG)
+    graph.selected_analysts = ["fundamentals"]
+    current = graph._run_signature("stock")
+    assert "document_search=3" in current and "document_followup=3" in current
+    old = current.replace("document_search=3", "document_search=2").replace(
+        "document_followup=3", "document_followup=2")
+    assert thread_id("DOCN", "2026-11-06", current) != thread_id("DOCN", "2026-11-06", old)
