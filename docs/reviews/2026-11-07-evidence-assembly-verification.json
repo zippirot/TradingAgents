@@ -1,0 +1,99 @@
+{
+  "stage": "R1 local feature pre-audit acceptance; independent audit and closure pending",
+  "baseline_staging": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
+  "full_suite_commit": "ffb7f44e3b816b1d1e338a01ad88b3f10092509b",
+  "native_proof_commit": "9cf9b6839361109552a778bd65394421ba226635",
+  "commands": {
+    "pytest": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python -m pytest -q",
+    "ruff": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/ruff check .",
+    "source_proof": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python docs/reviews/evidence-assembly-proof.py",
+    "cli_proof": "/Users/zipp/Documents/ChatGPT/Tauric/TradingAgents/.venv/bin/python docs/reviews/operations-cli-proof.py"
+  },
+  "environment": {
+    "python": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.0.0 (clang-2100.0.123.102)]",
+    "platform": "macOS-26.5.1-arm64-arm-64bit"
+  },
+  "full_suite": {
+    "exit_code": 0,
+    "passed": 3445,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests": 100,
+    "seconds": 64.3
+  },
+  "ruff": "passed full repository",
+  "diff_check": "passed",
+  "source_test_proof_oids": {
+    "ffb7f44e3b816b1d1e338a01ad88b3f10092509b": {
+      "tradingagents": "4a02896f3b81f022473ed4e5a19378f69240dff3",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "0208c9dfb2f24ec66d26a34c77347191c1cfdb1c",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/evidence-assembly-proof.py": "35b04d4d1ba345b0bbdedb3fb6197598946ccc55",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+    },
+    "9cf9b6839361109552a778bd65394421ba226635": {
+      "tradingagents": "4a02896f3b81f022473ed4e5a19378f69240dff3",
+      "cli": "9edfbf73b9fe38ee2604df4ef2a916e788c77836",
+      "tests": "eb533a265a63168bddf4ccdad52bdae50d2b37a2",
+      "tests/fixtures/docn_2026_11_07": "407a9a8abd8d459b2be53aa528073136df6c39ea",
+      "docs/reviews/evidence-assembly-proof.py": "35b04d4d1ba345b0bbdedb3fb6197598946ccc55",
+      "docs/reviews/operations-cli-proof.py": "aa44fb91fbfaa38bef830a07f72bad56d82a0f82",
+      "pyproject.toml": "70dcce013d178be8fea4af7e5755a367438f398c"
+    }
+  },
+  "native_evidence_reuse": "Application, CLI, fixture source bytes, proof scripts and pyproject identical; only one checkpoint-version expectation test differs. Full suite actually ran on full_suite_commit; native proofs actually ran on native_proof_commit. No combined-revision full-suite claim.",
+  "logs": {
+    "/tmp/r1-ffb7f44e-full-pytest.log": {
+      "sha256": "acf565853877e0e582cfcf95f465fa8add3b649c80e92e04f7e8260f841c12b0",
+      "bytes": 12142
+    },
+    "/tmp/r1-9cf9b683-source-proof.json": {
+      "sha256": "ba6598c6929d75608f2a4723734fa4e2853109d487b5abeb38cfd32695ce7de6",
+      "bytes": 3429
+    },
+    "/tmp/r1-9cf9b683-source-proof.stderr": {
+      "sha256": "50b4a8e5cedc39f819dd244da41040ed1df7d7e6bb6e87fbde6f007322b08ada",
+      "bytes": 102
+    },
+    "/tmp/r1-9cf9b683-cli-proof.json": {
+      "sha256": "4d987c7de79b1e0008ea343f2a6fed4957765ec3c262544980535bf211f43ffb",
+      "bytes": 11379
+    },
+    "/tmp/r1-9cf9b683-cli-proof.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "/tmp/r1-checkpoint-correction-focused.log": {
+      "sha256": "1a3399f2165eb8efb79415478e1c18eb3cf639bb9b534c67e51629d5bd725454",
+      "bytes": 100
+    },
+    "/tmp/r1-all-version-contracts.log": {
+      "sha256": "70d81aba6a53a63ed6bb37f5f05f8e2ee044ec8b0d6a4953380077d0fc8da7a6",
+      "bytes": 99
+    },
+    "/tmp/r1-stable-focused.log": {
+      "sha256": "48e73b4a44f59663b330f4e8b4e0b8ba3c4d58bc942b647de8daf01c4dd4d9c1",
+      "bytes": 581
+    },
+    "/tmp/r1-provider-precision-final.log": {
+      "sha256": "76eebe403ad0b4417a66ea137d7be6389013f26a429c2daf069f03ef2121d93e",
+      "bytes": 99
+    }
+  },
+  "source_only_fixture_manifest_sha256": "d33587df2f6dd3c01c2e3fdc36bfa15da9d6d082318ad510333d67760c840a8f",
+  "independent_audit": {
+    "required": true,
+    "model_override": "~anthropic/claude-fable-latest",
+    "status": "not_started"
+  },
+  "limitations": [
+    "Default optional Bedrock/private-source skips retained; integration marker deselected.",
+    "Native SDK/Yahoo/SEC/model responses substituted as disclosed in receipts; no paid product/provider calls.",
+    "R1 source/evidence nodes execute directly; separate existing native CLI proof exercises compiled graph/publication/memory/restart/replay with market selection.",
+    "R1 branch is local and unpushed; exact R1 remote CI and staging integration await separate approval after independent closure.",
+    "Stable release, production mutation, Machine 1 acceptance and later builds are outside this local stage."
+  ]
+}
