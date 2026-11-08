@@ -1,4 +1,5 @@
 import hashlib
+import json
 from datetime import UTC, date, datetime
 
 import pytest
@@ -17,6 +18,124 @@ from tradingagents.dataflows.vendors.sec_documents import (
     FilingReference,
     SourceBlock,
 )
+
+
+def _queries(state, bull, bear):
+    for role, values in (("bull", bull), ("bear", bear)):
+        state["investment_debate_state"]["document_questions"][role] = parse_document_questions(
+            "```document_questions\n" + json.dumps(values) + "\n```", role,
+        )
+
+
+def test_unrelated_passages_are_not_reported_as_relevant():
+    state = state_with_corpus()
+    _queries(state, ["remaining performance obligations customer utilization"], ["RPO 12 months"])
+    state.update(lookup_document_questions(state))
+    first, second = state["document_followups"]["results"]
+    assert first["passages"]  # diagnostic partial matches are retained, not called relevant
+    assert first["status"] == "no_relevant_passage"
+    assert second["status"] == "relevant_passages_found"
+
+
+def test_retrieval_never_reports_answered():
+    state = state_with_corpus()
+    state.update(lookup_document_questions(state))
+    assert {r["status"] for r in state["document_followups"]["results"]} <= {
+        "relevant_passages_found", "no_relevant_passage", "unavailable", "invalid_query",
+    }
+    assert all("answered" not in r for r in state["document_followups"]["results"])
+
+
+def test_card_shows_retrieval_status_without_rm_judgment():
+    from tradingagents.reporting import _report_parts
+
+    state = state_with_corpus()
+    state.update(lookup_document_questions(state))
+    state["final_trade_decision"] = "Hold; source interpretation remains unvalidated."
+    portfolio = next(part for part in _report_parts(state) if part[1] == "5_portfolio")
+    text = "\n".join(row[2] for row in portfolio[2])
+    assert "relevant_passages_found" in text and "no_relevant_passage" in text
+    assert "RM answer judgment unavailable" in text
+    assert "passage(s)" not in text and "passages retrieved" not in text
+
+
+def test_duplicate_rpo_questions_use_one_slot(monkeypatch):
+    import tradingagents.agents.document_questions as module
+
+    state = state_with_corpus()
+    _queries(state, ["What does RPO say for the next 12 months?"],
+             ["What do remaining performance obligations say for the next 12 months?"])
+    calls = []
+    search = module.search_retained_document_sources
+    def capture(*args, **kwargs):
+        calls.append(args[1])
+        return search(*args, **kwargs)
+    monkeypatch.setattr(module, "search_retained_document_sources", capture)
+    state.update(lookup_document_questions(state))
+    assert len(calls) == 1
+    results = state["document_followups"]["results"]
+    assert [r["question_id"] for r in results] == ["bull-1", "bear-1"]
+    assert results[1]["duplicate_of"] == "bull-1"
+    assert results[0]["passages"] == results[1]["passages"]
+    assert lookup_document_questions(state) == {}
+
+
+def test_followup_context_has_no_repeated_passage():
+    state = state_with_corpus()
+    _queries(state, ["RPO"], ["remaining performance obligations 12 months"])
+    state.update(lookup_document_questions(state))
+    text = document_followup_context(state)
+    assert text.count("Remaining performance obligations: 12 months $100.") == 1
+    assert "bull-1" in text and "bear-1" in text
+
+
+def test_opposite_or_different_instrument_questions_do_not_share_lookup(monkeypatch):
+    import tradingagents.agents.document_questions as module
+
+    state = state_with_corpus()
+    _queries(state, ["finance leases commenced", "2026 Convertible Notes"],
+             ["finance leases not yet commenced", "2030 Convertible Notes"])
+    calls = []
+    search = module.search_retained_document_sources
+    def capture(*args, **kwargs):
+        calls.append(args[1])
+        return search(*args, **kwargs)
+    monkeypatch.setattr(module, "search_retained_document_sources", capture)
+    state.update(lookup_document_questions(state))
+    assert len(calls) == 4
+    assert all(r["duplicate_of"] is None for r in state["document_followups"]["results"])
+
+
+def test_relevance_is_revalidated_even_after_record_is_resealed():
+    from tradingagents.agents.document_questions import _digest
+
+    state = state_with_corpus()
+    _queries(state, ["RPO customer utilization"], [])
+    state.update(lookup_document_questions(state))
+    record = state["document_followups"]
+    record["results"][0]["status"] = "relevant_passages_found"
+    record["record_hash"] = _digest({k: v for k, v in record.items() if k != "record_hash"})
+    with pytest.raises(ValueError, match="relevance|status"):
+        lookup_document_questions(state)
+
+
+def test_legacy_snapshot_is_reused_without_rewriting_or_inventing_relevance():
+    from tradingagents.agents.document_questions import _digest
+
+    state = state_with_corpus()
+    state.update(lookup_document_questions(state))
+    record = state["document_followups"]
+    record["schema_version"] = 1
+    for result in record["results"]:
+        result.pop("lookup_query")
+        result.pop("duplicate_of")
+        result["status"] = "found" if result["passages"] else "not_found"
+    record["record_hash"] = _digest({k: v for k, v in record.items() if k != "record_hash"})
+    before = json.dumps(record, sort_keys=True)
+    assert lookup_document_questions(state) == {}
+    assert "legacy_relevance_not_assessed" in render_document_followups(state)
+    assert "relevant_passages_found" not in render_document_followups(state)
+    assert json.dumps(record, sort_keys=True) == before
 
 
 def state_with_corpus():
@@ -93,9 +212,9 @@ def test_lookup_retains_exact_passages_and_not_found_distinction():
     assert len(record["results"]) == 3
     assert record["corpus_hash"] == state["document_sources"]["corpus_hash"]
     lease = record["results"][0]
-    assert lease["status"] == "found"
+    assert lease["status"] == "relevant_passages_found"
     assert lease["passages"][0]["citation_ref"] == lease["passages"][0]["source_id"] + "#block-1"
-    assert record["results"][2]["status"] == "not_found"
+    assert record["results"][2]["status"] == "no_relevant_passage"
     assert record["results"][2]["reason"] == "not found in retained filings"
     assert sum(len(p["text"]) for r in record["results"] for p in r["passages"]) <= 4 * 12000
 
@@ -124,11 +243,12 @@ def test_context_and_report_require_actual_pm_reference():
     assert ref in context
     assert "not found in retained filings" in context
     unresolved = render_document_followups(state, "No citation")
-    assert 'source passages retrieved; final-decision citation not verified.' in unresolved
+    assert "final-decision citation not verified." in unresolved
+    assert "RM answer judgment unavailable" in unresolved
     assert ref not in unresolved
     cited = render_document_followups(state, "I considered " + ref)
     assert ref in cited
-    assert "cited" in cited
+    assert "Cited in final decision" in cited
     assert "not found in retained filings" in cited
 
 def test_lookup_unavailable_source_and_legacy_no_questions():
@@ -172,7 +292,7 @@ def test_named_note_no_match_reason_is_visible_in_followup_report():
     )
     state.update(lookup_document_questions(state))
     result = state["document_followups"]["results"][0]
-    assert result["status"] == "not_found"
+    assert result["status"] == "no_relevant_passage"
     assert "no passage names the 2026 Convertible Notes" in result["reason"]
     assert "no passage names the 2026 Convertible Notes" in render_document_followups(state)
 
@@ -196,7 +316,7 @@ def test_partial_named_note_coverage_is_visible_even_with_a_found_passage():
     )
     state.update(lookup_document_questions(state))
     result = state["document_followups"]["results"][0]
-    assert result["status"] == "found"
+    assert result["status"] == "no_relevant_passage"
     assert "no passage names the 2026 Convertible Notes" in result["gaps"]
     assert "no passage names the 2026 Convertible Notes" in render_document_followups(state)
     assert "no passage names the 2026 Convertible Notes" in document_followup_context(state)
@@ -224,7 +344,7 @@ def test_partial_named_note_omission_is_visible_without_claiming_absence(truncat
     )
     state.update(lookup_document_questions(state))
     result = state["document_followups"]["results"][0]
-    assert result["status"] == "found"
+    assert result["status"] == "no_relevant_passage"
     expected = "incomplete source block omitted" if truncated else "passage omitted by search size limit"
     assert f"2026 Convertible Notes: {expected}" in result["gaps"]
     assert f"2026 Convertible Notes: {expected}" in render_document_followups(state)

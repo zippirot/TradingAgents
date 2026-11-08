@@ -3,7 +3,12 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from tradingagents.dataflows.filing_search import corpus_hash, search_filing_evidence
+from tradingagents.dataflows.filing_search import (
+    corpus_hash,
+    passage_matches_query,
+    query_content_terms,
+    search_filing_evidence,
+)
 from tradingagents.dataflows.vendors.sec_documents import (
     DisclosurePackage,
     FilingDocument,
@@ -145,3 +150,72 @@ def test_named_notes_prefer_latest_eligible_filing_and_respect_cutoff_and_issuer
     assert search_filing_evidence(future, query)["passages"] == []
     wrong = old.model_copy(update={"cik": "0000000001"})
     assert search_filing_evidence(wrong, query)["passages"] == []
+
+
+def test_question_shaped_rpo_queries_rank_q3_note_above_lease_and_release():
+    from tests.docn_workflow_fixture import source_json
+
+    package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
+    questions = (
+        "What does the 10-Q say caused remaining performance obligations to decline "
+        "from June 30 to September 30, 2026?",
+        "What reason does the 10-Q give for the decrease in remaining performance "
+        "obligations, and what portion is expected to be recognized within the next 12 months?",
+    )
+    for question in questions:
+        first = search_filing_evidence(package, question)["passages"][0]
+        assert first["locator"] == "block-148"
+        assert first["filing_accession"] == "0001628280-26-069141"
+        assert "$799,707" in first["text"]
+        assert "$345,111" in first["text"]
+
+
+def test_docn_keyword_queries_still_find_rpo_and_uncommenced_leases():
+    from tests.docn_workflow_fixture import source_json
+
+    package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
+    assert search_filing_evidence(package, "remaining performance obligations next 12 months")["passages"][0]["locator"] == "block-148"
+    assert search_filing_evidence(package, "leases not yet commenced")["passages"][0]["locator"] == "block-218"
+
+
+def test_content_terms_and_relevance_use_body_with_meaningful_constraints():
+    assert query_content_terms("What does the 10-Q say about RPO from June 30, 2026?") == (
+        "remaining", "performance", "obligations",
+    )
+    assert query_content_terms("2026 Convertible Notes") == ("2026", "convertible", "notes")
+    assert query_content_terms("next 12 months") == ("next", "12", "months")
+    assert query_content_terms("2026") == ("2026",)
+    assert passage_matches_query("RPO next 12 months", "Remaining performance obligation is due over the next 12 months.")
+    assert not passage_matches_query("RPO decline next 12 months", "Remaining performance obligations are due over the next 12 months.")
+    assert not passage_matches_query("not yet commenced leases", "Lease commitments have commenced.")
+
+
+def test_date_only_queries_keep_month_day_and_year():
+    assert query_content_terms("June 30, 2026") == ("june", "30", "2026")
+    assert query_content_terms("June") == ("june",)
+    assert query_content_terms("2026") == ("2026",)
+
+
+def test_mixed_queries_drop_iso_slash_and_day_first_dates():
+    expected = ("remaining", "performance", "obligations", "decline")
+    assert query_content_terms("RPO decline from 2026-06-30 to 2026-09-30") == expected
+    assert query_content_terms("RPO decline from 2026/06/30 to 2026/09/30") == expected
+    assert query_content_terms("RPO decline from 30 June 2026 to 30 September 2026") == expected
+    assert query_content_terms("2026-06-30") == ("2026", "06", "30")
+    assert query_content_terms("30 June 2026") == ("30", "june", "2026")
+    assert query_content_terms("2026 Convertible Notes next 12 months") == (
+        "2026", "convertible", "notes", "next", "12", "months",
+    )
+
+
+def test_recorded_rpo_question_with_iso_dates_still_ranks_q3_note_first():
+    from tests.docn_workflow_fixture import source_json
+
+    package = DisclosurePackage.model_validate(source_json("cfae95e9-corpus.json.gz"))
+    query = (
+        "What does the 10-Q say caused remaining performance obligations to decline "
+        "from 2026-06-30 to 2026-09-30?"
+    )
+    first = search_filing_evidence(package, query)["passages"][0]
+    assert first["locator"] == "block-148"
+    assert first["filing_accession"] == "0001628280-26-069141"
