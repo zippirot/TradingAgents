@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 DEFAULT_MAX_REQUESTS = 192
 DEFAULT_MAX_SECONDS = 14400
 DEFAULT_MAX_TOKENS = 25_000_000
@@ -865,7 +865,19 @@ def _validate_claim(raw, chunk, sources):
             raise ValueError("invalid source reference")
         source = sources.get((ref.get("source_id"), ref.get("locator")))
         excerpt = ref.get("quote")
-        if source is None or not isinstance(excerpt, str) or not excerpt.strip() or excerpt not in source["text"]:
+        field = ref.get("field", "text")
+        if not isinstance(field, str) or field not in {"text", "section"}:
+            raise ValueError("invalid source reference field")
+        if source is None:
+            raise ValueError("source quote or locator not present")
+        if field == "section":
+            context = source.get("context") or {}
+            field_text = context.get("source_section") if isinstance(context, dict) else None
+            if source.get("kind") != "filing passage" or not isinstance(field_text, str) or not field_text.strip():
+                raise ValueError("section field requires retained primary filing section text")
+        else:
+            field_text = source["text"]
+        if not isinstance(excerpt, str) or not excerpt.strip() or excerpt not in field_text:
             raise ValueError("source quote or locator not present")
         if (source.get("kind") == "reproduced valuation reference"
                 and outcome in {"supported", "contradicted"} and not _valuation_reference_basis_matches(quote)):
@@ -876,10 +888,13 @@ def _validate_claim(raw, chunk, sources):
         if (source.get("kind", "").startswith("retained target declaration")
                 and not _target_declaration_claim(quote, source, outcome)):
             raise ValueError("Retained target declaration supports only the validated report declaration, not financial or forecast truth")
-        evidence.append({"source_id": source["source_id"], "locator": source["locator"],
+        original_locator = source.get("original_locator") or source["locator"]
+        evidence.append({"source_id": source["source_id"],
+                         "locator": original_locator + "#section" if field == "section" else source["locator"],
                          "quote": excerpt, "url": source["url"], "known_at": source["known_at"],
                          "kind": source["kind"], "context": _source_context(source),
-                         **{key: source[key] for key in ("original_locator", "source_character_start", "source_character_end") if key in source}})
+                         **({"source_field": "section", "original_locator": original_locator} if field == "section" else
+                            {key: source[key] for key in ("original_locator", "source_character_start", "source_character_end") if key in source})})
     if outcome in {"supported", "contradicted"} and not evidence:
         raise ValueError("source-backed outcome needs evidence")
     if (outcome == "supported" and _accounting_treatment_assertion(quote)
@@ -955,7 +970,11 @@ def _review_prompt(chunk, sources):
         "(supported, contradicted, unsupported, hypothesis), explanation, decision_material (boolean), "
         "and the following source references. Quote a complete sentence or table row to identify its "
         "occurrence uniquely. Do not use a bare repeated amount as the quotation. "
-        "evidence (list of source_id, locator, quote copied exactly from source text). "
+        "evidence (list of source_id, locator, quote, and optional field: text or section). "
+        "The default field is text and quotations must match source.text exactly. For a primary filing "
+        "passage only, field section quotes exact retained context.source_section instead. Keep the listed "
+        "source_id and locator unchanged and explicitly add field section; do not invent a paragraph "
+        "locator or cite section words as default text. Other context fields are not citable. "
         "Only source_id and locator pairs listed in SUPPLIED SOURCES are citable. The REPORT CHUNK "
         "is the object being checked: report filenames, chunk IDs and offsets are not source records. "
         "Never cite the report chunk itself or invent an identifier for an internal report assumption. "
@@ -1526,7 +1545,9 @@ def _render_reassessment_history(history):
                       + "; known at: " + literal(source.get("known_at") or "unknown") + "."]
             if source.get("context"):
                 lines.append("  Retained units, periods and qualifiers: " + literal(_json(source["context"])))
-            if source.get("original_locator"):
+            if source.get("source_field") == "section":
+                lines.append("  Source field: section. Original source field: " + literal(source["original_locator"] + ".section"))
+            elif source.get("original_locator"):
                 lines.append("  Original source location: " + literal(source["original_locator"])
                              + "; characters " + literal(source.get("source_character_start", "unknown"))
                              + " to " + literal(source.get("source_character_end", "unknown")) + ".")
@@ -1604,7 +1625,9 @@ def render_audit(record):
                          + "; known at: " + _prose(evidence.get("known_at") or "unknown") + ".")
             if evidence.get("context"):
                 lines.append("  Source qualifiers: " + _prose(_json(evidence["context"])))
-            if evidence.get("original_locator"):
+            if evidence.get("source_field") == "section":
+                lines.append("  Source field: section. Original source field: " + _prose(evidence["original_locator"] + ".section"))
+            elif evidence.get("original_locator"):
                 lines.append("  Original source location: " + _prose(evidence["original_locator"])
                              + "; characters " + _prose(evidence.get("source_character_start", "unknown"))
                              + " to " + _prose(evidence.get("source_character_end", "unknown")) + ".")
