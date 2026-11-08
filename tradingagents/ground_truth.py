@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 DEFAULT_MAX_REQUESTS = 192
 DEFAULT_MAX_SECONDS = 14400
 DEFAULT_MAX_TOKENS = 25_000_000
@@ -804,6 +804,35 @@ def _source_context(source):
     return context
 
 
+def _valuation_reference_basis_matches(quote):
+    """Scope the fixed equity/trailing adapter; never infer an ambiguous basis.
+
+    Dates/share windows remain ordinary model-assessed claims. A numerical
+    multiple needs both its numerator and denominator in the report quotation;
+    unrelated matching words cannot authorize a mixed EV/forward comparison.
+    This establishes source applicability only, not semantic truth.
+    """
+    # A separate, correctly scoped clause must not lend its basis to an
+    # ambiguous multiple elsewhere. Keep shared ranges within one clause.
+    clauses = re.split(r";|\n|(?<=[.!?])\s+(?=[A-Z*])", quote)
+    for clause in clauses:
+        ratio = bool(re.search(
+            r"\d[\d,.]*\s*(?:×|x\b|times\b)|"
+            r"\b(?:multiple|median|ratio)\s*(?:(?:is|was|of|at|equals?)\s+|[:=]\s*)?"
+            r"(?:(?:about|approximately)\s+)?\d+(?:\.\d+)?(?![\d/-]|\.\d)|"
+            r"\b(?:EV|enterprise[ -]+value|equity(?:[ -]+value)?|market[ -]+cap(?:italization)?)"
+            r"\s*/[^.;\n]{0,80}\b(?:revenue|sales)\s*(?:(?:is|was|of|at|equals?)\s+|[:=]\s*)\d", clause, re.I))
+        if not ratio:
+            continue
+        if re.search(r"\b(?:EV|enterprise(?:[ -]+value)?|forward|guidance|outlook)\b", clause, re.I):
+            return False
+        numerator = r"\b(?:equity(?:[ -]+value)?|market[ -]+cap(?:italization)?)\b"
+        denominator = r"\b(?:TTM|trailing(?:[ -]+(?:twelve|12)[ -]+months?)?)[ -]+(?:revenue|sales)\b"
+        if not re.search(numerator + r"\s*(?:/|divided[ -]+by|to)\s*" + denominator, clause, re.I):
+            return False
+    return True
+
+
 def _validate_claim(raw, chunk, sources):
     if not isinstance(raw, dict):
         raise ValueError("claim must be an object")
@@ -824,6 +853,9 @@ def _validate_claim(raw, chunk, sources):
         excerpt = ref.get("quote")
         if source is None or not isinstance(excerpt, str) or not excerpt.strip() or excerpt not in source["text"]:
             raise ValueError("source quote or locator not present")
+        if (source.get("kind") == "reproduced valuation reference"
+                and outcome in {"supported", "contradicted"} and not _valuation_reference_basis_matches(quote)):
+            raise ValueError("Reproduced valuation reference requires an explicit matching equity/trailing revenue ratio basis")
         if (source.get("kind", "").startswith("retained report context")
                 and outcome in {"supported", "contradicted"} and not _brief_scope_claim(quote)):
             raise ValueError("Retained brief context can support only claims about that brief's contents")
@@ -933,7 +965,12 @@ def _review_prompt(chunk, sources):
         "label and value, including Markdown when present; never omit a final nonnumeric decision field. "
         "Check material counts in headings (e.g. eight indicators) while excluding list/heading ordinals. "
         "Forecasts can be hypotheses with verified premises. Recorded vendor outputs only support "
-        "accurate attribution, not independent truth. Retained report context can establish what the "
+        "accurate attribution, not independent truth. The reproduced valuation reference has the fixed "
+        "equity value / trailing revenue basis. A source-backed numerical multiple using that reference "
+        "must explicitly state the same numerator/denominator basis in the report quotation; an "
+        "ambiguous, EV, forward or mixed-basis quotation needs qualification or different appropriate "
+        "evidence. Never replace one ratio basis with another. Keep the exact report quotation unchanged; "
+        "do not manufacture a scoped quotation to pass validation. Retained report context can establish what the "
         "retained brief contains, but cannot establish the underlying truth of a financial assertion. "
         "Cite that context only for claims explicitly about the brief's contents. Retained target declaration "
         "controls establish only what this run declares about its target, including a missing target; they "
