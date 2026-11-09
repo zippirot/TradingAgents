@@ -65,7 +65,7 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492`, `54ba3133`, `0cbaaa45` and `4f0791c0` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4089 passed, 10 skipped, 1 deselected on `4f0791c0`. The final commit, which sorts the imports of `tests/test_action_aware_trader.py` so that `ruff check` is clean, was run through full `pytest -q` and `ruff check` after committing, with the same counts. That one-line import change was not re-audited.
+Verification (builder-run): full `pytest -q` 4089 passed, 10 skipped, 1 deselected on `4f0791c0`. The final commit, which sorts the imports of `tests/test_action_aware_trader.py` so that `ruff check` is clean, was run through full `pytest -q` and `ruff check` after committing, with the same counts. The closing audit of the final head, including that import change, is recorded outside the repository in `~/Claude/audits/docs/superpowers/audits/2026-11-09-build-w-reaudit-6/`, so recording its result does not move the audited commit.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
