@@ -27,6 +27,7 @@ from copy import deepcopy
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Literal
 
 import requests
 
@@ -283,29 +284,66 @@ def _eligible_records(facts: dict, tag: str, cutoff: date,
     }
 
 
+# Peer statistics read the latest four quarters and the four before them, so
+# every period they can consume ends within 24 months of the newest one.
+_PEER_CONSUMED_METRICS = {"Revenue", "Gross Profit", "Common Shares Outstanding"}
+_PEER_STATISTICS_MONTHS = 24
+
+
+def _peer_exclusion_floor(facts: dict, tags: tuple[str, ...], cutoff: date, spans, allowed_ends: set[str],
+                          period_floor: date | None) -> str | None:
+    ends = [key[0] for tag in tags
+            for key in _eligible_records(facts, tag, cutoff, spans, (), allowed_ends, period_floor)]
+    if not ends:
+        return date.max.isoformat()  # Annual-only filer: statistics read no period of this metric.
+    newest = date.fromisoformat(max(ends))
+    months = newest.year * 12 + newest.month - 1 - _PEER_STATISTICS_MONTHS
+    return date(months // 12, months % 12 + 1, 1).isoformat()
+
+
 def _as_of_records(facts: dict, tags: tuple[str, ...], as_of_date: str,
                    spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = (),
-                   *, allowed_ends: set[str] | None = None, period_floor: date | None = None) -> dict:
+                   *, allowed_ends: set[str] | None = None, period_floor: date | None = None,
+                   ambiguity: Literal["raise", "exclude"] = "raise",
+                   exclude_before: str | None = None, excluded: list[str] | None = None) -> dict:
     """Select consolidated facts with their original filing context and exact value.
 
     Tag preference is applied per period, never summed. Reject ambiguity rather
     than let JSON ordering choose a currency, duration or contradictory value.
     A recast can come from any form, but an annual period must have been reported
     in an annual filing with the same start date and unit by the cutoff.
+
+    With ambiguity="exclude", an ambiguous period ending before exclude_before
+    is dropped and named in excluded. A newer one still raises, because dropping
+    it would silently move the statistic onto an older window.
     """
     cutoff = date.fromisoformat(as_of_date)
     chosen = {}
+
+    def drop(tag: str, end: str) -> bool:
+        if ambiguity != "exclude" or exclude_before is None or end >= exclude_before:
+            return False
+        if excluded is not None:
+            note = f"{tag} ambiguous at {end}; period excluded; not used for peer statistics"
+            if note not in excluded:
+                excluded.append(note)
+        return True
+
     for tag in tags:
         candidates = _eligible_records(facts, tag, cutoff, spans, forms, allowed_ends, period_floor)
         for key, eligible in candidates.items():
             if key in chosen:
                 continue
             if len({(r.get("start"), r["unit"]) for r in eligible}) > 1:
+                if drop(tag, key[0]):
+                    continue
                 raise VendorUnavailableError(f"SEC period or unit ambiguous for {tag} at {key[0]}")
             newest = max(r["filed"] for r in eligible)
             latest = [r for r in eligible if r["filed"] == newest]
             meanings = {(r.get("start"), r["unit"], Decimal(str(r["val"]))) for r in latest}
             if len(meanings) != 1:
+                if drop(tag, key[0]):
+                    continue
                 raise VendorUnavailableError(f"SEC fact ambiguous for {tag} at {key[0]}")
             # Duplicate equivalent facts use a stable accession ordering.
             chosen[key] = max(latest, key=lambda r: str(r.get("accn", "")))
@@ -465,17 +503,22 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     for rows in statements.values():
         for metric, tags in rows:
             try:
+                tolerance = {}
+                if peer_revenue_definitions and metric in _PEER_CONSUMED_METRICS:
+                    tolerance = {"ambiguity": "exclude", "excluded": peer_gaps,
+                                 "exclude_before": _peer_exclusion_floor(facts, tags, cutoff, quarterly_spans,
+                                                                         allowed_quarters, period_floor)}
                 quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
-                                         allowed_ends=allowed_quarters, period_floor=period_floor)
+                                         allowed_ends=allowed_quarters, period_floor=period_floor, **tolerance)
                 annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
-                                        allowed_ends=allowed_annual, period_floor=period_floor)
+                                        allowed_ends=allowed_annual, period_floor=period_floor, **tolerance)
             except VendorUnavailableError as exc:
                 ambiguity = re.fullmatch(
                     r"SEC (?:period or unit|fact) ambiguous for .+ at (\d{4}-\d{2}-\d{2})",
                     str(exc),
                 )
                 if (peer_revenue_definitions and ambiguity
-                        and metric not in {"Revenue", "Gross Profit", "Common Shares Outstanding"}):
+                        and metric not in _PEER_CONSUMED_METRICS):
                     peer_gaps.append(f"{metric} ambiguous at {ambiguity.group(1)}; not used for peer statistics")
                     continue
                 if not metric.startswith("Unclassified Marketable Securities ["):

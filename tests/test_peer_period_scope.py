@@ -148,7 +148,7 @@ def test_peer_fetch_passes_three_calendar_year_floor(monkeypatch):
                       {"peer_revenue_definitions": True, "period_floor": date(2023, 10, 19)})]
 
 
-def test_recorded_nbis_exclusion_names_consumed_revenue_metric(monkeypatch, tmp_path):
+def test_recorded_nbis_old_ambiguous_year_is_excluded_and_disclosed(monkeypatch, tmp_path):
     from tests.docn_workflow_fixture import source_json
 
     mapping = source_json('issuer-map.json.gz')
@@ -156,6 +156,73 @@ def test_recorded_nbis_exclusion_names_consumed_revenue_metric(monkeypatch, tmp_
     monkeypatch.setattr(sec_edgar, 'get_config', lambda: {'data_cache_dir': str(tmp_path)})
     monkeypatch.setattr(sec_edgar, '_cached_json',
                         lambda url, name: mapping if name == 'company_tickers.json' else raw)
-    with pytest.raises(VendorUnavailableError, match='Revenues at 2023-12-31'):
-        sec_edgar.get_financial_evidence('NBIS', '2026-11-07', peer_revenue_definitions=True,
+    package = sec_edgar.get_financial_evidence('NBIS', '2026-11-07', peer_revenue_definitions=True,
+                                               period_floor=date(2023, 11, 7))
+    assert 'Revenues ambiguous at 2023-12-31; period excluded; not used for peer statistics' in package.warnings
+    # NBIS files annually, so there are no quarters to form trailing revenue from.
+    assert not [f for f in package.facts if f.metric == 'Revenue' and f.value is not None
+                and 60 <= (f.period_end - f.period_start).days <= 115]
+
+
+def _annual_conflict(monkeypatch, tmp_path, end):
+    """The NBIS shape: one annual revenue period reported in two currencies."""
+    companyfacts(monkeypatch, tmp_path)
+    gaap = sec_edgar._cached_json()["facts"]["us-gaap"]
+    gaap["Revenues"]["units"]["USD"].append({"start": f"{end[:4]}-01-01", "end": end, "val": 400,
+                                             "filed": "2026-02-01", "form": "10-K", "accn": "usd"})
+    gaap["Revenues"]["units"]["RUB"] = [{"start": f"{end[:4]}-01-01", "end": end, "val": 30000,
+                                         "filed": "2026-02-01", "form": "10-K", "accn": "rub"}]
+    monkeypatch.setattr(sec_edgar, "_cached_json", lambda *args: {"cik": 1, "facts": {"us-gaap": gaap}})
+
+
+def test_peer_ambiguous_old_period_is_excluded_not_fatal(monkeypatch, tmp_path):
+    _annual_conflict(monkeypatch, tmp_path, "2023-12-31")
+    package = sec_edgar.get_financial_evidence("PEER", "2026-11-07", peer_revenue_definitions=True,
+                                               period_floor=date(2023, 11, 7))
+    gap = "Revenues ambiguous at 2023-12-31; period excluded; not used for peer statistics"
+    assert gap in package.warnings
+    assert not [f for f in package.facts if f.metric == "Revenue" and str(f.period_end) == "2023-12-31"]
+    assert len([f for f in package.facts if f.metric == "Revenue" and f.period_start is not None
+                and str(f.period_end) >= "2025-12-31"]) >= 4
+
+
+def test_peer_ambiguity_inside_statistics_window_is_not_dropped(monkeypatch, tmp_path):
+    _annual_conflict(monkeypatch, tmp_path, "2025-12-31")
+    with pytest.raises(VendorUnavailableError, match="Revenues at 2025-12-31"):
+        sec_edgar.get_financial_evidence("PEER", "2026-11-07", peer_revenue_definitions=True,
                                          period_floor=date(2023, 11, 7))
+
+
+def test_subject_issuer_ambiguity_still_raises(monkeypatch, tmp_path):
+    _annual_conflict(monkeypatch, tmp_path, "2023-12-31")
+    with pytest.raises(VendorUnavailableError, match="Revenues at 2023-12-31"):
+        sec_edgar.get_financial_evidence("PEER", "2026-11-07", period_floor=date(2023, 11, 7))
+
+
+def test_excluded_period_is_disclosed_in_peer_brief(monkeypatch, tmp_path):
+    _annual_conflict(monkeypatch, tmp_path, "2023-12-31")
+    install_price(monkeypatch, now="2026-11-07T22:00:00+00:00",
+                  dates=("2026-09-30", "2026-11-05", "2026-11-06"), closes=(80, 84, 85), metadata={"symbol": "PEER"})
+    package = sec_edgar.get_financial_evidence("PEER", "2026-11-07", peer_revenue_definitions=True,
+                                               period_floor=date(2023, 11, 7))
+    quote = get_price_observation("PEER", "2026-11-07", date(2026, 9, 30))
+    result = calculate_peer_statistics(package, {"ticker": "PEER", "cik": package.cik, "as_of": "2026-11-07",
+                                                 "source": "SEC issuer map"},
+                                       quote, ticker="PEER", completed_cutoff=date(2026, 11, 6))
+    assert result["status"] == "available", result
+    assert "Revenues ambiguous at 2023-12-31; period excluded; not used for peer statistics" in result["evidence_gaps"]
+
+
+def test_annual_only_peer_is_not_blamed_on_an_ambiguous_period(monkeypatch, tmp_path):
+    """The Nebius case: 20-F filer, no quarterly revenue, one conflicting year."""
+    companyfacts(monkeypatch, tmp_path)
+    gaap = sec_edgar._cached_json()["facts"]["us-gaap"]
+    gaap["Revenues"]["units"] = {
+        "USD": [{"start": "2023-01-01", "end": "2023-12-31", "val": 98, "filed": "2026-04-30", "form": "20-F", "accn": "a"},
+                {"start": "2025-01-01", "end": "2025-12-31", "val": 530, "filed": "2026-04-30", "form": "20-F", "accn": "b"}],
+        "RUB": [{"start": "2023-01-01", "end": "2023-12-31", "val": 800, "filed": "2024-04-26", "form": "20-F", "accn": "c"}]}
+    monkeypatch.setattr(sec_edgar, "_cached_json", lambda *args: {"cik": 1, "facts": {"us-gaap": gaap}})
+    package = sec_edgar.get_financial_evidence("PEER", "2026-11-07", peer_revenue_definitions=True,
+                                               period_floor=date(2023, 11, 7))
+    assert "Revenues ambiguous at 2023-12-31; period excluded; not used for peer statistics" in package.warnings
+    assert [str(f.period_end) for f in package.facts if f.metric == "Revenue" and f.value is not None] == ["2025-12-31"]
