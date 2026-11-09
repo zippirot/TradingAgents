@@ -238,3 +238,10 @@ def test_recall_follows_a_fact_from_the_debate_state_into_the_bull_and_bear_prom
     assert rows["ticker"]["reaches_bull"] and rows["ticker"]["reaches_bear"]
     assert rows["ticker"]["found_in"]["debate_state"]
     assert not rows["absent"]["reaches_bull"] and report["reached_both"] == 1
+
+
+@pytest.mark.unit
+def test_the_research_recommendation_is_read_from_its_own_line():
+    plan = "Research evidence summary (REVIEW items listed)\n\n**Recommendation**: Underweight\n**Rationale**: Buy-side..."
+    assert step_tests._recommendation(plan) == "Underweight"
+    assert step_tests._recommendation("no line here") is None

@@ -385,6 +385,15 @@ def checkpoint_states(run: SavedRun, workflow) -> list:
     return list(reversed(history))
 
 
+def state_after(node: str, snapshots: list) -> dict:
+    """The saved state right after ``node``'s first turn: the baseline's own output,
+    before any later step rewrote it."""
+    index = next((i for i, snap in enumerate(snapshots) if node in (snap.next or ())), None)
+    if index is None or index + 1 >= len(snapshots):
+        raise SystemExit(f"no saved state follows {node}")
+    return dict(snapshots[index + 1].values)
+
+
 def state_before(node: str, snapshots: list, occurrence: int = 0) -> dict:
     """The exact state the graph handed to ``node`` (its ``occurrence``-th turn)."""
     found = [snap for snap in snapshots if node in (snap.next or ())]
@@ -570,10 +579,13 @@ def cmd_prove(args) -> int:
 
 # ----------------------------------------------------------------------- step
 
-def _rating(text: str | None) -> str | None:
-    from tradingagents.agents.rating import parse_rating
+def _recommendation(text: str | None) -> str | None:
+    """The Research Manager's own **Recommendation** line, not a rating it quotes."""
+    import re
 
-    return parse_rating(text) if text else None
+    match = re.search(r"\*\*(?:Recommendation|Rating)\*\*:\s*\**\s*(Buy|Overweight|Hold|Underweight|Sell)\b",
+                      text or "", re.I)
+    return match.group(1).capitalize() if match else None
 
 
 def _conditions(state: dict) -> list:
@@ -586,7 +598,7 @@ def _conditions(state: dict) -> list:
 def summarize(state: dict) -> dict:
     target = state.get("target_validation") or {}
     return {
-        "research_recommendation": _rating(state.get("investment_plan")),
+        "research_recommendation": _recommendation(state.get("investment_plan")),
         "final_rating": state.get("final_rating"),
         "target": {key: target.get(key) for key in ("status", "value", "currency", "decision_date")},
         "conditions": _conditions(state),
@@ -665,7 +677,7 @@ def cmd_step(args) -> int:
             if line.strip()] if Path(args.ledger).exists() else []
     mine = [row for row in rows if row.get("label") == args.label and row.get("budget") == args.budget]
     report = {"run": str(run.attempt), "start": start, "stop": stop, "variant": args.variant,
-              "before": summarize(baseline_final),
+              "before": summarize(state_after(stop, snapshots)),
               "repeats": results,
               "calls": len(mine), "input_tokens": sum(row.get("input_tokens", 0) for row in mine),
               "output_tokens": sum(row.get("output_tokens", 0) for row in mine),
