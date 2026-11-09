@@ -114,7 +114,10 @@ class CostMeter(BaseCallbackHandler):
     """Refuses a call that could pass the cap; records each call's tokens and cost.
 
     The ledger is shared by every invocation under one budget name, so a cap spans
-    all step tests. A call whose usage is not reported keeps its full reservation.
+    all step tests. Each call's reservation is written to the ledger before the call
+    is sent and is replaced by its settled cost when the call ends; a call that never
+    settles (the process died) keeps counting its full reservation. Admission is
+    serialized across processes by a lock file beside the ledger.
     """
 
     raise_error = True
@@ -126,16 +129,37 @@ class CostMeter(BaseCallbackHandler):
         # A handler reached both through a model and through the run config hears
         # each event twice; each call is reserved and recorded once.
         self.seen: set[str] = set()
-        self.done: set[str] = set()
+
+    def _rows(self) -> list[dict]:
+        if not self.ledger.exists():
+            return []
+        rows = [json.loads(line) for line in self.ledger.read_text().splitlines() if line.strip()]
+        return [row for row in rows if row.get("budget") == self.budget]
 
     def spent(self) -> float:
-        if not self.ledger.exists():
-            return 0.0
-        rows = [json.loads(line) for line in self.ledger.read_text().splitlines() if line.strip()]
-        return sum(row["cost_usd"] for row in rows if row.get("budget") == self.budget)
+        """Settled costs plus every reservation that never settled."""
+        rows = self._rows()
+        settled = {row.get("call_id") for row in rows if row.get("type", "settle") == "settle"}
+        return (sum(row["cost_usd"] for row in rows if row.get("type", "settle") == "settle")
+                + sum(row["cost_usd"] for row in rows
+                      if row.get("type") == "reserve" and row.get("call_id") not in settled))
+
+    def _locked(self):
+        import contextlib
+        import fcntl
+
+        @contextlib.contextmanager
+        def held():
+            self.ledger.parent.mkdir(parents=True, exist_ok=True)
+            with open(str(self.ledger) + ".lock", "a") as handle, self.lock:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(handle, fcntl.LOCK_UN)
+        return held()
 
     def _append(self, row: dict) -> None:
-        self.ledger.parent.mkdir(parents=True, exist_ok=True)
         with self.ledger.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"time": datetime.now(UTC).isoformat(), "budget": self.budget,
                                      "label": self.label, **row}, sort_keys=True) + "\n")
@@ -148,25 +172,31 @@ class CostMeter(BaseCallbackHandler):
         prompt_tokens = _message_chars(messages) // 3 + 1
         rate_in, rate_out = model_rates(model, prompt_tokens)
         estimate = prompt_tokens * rate_in + OUTPUT_ALLOWANCE * rate_out
-        with self.lock:
+        with self._locked():
             if str(run_id) in self.seen:
                 return
-            committed = self.spent() + sum(cost for _, cost in self.reserved.values())
+            committed = self.spent()
             if committed + estimate > self.cap:
                 raise BudgetExceeded(
                     f"{self.budget}: ${committed:.2f} committed, next call up to ${estimate:.2f}, "
                     f"cap ${self.cap:.2f}")
+            self._append({"type": "reserve", "call_id": str(run_id), "model": model,
+                          "cost_usd": estimate})
             self.seen.add(str(run_id))
             self.reserved[str(run_id)] = (model, estimate)
 
+    def _settle(self, run_id, row: dict) -> None:
+        self._append({"type": "settle", "call_id": str(run_id), **row})
+
     def on_llm_end(self, response, *, run_id, **kwargs):
-        with self.lock:
+        with self._locked():
             if str(run_id) not in self.reserved:
                 return
             model, estimate = self.reserved.pop(str(run_id))
             usage = _usage(response)
             if usage is None:
-                self._append({"model": model, "cost_usd": estimate, "cost_source": "reserved_no_usage"})
+                self._settle(run_id, {"model": model, "cost_usd": estimate,
+                                      "cost_source": "reserved_no_usage"})
                 return
             prompt, completion, reported = usage
             if reported is not None:
@@ -174,19 +204,18 @@ class CostMeter(BaseCallbackHandler):
             else:
                 rate_in, rate_out = model_rates(model, prompt)
                 cost, source = prompt * rate_in + completion * rate_out, "list_rate"
-            self._append({"model": model, "input_tokens": prompt, "output_tokens": completion,
-                          "cost_usd": cost, "cost_source": source})
+            self._settle(run_id, {"model": model, "input_tokens": prompt, "output_tokens": completion,
+                                  "cost_usd": cost, "cost_source": source})
 
     def on_llm_error(self, error, *, run_id, **kwargs):
-        with self.lock:
+        with self._locked():
             if str(run_id) not in self.reserved:
                 return
             model, estimate = self.reserved.pop(str(run_id))
-            if isinstance(error, BudgetExceeded):
-                return
-            # A failed request may still be billed; keep the reservation.
-            self._append({"model": model, "cost_usd": estimate, "cost_source": "reserved_after_error",
-                          "error_class": type(error).__name__})
+            # A failed request may still be billed; it keeps its reservation.
+            self._settle(run_id, {"model": model, "cost_usd": estimate,
+                                  "cost_source": "reserved_after_error",
+                                  "error_class": type(error).__name__})
 
 
 def _usage(response) -> tuple[int, int, float | None] | None:
@@ -241,14 +270,19 @@ def run_environment(root: Path, credentials: dict[str, str]) -> dict[str, str]:
     }
 
 
-def assert_disposable(env: dict[str, str]) -> None:
-    """Refuse any location inside the launcher's own home."""
-    home = LAUNCHER_HOME.resolve()
-    for key in ("TRADINGAGENTS_RESULTS_DIR", "TRADINGAGENTS_CACHE_DIR",
-                "TRADINGAGENTS_MEMORY_LOG_PATH", "TRADINGAGENTS_PREFS_PATH"):
-        path = Path(env[key]).expanduser().resolve()
+def refuse_launcher_paths(**paths) -> None:
+    """Refuse any location inside the launcher's own home, before anything is written."""
+    home = LAUNCHER_HOME.expanduser().resolve()
+    for name, value in paths.items():
+        path = Path(value).expanduser().resolve()
         if path == home or home in path.parents:
-            raise SystemExit(f"{key} points inside the launcher's home; refusing")
+            raise SystemExit(f"{name} points inside the launcher's home; refusing")
+
+
+def assert_disposable(env: dict[str, str]) -> None:
+    refuse_launcher_paths(**{key: env[key] for key in (
+        "TRADINGAGENTS_RESULTS_DIR", "TRADINGAGENTS_CACHE_DIR",
+        "TRADINGAGENTS_MEMORY_LOG_PATH", "TRADINGAGENTS_PREFS_PATH")})
 
 
 def seed_root(root: Path, launcher: Path = LAUNCHER_HOME) -> dict:
@@ -271,6 +305,7 @@ def seed_root(root: Path, launcher: Path = LAUNCHER_HOME) -> dict:
 # ------------------------------------------------------------------- baseline
 
 def cmd_baseline(args) -> int:
+    refuse_launcher_paths(root=args.root, ledger=args.ledger)
     root = Path(args.root).expanduser().resolve()
     credentials = load_credentials()
     if args.dry_run:
@@ -543,6 +578,7 @@ def compare_prompts(built, recorded) -> dict:
 
 
 def cmd_prove(args) -> int:
+    refuse_launcher_paths(out=args.out)
     run = SavedRun(Path(args.run).expanduser())
     work = Path(args.out).expanduser().resolve()
     work.mkdir(parents=True, exist_ok=False)
@@ -631,6 +667,7 @@ def run_steps(graph, state: dict, start: str, stop: str, config: dict, baseline:
 
 
 def cmd_step(args) -> int:
+    refuse_launcher_paths(out=args.out, ledger=args.ledger)
     from tradingagents.attempt_trace import AttemptRecorder
     from tradingagents.source_replay import ReplaySession, session_context
 
@@ -675,7 +712,8 @@ def cmd_step(args) -> int:
                         "after": summarize(final)})
     rows = [json.loads(line) for line in Path(args.ledger).read_text().splitlines()
             if line.strip()] if Path(args.ledger).exists() else []
-    mine = [row for row in rows if row.get("label") == args.label and row.get("budget") == args.budget]
+    mine = [row for row in rows if row.get("label") == args.label and row.get("budget") == args.budget
+            and row.get("type", "settle") == "settle"]
     report = {"run": str(run.attempt), "start": start, "stop": stop, "variant": args.variant,
               "before": summarize(state_after(stop, snapshots)),
               "repeats": results,
@@ -691,13 +729,17 @@ def cmd_step(args) -> int:
 # ------------------------------------------------------------------ T1 recall
 
 def fact_present(text: str, patterns: list[str], window: int = 400) -> bool:
-    """Every pattern matches, case-insensitively, inside one window of text."""
+    """Every pattern matches, case-insensitively, with all matched spans inside one
+    interval of at most ``window`` characters."""
     import re
 
     compiled = [re.compile(pattern, re.I) for pattern in patterns]
-    for match in compiled[0].finditer(text):
-        lo, hi = max(0, match.start() - window), match.end() + window
-        if all(rx.search(text, lo, hi) for rx in compiled[1:]):
+    starts = sorted({m.start() for rx in compiled for m in rx.finditer(text)})
+    for start in starts:
+        # Each pattern needs a match lying wholly in [start, start + window].
+        if all(any(m.end() <= start + window
+                   for m in rx.finditer(text, start, min(len(text), start + window)))
+               for rx in compiled):
             return True
     return False
 
@@ -757,6 +799,7 @@ def recall_layers(run: SavedRun, snapshots: list | None) -> dict[str, dict[str, 
 
 
 def cmd_recall(args) -> int:
+    refuse_launcher_paths(out=args.out)
     run = SavedRun(Path(args.run).expanduser())
     facts = json.loads(Path(args.facts).read_text())["facts"]
     snapshots = None
@@ -794,6 +837,7 @@ def cmd_recall(args) -> int:
 
 def cmd_disclosures(args) -> int:
     """Re-check a Fundamentals output with the real Evidence Check (no model call)."""
+    refuse_launcher_paths(out=args.out)
     from tradingagents.attempt_trace import AttemptRecorder
     from tradingagents.source_replay import ReplaySession, session_context
 

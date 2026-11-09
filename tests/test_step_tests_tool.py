@@ -152,7 +152,9 @@ def test_the_meter_records_reported_cost_and_counts_it_against_the_cap(tmp_path)
                                                        "total_tokens": 1200},
                         response_metadata={"token_usage": {"cost": 0.0123}})
     meter.on_llm_end(LLMResult(generations=[[ChatGeneration(message=message)]]), run_id="a")
-    row = json.loads((tmp_path / "ledger.jsonl").read_text())
+    rows = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]
+    assert [r["type"] for r in rows] == ["reserve", "settle"]
+    row = rows[-1]
     assert row["cost_usd"] == 0.0123 and row["cost_source"] == "provider_reported"
     assert row["input_tokens"] == 1000 and meter.spent() == pytest.approx(0.0123)
     # Without a reported cost the list rate applies.
@@ -208,7 +210,8 @@ def test_a_call_heard_twice_is_reserved_and_recorded_once(tmp_path):
         meter.on_chat_model_start({}, [[AIMessage(content="hello")]], run_id="a", **params)
     for _ in range(2):
         meter.on_llm_end(result, run_id="a")
-    assert len((tmp_path / "ledger.jsonl").read_text().splitlines()) == 1
+    rows = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]
+    assert [r["type"] for r in rows] == ["reserve", "settle"]
     assert not meter.reserved
 
 
@@ -245,3 +248,73 @@ def test_the_research_recommendation_is_read_from_its_own_line():
     plan = "Research evidence summary (REVIEW items listed)\n\n**Recommendation**: Underweight\n**Rationale**: Buy-side..."
     assert step_tests._recommendation(plan) == "Underweight"
     assert step_tests._recommendation("no line here") is None
+
+
+@pytest.mark.unit
+def test_an_interrupted_call_keeps_its_reservation_for_the_next_invocation(tmp_path):
+    ledger = tmp_path / "ledger.jsonl"
+    params = {"invocation_params": {"model": "anthropic/claude-opus-5.5"}}
+    first = step_tests.CostMeter(ledger, "development", 0.4, "a")
+    first.on_chat_model_start({}, [[AIMessage(content="x" * 300)]], run_id="lost", **params)
+    reserved = first.reserved["lost"][1]
+    # Each reservation is about $0.24 (12k output tokens at $20/M); the process dies
+    # here, so no end or error callback ever runs.
+    second = step_tests.CostMeter(ledger, "development", 0.4, "b")
+    assert second.spent() == pytest.approx(reserved)
+    with pytest.raises(step_tests.BudgetExceeded):
+        second.on_chat_model_start({}, [[AIMessage(content="x" * 300)]], run_id="next", **params)
+
+
+@pytest.mark.unit
+def test_two_meters_sharing_a_ledger_admit_against_one_cap(tmp_path):
+    ledger = tmp_path / "ledger.jsonl"
+    params = {"invocation_params": {"model": "anthropic/claude-opus-5.5"}}
+    one = step_tests.CostMeter(ledger, "development", 0.4, "a")
+    two = step_tests.CostMeter(ledger, "development", 0.4, "b")
+    one.on_chat_model_start({}, [[AIMessage(content="x")]], run_id="1", **params)
+    with pytest.raises(step_tests.BudgetExceeded):
+        two.on_chat_model_start({}, [[AIMessage(content="x")]], run_id="2", **params)
+    message = AIMessage(content="ok", usage_metadata={"input_tokens": 10, "output_tokens": 10,
+                                                       "total_tokens": 20},
+                        response_metadata={"token_usage": {"cost": 0.01}})
+    one.on_llm_end(LLMResult(generations=[[ChatGeneration(message=message)]]), run_id="1")
+    # Settled at its real cost, the reservation no longer counts.
+    assert two.spent() == pytest.approx(0.01)
+    two.on_chat_model_start({}, [[AIMessage(content="x")]], run_id="2", **params)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("command", [
+    ["baseline", "--root", "{home}/logs/run", "--ledger", "{tmp}/l.jsonl"],
+    ["baseline", "--root", "{tmp}/run", "--ledger", "{home}/l.jsonl"],
+    ["prove", "--run", "{tmp}/saved", "--out", "{home}/logs/proof"],
+    ["step", "--run", "{tmp}/saved", "--start", "research_manager", "--out", "{home}/out",
+     "--ledger", "{tmp}/l.jsonl", "--label", "t"],
+    ["step", "--run", "{tmp}/saved", "--start", "research_manager", "--out", "{tmp}/out",
+     "--ledger", "{home}/l.jsonl", "--label", "t"],
+    ["recall", "--run", "{tmp}/saved", "--facts", "{tmp}/f.json", "--out", "{home}/recall"],
+    ["disclosures", "--run", "{tmp}/saved", "--out", "{home}/check"],
+], ids=["baseline-root", "baseline-ledger", "prove", "step-out", "step-ledger", "recall", "disclosures"])
+def test_every_command_refuses_the_launcher_home_before_writing(tmp_path, monkeypatch, command):
+    home = tmp_path / "launcher-home"
+    (home / "logs").mkdir(parents=True)
+    monkeypatch.setattr(step_tests, "LAUNCHER_HOME", home)
+    before = sorted(path.relative_to(home) for path in home.rglob("*"))
+    argv = [part.format(home=home, tmp=tmp_path) for part in command]
+    with pytest.raises(SystemExit, match="launcher's home"):
+        step_tests.main(argv)
+    assert sorted(path.relative_to(home) for path in home.rglob("*")) == before
+    assert not (tmp_path / "run").exists() and not (tmp_path / "out").exists()
+
+
+@pytest.mark.unit
+def test_a_fact_window_counts_every_matched_span():
+    patterns = ["AAA", "BBB", "CCC"]
+    # Matches 350 characters either side of the anchor span 700 characters in all.
+    assert not step_tests.fact_present("AAA" + " " * 350 + "BBB" + " " * 350 + "CCC", patterns)
+    assert step_tests.fact_present("AAA" + " " * 150 + "BBB" + " " * 150 + "CCC", patterns)
+    # A match straddling the window's end does not count.
+    assert not step_tests.fact_present("AAA" + " " * 395 + "BBB", ["AAA", "BBB"])
+    assert step_tests.fact_present("AAA" + " " * 394 + "BBB", ["AAA", "BBB"])
+    # Order does not matter.
+    assert step_tests.fact_present("CCC BBB AAA", patterns)
