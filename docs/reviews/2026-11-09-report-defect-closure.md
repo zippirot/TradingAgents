@@ -63,9 +63,9 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 ## Build W: regressions from run 2a2e47dd
 
-Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492`, `54ba3133` and `0cbaaa45` on top of `0236255d`. No paid report run was made.
+Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492`, `54ba3133`, `0cbaaa45` and `4f0791c0` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4086 passed, 10 skipped, 1 deselected on `0cbaaa45`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4089 passed, 10 skipped, 1 deselected on `4f0791c0`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -95,11 +95,13 @@ Second re-audit of `7bdf3767` ($0.77, 23 turns): no Critical or High, two Medium
 
 Third re-audit of `10a5cb1e` ($0.72, 26 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `0cbaaa45`: value order was lost (5% to 10% against 10% to 5%) and "above" against "below" passed the similarity threshold. Similarity scoring is removed.
 
+Fourth re-audit of `0fb7aa2c` ($0.71, 27 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `4f0791c0`: unordered words merged "and" with "or" and swapped parties, and notation dropped currency and leading decimals. Unordered matching is removed.
+
 The audits also noted lint is not green; that is the one finding at the base recorded above.
 
 Plan adjustments:
 
-- W5: the plan's Jaccard 0.6 was replaced. It scored the real "settled or refinanced" pair at 0.56 without stemming, and three re-audits showed that any similarity score merges different events (2026 and 2030 notes, cuts and raises, above and below). An event now aliases only when its content words after light stemming, plus one synonym (financing/funding), its values in order, and the absence of negation all match. Both real pairs from `2a2e47dd` alias. Other rewordings stay as separate rows; the PM prompt's keep-by-ID sentence is the main defence against those.
+- W5: the plan's Jaccard 0.6 matching was not kept. Four re-audits showed that comparing unordered words merges different events (2026 and 2030 notes, cuts and raises, above and below, and against or, swapped parties). An event now aliases only on its exact wording after case, spacing, letter-hyphen and final-period normalisation, plus two listed rewrites that cover the real `2a2e47dd` pairs. Other rewordings stay as separate rows, which costs a duplicate instead of a lost condition; the PM prompt's keep-by-ID sentence is the main defence against those.
 - W2: also applied to saved records whose status is `no_relevant_passage` but which hold passages, so the retained `2a2e47dd` record and resumed checkpoints behave the same way.
 - W4: pinning and the no-forced-tool-choice flag ship together as the plan says, so forced tool choice is not sent for `anthropic/` models on OpenRouter even though the pinned host accepts it. A reply without the tool call falls to the free-text path and would show as a fallback.
 - W6: `comparison` is a structured record, so its `value` and `unit` are read rather than parsing text.
