@@ -101,6 +101,10 @@ def observation(state, stage, *, status="completed", severity=5, code="completed
             row[field] = value
     if type(optional.get("recovered")) is bool:
         row["recovered"] = optional["recovered"]
+    if optional.get("error_class"):
+        row["error_class"] = _safe_text(optional["error_class"], 80)
+    if optional.get("error_message"):
+        row["error_message"] = _safe_text(optional["error_message"], 500)
     row["event_id"] = hashlib.sha256(_canonical(row).encode("utf-8")).hexdigest()
     return row
 

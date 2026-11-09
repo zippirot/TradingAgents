@@ -87,3 +87,54 @@ def test_new_advisory_fields_survive_existing_full_state_log_and_evidence(tmp_pa
     snapshot = evidence_snapshot(state)
     for key in ('document_followup_judgments', 'prompt_evidence_references'):
         assert saved.get(key) == snapshot.get(key) == state[key]
+
+
+def _no_passage(state):
+    for row in state['document_followups']['results']:
+        row.update(status='no_relevant_passage', passages=[])
+    return state['document_followups']
+
+
+def test_partially_answered_without_passages_is_coerced_to_unanswered():
+    from tradingagents.agents.document_questions import enforce_followup_judgments
+
+    state, payload = state_and_payload()
+    rows = enforce_followup_judgments(payload['followup_judgments'], _no_passage(state))
+    bear = next(row for row in rows if row['question_id'] == 'bear-1')
+    assert bear['classification'] == 'unanswered'
+    assert bear['explanation'].startswith("No retrieved passage; model judgment 'partially_answered' discarded.")
+
+
+def test_answered_with_passages_is_kept():
+    from tradingagents.agents.document_questions import enforce_followup_judgments
+
+    state, payload = state_and_payload()
+    for row in state['document_followups']['results']:
+        row['status'] = 'relevant_passages_found'
+    assert enforce_followup_judgments(payload['followup_judgments'], state['document_followups']) == payload['followup_judgments']
+
+
+def test_override_is_disclosed_on_card():
+    from tradingagents.agents.document_questions import enforce_followup_judgments, render_document_followups
+
+    state, payload = state_and_payload()
+    state['document_followup_judgments'] = enforce_followup_judgments(
+        payload['followup_judgments'], {'results': [{'question_id': 'bear-1', 'status': 'no_relevant_passage'}]})
+    assert "No retrieved passage; model judgment 'partially_answered' discarded." in render_document_followups(state)
+
+
+def test_override_records_one_observation_per_coercion(monkeypatch):
+    from tradingagents.agents import document_questions as dq
+
+    seen = []
+    monkeypatch.setattr(dq, 'record_operation', lambda code, scope=None: seen.append((code, scope)))
+    state, payload = state_and_payload()
+    dq.enforce_followup_judgments(payload['followup_judgments'], _no_passage(state))
+    assert seen == [('followup_judgment_overridden', 'bear-1')]
+
+
+def test_rm_sentence_states_the_rule():
+    import inspect
+
+    from tradingagents.agents.managers import research_manager
+    assert 'must be unanswered; any other classification is discarded' in inspect.getsource(research_manager)

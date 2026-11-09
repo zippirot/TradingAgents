@@ -9,7 +9,8 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
 )
-from tradingagents.agents.schemas import ResearchPlan, render_research_plan
+from tradingagents.agents.document_questions import enforce_followup_judgments
+from tradingagents.agents.schemas import DocumentFollowupJudgment, ResearchPlan, render_research_plan
 from tradingagents.agents.shared_valuation import replay_cases
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
@@ -52,7 +53,8 @@ answered, partially_answered or unanswered by its retrieved passages. Retrieval 
 not an answer judgment. For answered/partial, give one line stating what the passage
 establishes, the actual figure and source reference, and whether it changes the bull or bear
 point that raised it. For unanswered, state what remains unknown. Do not invent a figure,
-source or answer when passages do not establish one. These are unvalidated research judgments.
+source or answer when passages do not establish one. A question with no retrieved passage
+must be unanswered; any other classification is discarded. These are unvalidated research judgments.
 
 **Debate History:**
 {history}
@@ -75,7 +77,12 @@ Write these sections, in this order, starting with the recommendation on its own
         if saved.get("requests"):
             prompt += "\nOriginal case inputs (unvalidated model assumptions):\n" + json.dumps(saved["requests"])
         decision = invoke_structured(structured_llm, prompt, "Research Manager")
+        judgments = enforce_followup_judgments(
+            [row.model_dump(mode="json") for row in decision.followup_judgments] if decision is not None else [],
+            state.get("document_followups"))
         if decision is not None:
+            decision = decision.model_copy(update={"followup_judgments": [
+                DocumentFollowupJudgment.model_validate(row) for row in judgments]})
             investment_plan = delivered_narrative(render_research_plan(decision))
         else:
             raw = llm.invoke(prompt)
@@ -95,8 +102,7 @@ Write these sections, in this order, starting with the recommendation on its own
 
         return {
             **revision,
-            "document_followup_judgments": [row.model_dump(mode="json") for row in decision.followup_judgments]
-            if decision is not None else [],
+            "document_followup_judgments": judgments,
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
         }

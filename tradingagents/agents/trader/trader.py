@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.context import (
@@ -19,6 +21,33 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+
+
+_ACTION_LINE = re.compile(r"^\W*(?:action\W+(?:buy|hold|sell)\b|final transaction proposal\W)", re.I | re.M)
+_REASONING = re.compile(r"^\W*reasoning\b", re.I | re.M)
+_STRATEGIC_ACTIONS = re.compile(r"\*\*Strategic Actions\*\*:?\s*(.*?)(?=\n\s*\*\*[^*\n]+\*\*|\Z)", re.S)
+_CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
+
+
+def _carried_plan(investment_plan: str) -> str:
+    """The Research Manager's actions and checkpoints, copied word for word."""
+    match = _STRATEGIC_ACTIONS.search(investment_plan or "")
+    actions = match.group(1).strip() if match else ""
+    remainder = (investment_plan or "").replace(match.group(0), "", 1) if match else (investment_plan or "")
+    checkpoints = [line.strip() for line in remainder.splitlines() if _CHECKPOINT.search(line)]
+    lines = ["**Carried from the Research Manager's plan (not restated by the Trader)**", ""]
+    lines.append(actions or "No Strategic Actions section was found in the Research Manager's plan.")
+    if checkpoints:
+        lines += ["", *checkpoints]
+    return "\n".join(lines)
+
+
+def _complete_fallback(text: str, investment_plan: str) -> str:
+    if not get_language_instruction() and not _ACTION_LINE.search(text or ""):
+        # A localized run may translate the label, so only English can be checked.
+        raise ValueError("Trader free-text fallback has no Action line; no plan published")
+    note = "" if _REASONING.search(text or "") else "\n\nThe free-text fallback has no Reasoning section."
+    return f"{text}{note}\n\n{_carried_plan(investment_plan)}"
 
 
 def create_trader(llm):
@@ -96,6 +125,7 @@ def create_trader(llm):
             messages,
             render_trader_proposal,
             "Trader",
+            finish_freetext=lambda text: _complete_fallback(text, investment_plan),
         )
 
         trader_plan = label_legacy_trader_price(trader_plan)

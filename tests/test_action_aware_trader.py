@@ -93,3 +93,38 @@ def test_sell_fallback_purchase_label_is_not_published_as_purchase_entry():
     assert "FINAL TRANSACTION PROPOSAL: **SELL**" in output
     report = prepare_report_state({"trader_investment_plan": llm.invoke.return_value.content})
     assert "**Purchase Entry Price**: 77" not in report["trader_investment_plan"]
+
+
+_RM_PLAN = ("**Recommendation**: Underweight\n\n**Rationale**: Bear wins.\n\n"
+            "**Strategic Actions**: Trim exposure. A revenue miss would reinforce caution.\n\n"
+            "**Document follow-up judgments (unvalidated)**\n- bear-1: a trigger note stays out of the actions.")
+
+
+def test_fallback_appends_rm_triggers_verbatim():
+    from tradingagents.agents.trader.trader import _complete_fallback
+
+    text = _complete_fallback("**Action**: Sell\n\n**Reasoning**\n\nBecause.", _RM_PLAN)
+    assert "Carried from the Research Manager's plan (not restated by the Trader)" in text
+    assert "Trim exposure. A revenue miss would reinforce caution." in text
+    assert "- bear-1: a trigger note stays out of the actions." in text
+
+
+def test_fallback_without_action_line_fails_stage():
+    import pytest
+
+    from tradingagents.agents.trader.trader import _complete_fallback
+
+    with pytest.raises(ValueError, match="no Action line"):
+        _complete_fallback("I think we should wait and see.", _RM_PLAN)
+
+
+def test_structured_success_does_not_append_block():
+    from unittest.mock import MagicMock
+
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.return_value = TraderProposal(action="Hold", reasoning="Wait.")
+    finish = MagicMock(side_effect=AssertionError("must not run"))
+    text = invoke_structured_or_freetext(structured, MagicMock(), "p", render_trader_proposal, "Trader", finish_freetext=finish)
+    assert "Carried from" not in text and "Wait." in text

@@ -19,12 +19,18 @@ from tradingagents.dataflows.filing_search import (
     passage_matches_query,
     query_content_terms,
 )
+from tradingagents.operational_capture import record_operation
 
 _ROLES = ("bull", "bear")
 _MAX_QUESTIONS_PER_ROLE = 2
 _MAX_QUERY_CHARS = 200
 _MAX_PASSAGES = 3
 _MAX_CHARS = 12_000
+_POST_FILING = "post_filing_event"
+_SCOPES = {"retained_filings", _POST_FILING}
+NOT_ANSWERABLE = "not_answerable_from_filings"
+_NOT_ANSWERABLE_TEXT = "Not answerable from filings retrieved before the event."
+_NO_PASSAGE_STATUSES = {"no_relevant_passage", "unavailable", "invalid_query", NOT_ANSWERABLE}
 _FENCE = re.compile(r"```document_questions[ 	]*\r?\n(.*?)\r?\n```", re.S)
 
 
@@ -43,6 +49,9 @@ def document_question_instruction(state) -> str:
         "document_questions JSON string list, for example "
         "```document_questions\n[\"lease commitments not yet commenced\"]\n```. "
         "Use [] if there are no questions. Keep each question at most 200 characters. "
+        "When a question asks what happened after the latest retained filing date shown in the brief, "
+        "mark it post_filing_event by writing that list item as "
+        "{\"query\": \"phrase\", \"scope\": \"post_filing_event\"}; no filing search can answer it. "
         "The questions will receive one deterministic source lookup before the "
         "Research Manager; source text is not accepted evidence. Begin a question with "
         "transcript: to search vendor call Q&A, whose wording is unverified."
@@ -74,6 +83,10 @@ def parse_document_questions(text: str, role: str) -> dict:
         return result
     seen = set()
     for index, raw in enumerate(values, 1):
+        scope = None
+        if isinstance(raw, dict) and set(raw) <= {"query", "scope"} and raw.get("scope") in _SCOPES:
+            scope = raw.get("scope")
+            raw = raw.get("query")
         if not isinstance(raw, str) or not raw.strip():
             result["rejected"].append(f"Question {index}: expected a nonempty string")
             continue
@@ -93,6 +106,8 @@ def parse_document_questions(text: str, role: str) -> dict:
             continue
         result["questions"].append({
             "question_id": f"{role}-{len(result['questions']) + 1}", "query": query,
+            # Absent means retained_filings, so ordinary records keep their exact hash.
+            **({"scope": _POST_FILING} if scope == _POST_FILING else {}),
         })
     result["status"] = "ready" if result["questions"] else "none"
     return result
@@ -119,6 +134,7 @@ def _question_records(state) -> dict:
                 or question.get("question_id") != f"{role}-{index}"
                 or not isinstance(question.get("query"), str)
                 or not 1 <= len(question["query"]) <= _MAX_QUERY_CHARS
+                or question.get("scope", _POST_FILING) != _POST_FILING
             ):
                 raise ValueError(f"Malformed {role} document question")
         normalized[role] = {
@@ -134,6 +150,8 @@ def _query_plan(records: dict) -> dict:
              "decreases": "decrease", "caused": "cause", "causes": "cause", "reason": "cause"}
     def equivalent(item, other):
         if item["transcript"] != other["transcript"] or item["years"] != other["years"]:
+            return False
+        if item["question"].get("scope") != other["question"].get("scope"):
             return False
         terms, words = item["terms"], other["terms"]
         negatives = {"not", "no", "never", "without"}
@@ -214,7 +232,10 @@ def _check_retained(record: dict, scope: dict, records: dict, corpus, state) -> 
         if current:
             if any(result.get(k) != value for k, value in plan[question["question_id"]].items()):
                 raise ValueError("Document follow-up lookup grouping mismatch")
-            if status in {"relevant_passages_found", "no_relevant_passage"}:
+            if question.get("scope") == _POST_FILING:
+                if status != NOT_ANSWERABLE or passages:
+                    raise ValueError("Document follow-up post-filing status mismatch")
+            elif status in {"relevant_passages_found", "no_relevant_passage"}:
                 if status != _relevance(question["query"], passages):
                     raise ValueError("Document follow-up relevance status mismatch")
             elif status not in {"unavailable", "invalid_query"} or passages:
@@ -284,7 +305,9 @@ def lookup_document_questions(state) -> dict:
                 "role": role, **question, **plan[question["question_id"]], "status": "unavailable",
                 "passages": [], "gaps": [], "reason": "",
             }
-            if corpus is None:
+            if question.get("scope") == _POST_FILING:
+                result.update(status=NOT_ANSWERABLE, reason=_NOT_ANSWERABLE_TEXT)
+            elif corpus is None:
                 result["reason"] = (
                     (state.get("document_sources") or {}).get("reason")
                     or "Retained filing source unavailable"
@@ -321,6 +344,30 @@ def lookup_document_questions(state) -> dict:
     }
     record["record_hash"] = _digest(record)
     return {"document_followups": record}
+
+
+def enforce_followup_judgments(judgments: list, record) -> list:
+    """No passage, no answer: the retrieval result outranks the model's judgment.
+
+    Returns judgment dictionaries. A post-filing question always gets one,
+    because no filing retrieved before the event could have answered it.
+    """
+    rows = list(judgments or ())
+    results = (record or {}).get("results") or []
+    unanswerable = {r["question_id"]: r["status"] for r in results if r.get("status") in _NO_PASSAGE_STATUSES}
+    enforced = []
+    for row in rows:
+        original = row["classification"]
+        if row["question_id"] in unanswerable and original != "unanswered":
+            note = f"No retrieved passage; model judgment '{original}' discarded. "
+            row = {**row, "classification": "unanswered",
+                   "explanation": (note + row["explanation"])[:2000]}
+            record_operation("followup_judgment_overridden", scope=row["question_id"])
+        enforced.append(row)
+    judged = {row["question_id"] for row in enforced}
+    enforced.extend({"question_id": r["question_id"], "classification": "unanswered", "explanation": _NOT_ANSWERABLE_TEXT}
+                    for r in results if r.get("status") == NOT_ANSWERABLE and r["question_id"] not in judged)
+    return enforced
 
 
 def _retrieval_status(record, result):

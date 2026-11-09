@@ -276,7 +276,7 @@ class TestTraderAgent:
         llm.invoke.return_value = MagicMock(content=plain_response)
         trader = create_trader(llm)
         result = trader(_make_trader_state())
-        assert result["trader_investment_plan"] == plain_response
+        assert result["trader_investment_plan"].startswith(plain_response)
 
 
 # ---------------------------------------------------------------------------
@@ -545,3 +545,34 @@ def test_the_trader_names_the_levels_it_did_not_give():
     for field in ("Purchase Entry Price", "Reference Sale Level", "Stop Loss", "Position Sizing"):
         assert field in rendered
     assert rendered.lower().count("not provided") == 4
+
+
+def test_fallback_record_carries_error_class_and_message():
+    from unittest.mock import MagicMock
+
+    from tradingagents.agents import structured as module
+    from tradingagents.operational_audit import observation
+    from tradingagents.operational_capture import _active
+
+    class OpenAIInvalidRequestError(Exception):
+        pass
+
+    llm = MagicMock()
+    llm.invoke.side_effect = OpenAIInvalidRequestError(
+        "400 schema rejected field stop_loss; api_key=sk-abcdefghijkl12345 Authorization: Bearer tok123 request_body: {secret}")
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="free text", response_metadata={})
+    state = {"run_id": "r", "company_of_interest": "DOCN", "trade_date": "2026-11-09", "run_settings": {}}
+    events = {}
+    from threading import Lock
+    token = _active.set((state, "Trader", events, Lock()))
+    try:
+        assert module.invoke_structured_or_freetext(llm, plain, "p", str, "Trader") == "free text"
+    finally:
+        _active.reset(token)
+    row = events[("fallback_recovered", None)]
+    assert row == observation(state, "Trader", code="fallback_recovered", error_class=row["error_class"], error_message=row["error_message"])
+    assert row["error_class"] == "OpenAIInvalidRequestError"
+    assert "schema rejected field stop_loss" in row["error_message"]
+    for secret in ("sk-abcdefghijkl", "tok123", "secret"):
+        assert secret not in row["error_message"]

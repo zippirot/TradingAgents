@@ -19,7 +19,9 @@ all three agents log the same warnings when fallback fires.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
+from contextvars import ContextVar
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
@@ -66,6 +68,18 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
         return None
 
 
+_last_failure: ContextVar[tuple[str, str] | None] = ContextVar("structured_failure", default=None)
+
+
+def provider_error_text(exc: BaseException) -> str:
+    """First 500 characters of a provider error, without keys or request content."""
+    text = " ".join(str(exc).split())
+    text = re.sub(r"(?i)\b(bearer\s+|api[_-]?key[\"'=:\s]+)\S+", r"\1[redacted]", text)
+    text = re.sub(r"\b[sprk]{1,2}-[A-Za-z0-9_-]{8,}", "[redacted]", text)
+    text = re.sub(r"(?is)(request[_ ]?body|[\"']messages[\"'])\s*[:=].*", r"\1: [omitted]", text)
+    return text[:500]
+
+
 def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) -> T | None:
     """Run the structured call; ``None`` when there is none or it fails.
 
@@ -74,6 +88,7 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
     shape), so a caller can forward the same value to its free-text fallback.
     """
     remember_structured_raw(None)
+    _last_failure.set(None)
     if structured_llm is None:
         return None
     try:
@@ -90,9 +105,11 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
             raise ValueError("structured output returned no parsed result")
         return result
     except Exception as exc:
+        message = provider_error_text(exc)
+        _last_failure.set((type(exc).__name__, message))
         logger.warning(
-            "%s: structured-output invocation failed (%s); retrying once as free text",
-            agent_name, type(exc).__name__,
+            "%s: structured-output invocation failed (%s: %s); retrying once as free text",
+            agent_name, type(exc).__name__, message,
             extra={"diagnostic_agent": agent_name, "diagnostic_error_class": type(exc).__name__},
         )
         return None
@@ -104,13 +121,20 @@ def invoke_structured_or_freetext(
     prompt: Any,
     render: Callable[[T], str],
     agent_name: str,
+    finish_freetext: Callable[[str], str] | None = None,
 ) -> str:
-    """Run the structured call and render to markdown; fall back to free-text on any failure."""
+    """Run the structured call and render to markdown; fall back to free-text on any failure.
+
+    ``finish_freetext`` checks or completes fallback text only, and may raise to fail the stage.
+    """
     result = invoke_structured(structured_llm, prompt, agent_name)
     if result is not None:
         return delivered_narrative(render(result))
+    failure = _last_failure.get()
     raw = plain_llm.invoke(prompt)
-    text = delivered_narrative(raw.content, raw)
+    content = finish_freetext(raw.content) if finish_freetext is not None else raw.content
+    text = delivered_narrative(content, raw)
     if structured_llm is not None:
-        record_operation('fallback_recovered')
+        detail = {"error_class": failure[0], "error_message": failure[1]} if failure else {}
+        record_operation('fallback_recovered', **detail)
     return text

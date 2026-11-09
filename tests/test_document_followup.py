@@ -358,3 +358,56 @@ def test_partial_named_note_omission_is_visible_without_claiming_absence(truncat
     assert f"2026 Convertible Notes: {expected}" in render_document_followups(state)
     assert f"2026 Convertible Notes: {expected}" in document_followup_context(state)
     assert "no passage names the 2026 Convertible Notes" not in result["gaps"]
+
+
+def _post_filing_state():
+    state = state_with_corpus()
+    question = {"query": "ATM shares sold", "scope": "post_filing_event"}
+    state["investment_debate_state"]["document_questions"]["bear"] = parse_document_questions(
+        '```document_questions\n' + json.dumps([question]) + '\n```', "bear")
+    return state
+
+
+def test_post_filing_event_question_skips_retrieval_and_renders_label(monkeypatch):
+    from tradingagents.agents import document_questions as dq
+
+    state = _post_filing_state()
+    real = dq.search_retained_document_sources
+    searched = []
+    monkeypatch.setattr(dq, "search_retained_document_sources",
+                        lambda s, query, **k: searched.append(query) or real(s, query, **k))
+    state.update(lookup_document_questions(state))
+    result = next(r for r in state["document_followups"]["results"] if r["role"] == "bear")
+    assert result["status"] == "not_answerable_from_filings" and result["passages"] == []
+    assert "ATM shares sold" not in searched
+    assert lookup_document_questions(state) == {}  # the sealed record validates on reuse
+    assert "Not answerable from filings retrieved before the event." in dq.render_document_followups(state)
+    rows = dq.enforce_followup_judgments([], state["document_followups"])
+    assert [(r["question_id"], r["classification"]) for r in rows] == [("bear-1", "unanswered")]
+
+
+def test_scope_is_covered_by_the_record_hash():
+    state = _post_filing_state()
+    state.update(lookup_document_questions(state))
+    state["investment_debate_state"]["document_questions"]["bear"]["questions"][0].pop("scope")
+    with pytest.raises(ValueError):
+        lookup_document_questions(state)
+
+
+def test_legacy_record_without_scope_validates():
+    state = state_with_corpus()
+    state.update(lookup_document_questions(state))
+    assert all("scope" not in q for r in state["document_followups"]["question_records"].values() for q in r["questions"])
+    assert lookup_document_questions(state) == {}
+
+
+def test_invalid_scope_is_rejected_visibly():
+    parsed = parse_document_questions('```document_questions\n[{"query": "x y z", "scope": "later"}]\n```', "bull")
+    assert not parsed["questions"] and parsed["rejected"]
+
+
+def test_debater_prompt_names_scope_rule():
+    from tradingagents.agents.document_questions import document_question_instruction
+
+    text = document_question_instruction({"asset_type": "stock", "_document_question_final_turn": True})
+    assert "post_filing_event" in text and "after the latest retained filing date" in text

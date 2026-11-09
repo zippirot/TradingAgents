@@ -35,8 +35,8 @@ def remember_structured_raw(raw):
     _last_structured_raw.set(raw)
 
 
-def record_operation(code, *, scope=None):
-    """Record a bounded reason code without provider payloads or exceptions."""
+def record_operation(code, *, scope=None, **detail):
+    """Record a bounded reason code; detail is a redacted error class and message only."""
     active = _active.get()
     if active is None:
         return
@@ -46,9 +46,9 @@ def record_operation(code, *, scope=None):
         if key in events:
             previous = events[key]
             events[key] = observation(state, stage, code=code, scope=scope,
-                                      count=previous.get('count', 1) + 1)
+                                      count=previous.get('count', 1) + 1, **detail)
         elif len(events) < 128:
-            events[key] = observation(state, stage, code=code, scope=scope)
+            events[key] = observation(state, stage, code=code, scope=scope, **detail)
         else:
             events[('incomplete_history', None)] = observation(
                 state, stage, code='incomplete_history', scope='observation limit')
