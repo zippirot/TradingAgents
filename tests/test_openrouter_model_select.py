@@ -141,8 +141,8 @@ def test_requested_models_stay_visible_once_without_changing_default(mode, live)
         assert prompts.select_openrouter_model(mode, default=saved) == "openai/gpt-6.1-sol"
 
     values = [c.value for c in captured["choices"]]
-    pinned = ["anthropic/claude-opus-5.5", "deepseek/deepseek-v4-pro", "openai/gpt-6.1-sol"]
-    assert values[:3] == pinned
+    pinned = ["anthropic/claude-opus-5.5", "deepseek/deepseek-v4-pro", "openai/gpt-6.1-sol", "openai/gpt-6.1-terra-pro"]
+    assert values[:4] == pinned
     assert all(values.count(mid) == 1 for mid in pinned)
     assert "custom" in values
     if live:
@@ -156,7 +156,8 @@ def test_openrouter_forwards_reasoning_effort_in_extra_body(monkeypatch):
     llm = OpenAIClient("anthropic/claude-sonnet-4.5", provider="openrouter", **kwargs).get_llm()
 
     payload = llm._get_request_payload("hello")
-    assert payload["extra_body"] == {"reasoning": {"effort": "high"}}
+    assert payload["extra_body"]["reasoning"] == {"effort": "high"}
+    assert payload["extra_body"]["provider"] == {"order": ["Anthropic"], "allow_fallbacks": False}
     assert "reasoning_effort" not in payload
 
 

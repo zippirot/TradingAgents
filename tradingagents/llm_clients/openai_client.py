@@ -414,7 +414,7 @@ class OpenAIClient(BaseLLMClient):
                 if self.provider == "openrouter":
                     # OpenRouter accepts reasoning.effort for any routed model
                     # that supports reasoning; its IDs do not follow OpenAI's naming.
-                    llm_kwargs["extra_body"] = {"reasoning": {"effort": self.kwargs[key]}}
+                    llm_kwargs.setdefault("extra_body", {})["reasoning"] = {"effort": self.kwargs[key]}
                     continue
                 if self.provider in ("openai", "chatgpt") and not _supports_reasoning_effort(self.model):
                     logger.warning("reasoning effort %r not forwarded to provider %r",
