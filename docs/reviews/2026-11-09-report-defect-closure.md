@@ -63,9 +63,9 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 ## Build W: regressions from run 2a2e47dd
 
-Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492` and `54ba3133` on top of `0236255d`. No paid report run was made.
+Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492`, `54ba3133` and `0cbaaa45` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4083 passed, 10 skipped, 1 deselected on `54ba3133`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4086 passed, 10 skipped, 1 deselected on `0cbaaa45`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -93,11 +93,13 @@ Exact keys are the full description again. Quantities, scale and negation are re
 
 Second re-audit of `7bdf3767` ($0.77, 23 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `54ba3133`: signs were dropped from quantities (-5% and +5% matched), and a word set cannot show what a negation applies to. Negated wording is now never fuzzy-aliased, and signs must match. Events the matcher cannot be sure of stay as separate rows.
 
+Third re-audit of `10a5cb1e` ($0.72, 26 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `0cbaaa45`: value order was lost (5% to 10% against 10% to 5%) and "above" against "below" passed the similarity threshold. Similarity scoring is removed.
+
 The audits also noted lint is not green; that is the one finding at the base recorded above.
 
 Plan adjustments:
 
-- W5: Jaccard 0.6 on plain tokens scored the real "settled or refinanced" pair at 0.56, so it missed. Added light suffix stemming. The same threshold would also have merged "2026 notes" with "2030 notes" and "cuts guidance" with "raises guidance", so differing numbers, direction words or negation now keep events separate.
+- W5: the plan's Jaccard 0.6 was replaced. It scored the real "settled or refinanced" pair at 0.56 without stemming, and three re-audits showed that any similarity score merges different events (2026 and 2030 notes, cuts and raises, above and below). An event now aliases only when its content words after light stemming, plus one synonym (financing/funding), its values in order, and the absence of negation all match. Both real pairs from `2a2e47dd` alias. Other rewordings stay as separate rows; the PM prompt's keep-by-ID sentence is the main defence against those.
 - W2: also applied to saved records whose status is `no_relevant_passage` but which hold passages, so the retained `2a2e47dd` record and resumed checkpoints behave the same way.
 - W4: pinning and the no-forced-tool-choice flag ship together as the plan says, so forced tool choice is not sent for `anthropic/` models on OpenRouter even though the pinned host accepts it. A reply without the tool call falls to the free-text path and would show as a fallback.
 - W6: `comparison` is a structured record, so its `value` and `unit` are read rather than parsing text.
