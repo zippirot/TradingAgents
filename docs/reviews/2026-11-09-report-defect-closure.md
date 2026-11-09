@@ -63,9 +63,9 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 ## Build W: regressions from run 2a2e47dd
 
-Fix commit `210a039c` on top of `0236255d`. No paid report run was made.
+Fix commits `210a039c`, `3fb83b78` and `6acbe527` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4071 passed, 10 skipped, 1 deselected on `210a039c`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4075 passed, 10 skipped, 1 deselected on `6acbe527`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -79,9 +79,16 @@ Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in
 
 Unverified: W4's live effect. Nothing offline can show that OpenRouter's Anthropic route now returns structured output. Acceptance is zero `fallback_recovered` records for the Trader and Sentiment Analyst on the next paid DOCN run, deferred by user decision.
 
+Independent audit of `8bf4f690` (GPT-6 Astra, $1.04, 32 turns): no Critical or High, two Medium, both confirmed and closed in `3fb83b78` and `6acbe527`:
+
+- A negated event ("does not cut guidance") could alias to its affirmative form. Differing negation now keeps them separate. `test_negated_event_is_new` failed before the fix and passes after.
+- A condition kept by ID alone still raised "omitted from proposal", contradicting the new PM instruction. The warning is removed; the condition is still preserved. `test_keep_by_id_alone_is_not_an_omission` failed before and passes after. Two older tests that required this warning now require its absence.
+
+The audit also noted lint is not green; that is the one finding at the base recorded above.
+
 Plan adjustments:
 
-- W5: Jaccard 0.6 on plain tokens scored the real "settled or refinanced" pair at 0.56, so it missed. Added light suffix stemming. The same threshold would also have merged "2026 notes" with "2030 notes" and "cuts guidance" with "raises guidance", so differing numbers or direction words now keep events separate.
+- W5: Jaccard 0.6 on plain tokens scored the real "settled or refinanced" pair at 0.56, so it missed. Added light suffix stemming. The same threshold would also have merged "2026 notes" with "2030 notes" and "cuts guidance" with "raises guidance", so differing numbers, direction words or negation now keep events separate.
 - W2: also applied to saved records whose status is `no_relevant_passage` but which hold passages, so the retained `2a2e47dd` record and resumed checkpoints behave the same way.
 - W4: pinning and the no-forced-tool-choice flag ship together as the plan says, so forced tool choice is not sent for `anthropic/` models on OpenRouter even though the pinned host accepts it. A reply without the tool call falls to the free-text path and would show as a fallback.
 - W6: `comparison` is a structured record, so its `value` and `unit` are read rather than parsing text.
