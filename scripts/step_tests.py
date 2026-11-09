@@ -286,7 +286,7 @@ def cmd_baseline(args) -> int:
     import cli.run as cli_run
     from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-    meter = CostMeter(Path(args.ledger), "dry-run" if args.dry_run else "baseline", args.cap, root.name)
+    meter = CostMeter(Path(args.ledger), "dry-run" if args.dry_run else args.budget, args.cap, root.name)
     base_handler = cli_run.StatsCallbackHandler
 
     class MeteredStats(base_handler):
@@ -854,6 +854,7 @@ def main(argv: list[str] | None = None) -> int:
     base.add_argument("--ledger", required=True)
     base.add_argument("--cap", type=float, default=12.0)
     base.add_argument("--dry-run", action="store_true")
+    base.add_argument("--budget", default="baseline", help="ledger budget name, e.g. final")
     prove = sub.add_parser("prove")
     prove.add_argument("--run", required=True)
     prove.add_argument("--out", required=True)
