@@ -125,3 +125,25 @@ def test_paraphrased_event_is_aliased(prior_text, new_text):
 def test_different_event_is_new(prior_text, new_text):
     _, saved = _restated(prior_text, new_text)
     assert len(saved['conditions']) == 2
+
+
+@pytest.mark.parametrize('new_text', [
+    'Management does not cut its 2027 revenue growth guidance.',
+    "Management doesn't cut its 2027 revenue growth guidance.",
+])
+def test_negated_event_is_new(new_text):
+    _, saved = _restated('Management cuts its 2027 revenue growth guidance.', new_text)
+    assert len(saved['conditions']) == 2
+
+
+@pytest.mark.parametrize('new_conditions', [[], [_event('Disclosure of material ATM issuance.')]])
+def test_keep_by_id_alone_is_not_an_omission(new_conditions):
+    prior = prepare(_event('Management cuts its 2027 revenue growth guidance.'))
+    identifier = prior['conditions'][0]['condition_id']
+    saved = thesis.prepare_thesis(
+        {'conditions': new_conditions,
+         'dispositions': [{'condition_id': identifier, 'disposition': 'kept', 'reason': 'Still open.'}]},
+        prior, 'Hold', '2026-11-09', str(uuid4()))
+    assert [row['condition_id'] for row in saved['conditions']].count(identifier) == 1
+    assert len(saved['conditions']) == 1 + len(new_conditions)
+    assert not any('omitted from proposal' in warning for warning in saved['warnings'])

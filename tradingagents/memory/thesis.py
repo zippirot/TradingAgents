@@ -144,6 +144,7 @@ _EVENT_STOP_WORDS = frozenset(
     ['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'how', 'if', 'in', 'into', 'is', 'its', 'of', 'on', 'or', 's', 'that', 'the', 'their', 'to', 'was', 'were', 'whether', 'will', 'with'])
 # Two descriptions that differ in direction describe opposite events.
 _EVENT_DIRECTIONS = frozenset(('cut', 'lower', 'reduc', 'decreas', 'declin', 'rais', 'increas', 'withdraw'))
+_EVENT_NEGATIONS = frozenset(('not', 'no', 'never', 'without', 't'))
 _EVENT_SIMILARITY = 0.6
 
 
@@ -157,12 +158,13 @@ def _event_tokens(description):
 
 
 def _same_event(first, second):
-    """Paraphrases of one event; a differing year, amount or direction is a different event."""
+    """Paraphrases of one event; a differing year, amount, direction or negation is a different event."""
     if first[0] != 'event' or second[0] != 'event' or not first[1] or not second[1]:
         return False
     left, right = first[1], second[1]
     if ({t for t in left if t.isdigit()} != {t for t in right if t.isdigit()}
-            or left & _EVENT_DIRECTIONS != right & _EVENT_DIRECTIONS):
+            or left & _EVENT_DIRECTIONS != right & _EVENT_DIRECTIONS
+            or left & _EVENT_NEGATIONS != right & _EVENT_NEGATIONS):
         return False
     return len(left & right) / len(left | right) >= _EVENT_SIMILARITY
 
@@ -439,7 +441,6 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
     dispositions = dispositions if isinstance(dispositions, list) else []
     preserved = []
     retired = set()
-    proposed_content = {_content_key(row): row['condition_id'] for row in conditions}
     for previous in prior_conditions:
         identifier = previous['condition_id']
         matches = _matches(previous, dispositions)
@@ -450,8 +451,6 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
             retired.add(identifier)
         elif matches and matches[0].get('disposition') == 'kept':
             preserved.append(previous)
-            if not any(c['condition_id'] == identifier for c in conditions) and _kept_match(_content_key(previous), proposed_content) is None:
-                warnings.append(f'Kept condition {identifier} omitted from proposal; prior condition retained')
     # Bound new proposals independently; explicit keeps must not consume their slots.
     combined = {row['condition_id']: row for row in preserved}
     kept_by_content = {_content_key(row): row['condition_id'] for row in preserved}

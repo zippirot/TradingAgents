@@ -323,7 +323,7 @@ def test_retired_condition_is_removed_from_next_active_thesis():
     assert next_thesis['canonical_rating'] == 'Buy'
 
 
-def test_kept_but_omitted_condition_is_preserved_with_visible_warning():
+def test_condition_kept_by_id_alone_is_preserved_without_warning():
     prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
     prior['observations'] = thesis.observe_conditions(prior,state())
     identifier = prior['conditions'][0]['condition_id']
@@ -565,7 +565,7 @@ def test_different_threshold_is_a_new_condition():
     assert len(result['conditions']) == 2
     assert result['conditions'][0]['condition_id'] == identifier
     assert 'condition_aliases' not in result['conditions'][0]
-    assert any('omitted from proposal' in item for item in result['warnings'])
+    assert not any('omitted from proposal' in item for item in result['warnings'])
 
 
 def test_reproposal_does_not_mutate_the_prior_record():
