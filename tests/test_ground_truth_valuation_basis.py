@@ -29,6 +29,11 @@ def validate(quote, outcome='supported', **extra):
 @pytest.mark.parametrize('quote', [
     'The market pays 6.81× today.',
     'The market multiple is 6.81.',
+    'The ratio is 7.89x trailing revenue.',
+    'The ratio is 7.89x forward revenue on an equity-value basis.',
+    'The ratio is 7.89x trailing revenue on an enterprise-value basis.',
+    'The ratio is 7.89x revenue on an equity-value basis.',
+    'The market pays 6.81x; the reference is 7.89x trailing revenue on an equity-value basis.',
     'The market pays 6.81x; equity value is 100 USD and trailing revenue is 100 USD.',
     'The market pays 6.81x; the equity value / trailing revenue reference is 7.89x.',
     'The market pays 6.81x. Equity value / trailing revenue is 7.89x.',
@@ -49,6 +54,8 @@ def test_ambiguous_or_cross_basis_ratio_cannot_gain_reference_authority(quote, o
     'Market capitalization / TTM revenue multiple is 7.89.',
     'The own-history median equity value / trailing revenue was 4.47x.',
     'The multiple fell from 16.31x to 7.56x equity value / trailing revenue.',
+    'At the dated November close, XYZ traded at 7.89 times trailing revenue on an equity-value basis, versus its historical median of 4.47 times.',
+    'The multiple is 7.89x TTM revenue on a market-capitalization basis.',
 ])
 @pytest.mark.parametrize('outcome', ['supported', 'contradicted'])
 def test_explicit_same_basis_reference_claims_preserve_model_assessments(quote, outcome):
@@ -140,3 +147,22 @@ def test_prompt_states_reference_basis_contract_without_rewriting_report_quote()
     assert 'Never replace one ratio basis with another' in prompt
     assert 'ambiguous, EV, forward or mixed-basis' in prompt
     assert 'Keep the exact report quotation unchanged' in prompt
+
+
+def test_pending_partial_chunk_cannot_auto_complete_when_the_word_order_becomes_valid(monkeypatch):
+    first = 'Equity value / trailing revenue is 7.89x.'
+    pending = 'The multiple is 7.89x trailing revenue on an equity-value basis.'
+    parts = [('Decision', '5_portfolio', [('First', 'first.md', first), ('Pending', 'pending.md', pending)])]
+    inv = inventory(parts=parts)
+    monkeypatch.setattr(audit, '_source_index', lambda state: (deepcopy(SOURCES), []))
+    class Reviewer:
+        def invoke(self, prompt):
+            chunk = json.loads(prompt.split('REPORT CHUNK:\n')[1].split('\nSUPPLIED SOURCES')[0])
+            return {'claims': [raw_claim(chunk['text'])], 'no_material_claims': False}
+    prior = audit.run_audit(state(), Reviewer(), {'ground_truth_max_requests': 1}, inventory=inv)
+    assert prior['status'] == 'partial' and prior['coverage']['reviewed_chunks'] == 1
+    remaining = prior['coverage']['remaining_chunks']
+    result = audit.run_audit(state(), None, inventory=inv, prior_audit=prior)
+    assert result['status'] == 'partial' and result['usage']['requests'] == 0
+    assert result['coverage']['reviewed_chunks'] == 1 and result['coverage']['remaining_chunks'] == remaining
+    assert result['claims'] == prior['claims']

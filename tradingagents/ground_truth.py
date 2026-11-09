@@ -828,7 +828,8 @@ def _valuation_reference_basis_matches(quote):
             return False
         numerator = r"\b(?:equity(?:[ -]+value)?|market[ -]+cap(?:italization)?)\b"
         denominator = r"\b(?:TTM|trailing(?:[ -]+(?:twelve|12)[ -]+months?)?)[ -]+(?:revenue|sales)\b"
-        if not re.search(numerator + r"\s*(?:/|divided[ -]+by|to)\s*" + denominator, clause, re.I):
+        if not (re.search(numerator + r"\s*(?:/|divided[ -]+by|to)\s*" + denominator, clause, re.I)
+                or re.search(denominator + r"\s+on\s+an?\s+" + numerator + r"[ -]+basis\b", clause, re.I)):
             return False
     return True
 
