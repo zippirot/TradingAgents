@@ -63,9 +63,9 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 ## Build W: regressions from run 2a2e47dd
 
-Fix commits `210a039c`, `3fb83b78` and `6acbe527` on top of `0236255d`. No paid report run was made.
+Fix commits `210a039c`, `3fb83b78`, `6acbe527` and `8c230492` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4075 passed, 10 skipped, 1 deselected on `6acbe527`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4079 passed, 10 skipped, 1 deselected on `8c230492`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -84,7 +84,14 @@ Independent audit of `8bf4f690` (GPT-6 Astra, $1.04, 32 turns): no Critical or H
 - A negated event ("does not cut guidance") could alias to its affirmative form. Differing negation now keeps them separate. `test_negated_event_is_new` failed before the fix and passes after.
 - A condition kept by ID alone still raised "omitted from proposal", contradicting the new PM instruction. The warning is removed; the condition is still preserved. `test_keep_by_id_alone_is_not_an_omission` failed before and passes after. Two older tests that required this warning now require its absence.
 
-The audit also noted lint is not green; that is the one finding at the base recorded above.
+Re-audit of `24376a3c` ($1.02, 32 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `8c230492`:
+
+- "notes" stemmed to "not", so "refinances the notes" and "will not refinance the notes" got one key.
+- Decimals split into digits, so "$1.5 billion" and "$5.1 billion" got one key.
+
+Exact keys are the full description again. Quantities, scale and negation are read before stemming and must match for any fuzzy alias. `test_opposite_or_different_amount_events_stay_separate` failed before and passes after.
+
+The audits also noted lint is not green; that is the one finding at the base recorded above.
 
 Plan adjustments:
 
