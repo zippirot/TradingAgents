@@ -124,7 +124,7 @@ def create_trader(llm):
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
                     "sized by how strong the case is; conflict alone is not a Hold.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** when supported; holdings may be unknown"
+                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** in qualitative words only: holdings and loss budget are unknown, so give no percentages, fractions, share counts or currency amounts"
                 ),
             },
         ]
@@ -133,7 +133,9 @@ def create_trader(llm):
             structured_llm,
             llm,
             messages,
-            render_trader_proposal,
+            # The Research Manager's actions and triggers follow the proposal on
+            # this path too, not only on the free-text fallback.
+            lambda proposal: f"{render_trader_proposal(proposal)}\n\n{_carried_plan(investment_plan)}",
             "Trader",
             finish_freetext=lambda text: _complete_fallback(text, investment_plan),
         )

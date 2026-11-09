@@ -140,6 +140,26 @@ GPT-6 Astra through the frozen executor on `524fe352`: 32 turns, $1.75, 18 minut
 
 Commits after the audited head changed the Trader fallback, error redaction, the prompt-only list filter, and lint-only imports. No second audit was run; the skill directs bounded review over repeated audits. Audit record: `~/Claude/audits/docs/superpowers/audits/2026-11-09-report-defect-closure-final/`.
 
+## Build Y — follow-up after confirming run `eea86100`
+
+Base `fd75d9cd` (staging). Branch `claude/report-followup-20261109`, worktree `~/Worktrees/report-followup`. Not merged, pushed or installed.
+
+| Item | Cause (confirmed in source, reproduced offline) | Change | Proof |
+|---|---|---|---|
+| Y1 Trader dropped the Research Manager's actions and triggers | `_carried_plan` ran only on the free-text fallback; W4 removed the fallback, so the block vanished | `trader.py`: the structured path appends the same block; each path carries it exactly once | Real Trader node on the saved `eea86100` proposal and RM plan: one carried block with the triggers |
+| Y2 Two invalidation lines on a Sell | The Sell rendering printed a "Stop Loss: not provided" row that the legacy relabel turned into a second, "unvalidated" invalidation line | `schemas.py`: a Sell prints no Stop Loss row | Same replay: exactly one line, `Advisory Thesis Invalidation Level: 90.5` |
+| Y3 Invented allocation number | Field description gave `5% of portfolio` as its example; nothing filtered the answer | `schemas.py`: `qualitative_sizing` drops sizing sentences that state a percentage, basis points, currency amount, share count or fraction of the position and adds one withheld note; field description and Trader prompt ask for words only | Same replay: the "25–35% below your standard allocation" sentence is gone, the other sentences are word for word, note appended |
+| Y4 Citation check false miss on K2 | K labels resolved only to the two compared figures, not the change between them | `citation_check.py`: a passing comparison also offers its percentage and absolute change under either label, in both signs | `check_pm_citations` on the saved state: 8 of 8, no mismatches (was 7 of 8) |
+| Y5 Audit saw one of two valuation requests | One 6,000-character budget shared by all cases | `audit_pass.py`: 8,000 characters per case | `_case_context` on the saved state: both requests supplied, `requests_omitted` 0 (was 1) |
+
+Verification on the committed tree: new `tests/test_report_followup.py` 15 tests, red before the change (10 failed) and green after; full suite 4104 passed, 10 skipped, 1 deselected; `ruff check .` clean. The replays above are offline against the saved `eea86100` state with no paid call.
+
+Two existing expectations in `tests/test_structured_agents.py` were changed because Build Y changes the behaviour they pinned: the Buy rendering test now uses worded sizing in place of `6% of portfolio`, and the Sell rendering test expects the advisory invalidation line and no Stop Loss row.
+
+Known limits: the sizing filter works on whole sentences, so the qualitative words in a sentence that also states a number are withheld with it (in `eea86100` "trim in stages toward a modest underweight" went with the percentage; the carried Research Manager block states the same action). A sizing sentence that quotes a price with a currency sign is also withheld. The free-text fallback text is not filtered. No paid confirming run was made.
+
+Not in Y (display, recorded for later): "Reconsideration trigger unknown; kept" wording for quarters not yet reported; blank unit on the price row; case diff keyed on title; duplicated disclosure excerpts; "consensus: not_retrieved" beside vendor consensus.
+
 ## Process departures
 
 - The goal text reached the builder only after the builds were committed. Named tests were therefore written with each build, not always first.

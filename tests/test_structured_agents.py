@@ -52,13 +52,13 @@ class TestRenderTraderProposal:
             reasoning="Strong technicals + fundamentals.",
             purchase_entry_price=189.5,
             stop_loss=178.0,
-            position_sizing="6% of portfolio",
+            position_sizing="Modest starter position.",
         )
         md = render_trader_proposal(p)
         assert "**Action**: Buy" in md
         assert "**Purchase Entry Price**: 189.5" in md
         assert "**Stop Loss**: 178.0" in md
-        assert "**Position Sizing**: 6% of portfolio" in md
+        assert "**Position Sizing**: Modest starter position." in md
         assert "FINAL TRANSACTION PROPOSAL: **BUY**" in md
 
     def test_optional_fields_are_named_as_not_provided(self):
@@ -66,8 +66,11 @@ class TestRenderTraderProposal:
         tell it from a level the trader declined to set."""
         p = TraderProposal(action=TraderAction.SELL, reasoning="Guidance cut.")
         md = render_trader_proposal(p)
-        for field in ("Purchase Entry Price", "Reference Sale Level", "Stop Loss", "Position Sizing"):
+        # A Sell has no stop: its level is the advisory invalidation line.
+        for field in ("Purchase Entry Price", "Reference Sale Level", "Position Sizing",
+                      "Advisory Thesis Invalidation Level"):
             assert f"**{field}**: not provided" in md
+        assert "Stop Loss" not in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
 
 

@@ -257,6 +257,30 @@ Replay `2a2e47dd`: two supported cases on the card; bear-1 keeps the RM's judgme
 
 **W estimate:** small; GPT-6 Sol (`gpt-6-sol`) medium in Codex or the current Claude session; 3–5 active hours plus 0.5–1 h audit. W4's live effect cannot be proven offline.
 
+## Build Y — Follow-up after the confirming run (added 2026-11-09 late)
+
+Source: DOCN run `eea86100` (attempt `~/.tradingagents/logs/DOCN/2026-11-09/140701-d0e79530`), produced on `fd75d9cd`. It confirmed W1–W5 and showed five small defects, none High. User approved this build on 2026-11-09. Worktree `~/Worktrees/report-followup`, branch `claude/report-followup-20261109`, base `fd75d9cd` (integrated `staging`). Same audit and boundary rules as the earlier builds: no merge, push or install without approval. No paid calls.
+
+### Y1 The Trader carries the Research Manager's actions and triggers on every path
+`_carried_plan` ran only inside the free-text fallback. W4 removed the fallback, so the carried block disappeared. `trader_node` appends the block after `label_legacy_trader_price` for the structured and the free-text path, so the Research Manager's words are copied unchanged. Test: structured Trader output through `create_trader` contains the carried heading, the Strategic Actions text and the trigger section; the free-text path contains the block exactly once.
+
+### Y2 One invalidation line on a Sell
+`render_trader_proposal` printed `Stop Loss: not provided` for a Sell, and `label_legacy_trader_price` rewrote it into a second "Advisory Thesis Invalidation Level (unvalidated): not provided" line beside the real level. A Sell no longer prints a Stop Loss row; the schema already moves any Sell stop into the advisory level. Buy and Hold are unchanged. Test: a Sell with `advisory_invalidation_level=90.5` rendered and labelled has exactly one line containing "Advisory Thesis Invalidation Level", and it reads 90.5.
+
+### Y3 Trader sizing stays qualitative
+The schema's own example was "5% of portfolio" and the prompt asked for sizing "when supported", so the Trader produced "25–35% below standard allocation" with holdings unknown. The field description and the prompt now ask for qualitative sizing only. As a backstop, `render_trader_proposal` drops any sizing sentence that states a percentage, basis points, a currency amount or a share count, and appends "Numeric sizing withheld: sizing is qualitative only without verified portfolio and loss-budget assumptions." Sentences without such a figure are kept word for word. The free-text fallback is not filtered; it stays under the existing "unvalidated" heading. Test: the `eea86100` sizing text keeps "Holdings unknown." and the settlement sentence, loses the 25–35% sentence and gains the note; a purely qualitative text is unchanged.
+
+### Y4 A cited change between two reported figures is not a mismatch
+The citation check resolved a K label only to the current and prior values of its comparison, so "RPO fell 10.53% sequentially (K2, S27)" was reported as a miss. A K label now also resolves to the comparison's `percentage_change` and `absolute_change`, each with either sign, because prose states a fall as a positive number. Test: the saved `eea86100` state gives 8 of 8 matched; a wrong percentage under the same label is still a mismatch.
+
+### Y5 The audit replays every valuation case
+`_case_context` shared one 6,000-character budget across all case requests; the two `eea86100` requests were 3,524 and 2,538 characters, so the second was omitted. The budget becomes 8,000 characters per case, at most three cases by the existing scenario limit, which adds at most 24,000 characters to a request of about 290,000. A request over the per-case budget is still named and counted as omitted. Test: both `eea86100` case requests are supplied in full with `requests_omitted` 0; an oversized request is omitted and counted.
+
+### Y proof
+Offline replay of `eea86100` for Y3, Y4 and Y5 and a rendered Sell for Y1 and Y2. Full `pytest -q` and `ruff check`. Independent audit, then closure of confirmed findings. The live effect of the Y3 prompt wording shows only on the next paid run, which is not part of this build.
+
+**Y estimate:** small; current Claude session (`claude-fable-5-2`), medium effort; 2–4 active hours plus audit. Not in Y: the display items from the same review (trigger-unknown wording, blank unit on the price row, case diff keyed on title, duplicated disclosure excerpts, "consensus: not_retrieved" beside vendor consensus).
+
 ## Sequence
 
 V → T → E → P → F → X → S. V first because it removes the recurring disputed case; T and E are the visible page defects; P, F, X are independent and may run in parallel worktrees if the user wants; S last because S2 changes shared retrieval behaviour and benefits from the others being settled. One confirming paid DOCN run after integration of V–X is recommended.

@@ -36,6 +36,8 @@ _FINAL_RESPONSES = {
     'neutral_risk_analyst': ('risk_debate_state', 'current_neutral_response'),
 }
 _DEFAULT_ROLE_LIMIT = 12_000
+# Per case, so a second or third scenario is not dropped behind the first.
+_CASE_INPUT_LIMIT = 8000
 _OMISSION = '\n[material omitted]\n'
 _ROLE_STAGES = {
     'market_analyst': 'Market Analyst', 'sentiment_analyst': 'Sentiment Analyst',
@@ -314,17 +316,16 @@ def _case_context(state):
                     if isinstance(row, Mapping) and isinstance(row.get('case_id'), str)]
         if len(case_ids) != len(rows) or len(case_ids) != len(set(case_ids)):
             raise ValueError('Invalid replayed case identities')
-        included, omitted, used = [], 0, 0
+        included, omitted = [], 0
         for row in rows:
             item = {'case_id': row['case_id'], 'name': row.get('name'),
                     'request': row.get('request')}
             encoded = json.dumps(item, ensure_ascii=False, default=str)
-            if used + len(encoded) <= 6000:
+            if len(encoded) <= _CASE_INPUT_LIMIT:
                 included.append(item)
-                used += len(encoded)
             else:
                 included.append({'case_id': row['case_id'], 'name': row.get('name'),
-                                 'request': 'omitted at 6000-character case-input cap'})
+                                 'request': f'omitted at {_CASE_INPUT_LIMIT}-character per-case input cap'})
                 omitted += 1
         return {'shared_valuation_cases': json.dumps(included, ensure_ascii=False, default=str),
                 'shared_valuation_case_ids': json.dumps(case_ids),

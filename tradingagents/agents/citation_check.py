@@ -66,6 +66,15 @@ def _canonical_values(state: Mapping) -> dict[str, list[tuple[Decimal, str]]]:
                 if not isinstance(comparison, dict) or comparison.get('status') != 'pass':
                     continue
                 sources = comparison.get('sources') or {}
+                if any((sources.get(role) or {}).get('source_id') == source_id for role in ('current', 'prior')):
+                    # The change between the two figures is cited under either label;
+                    # prose states a fall as a positive number.
+                    for key, unit in (('percentage_change', 'percent'),
+                                      ('absolute_change', str(comparison.get('currency') or ''))):
+                        if (number := _decimal(comparison.get(key))) is not None:
+                            for item in ((number, unit), (-number, unit)):
+                                if item not in values.setdefault(label, []):
+                                    values[label].append(item)
                 for role in ('current', 'prior'):
                     source = sources.get(role) or {}
                     if (source.get('source_id') == source_id

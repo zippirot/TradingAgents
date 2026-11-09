@@ -213,7 +213,11 @@ class TraderProposal(BaseModel):
     )
     position_sizing: str | None = Field(
         default=None,
-        description="Optional sizing guidance, e.g. '5% of portfolio'.",
+        description=(
+            "Optional qualitative sizing guidance in words, e.g. 'modest trim, keep a core "
+            "position'. Holdings and loss budget are unknown: no percentages, fractions, "
+            "share counts or currency amounts."
+        ),
     )
 
     @field_validator("purchase_entry_price", "reference_sale_level", "stop_loss", "advisory_invalidation_level", mode="before")
@@ -248,6 +252,29 @@ class TraderProposal(BaseModel):
         return self
 
 
+_NUMERIC_SIZING = re.compile(
+    r"\d\s*(?:%|percent\b|per cent\b|bps\b|bp\b|basis points?\b)"
+    r"|[$€£]\s*\d"
+    r"|\d[\d,.]*\s*(?:k|m|mm|thousand|million)?\s*(?:shares?|USD|dollars)\b"
+    r"|\b(?:half|thirds?|quarters?)\s+(?:of\s+)?(?:the|your|its|a)\s+(?:\w+\s+)?"
+    r"(?:position|holdings?|allocation|stake|exposure)\b",
+    re.I,
+)
+SIZING_WITHHELD = (
+    "Numeric sizing withheld: sizing is qualitative only without verified "
+    "portfolio and loss-budget assumptions."
+)
+
+
+def qualitative_sizing(text: str | None) -> str | None:
+    """Drop sizing sentences that state an allocation figure; holdings and loss budget are unknown."""
+    if not isinstance(text, str) or not _NUMERIC_SIZING.search(text):
+        return text
+    kept = [sentence for sentence in re.split(r"(?<=[.!?])\s+", text.strip())
+            if sentence and not _NUMERIC_SIZING.search(sentence)]
+    return " ".join([*kept, SIZING_WITHHELD])
+
+
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
 
@@ -266,8 +293,11 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         ("Purchase Entry Price", proposal.purchase_entry_price),
         ("Reference Sale Level", proposal.reference_sale_level),
         ("Stop Loss", proposal.stop_loss),
-        ("Position Sizing", proposal.position_sizing),
+        ("Position Sizing", qualitative_sizing(proposal.position_sizing)),
     ):
+        if label == "Stop Loss" and proposal.action is TraderAction.SELL:
+            # A Sell has no stop; its level is the advisory invalidation line below.
+            continue
         parts.extend(["", f"**{label}**: {value if value is not None and value != '' else 'not provided'}"])
     if proposal.action is TraderAction.SELL:
         parts.extend(["", f"**Advisory Thesis Invalidation Level**: {proposal.advisory_invalidation_level if proposal.advisory_invalidation_level is not None else 'not provided'}"])
