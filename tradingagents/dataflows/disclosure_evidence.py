@@ -305,6 +305,13 @@ def validate_disclosure_claims(
     )
 
 
+def _without_source_bullet(item):
+    """A model copying a list item verbatim keeps its bullet, which is not part of the sentence."""
+    if isinstance(item, dict) and isinstance(item.get("quote"), str):
+        return {**item, "quote": re.sub(r"^\s*(?:•|-\s)\s*", "", item["quote"])}
+    return item
+
+
 def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str], *, packages=()) -> DisclosureResult:
     """Parse one bounded model extraction; missing/malformed output stays unvalidated."""
     matches = re.findall(r"```disclosures\s*\n(.*?)\n```", report, re.S)
@@ -319,7 +326,7 @@ def parse_disclosure_report(report: str, blocks: dict[tuple[str, str], str], *, 
     claims, original_indices, rejected = [], [], []
     for index, item in enumerate(raw):
         try:
-            claims.append(DisclosureClaim.model_validate(item))
+            claims.append(DisclosureClaim.model_validate(_without_source_bullet(item)))
             original_indices.append(index)
         except (ValueError, TypeError):
             rejected.append((index, f"record {index}: malformed disclosure record"))

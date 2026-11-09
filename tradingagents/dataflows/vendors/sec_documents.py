@@ -740,6 +740,13 @@ class DocumentClient:
                 response.close()
 
 
+def _model_package_gap(gap: str) -> str:
+    """This limit bounds what agents read; extraction and search use the full filing."""
+    if gap.startswith("Document text limit reached;"):
+        return f"{gap} (model package only; extraction and search read the full filing)"
+    return gap
+
+
 def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     cutoff = date.fromisoformat(as_of_date)
     cik = cik_for(ticker)
@@ -795,6 +802,7 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                         "Document text limit reached; package remaining "
                         f"{available_chars} characters; full source section/table not retained"
                     )
+                extraction_gaps = [_model_package_gap(gap) for gap in extraction_gaps]
                 remaining -= sum(len(b.text) for b in blocks)
                 documents.append(
                     FilingDocument(

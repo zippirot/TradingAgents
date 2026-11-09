@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import UTC, datetime
 
 from tradingagents.dataflows.vendors import sec_documents as docs
 
@@ -238,3 +239,46 @@ def test_prior_quarter_rpo_transport_accepts_large_primary_with_bounded_extracti
                for block in package.documents[0].blocks)
     assert sum(len(block.text) for block in package.documents[0].blocks) <= 40_000
     assert len(calls) == 2
+
+
+def _late_text_filing(monkeypatch):
+    late = "Zebra paragraph beyond the budget."
+    body = "<p>" + "x" * 45000 + "</p><p>" + late + "</p>"
+    metadata = {"cik": "0001582961", "filings": {"files": [], "recent": {
+        "form": ["10-Q"], "accessionNumber": ["0001582961-26-000002"], "filingDate": ["2026-11-03"],
+        "reportDate": ["2026-09-30"], "primaryDocument": ["q.htm"], "items": [""],
+        "acceptanceDateTime": ["2026-11-03T16:00:00.000Z"], "isXBRL": [1], "isInlineXBRL": [1],
+        "primaryDocDescription": ["10-Q"], "act": ["34"], "fileNumber": ["1"], "filmNumber": ["1"],
+        "size": [1], "core_type": ["10-Q"]}}}
+
+    class Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def fetch(self, url):
+            text = json.dumps(metadata) if "submissions" in url else body
+            return {"text": text, "content_hash": "a" * 64, "retrieved_at": datetime(2026, 11, 4, tzinfo=UTC).isoformat()}
+
+    monkeypatch.setattr(docs, "cik_for", lambda ticker: "0001582961")
+    monkeypatch.setattr(docs, "DocumentClient", Client)
+    return late
+
+
+def test_extractors_read_full_cached_text_beyond_package_limit(monkeypatch):
+    late = _late_text_filing(monkeypatch)
+    full = docs.get_filing_search_evidence("DOCN", "2026-11-06")
+    assert any(late in block.text for doc in full.documents for block in doc.blocks)
+    assert not any("text limit" in gap.lower() for gap in full.gaps)
+
+
+def test_model_package_limit_unchanged(monkeypatch):
+    late = _late_text_filing(monkeypatch)
+    bounded = docs.get_filing_evidence("DOCN", "2026-11-06")
+    assert not any(late in block.text for doc in bounded.documents for block in doc.blocks)
+    assert sum(len(block.text) for doc in bounded.documents for block in doc.blocks) <= 40000
+
+
+def test_text_limit_gap_names_model_package_only(monkeypatch):
+    _late_text_filing(monkeypatch)
+    gaps = [g for g in docs.get_filing_evidence("DOCN", "2026-11-06").gaps if "text limit" in g.lower()]
+    assert gaps and all("model package only; extraction and search read the full filing" in g for g in gaps)

@@ -7,6 +7,12 @@ from tradingagents.agents.researchers.bear_researcher import create_bear_researc
 from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
 
 
+def _set_limit(monkeypatch, limit):
+    from tradingagents.agents import audit_pass
+
+    monkeypatch.setattr(audit_pass, '_role_limit', lambda: limit)
+
+
 def test_research_producers_retain_exact_final_turns():
     first = create_bull_researcher(_capturing_llm({}))(_investment_state(''))['investment_debate_state']
     second = create_bear_researcher(_capturing_llm({}))({**_investment_state(''),
@@ -16,7 +22,8 @@ def test_research_producers_retain_exact_final_turns():
     assert second['bear_history'].endswith(second['current_bear_response'])
 
 
-def test_final_turn_of_each_debate_role_is_prioritized_and_coverage_disclosed():
+def test_final_turn_of_each_debate_role_is_prioritized_and_coverage_disclosed(monkeypatch):
+    _set_limit(monkeypatch, 6000)
     long_earlier = 'earlier-head ' + 'x' * 7000 + ' earlier-tail'
     final = 'FINAL TURN: supported contrary evidence'
     state = {'investment_debate_state': {
@@ -41,23 +48,31 @@ def test_final_turn_of_each_debate_role_is_prioritized_and_coverage_disclosed():
         assert 'final_turn' in coverage['segments']
 
 
-def test_oversized_final_turn_gets_head_and_tail_within_budget():
+def test_final_turn_always_complete_when_over_budget(monkeypatch):
+    _set_limit(monkeypatch, 6000)
     final = 'final-head ' + 'z' * 7000 + ' final-tail'
     state = {'risk_debate_state': {'aggressive_history': 'old argument\n' + final,
                                    'current_aggressive_response': final}}
     _, roles = _contexts(state)
-    assert roles['aggressive_risk_analyst'].startswith('final-head')
-    assert roles['aggressive_risk_analyst'].endswith('final-tail')
-    assert 'old argument' not in roles['aggressive_risk_analyst']
-    assert len(roles['aggressive_risk_analyst']) <= 6000
+    assert roles['aggressive_risk_analyst'] == final
     record = create_advisory_audit(FakeModel({'findings': []}), deep_model_id='d',
                                    quick_model_id='q')(state)['advisory_audit']
     coverage = record['role_input_coverage']['aggressive_risk_analyst']
-    assert coverage['segments'] == ['final_head', 'final_tail']
-    assert coverage['earlier_characters_audited'] == 0
+    assert coverage['segments'] == ['final_turn']
+    assert coverage['audited_characters'] == len(final) and coverage['earlier_characters_audited'] == 0
 
 
-def test_legacy_history_without_final_turn_metadata_discloses_unknown():
+def test_role_limit_from_config(monkeypatch):
+    from tradingagents.agents.audit_pass import _role_limit
+    from tradingagents.default_config import DEFAULT_CONFIG
+
+    assert DEFAULT_CONFIG['audit_role_chars'] == 12000
+    monkeypatch.setattr('tradingagents.dataflows.config.get_config', lambda: {'audit_role_chars': 7000})
+    assert _role_limit() == 7000
+
+
+def test_legacy_history_without_final_turn_metadata_discloses_unknown(monkeypatch):
+    _set_limit(monkeypatch, 6000)
     state = {'investment_debate_state': {'bull_history': 'old ' + 'x' * 7000 + ' latest'}}
     record = create_advisory_audit(FakeModel({'findings': []}), deep_model_id='d',
                                    quick_model_id='q')(state)['advisory_audit']
@@ -66,7 +81,8 @@ def test_legacy_history_without_final_turn_metadata_discloses_unknown():
     assert coverage['total_characters'] > coverage['audited_characters']
 
 
-def test_nearly_full_final_turn_discloses_tail_only_earlier_coverage():
+def test_nearly_full_final_turn_discloses_tail_only_earlier_coverage(monkeypatch):
+    _set_limit(monkeypatch, 6000)
     final = 'F' * 5998
     state = {'risk_debate_state': {'aggressive_history': 'earlier ' * 1000 + final,
                                    'current_aggressive_response': final}}

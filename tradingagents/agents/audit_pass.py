@@ -35,7 +35,7 @@ _FINAL_RESPONSES = {
     'conservative_risk_analyst': ('risk_debate_state', 'current_conservative_response'),
     'neutral_risk_analyst': ('risk_debate_state', 'current_neutral_response'),
 }
-_ROLE_LIMIT = 6000
+_DEFAULT_ROLE_LIMIT = 12_000
 _OMISSION = '\n[material omitted]\n'
 _ROLE_STAGES = {
     'market_analyst': 'Market Analyst', 'sentiment_analyst': 'Sentiment Analyst',
@@ -94,15 +94,23 @@ def _window(text, limit):
     return text[:head] + _OMISSION + text[-tail:], head + tail, 'head_tail'
 
 
+def _role_limit():
+    from tradingagents.dataflows.config import get_config
+
+    limit = get_config().get("audit_role_chars", _DEFAULT_ROLE_LIMIT)
+    return limit if type(limit) is int and limit > 0 else _DEFAULT_ROLE_LIMIT
+
+
 def _role_windows(state):
     roles, coverage = {}, {}
+    limit = _role_limit()
     for role, text in _role_texts(state).items():
         final_source = _FINAL_RESPONSES.get(role)
         group = state.get(final_source[0]) if final_source else None
         supplied = group.get(final_source[1]) if isinstance(group, Mapping) else None
         final = supplied if isinstance(supplied, str) and supplied and text.endswith(supplied) else None
         if final is None:
-            shown, audited, mode = _window(text, _ROLE_LIMIT)
+            shown, audited, mode = _window(text, limit)
             status = 'unknown' if final_source else 'single_response'
             if final_source:
                 segments = {'full': ['full_history'], 'tail': ['history_tail'],
@@ -111,12 +119,11 @@ def _role_windows(state):
                 segments = {'full': ['full_response'], 'tail': ['response_tail'],
                             'head_tail': ['response_head', 'response_tail']}[mode]
             earlier_audited = audited if final_source else 0
-        elif len(final) > _ROLE_LIMIT:
-            shown, audited, _ = _window(final, _ROLE_LIMIT)
-            status, segments, earlier_audited = 'verified', ['final_head', 'final_tail'], 0
+        elif len(final) >= limit:  # The final turn is never cut; earlier turns get what remains.
+            shown, audited, status, segments, earlier_audited = final, len(final), 'verified', ['final_turn'], 0
         else:
             earlier = text[:-len(final)]
-            remaining = _ROLE_LIMIT - len(final) - 1
+            remaining = limit - len(final) - 1
             if earlier and remaining > 0:
                 earlier_shown, earlier_audited, mode = _window(earlier, remaining)
                 shown = earlier_shown + '\n' + final
