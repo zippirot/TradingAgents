@@ -5,6 +5,7 @@ from tradingagents.agents.context import (
     get_portfolio_context_from_state,
     report_or_absent,
     risk_conversation_view,
+    risk_round_instruction,
 )
 
 
@@ -34,7 +35,9 @@ Research Manager plan (unvalidated research):
 {research_plan}
 Flag any Trader step that drops or contradicts a research condition.
 
-Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
+Your task is to make the strongest case for the direction your risk lens supports, including if that differs from the Trader. Challenge the Aggressive and Conservative Analysts where their evidence is incomplete, using the following sources:
+
+{risk_round_instruction(state)}
 
 {instrument_context}
 {portfolio_context}

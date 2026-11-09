@@ -69,6 +69,24 @@ def get_language_instruction() -> str:
     )
 
 
+def risk_round_instruction(state: Mapping[str, Any]) -> str:
+    """Describe the current configured round without changing debate scheduling."""
+    from tradingagents.default_config import DEFAULT_CONFIG
+
+    rounds = (state.get("run_settings") or {}).get("max_risk_discuss_rounds") or DEFAULT_CONFIG["max_risk_discuss_rounds"]
+    round_number = state["risk_debate_state"].get("count", 0) // 3 + 1
+    lines = [f"Risk round {round_number} of {rounds}."]
+    if round_number == 1:
+        lines.append("Before critiquing the Trader, state your own direction (add / hold / reduce / exit) "
+                     "from your risk lens and the evidence that would change it. Number your points.")
+    else:
+        lines.append("List the other roles' numbered points from their last turns; answer or concede each. "
+                     "Do not change your own stated triggers without saying so.")
+    if round_number >= rounds:
+        lines.append("This is your final round: name what remains unresolved rather than restating the debate.")
+    return "\n".join(lines)
+
+
 def risk_conversation_view(state: dict, *opponents: str) -> str:
     """Show history once, retaining missing latest turns and honest opening markers."""
     history = state.get('history', '') or ''

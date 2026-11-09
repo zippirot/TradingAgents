@@ -5,6 +5,7 @@ from tradingagents.agents.context import (
     get_portfolio_context_from_state,
     report_or_absent,
     risk_conversation_view,
+    risk_round_instruction,
 )
 
 
@@ -34,7 +35,9 @@ Research Manager plan (unvalidated research):
 {research_plan}
 Flag any Trader step that drops or contradicts a research condition.
 
-Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
+Your task is to make the strongest case for the direction your risk lens supports, including if that differs from the Trader. Respond directly to the Aggressive and Neutral Analysts' points using the following sources:
+
+{risk_round_instruction(state)}
 
 {instrument_context}
 {portfolio_context}

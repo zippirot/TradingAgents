@@ -5,6 +5,7 @@ from tradingagents.agents.context import (
     get_portfolio_context_from_state,
     report_or_absent,
     risk_conversation_view,
+    risk_round_instruction,
 )
 
 
@@ -34,7 +35,9 @@ Research Manager plan (unvalidated research):
 {research_plan}
 Flag any Trader step that drops or contradicts a research condition.
 
-Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the following sources into your arguments:
+Your task is to make the strongest case for the direction your risk lens supports, including if that differs from the Trader. Incorporate insights from the following sources into your arguments:
+
+{risk_round_instruction(state)}
 
 {instrument_context}
 {portfolio_context}
