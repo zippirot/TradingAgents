@@ -97,6 +97,8 @@ Third re-audit of `10a5cb1e` ($0.72, 26 turns): no Critical or High, two Medium,
 
 Fourth re-audit of `0fb7aa2c` ($0.71, 27 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `4f0791c0`: unordered words merged "and" with "or" and swapped parties, and notation dropped currency and leading decimals. Unordered matching is removed.
 
+Fifth re-audit of `d2815821` ($0.63, 21 turns): no findings at any severity. Six passes cost $4.89 in total, all ten Medium findings were in W5 event matching.
+
 The audits also noted lint is not green; that is the one finding at the base recorded above.
 
 Plan adjustments:
