@@ -137,44 +137,15 @@ def _content_key(row):
         return ('metric', item.metric, item.period_start, item.period_end, item.comparator, threshold, item.unit, item.basis)
     if item.kind == 'price_level':
         return ('price_level', item.comparator, threshold, item.currency)
-    return ('event', ' '.join(item.description.split()))
+    return ('event', _event_wording(item.description))
 
 
-_EVENT_STOP_WORDS = frozenset(('a', 'an', 'and', 'how', 'is', 'its', 'of', 'or', 's', 'that', 'the', 'their', 'was', 'were', 'will'))
-_EVENT_NEGATIONS = frozenset(('not', 'no', 'never', 'without', 'cannot', 'fail', 'fails', 'failed'))
-_EVENT_SYNONYMS = {'financ': 'fund'}
-
-
-def _event_profile(description):
-    """Stemmed words, whether negated, and values in order, read before stemming."""
-    text = description.casefold().replace('’', "'")
-    # A sign counts only when it is not the hyphen of a compound such as at-least-60%.
-    quantities = tuple(sign + value.replace(',', '') for sign, value in
-                       re.findall(r'(?:(?<![\w.])([-+−])\$?)?([a-z]*\d[\d,]*(?:\.\d+)?[a-z]*)', text))
-    words = re.findall(r"[^\W\d_]+(?:'t)?", text)
-    negated = any(word in _EVENT_NEGATIONS or word.endswith("n't") for word in words)
-    # Enough stemming that "settled" and "settlement" are one word.
-    stems = (re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) for word in words
-             if word not in _EVENT_STOP_WORDS)
-    return frozenset(_EVENT_SYNONYMS.get(stem, stem) for stem in stems), negated, quantities
-
-
-def _same_event(first, second):
-    """Rewordings of one event only: the same content words and values, and no negation.
-
-    An uncertain pair stays as two rows, which costs a duplicate instead of a lost condition.
-    """
-    if first[0] != 'event' or second[0] != 'event':
-        return False
-    left, right = _event_profile(first[1]), _event_profile(second[1])
-    return bool(left[0]) and left == right and not left[1]
-
-
-def _kept_match(key, kept_by_content):
-    """The kept condition this content key restates, exactly or as an event paraphrase."""
-    if key in kept_by_content:
-        return kept_by_content[key]
-    return next((kept for other, kept in kept_by_content.items() if _same_event(key, other)), None)
+def _event_wording(description):
+    """One event's wording, with only known-safe rewrites. Anything else stays a separate row."""
+    text = ' '.join(description.casefold().replace('’', "'").split()).rstrip('.')
+    text = re.sub(r'(?<=[^\W\d_])-(?=[^\W\d_])', ' ', text).replace('capacity financing', 'capacity funding')
+    return re.sub(r'^disclosure of how (.+) (?:was|were) settled or refinanced$',
+                  r'disclosure of settlement or refinancing of \1', text)
 
 
 def _condition(row):
@@ -457,7 +428,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
     kept_by_content = {_content_key(row): row['condition_id'] for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
-            kept_id = _kept_match(_content_key(row), kept_by_content)
+            kept_id = kept_by_content.get(_content_key(row))
             if kept_id is not None and kept_id != row['condition_id']:
                 kept = combined[kept_id]
                 aliases = list(dict.fromkeys([*kept.get('condition_aliases', []), row['condition_id']]))[:8]
