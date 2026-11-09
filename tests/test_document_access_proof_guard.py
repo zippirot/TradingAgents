@@ -616,7 +616,7 @@ def test_feature_assessment_accepts_real_retained_source_and_rendered_artifacts(
         }
     }
     state.update(lookup_document_questions(state))
-    expected = "no_relevant_passage" if partial_query else "relevant_passages_found"
+    expected = "passages_retrieved_unmatched" if partial_query else "relevant_passages_found"
     assert all(row["status"] == expected for row in state["document_followups"]["results"])
     state["audit_news_tool_evidence"] = retain_tool_outputs(
         "news", "DOCN", "2026-11-06", [{

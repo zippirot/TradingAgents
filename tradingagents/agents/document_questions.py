@@ -29,6 +29,7 @@ _MAX_CHARS = 12_000
 _POST_FILING = "post_filing_event"
 _SCOPES = {"retained_filings", _POST_FILING}
 NOT_ANSWERABLE = "not_answerable_from_filings"
+_UNMATCHED = "passages_retrieved_unmatched"
 _NOT_ANSWERABLE_TEXT = "Not answerable from filings retrieved before the event."
 _NO_PASSAGE_STATUSES = {"no_relevant_passage", "unavailable", "invalid_query", NOT_ANSWERABLE}
 _FENCE = re.compile(r"```document_questions[ 	]*\r?\n(.*?)\r?\n```", re.S)
@@ -187,8 +188,9 @@ def _query_plan(records: dict) -> dict:
 def _relevance(query: str, passages: list) -> str:
     if query.casefold().startswith("transcript:"):
         query = query.split(":", 1)[1]
-    return ("relevant_passages_found" if any(passage_matches_query(query, p["text"]) for p in passages)
-            else "no_relevant_passage")
+    if not passages:
+        return "no_relevant_passage"
+    return "relevant_passages_found" if any(passage_matches_query(query, p["text"]) for p in passages) else _UNMATCHED
 
 
 def _check_retained(record: dict, scope: dict, records: dict, corpus, state) -> None:
@@ -235,8 +237,10 @@ def _check_retained(record: dict, scope: dict, records: dict, corpus, state) -> 
             if question.get("scope") == _POST_FILING:
                 if status != NOT_ANSWERABLE or passages:
                     raise ValueError("Document follow-up post-filing status mismatch")
-            elif status in {"relevant_passages_found", "no_relevant_passage"}:
-                if status != _relevance(question["query"], passages):
+            elif status in {"relevant_passages_found", "no_relevant_passage", _UNMATCHED}:
+                # Records saved before the unmatched status called it no_relevant_passage.
+                expected = _relevance(question["query"], passages)
+                if status != expected and not (status == "no_relevant_passage" and expected == _UNMATCHED):
                     raise ValueError("Document follow-up relevance status mismatch")
             elif status not in {"unavailable", "invalid_query"} or passages:
                 raise ValueError("Invalid document follow-up status")
@@ -354,7 +358,8 @@ def enforce_followup_judgments(judgments: list, record) -> list:
     """
     rows = list(judgments or ())
     results = (record or {}).get("results") or []
-    unanswerable = {r["question_id"]: r["status"] for r in results if r.get("status") in _NO_PASSAGE_STATUSES}
+    unanswerable = {r["question_id"]: r["status"] for r in results
+                    if r.get("status") in _NO_PASSAGE_STATUSES and not r.get("passages")}
     enforced = []
     for row in rows:
         original = row["classification"]
@@ -373,6 +378,8 @@ def enforce_followup_judgments(judgments: list, record) -> list:
 def _retrieval_status(record, result):
     if record["schema_version"] == 1 and result["status"] in {"found", "not_found"}:
         return "legacy_relevance_not_assessed"
+    if result["status"] == _UNMATCHED or (result["status"] == "no_relevant_passage" and result["passages"]):
+        return "passages retrieved; search phrase not matched"
     return result["status"]
 
 

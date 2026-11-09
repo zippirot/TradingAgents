@@ -166,3 +166,40 @@ def test_the_sentiment_prompt_names_the_subreddits_searched(monkeypatch):
     text = _prompt_text(captured["prompt"])
     assert "r/Bitcoin, r/CryptoCurrency, r/CryptoMarkets" in text
     assert "wallstreetbets" not in text
+
+
+@pytest.mark.unit
+def test_pm_prompt_says_reference_kept_ids():
+    from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+
+    captured = {}
+    llm = _capturing_llm(captured, PortfolioDecision(
+        rating=PortfolioRating.HOLD, executive_summary="x", investment_thesis="y"))
+    create_portfolio_manager(llm)({
+        "company_of_interest": "NVDA", "investment_plan": "plan", "trader_investment_plan": "trader plan",
+        "risk_debate_state": {"history": "h", "aggressive_history": "a", "conservative_history": "c",
+                              "neutral_history": "n", "current_aggressive_response": "",
+                              "current_conservative_response": "", "current_neutral_response": "",
+                              "latest_speaker": "Neutral", "count": 1},
+    })
+    text = " ".join(_prompt_text(captured["prompt"]).split())
+    assert "dispose it as kept by its condition_id and do not restate it as a new condition" in text
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("name", ["aggressive", "conservative", "neutral"])
+def test_risk_prompt_labels_prior_thesis_and_rm_plan(name):
+    import importlib
+
+    from tests.test_debate_opening import _risk_state
+
+    factory = getattr(importlib.import_module(f"tradingagents.agents.risk_mgmt.{name}_debator"), f"create_{name}_debator")
+    captured = {}
+    llm = MagicMock()
+    llm.invoke.side_effect = lambda prompt: captured.__setitem__("prompt", prompt) or MagicMock(content="argument")
+    factory(llm)({**_risk_state(), "investment_plan": "RM steps", "thesis_context": "Prior Q4 margin condition",
+                  "canonical_financial_context": "Accepted brief"})
+    prompt = captured["prompt"]
+    assert "Research Manager plan (this run)" in prompt
+    assert "Attribute a condition to its source" in prompt
+    assert "Prior thesis conditions (advisory; not Research Manager plan requirements)\nPrior Q4 margin condition" in prompt

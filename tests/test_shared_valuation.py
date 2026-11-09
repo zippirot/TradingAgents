@@ -4,6 +4,8 @@ import json
 from copy import deepcopy
 from decimal import Decimal
 
+import pytest
+
 from tests.test_valuation import ev_request, evidence, pe_request
 from tradingagents.agents.shared_valuation import prepare_shared_valuation, render_shared_valuation
 
@@ -390,3 +392,27 @@ def test_missing_value_renders_unavailable_without_unit():
     assert display_value(None, "USD/shares") == "unavailable"
     assert display_value("12", "USD/shares") == "12.00 USD/shares"
     assert display_value("12", None) == "12.00"
+
+
+def test_sbc_share_change_without_instrument_is_accepted():
+    from tradingagents.agents.valuation_cases import ShareChange
+
+    change = ShareChange(source="sbc", shares="3000000", reason="Estimated net RSU issuance.")
+    assert change.instrument is None
+
+
+def test_conversion_without_instrument_is_rejected():
+    from pydantic import ValidationError
+
+    from tradingagents.agents.valuation_cases import ShareChange
+
+    with pytest.raises(ValidationError, match="instrument is required"):
+        ShareChange(source="conversion", shares="1", converted_principal="5", reason="Converted.")
+
+
+def test_case_with_sbc_change_without_instrument_is_supported():
+    inputs, submitted = _docn_notes_case("0")
+    del submitted[0]["request"]["capital"]["share_changes"][1]["instrument"]
+    record = prepare_shared_valuation(inputs, submitted)
+    assert len(record["rows"]) == 1, record["reasons"]
+    assert any("share change (sbc):" in a for a in record["rows"][0]["result"]["assumptions"])

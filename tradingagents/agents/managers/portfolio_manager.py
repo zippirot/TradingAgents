@@ -141,7 +141,9 @@ Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAA
 Every new condition must set thesis_role: supports_thesis supports the current
 thesis; reconsideration_trigger means reconsider if met. A trigger not met is
 not a failed thesis. Never infer legacy intent from comparator or rating.
-For each prior ID give kept/overridden/retired and a specific reason. Conditions
+For each prior ID give kept/overridden/retired and a specific reason. To keep a
+prior condition, dispose it as kept by its condition_id and do not restate it as a
+new condition. Conditions
 never choose the rating; unknown measurements stay unknown. Legacy rules, including
 53% margin, have unestablished binding authority; never invent a sell instruction.
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from contextlib import suppress
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, localcontext
@@ -136,7 +137,41 @@ def _content_key(row):
         return ('metric', item.metric, item.period_start, item.period_end, item.comparator, threshold, item.unit, item.basis)
     if item.kind == 'price_level':
         return ('price_level', item.comparator, threshold, item.currency)
-    return ('event', ' '.join(item.description.split()))
+    return ('event', _event_tokens(item.description))
+
+
+_EVENT_STOP_WORDS = frozenset(
+    ['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'how', 'if', 'in', 'into', 'is', 'its', 'of', 'on', 'or', 's', 'that', 'the', 'their', 'to', 'was', 'were', 'whether', 'will', 'with'])
+# Two descriptions that differ in direction describe opposite events.
+_EVENT_DIRECTIONS = frozenset(('cut', 'lower', 'reduc', 'decreas', 'declin', 'rais', 'increas', 'withdraw'))
+_EVENT_SIMILARITY = 0.6
+
+
+def _event_tokens(description):
+    tokens = set()
+    for word in re.findall(r'[^\W_]+', description.casefold()):
+        if word not in _EVENT_STOP_WORDS:
+            # Enough stemming that "settled" and "settlement" are one word.
+            tokens.add(re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) if not word.isdigit() else word)
+    return frozenset(tokens)
+
+
+def _same_event(first, second):
+    """Paraphrases of one event; a differing year, amount or direction is a different event."""
+    if first[0] != 'event' or second[0] != 'event' or not first[1] or not second[1]:
+        return False
+    left, right = first[1], second[1]
+    if ({t for t in left if t.isdigit()} != {t for t in right if t.isdigit()}
+            or left & _EVENT_DIRECTIONS != right & _EVENT_DIRECTIONS):
+        return False
+    return len(left & right) / len(left | right) >= _EVENT_SIMILARITY
+
+
+def _kept_match(key, kept_by_content):
+    """The kept condition this content key restates, exactly or as an event paraphrase."""
+    if key in kept_by_content:
+        return kept_by_content[key]
+    return next((kept for other, kept in kept_by_content.items() if _same_event(key, other)), None)
 
 
 def _condition(row):
@@ -404,7 +439,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
     dispositions = dispositions if isinstance(dispositions, list) else []
     preserved = []
     retired = set()
-    proposed_content = {_content_key(row) for row in conditions}
+    proposed_content = {_content_key(row): row['condition_id'] for row in conditions}
     for previous in prior_conditions:
         identifier = previous['condition_id']
         matches = _matches(previous, dispositions)
@@ -415,14 +450,14 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
             retired.add(identifier)
         elif matches and matches[0].get('disposition') == 'kept':
             preserved.append(previous)
-            if not any(c['condition_id'] == identifier for c in conditions) and _content_key(previous) not in proposed_content:
+            if not any(c['condition_id'] == identifier for c in conditions) and _kept_match(_content_key(previous), proposed_content) is None:
                 warnings.append(f'Kept condition {identifier} omitted from proposal; prior condition retained')
     # Bound new proposals independently; explicit keeps must not consume their slots.
     combined = {row['condition_id']: row for row in preserved}
     kept_by_content = {_content_key(row): row['condition_id'] for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
-            kept_id = kept_by_content.get(_content_key(row))
+            kept_id = _kept_match(_content_key(row), kept_by_content)
             if kept_id is not None and kept_id != row['condition_id']:
                 kept = combined[kept_id]
                 aliases = list(dict.fromkeys([*kept.get('condition_aliases', []), row['condition_id']]))[:8]

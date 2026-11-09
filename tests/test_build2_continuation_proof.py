@@ -367,6 +367,9 @@ def private_drill(tmp):
         # This checkpoint predates the capital-bridge contract; freeze it like the sensitivities above.
         from tradingagents.agents import valuation_cases
         stack.enter_context(patch.object(valuation_cases, "_validate_capital_bridge", return_value=None))
+        # This proof's budget guard refuses route overrides; the checkpoint predates the provider pin.
+        from tradingagents.llm_clients import openai_client
+        stack.enter_context(patch.object(openai_client, "_provider_routing", return_value=None))
         for module in (httpx, httpx2):
             stack.enter_context(
                 patch.object(module.HTTPTransport, "handle_request", transport(module))

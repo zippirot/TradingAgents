@@ -82,6 +82,16 @@ _MINIMAX_THINKING = ModelCapabilities(
     requires_reasoning_split=True,
 )
 
+# OpenRouter can route Anthropic models to hosts that reject a forced tool choice
+# (Azure, Vertex). The schema still ships as a tool; a reply without the tool
+# call falls through to the existing free-text path.
+_OPENROUTER_ANTHROPIC = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=False,
+    supports_json_schema=False,
+    preferred_structured_method="function_calling",
+)
+
 _DEFAULT = ModelCapabilities(
     supports_tool_choice=True,
     supports_json_mode=True,
@@ -118,6 +128,7 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-flash"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    (re.compile(r"^anthropic/"), _OPENROUTER_ANTHROPIC),
 ]
 
 

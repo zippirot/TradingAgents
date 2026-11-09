@@ -33,7 +33,7 @@ def test_unrelated_passages_are_not_reported_as_relevant():
     state.update(lookup_document_questions(state))
     first, second = state["document_followups"]["results"]
     assert first["passages"]  # diagnostic partial matches are retained, not called relevant
-    assert first["status"] == "no_relevant_passage"
+    assert first["status"] == "passages_retrieved_unmatched"
     assert second["status"] == "relevant_passages_found"
 
 
@@ -324,7 +324,7 @@ def test_partial_named_note_coverage_is_visible_even_with_a_found_passage():
     )
     state.update(lookup_document_questions(state))
     result = state["document_followups"]["results"][0]
-    assert result["status"] == "no_relevant_passage"
+    assert result["status"] == "passages_retrieved_unmatched"
     assert "no passage names the 2026 Convertible Notes" in result["gaps"]
     assert "no passage names the 2026 Convertible Notes" in render_document_followups(state)
     assert "no passage names the 2026 Convertible Notes" in document_followup_context(state)
@@ -352,7 +352,7 @@ def test_partial_named_note_omission_is_visible_without_claiming_absence(truncat
     )
     state.update(lookup_document_questions(state))
     result = state["document_followups"]["results"][0]
-    assert result["status"] == "no_relevant_passage"
+    assert result["status"] == "passages_retrieved_unmatched"
     expected = "incomplete source block omitted" if truncated else "passage omitted by search size limit"
     assert f"2026 Convertible Notes: {expected}" in result["gaps"]
     assert f"2026 Convertible Notes: {expected}" in render_document_followups(state)
@@ -411,3 +411,29 @@ def test_debater_prompt_names_scope_rule():
 
     text = document_question_instruction({"asset_type": "stock", "_document_question_final_turn": True})
     assert "post_filing_event" in text and "after the latest retained filing date" in text
+
+
+def _unmatched_state():
+    state = state_with_corpus()
+    _queries(state, ["remaining performance obligations customer utilization"], ["RPO 12 months"])
+    state.update(lookup_document_questions(state))
+    return state
+
+
+def test_unmatched_passages_are_labelled_on_the_card():
+    assert "Retrieval: passages retrieved; search phrase not matched" in render_document_followups(_unmatched_state())
+
+
+def test_legacy_status_still_validates():
+    from copy import deepcopy
+
+    from tradingagents.agents.document_questions import _digest
+
+    state = _unmatched_state()
+    record = deepcopy(state["document_followups"])
+    record["results"][0]["status"] = "no_relevant_passage"
+    record.pop("record_hash")
+    record["record_hash"] = _digest(record)
+    state["document_followups"] = record
+    assert lookup_document_questions(state) == {}
+    assert "Retrieval: passages retrieved; search phrase not matched" in render_document_followups(state)

@@ -306,6 +306,13 @@ def is_openai_compatible(provider: str) -> bool:
     return provider.lower() in OPENAI_COMPATIBLE_PROVIDERS
 
 
+def _provider_routing(provider: str, model: str) -> dict | None:
+    """One host for Anthropic models, so tool use and the audit's model identity are consistent."""
+    if provider == "openrouter" and model.startswith("anthropic/"):
+        return {"provider": {"order": ["Anthropic"], "allow_fallbacks": False}}
+    return None
+
+
 def _is_native_openai_base_url(base_url: str | None) -> bool:
     """True when ``base_url`` is unset or points at api.openai.com.
 
@@ -394,6 +401,10 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
+
+        routing = _provider_routing(self.provider, self.model)
+        if routing:
+            llm_kwargs["extra_body"] = routing
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:

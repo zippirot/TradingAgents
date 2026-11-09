@@ -33,13 +33,15 @@ class ShareChange(_Record):
     source: Literal["conversion", "atm", "sbc", "buyback", "other"]
     shares: Decimal = Field(max_digits=40)
     converted_principal: Decimal | None = Field(default=None, gt=0, max_digits=40)
-    instrument: str = Field(min_length=1, max_length=200)
+    instrument: str | None = Field(default=None, min_length=1, max_length=200)
     reason: str = Field(min_length=1, max_length=600)
 
     @model_validator(mode="after")
     def _principal_matches_source(self):
         if (self.source == "conversion") != (self.converted_principal is not None):
             raise ValueError("converted_principal is required for a conversion and only for a conversion")
+        if self.source == "conversion" and self.instrument is None:
+            raise ValueError("instrument is required for a conversion")
         return self
 
 
@@ -174,7 +176,8 @@ def price_case(request, package, outlooks):
         for label, v in values.items():
             assumptions.append(f"{label}: {v.value} ({v.assumption.replace('_', ' ')}); references {', '.join(v.fact_ids)}. Reason: {v.reason}")
         for change in capital.share_changes:
-            assumptions.append(f"share change ({change.source}, {change.instrument}): {change.shares}. Reason: {change.reason}")
+            change_label = f"{change.source}, {change.instrument}" if change.instrument else change.source
+            assumptions.append(f"share change ({change_label}): {change.shares}. Reason: {change.reason}")
         for change in capital.cash_changes:
             assumptions.append(f"cash change ({change.source}): {change.amount}. Reason: {change.reason}")
         result = TargetResult(status="supported", method="revenue_case", target=equity / capital.closing_shares.value,

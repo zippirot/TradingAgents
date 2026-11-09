@@ -298,7 +298,7 @@ def assess_document_feature_proof(state: dict, work: Path, ticker: str) -> dict:
             lookup_document_questions(state)  # revalidate exact retained source results
         rows = followups.get("results", []) if isinstance(followups, dict) else []
         with_passages = [row for row in rows if row.get("status") in {
-            "found", "relevant_passages_found", "no_relevant_passage",
+            "found", "relevant_passages_found", "no_relevant_passage", "passages_retrieved_unmatched",
         } and row.get("passages")]
         result("debate_followups", bool(rows) and bool(with_passages),
                f"{len(rows)} questions; {len(with_passages)} with retained source passages; no answer judgment")

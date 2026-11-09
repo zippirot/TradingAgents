@@ -88,3 +88,40 @@ def test_canonical_existing_identity_and_saved_aliases_are_unchanged():
     result = prepare(variant(), margin_state()['financial_evidence'], {'conditions':[old]})['conditions'][0]
     assert result['condition_id'] == expected
     assert result['condition_aliases'] == old['condition_aliases']
+
+
+def _event(description):
+    return {'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': description,
+            'confirming_evidence': 'Subsequent SEC filing', 'expiry': '2027-01-31', 'rationale': 'Open question'}
+
+
+def _restated(prior_text, new_text):
+    prior = prepare(_event(prior_text))
+    identifier = prior['conditions'][0]['condition_id']
+    return identifier, thesis.prepare_thesis(
+        {'conditions': [_event(new_text)],
+         'dispositions': [{'condition_id': identifier, 'disposition': 'kept', 'reason': 'Still open.'}]},
+        prior, 'Hold', '2026-11-09', str(uuid4()))
+
+
+@pytest.mark.parametrize('prior_text,new_text', [
+    ("Disclosure of how DOCN's 2026 convertible notes were settled or refinanced.",
+     "Disclosure of settlement or refinancing of DOCN's 2026 convertible notes."),
+    ('Disclosure of material ATM issuance or a substantive capacity financing plan.',
+     'Disclosure of material ATM issuance or a substantive capacity-funding plan.'),
+])
+def test_paraphrased_event_is_aliased(prior_text, new_text):
+    identifier, saved = _restated(prior_text, new_text)
+    assert [row['condition_id'] for row in saved['conditions']] == [identifier]
+    assert len(saved['conditions'][0]['condition_aliases']) == 1
+    assert not any('omitted from proposal' in warning for warning in saved['warnings'])
+
+
+@pytest.mark.parametrize('prior_text,new_text', [
+    ('Management cuts its 2027 revenue growth guidance.', 'Disclosure of material ATM issuance.'),
+    ("Disclosure of how DOCN's 2026 convertible notes were settled.", "Disclosure of how DOCN's 2030 convertible notes were settled."),
+    ('Management cuts its 2027 revenue growth guidance.', 'Management raises its 2027 revenue growth guidance.'),
+])
+def test_different_event_is_new(prior_text, new_text):
+    _, saved = _restated(prior_text, new_text)
+    assert len(saved['conditions']) == 2

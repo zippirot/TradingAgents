@@ -31,9 +31,9 @@ def create_neutral_debator(llm):
 
 {trader_decision}
 
-Research Manager plan (unvalidated research):
+Research Manager plan (this run), unvalidated research:
 {research_plan}
-Flag any Trader step that drops or contradicts a research condition.
+Flag any Trader step that drops or contradicts a research condition. Attribute a condition to its source, this plan or the prior thesis, before calling it kept or dropped.
 
 Your task is to make the strongest case for the direction your risk lens supports, including if that differs from the Trader. Challenge the Aggressive and Conservative Analysts where their evidence is incomplete, using the following sources:
 

@@ -164,7 +164,7 @@ def test_openrouter_forwards_reasoning_effort_in_extra_body(monkeypatch):
 def test_openrouter_without_configured_effort_uses_ordinary_payload(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     kwargs = build_llm_kwargs({"llm_provider": "openrouter", "openai_reasoning_effort": None})
-    llm = OpenAIClient("anthropic/claude-sonnet-4.5", provider="openrouter", **kwargs).get_llm()
+    llm = OpenAIClient("openai/gpt-5.4", provider="openrouter", **kwargs).get_llm()
 
     payload = llm._get_request_payload("hello")
     assert "extra_body" not in payload

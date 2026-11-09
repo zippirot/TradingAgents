@@ -153,3 +153,11 @@ def test_prompt_only_label_resolves_to_fact_value():
     assert result["unresolved_citations"] == [] and result["matched"] == 1
     wrong = check_pm_citations(_nov_state("Current assets were $900 million (F63).", **extra))
     assert [item["citation_id"] for item in wrong["mismatches"]] == ["F63"]
+
+
+def test_disclosure_comparison_percentage_matches():
+    state = _state("Revenue rose 6% (D1).", disclosure_evidence={"extraction": {"claims": [
+        {"source_id": "guidance-source", "value": "321", "unit": "million",
+         "comparison": {"quote": ", an increase of 6%", "value": "6", "unit": "%", "basis_locator": "block-35"}}]}})
+    result = check_pm_citations(state)
+    assert (result["matched"], result["mismatches"]) == (1, [])

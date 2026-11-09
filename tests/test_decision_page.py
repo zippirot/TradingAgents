@@ -99,3 +99,12 @@ def test_new_proposal_reason_is_its_own_rationale():
     row, = _proposal_rows({'condition_id': 'condition-p', 'kind': 'price_level', 'comparator': '<',
                            'threshold': '68.6', 'currency': 'USD', 'rationale': 'Its own reason.'})
     assert row['reason'] == 'Its own reason.'
+
+
+def test_reason_has_single_terminal_period():
+    from tradingagents.agents.decision_context import render_condition_summary
+
+    row = {'kind': 'metric', 'metric': 'Margin', 'disposition': 'kept', 'reason': 'Period not yet reported.',
+           'status': 'unknown', 'thesis_role': 'supports_thesis'}
+    text = render_condition_summary({'conditions': [row]})
+    assert 'Period not yet reported.' in text and '..' not in text

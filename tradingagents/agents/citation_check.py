@@ -56,6 +56,11 @@ def _canonical_values(state: Mapping) -> dict[str, list[tuple[Decimal, str]]]:
                     item = (number, str(claim.get('unit') or ''))
                     if item not in values.setdefault(label, []):
                         values[label].append(item)
+                comparison = claim.get('comparison')
+                if (isinstance(comparison, dict) and comparison.get('unit') in {'%', 'percent'}
+                        and (number := _decimal(comparison.get('value'))) is not None
+                        and (number, 'percent') not in values.setdefault(label, [])):
+                    values[label].append((number, 'percent'))
         elif label.startswith('K'):
             for comparison in comparisons:
                 if not isinstance(comparison, dict) or comparison.get('status') != 'pass':

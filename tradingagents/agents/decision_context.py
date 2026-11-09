@@ -359,7 +359,7 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True, i
         lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
                      + (f"{_display(threshold)}; " if threshold else '') +
                      f"{_display(row.get('status_label') or condition_status_label(row))}; "
-                     f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+                     f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason']).rstrip().rstrip('.')}.")
     lines.extend('Condition coverage: ' + _display(warning) for warning in record.get('condition_warnings', []))
     history = _mapping(record.get('assumption_changes'))
     if history.get('status') == 'available':

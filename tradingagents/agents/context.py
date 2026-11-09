@@ -553,7 +553,8 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
         except (ValueError, TypeError, KeyError):
             context += "\n\nEvent comparison unavailable: retained projections could not be verified."
     if state.get("thesis_context"):
-        context += "\n\n" + state["thesis_context"]
+        context += ("\n\nPrior thesis conditions (advisory; not Research Manager plan requirements)\n"
+                    + state["thesis_context"])
     if state.get("price_observation") and not brief:
         from tradingagents.dataflows.vendors.yahoo.price_observation import (
             validate_price_observation,

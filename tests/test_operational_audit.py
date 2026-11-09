@@ -131,3 +131,10 @@ def test_detailed_audit_discloses_interrupted_attempt_coverage():
     text = render_audit(assess_audit({}))
     assert "Observations cover completed nodes" in text
     assert "count and causes remain unknown after resume" in text
+
+
+def test_followup_override_code_is_valid():
+    event = observation(run_state(), "Research Manager", code="followup_judgment_overridden", scope="bear-1")
+    assessment = assess_audit(observed(event))
+    assert (assessment["score"], assessment["name"]) == (5, "Strong")
+    assert not any("malformed" in finding["text"] for finding in assessment["findings"])

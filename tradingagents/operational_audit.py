@@ -28,6 +28,7 @@ REASONS = {
     "vendor_no_data": (5, "The vendor answered with no matching data; no service failure was observed."),
     "model_retry_recovered": (5, "A model retry recovered and the required output completed."),
     "recovered_retry": (5, "A retry recovered and the required output completed."),
+    "followup_judgment_overridden": (5, "A follow-up judgment was replaced by the retrieval result."),
     "vendor_fallback_recovered": (4, "A configured vendor failed, but another configured vendor supplied the input."),
     "fallback_recovered": (4, "A fallback supplied the required input after an earlier operation failed."),
     "optional_operation_failed": (4, "An optional operation failed; required inputs and outputs completed."),

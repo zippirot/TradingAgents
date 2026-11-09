@@ -115,7 +115,10 @@ def test_answered_with_passages_is_kept():
 
 
 def test_override_is_disclosed_on_card():
-    from tradingagents.agents.document_questions import enforce_followup_judgments, render_document_followups
+    from tradingagents.agents.document_questions import (
+        enforce_followup_judgments,
+        render_document_followups,
+    )
 
     state, payload = state_and_payload()
     state['document_followup_judgments'] = enforce_followup_judgments(
@@ -148,3 +151,29 @@ def test_rendered_rm_prompt_states_the_no_passage_rule():
     llm.with_structured_output.return_value = structured
     create_research_manager(llm)(state)
     assert 'must be unanswered; any other classification is discarded' in str(structured.invoke.call_args.args[0])
+
+
+def test_rm_judgment_kept_when_passages_exist_without_phrase_match():
+    from tradingagents.agents.document_questions import enforce_followup_judgments
+
+    state, payload = state_and_payload()
+    for row in state['document_followups']['results']:
+        row.update(status='passages_retrieved_unmatched', passages=[{'text': 'Top customers were 27% of revenue.'}])
+    assert enforce_followup_judgments(payload['followup_judgments'], state['document_followups']) == payload['followup_judgments']
+
+
+def test_saved_no_relevant_passage_with_passages_keeps_rm_judgment():
+    from tradingagents.agents.document_questions import enforce_followup_judgments
+
+    state, payload = state_and_payload()
+    for row in state['document_followups']['results']:
+        row.update(status='no_relevant_passage', passages=[{'text': 'Top customers were 27% of revenue.'}])
+    assert enforce_followup_judgments(payload['followup_judgments'], state['document_followups']) == payload['followup_judgments']
+
+
+def test_zero_passages_still_coerces_to_unanswered():
+    from tradingagents.agents.document_questions import enforce_followup_judgments
+
+    state, payload = state_and_payload()
+    rows = enforce_followup_judgments(payload['followup_judgments'], _no_passage(state))
+    assert next(row for row in rows if row['question_id'] == 'bear-1')['classification'] == 'unanswered'
