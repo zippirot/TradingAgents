@@ -152,21 +152,25 @@ _EVENT_SIMILARITY = 0.6
 def _event_profile(description):
     """Stemmed words for similarity, plus what must match exactly, read before stemming."""
     text = description.casefold().replace('’', "'")
-    quantities = frozenset(value.replace(',', '') for value in re.findall(r'[a-z]*\d[\d,]*(?:\.\d+)?[a-z]*', text))
+    # A sign counts only when it is not the hyphen of a compound such as at-least-60%.
+    quantities = frozenset(sign + value.replace(',', '') for sign, value in
+                           re.findall(r'(?:(?<![\w.])([-+−])\$?)?([a-z]*\d[\d,]*(?:\.\d+)?[a-z]*)', text))
     words = re.findall(r"[^\W\d_]+(?:'t)?", text)
     negated = any(word in _EVENT_NEGATIONS or word.endswith("n't") for word in words)
     # Enough stemming that "settled" and "settlement" are one word.
     stems = frozenset(re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) for word in words
                       if word not in _EVENT_STOP_WORDS and word not in _EVENT_NEGATIONS and not word.endswith("n't"))
-    return stems, quantities, negated, stems & _EVENT_DIRECTIONS, frozenset(words) & _EVENT_SCALES
+    return stems, negated, quantities, stems & _EVENT_DIRECTIONS, frozenset(words) & _EVENT_SCALES
 
 
 def _same_event(first, second):
     """Paraphrases of one event; a differing quantity, direction or negation is a different event."""
     if first[0] != 'event' or second[0] != 'event':
         return False
-    (left, *left_exact), (right, *right_exact) = _event_profile(first[1]), _event_profile(second[1])
-    if not left or not right or left_exact != right_exact:
+    (left, left_negated, *left_exact), (right, right_negated, *right_exact) = (
+        _event_profile(first[1]), _event_profile(second[1]))
+    # Word sets cannot show what a negation applies to, so negated wording is never treated as a paraphrase.
+    if not left or not right or left_negated or right_negated or left_exact != right_exact:
         return False
     return len(left & right) / len(left | right) >= _EVENT_SIMILARITY
 

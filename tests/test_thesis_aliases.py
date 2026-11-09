@@ -159,3 +159,17 @@ def test_opposite_or_different_amount_events_stay_separate(prior_text, new_text)
     identifier, saved = _restated(prior_text, new_text)
     assert len(saved['conditions']) == 2
     assert not any(row.get('condition_aliases') for row in saved['conditions'] if row['condition_id'] == identifier)
+
+
+@pytest.mark.parametrize('prior_text,new_text', [
+    ('Management issues 2027 operating-margin guidance of -5%.', 'Management issues 2027 operating-margin guidance of +5%.'),
+    ('DOCN repays its 2026 convertible notes without issuing shares.', 'DOCN issues shares without repaying its 2026 convertible notes.'),
+    ('Management will not cut its 2027 guidance.', 'Management does not plan to cut its 2027 guidance.'),
+])
+def test_signed_or_negated_events_are_never_fuzzy_aliased(prior_text, new_text):
+    _, saved = _restated(prior_text, new_text)
+    assert len(saved['conditions']) == 2
+
+
+def test_hyphenated_compound_number_is_not_a_negative():
+    assert thesis._event_profile('Cuts its at-least-60% 2027 guidance.')[2] == frozenset(('60', '2027'))
