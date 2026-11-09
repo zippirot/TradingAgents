@@ -1,0 +1,146 @@
+{
+  "scope": "Public-safe local Nb acceptance and integration-preparation evidence. Raw prompts, ledger, private paths and private ancestry are excluded. Future exact published staging CI is unverified until actually observed.",
+  "status": "accepted_locally_pending_published_staging_CI",
+  "implementation_base": "35e9ed10b0d97636d1b24819b29430c5444b291b",
+  "actual_retained_paid_source": "0addf8500f8f2d3875dcd1f2c24aa0cf5438427d",
+  "actual_retained_paid_tree": "8021fe22cf07b86b562c2775d3be86acbf184312",
+  "prepared_public_source": "a8156e0ac470577a52caf86bb2f150b74748916c",
+  "integration_base": "5e1c86b64f85e078dbdeb05ac9dc966d23031333",
+  "private_local_acceptance_record": "8db25dfe10bb0d8009923f0aceae5609c8c1d3ba",
+  "keep": [
+    "Nb.1"
+  ],
+  "not_adopted": [
+    "Nb.2"
+  ],
+  "remaining_original_gaps": [
+    "ML1"
+  ],
+  "checks": {
+    "private_full_pytest": {
+      "passed": 3594,
+      "skipped": 10,
+      "deselected": 1,
+      "subtests": 100,
+      "seconds": 83.49
+    },
+    "public_combined_full_pytest": {
+      "passed": 3960,
+      "skipped": 10,
+      "deselected": 1,
+      "subtests": 100,
+      "seconds": 171.8
+    },
+    "Ruff": "pass_both_sources",
+    "retained_focused": 136,
+    "combined_focused": 21,
+    "retained_offline_CLI": {
+      "synthetic_wire_requests": 28,
+      "risk_turns": 9,
+      "receipt_sha256": "be878154687b6415fafc4a91546f8be791ac2244ac8cd0020c5eab930741b56c"
+    },
+    "combined_offline_CLI": {
+      "synthetic_wire_requests": 28,
+      "risk_turns": 9,
+      "ground_truth_audit_explicitly_disabled": true,
+      "receipt_sha256": "0529d6703c78a99f14973e3992b5661f478d118c06de49aacfa9252ddf73c7d0"
+    },
+    "SDK_bridge": {
+      "raw_strict_callback_equality": false,
+      "metadata_UUID_differences": 22,
+      "events_with_differences": 8,
+      "all28_request_dictionaries_byte_equal": true,
+      "content_nested_tool_ids_arguments_negative_controls": "pass",
+      "receipt_sha256": "11fe09a9af3294891fd7d411afe6edd81488a9764e6c4001c26365b2f5666e3a"
+    },
+    "DOCN_actual_PM_numeric_checks": 5,
+    "DOCN_additional_conditional_arithmetic": 2,
+    "MSFT_canonical_numeric_checks": 5,
+    "MSFT_affected_roles": "not_exercised_REVIEW_route",
+    "legacy_continuity": {
+      "kept_legacy": 4,
+      "new": 8,
+      "new_kinds": {
+        "metric": 5,
+        "event": 3
+      },
+      "current_next_context_ids": 12,
+      "single_memory_link": true,
+      "immutable_bytes_unchanged": true
+    }
+  },
+  "runs": [
+    {
+      "ticker": "DOCN",
+      "publication_id": "e4cf660b-9a06-456e-adca-5bf8b90a0ede",
+      "state_sha256": "c555a4a36dae56c84584b7c6d1648dc3015c88e8e2250ad401a3e7e901bd44db",
+      "rating": "Underweight",
+      "evidence": "limited",
+      "mixed_input_missing": [
+        "FRED",
+        "FRED"
+      ],
+      "source_scope_and_common_payloads_match": true
+    },
+    {
+      "ticker": "MSFT",
+      "publication_id": "924c8faf-c247-4a7d-8d6b-1ec99b361c2f",
+      "state_sha256": "c96831c0ebaff2eb9719280d89a1c7f2167020def817859fbf2702f7c176d5a2",
+      "rating": "REVIEW",
+      "evidence": "insufficient",
+      "mixed_input_missing": [
+        "Polymarket",
+        "FRED",
+        "FRED"
+      ],
+      "source_scope_and_common_payloads_match": true
+    }
+  ],
+  "actual_independent_Claude": {
+    "run_id": "6eec6a8f-9e7a-4f39-8dc0-5ff2e4c6cf00",
+    "frozen_head": "badcacb9dc2321b4f7795ca22f4f65027ed67a6c",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "stop_reason": "reviewer_completed",
+    "actual_turns": 74,
+    "actual_cost_usd": "4.9158405",
+    "elapsed_ms": 1157891,
+    "open_critical_high_medium": 0,
+    "low_findings": 8,
+    "Nb1": "KEEP_with_quoted_better_reasoned_judgment",
+    "Nb2": "confirmed_not_adopted_strict_item4",
+    "initial_privacy_Medium": "closed",
+    "complete_actual_result_sha256": "63345063dee182610ad01239a791fa2873b3f76869e46aff5fd266f6f9f9ca24",
+    "frozen_validation_sha256": "ab0ef548b695f7fb44ef59d1500a5bc0637465ab7fd1802f38e272801efc3405",
+    "delivery_bytes": 3893813,
+    "full_retained_prompt_output_trees": 42,
+    "observed_ends": 40,
+    "explicit_missing_Trader_ends": 2,
+    "raw_trace_files_physically_checked": 60,
+    "reviewer_limits": "Frozen supplied evidence only; no independent runtime, GitHub or hash recomputation. Mechanical checkers separately ran and matched."
+  },
+  "source_identity": {
+    "private_retained": {
+      "code": "sha256:0c170bc972c257a1875e2a552a35d7acfac75605a52235628b680897ceeee9e5",
+      "prompt": "sha256:8df3f48e293d3b0c37eb285c8510ecebd4149214ff60aa32a774b653b0880a06",
+      "schema": 1
+    },
+    "public_combined": {
+      "code": "sha256:5c89ea5ff06e5ee95e30546603c99f9edf20a9db73955da832b2c18ce27710fe",
+      "prompt": "sha256:8df3f48e293d3b0c37eb285c8510ecebd4149214ff60aa32a774b653b0880a06",
+      "schema": 1
+    }
+  },
+  "privacy": "Only retained source/test blobs and sanitized summaries are copied; no private Git ancestry, raw prompt/body files or billing ledger may be pushed. Mandatory fresh final ancestry/content checks before staging advance.",
+  "limitations": [
+    "Two tickers/one date; affected quality signal only DOCN; model sampling means causes are inference.",
+    "Actual mixed-input typed absence remains, not zero-drift or wire-causality proof.",
+    "Nb.2 benefit unexercised and not adopted; ML1 remains.",
+    "Three DOCN citation flags remain (7/10 matched); five spot checks do not validate all prose.",
+    "No supported final shared case/target in retained DOCN; conditional sensitivities are not targets or returns.",
+    "Raw callbacks differ in direct metadata UUIDs; overall code/state/report bytes differ after preserving separate Ground Truth integration. No paid run occurred on combined public source.",
+    "Eight Low findings/limits retained. Exact future published CI remains unverified.",
+    "Production, stable application and Machine 1 acceptance are separate release stages."
+  ]
+}

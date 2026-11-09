@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status (2026-11-08, Na local acceptance):** R5/R1/R2/R4/R3 and the condition-continuity correction are integrated at staging `ed24ec18d6b50734f378617755f60800e1d66aee`. Na retained DOCN/MSFT comparisons and actual Claude Fable closure are complete: KEEP eleven changes, N2.2 not adopted, zero open Critical/High/Medium findings. This public integration preserves the accepted application/test blobs while excluding private prompt/audit history. Exact published staging CI and Nb remain pending. Approved Amendment 2 governs the remaining comparisons and finite $235 analysis ceiling; private key capacity is not spending authority. Production and Machine 1 release acceptance remain separate.
+**Status (2026-11-08, final Nb local acceptance):** All seven local builds are accepted. R5/R1/R2/R4/R3/Na are integrated; canonical staging advanced separately to `5e1c86b64f85e078dbdeb05ac9dc966d23031333` with the accepted Ground Truth feature. Nb retained DOCN/MSFT proofs ran at `0addf850`; actual final Claude Fable `6eec6a8f` confirms KEEP Nb.1, Nb.2 not adopted and zero open Critical/High/Medium. Original FA3 and ML1 behavior gaps remain disclosed as not adopted. Clean public preparation `a8156e0a` preserves the newer staging feature and passes 3960 tests/Ruff plus the affected CLI bridge. Nb staging publication/exact CI and final integrated report remain pending. Whole analysis exposure $146.03944475 includes unknown holds under the unchanged $235 ceiling. Raw evidence/history remain private. Production and Machine 1 are separate release stages.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -417,16 +417,22 @@ Phase 2 is split by risk. **Build Na** holds the lower-risk changes: agents use 
 
 **Worktree slug:** `node-workflow-b`. Starts from the staging commit that contains Build Na. Its baseline is the DOCN and MSFT pair on the merged Na commit.
 
+**Nb host-start checkpoint (2026-11-08 local):** native isolated `node-workflow-b` from exact confirmed35e9ed10 after all seven staging CI jobs passed. Actual Na paid3d1cc1d2 and public35e9 identities remain distinct, joined by exact application-source equivalence (docs and one timezone fixture differ). Both candidate changes have unit/focused/full3611/Ruff evidence; actual CLI qualification, comparisons and independent go/no-go remain pending. Same original pre-Na snapshot; no post-Na memory/lesson seeding. See `docs/reviews/2026-11-08-node-workflow-b.md` and verification JSON.
+
+**Post-initial-audit checkpoint (2026-11-08 local):** actual Fable8e518b38 supports Nb.1 with quoted better-reasoned KEEP. It recommended Nb.2 KEEP with unexercised-benefit disclosure, but supplied no required Nb item4 qualitative paragraph for that change. Enforcing the approved stricter rule: Nb.2 is **not adopted**, original ML1 remains; only its source/tests are reverted. Nb.1-only full suite, actual CLI qualification, the named authorized retained DOCN/MSFT pair and actual Fable rescore/material closure are pending. No original auditor judgment is rewritten and no combined-source proof is called retained-source proof. Private default push denial is verified; sanitized clean integration/ancestry proof remains required before public push. See current review/verification.
+
+**Final Nb local acceptance (2026-11-08):** actual retained DOCN/MSFT pair ran on clean `0addf8500f8f2d3875dcd1f2c24aa0cf5438427d`; actual final Fable `6eec6a8f-9e7a-4f39-8dc0-5ff2e4c6cf00` at frozen `badcacb9` confirms **KEEP Nb.1; Nb.2 not adopted; zero open Critical/High/Medium, eight Low**. Original ML1 remains. Complete private3594/public-combined3960 suites and Ruff pass; public actual offline CLI bridge preserves separate GroundTruth changes on advanced staging5e1. Paid and public code fingerprints differ; identical prompt fingerprint and explicit message-ID metadata exception/byte-equal28SDKrequests support the affected-path bridge. Actual paid source is not relabelled publica815. No new paid/public-source run, zero-drift comparison, wire-causality or all-prose verification is claimed. Original approved Amendment1 appendix remains historical verbatim; host copies/current reports control status. Staging publication/exactCI and integrated acceptance report still pending under valid authority, not implied by this local closure.
+
 ### Nb.1 Risk roles test direction before sizing (RK1) — approved D3
 **Files:** the same three debators.
 - Per approved D3: in round 1 each role states its **own** direction (add / hold / reduce / exit) from its risk lens, with the evidence that would change it, before critiquing the Trader. Replace "create a compelling case for the trader's decision" with "make the strongest case for the direction your risk lens supports, including if that differs from the Trader". Rounds 2–3: answer the other roles' numbered points (same rule as N4.1). The final round must name what remains unresolved rather than restate.
-- [ ] `test_aggressive_prompt_no_longer_presumes_trader_direction`, `test_round_one_requires_own_direction`.
+- [x] `test_aggressive_prompt_no_longer_presumes_trader_direction`, `test_round_one_requires_own_direction` (actual nine parameterized role/round behavior cases plus completed retained comparison; final Fable KEEP).
 
 ### Nb.2 Lessons reach the roles that use them (ML1)
 
 **Files:** the memory context builder (`past_context`), `research_manager.py`, the three risk debators.
 - Give the Research Manager and the risk roles a lessons digest: at most 5 lessons from the reflection log relevant to this ticker or setup, each one line, dated. The PM keeps its full past context. The Bull and Bear prompts stay unchanged (keeps the debate independent of past outcomes).
-- [ ] `test_rm_and_risk_prompts_include_lessons_digest`, `test_bull_bear_prompts_exclude_lessons`.
+- Not adopted after comparison: positive digest benefit unexercised; required better-reasoned judgment unavailable. Original implementation/tests are preserved in private history, removed from retained source. Original ML1 gap remains.
 
 ### Build Nb proof — comparison runs and go/no-go
 
