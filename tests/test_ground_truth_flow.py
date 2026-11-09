@@ -265,3 +265,56 @@ def test_reproduced_market_and_cash_corrections_request_one_pm_review(monkeypatc
     assert candidate['ground_truth_reassessment']['status'] == 'completed'
     assert candidate['final_rating'] == 'Hold'
     assert not any(c['outcome'] == 'contradicted' for c in candidate['ground_truth_prepublication']['claims'])
+
+
+_ORIGINALS = {'investment_plan': 'ORIGINAL-PLAN-SENTINEL', 'trader_investment_plan': 'TRADER-SENTINEL',
+              'risk_debate_state': {'history': 'RISK-SENTINEL'}}
+
+
+def _finalized_state():
+    return {'final_rating': 'Hold', 'final_trade_decision': 'PM-SENTINEL', 'investment_plan': 'Canonical summary',
+            'trader_investment_plan': 'Canonical trader', 'risk_debate_state': {'history': 'Placeholder'},
+            'unvalidated_outputs': deepcopy(_ORIGINALS)}
+
+
+_CONTRADICTION = {'claims': [{'outcome': 'contradicted', 'decision_material': True, 'code_verified': True,
+                              'quoted_claim': 'Revenue is 10', 'correction': 'Revenue is 20'}]}
+
+
+def test_reassessment_prompt_sees_labelled_originals_and_prior_decision(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from tests.test_memory_log import _make_pm_state
+    from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+
+    monkeypatch.setattr(flow, '_audit_pass', lambda *a: _CONTRADICTION)
+    state = {**_make_pm_state(), **_finalized_state()}
+    llm = MagicMock()
+    llm.with_structured_output.side_effect = NotImplementedError('free text')
+    llm.invoke.return_value = MagicMock(content='**Rating**: Hold\n\nRevised.')
+    calls = []
+
+    def reassess(candidate, corrections, model):
+        calls.append(corrections)
+        return create_portfolio_manager(llm)(candidate)
+
+    flow.audit_before_publication(state, None, {'ground_truth_audit': True}, reassess=reassess, validate=lambda s: {})
+    prompt = str(llm.invoke.call_args.args[0])
+    for sentinel in ('ORIGINAL-PLAN-SENTINEL', 'TRADER-SENTINEL', 'RISK-SENTINEL', 'PM-SENTINEL'):
+        assert sentinel in prompt
+    assert 'Unvalidated original model text' in prompt and len(calls) == 1
+    assert state['risk_debate_state']['history'] == 'Placeholder'
+    assert state['investment_plan'] == 'Canonical summary'
+
+
+def test_failed_reassessment_leaves_finalized_state_unchanged(monkeypatch):
+    monkeypatch.setattr(flow, '_audit_pass', lambda *a: _CONTRADICTION)
+    state = _finalized_state()
+
+    def broken(candidate, corrections, model):
+        raise RuntimeError('provider down')
+
+    flow.audit_before_publication(state, None, {'ground_truth_audit': True}, reassess=broken, validate=lambda s: {})
+    assert state['ground_truth_reassessment']['status'] == 'unavailable'
+    for field, value in _finalized_state().items():
+        assert state[field] == value

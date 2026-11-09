@@ -64,3 +64,20 @@ def test_summary_decodes_only_generated_pm_display_entities():
     assert "PP&amp;E" in page
     assert "&lt;source&gt;" in page
     assert "<source>" not in page
+
+
+def test_apostrophe_reaches_decision_html_and_summary_input_literally():
+    state, payload = state_and_payload()
+    state.update(evidence_quality={"status": "limited", "checks": [], "warnings": []},
+                 final_rating="Hold", final_trade_decision="Raw decision")
+    state["unvalidated_outputs"] = {"portfolio_manager": {"structured": {
+        "executive_summary": "The trader's level is $87.", "investment_thesis": "Margins hold."}}}
+    state["document_followup_judgments"] = payload["followup_judgments"]
+    published = {**state, **enforce_publication(state)}
+    parts = report_sections(published)
+    decision = next(row[2] for part in parts if part[1] == "5_portfolio" for row in part[2] if row[1] == "decision.md")
+    summary = summary_input_for_report(published, parts=parts)
+    page = render_report("DOCN", published, None, parts)
+    source = next(s["text"] for s in summary["sections"] if s["key"] == "5_portfolio")
+    assert "trader's" in decision and "trader's" in source
+    assert "&#x27;" not in decision + source + page and "&amp;#" not in page

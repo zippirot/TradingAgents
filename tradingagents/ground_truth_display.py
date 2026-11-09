@@ -147,6 +147,29 @@ def _recommendation_needs_review(record, state):
     return bool(_unresolved_material_claims(record, state))
 
 
+def _plain(text):
+    return " ".join(str(text).replace("\\", "").split())
+
+
+def _final_pm_text(state):
+    """Every place the Portfolio Manager's final words can reach the decision page."""
+    originals = state.get("unvalidated_outputs") if isinstance(state, dict) else None
+    originals = originals if isinstance(originals, dict) else {}
+    pm = originals.get("portfolio_manager") if isinstance(originals.get("portfolio_manager"), dict) else {}
+    structured = pm.get("structured") if isinstance(pm.get("structured"), dict) else {}
+    parts = [state.get("final_trade_decision") if isinstance(state, dict) else None,
+             originals.get("final_trade_decision"), pm.get("fallback"),
+             structured.get("executive_summary"), structured.get("investment_thesis")]
+    return _plain(" ".join(part for part in parts if isinstance(part, str)))
+
+
+def _claim_repeated(claim, final_decision):
+    """A correction is handled only if the audited claim left the final PM decision."""
+    quoted = claim.get("quoted_claim")
+    return (claim.get("section_id") == "5_portfolio/decision.md" and isinstance(quoted, str)
+            and bool(quoted.strip()) and _plain(quoted) in final_decision)
+
+
 def _unresolved_material_claims(record, state):
     reassessment = record.get("reassessment_history") or {}
     corrections = reassessment.get("corrections", []) if isinstance(reassessment, dict) else []
@@ -154,12 +177,14 @@ def _unresolved_material_claims(record, state):
     if (isinstance(reassessment, dict) and reassessment.get("status") == "completed"
             and isinstance(corrections, list) and all(isinstance(c, dict) for c in corrections)):
         handled = {_correction_key(c) for c in corrections}
+    final_decision = _final_pm_text(state)
     issues = []
     for claim in _company_fact_claims(record):
         if claim.get("decision_material") is not True:
             continue
         if claim.get("outcome") == "unsupported" or claim.get("outcome") == "contradicted" and (
                 not claim.get("correction") or claim.get("ambiguous_location")
-                or _correction_key(claim) not in handled):
+                or _correction_key(claim) not in handled
+                or _claim_repeated(claim, final_decision)):
             issues.append(claim)
     return sorted(issues, key=lambda claim: claim.get("outcome") != "contradicted")

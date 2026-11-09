@@ -143,3 +143,28 @@ def test_malformed_or_unsafe_retained_url_does_not_cancel_assessment_or_export(t
     html = (tmp_path / 'complete_report.html').read_text()
     assert 'Retained source needs review.' in html
     assert 'href="javascript:' not in html
+
+
+def _corrected(final_text):
+    handled = claim(1, outcome='contradicted')
+    state = {'final_trade_decision': final_text,
+             'ground_truth_reassessment': {'status': 'completed', 'corrections': [deepcopy(handled)]}}
+    return {**record([handled]), 'reassessment_history': deepcopy(state['ground_truth_reassessment'])}, state
+
+
+def test_pm_repeating_the_corrected_claim_keeps_the_review_warning():
+    bound, state = _corrected('We keep Hold. Revenue claim 1 was 99 million USD.')
+    text = audit_assessment(bound, state)
+    assert 'Revenue claim 1' in text and 'Recommendation needs review' in text
+
+
+def test_pm_removing_the_claim_clears_the_review_warning():
+    bound, state = _corrected('We keep Hold. Revenue was 20 million USD.')
+    text = audit_assessment(bound, state)
+    assert 'Revenue claim 1' not in text and 'Recommendation needs review' not in text
+
+
+def test_justified_unchanged_rating_is_not_flagged_for_the_rating_alone():
+    bound, state = _corrected('Hold is retained because margins, not revenue, decide it. Revenue was 20 million USD.')
+    state['final_rating'] = 'Hold'
+    assert 'Recommendation needs review' not in audit_assessment(bound, state)

@@ -12,6 +12,26 @@ from tradingagents.ground_truth import (
 from tradingagents.ground_truth_recovery import checkpoint
 
 
+_UNVALIDATED_LABEL = '[Unvalidated original model text, shown only for this reassessment]\n'
+
+
+def _reassessment_view(saved, original_decision):
+    """A private copy where the PM sees the original reasoning, not canonical placeholders."""
+    view = deepcopy(saved)
+    originals = saved.get('unvalidated_outputs')
+    originals = originals if isinstance(originals, dict) else {}
+    for field in ('investment_plan', 'trader_investment_plan'):
+        if isinstance(originals.get(field), str) and originals[field]:
+            view[field] = _UNVALIDATED_LABEL + originals[field]
+    for field in ('investment_debate_state', 'risk_debate_state'):
+        if isinstance(originals.get(field), dict) and originals[field]:
+            view[field] = deepcopy(originals[field])
+    if isinstance(original_decision, str) and original_decision:
+        view['investment_plan'] = (str(view.get('investment_plan') or '')
+                                   + '\n\nYour prior Portfolio Manager decision (unvalidated):\n' + original_decision)
+    return view
+
+
 def _remaining_config(state, config):
     progress = state.setdefault('ground_truth_execution', {'requests': 0, 'elapsed_seconds': 0.0})
     progress.setdefault('budget_tokens', 0)
@@ -131,7 +151,7 @@ def audit_before_publication(state, llm, config, *, reassess=None, validate=None
         return
     started = time.monotonic()
     try:
-        review_input = deepcopy(saved)
+        review_input = _reassessment_view(saved, original_decision)
         review_input['investment_plan'] = str(review_input.get('investment_plan') or '') + (
             '\nGround Truth review asks you to independently assess each original claim against its '
             'dated primary-source passage and proposed correction. Exact source quotations have been '
@@ -140,6 +160,8 @@ def audit_before_publication(state, llm, config, *, reassess=None, validate=None
             'rating change from an unsupported hypothesis, missing source or the auditor alone.\n'
         )
         update = reassess(review_input, corrections, _BudgetedModel(llm, progress, config, on_reserve=lambda: checkpoint(state, config)))
+        # The PM echoes the debate it was given; the private originals stay private.
+        update = {key: value for key, value in update.items() if key != 'risk_debate_state'}
         candidate = deepcopy({**saved, **update})
         # A PM revision inherits the previous diagnostic cache. Refresh only
         # its readable decision, retaining new structured target/horizon data.

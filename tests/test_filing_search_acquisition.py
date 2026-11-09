@@ -243,7 +243,7 @@ def test_prior_quarter_rpo_transport_accepts_large_primary_with_bounded_extracti
 
 def _late_text_filing(monkeypatch):
     late = "Zebra paragraph beyond the budget."
-    body = "<p>" + "x" * 45000 + "</p><p>" + late + "</p>"
+    body = ("<p>" + "x" * 10000 + "</p>") * 4 + "<p>" + late + "</p>"
     metadata = {"cik": "0001582961", "filings": {"files": [], "recent": {
         "form": ["10-Q"], "accessionNumber": ["0001582961-26-000002"], "filingDate": ["2026-11-03"],
         "reportDate": ["2026-09-30"], "primaryDocument": ["q.htm"], "items": [""],
