@@ -44,7 +44,8 @@ Subcommands: `baseline` (also the final run, `--budget final`), `prove`, `step`,
 
 ### Verification so far
 
-- Full offline suite at `42a99d35` (all product, tool and test changes; only this record line follows): 4122 passed, 10 skipped (private DOCN fixtures absent), 1 deselected; `ruff check .` clean. Local only; branch unpushed, so no exact-SHA CI.
+- After audit gap closure, full offline suite at `bb6ebe13`: 4132 passed, 10 skipped, 1 deselected; `ruff check .` clean (record commit follows; no code change after it).
+- Before the audit, full offline suite at `42a99d35` (all product, tool and test changes; only this record line follows): 4122 passed, 10 skipped (private DOCN fixtures absent), 1 deselected; `ruff check .` clean. Local only; branch unpushed, so no exact-SHA CI.
 
 - `tests/test_step_tests_tool.py`: 12 passed (scripted, offline): checkpoint proof reproduces the
   Research Manager, first risk turn and Portfolio Manager prompts exactly; a changed prompt is
@@ -84,12 +85,12 @@ logged. Task 0: checkpoint.
 ## Tests
 
 Before side of every test: baseline `8f9378ac`. Costs are the tool ledger's provider-reported
-figures.
+figures. T1 was recomputed after audit finding L4 (one-interval match window): unchanged, 13 of 15.
 
 | # | Question | What was run | Result | Measured cost | Keep or drop |
 |---|---|---|---|---|---|
 | T1 | Do known facts reach Bull and Bear? | `recall`, 15 facts (`2026-11-09-step-tests-facts.json`) | **13 of 15** reach both. Missed: FY2026 non-GAAP EPS $1.60–1.62 and the ~$472M 2030-notes repurchase. Both were in the Fundamentals analyst's tool results but not in its report; the EPS record was among the 7 rejected disclosure records (block-48); the repurchase was never submitted. Both survive only as raw source blocks in state. | $0 | measurement |
-| T2 | Is the decision stable on identical inputs? | Portfolio Manager ×3, Research Manager ×3 | **Stable.** PM Underweight 3/3, RM Underweight 3/3 (baseline Underweight both). RM key numbers agree (Q4 guide $348–351M, RPO $799.7M, GAAP gross margin 50.15%, EBITDA 42–43%). PM conditions vary in count (2–4 vs baseline 2); the $87 price trigger is in all three; one repeat added an EBITDA-margin < 42% trigger. | PM $0.37, RM $0.11 | measurement |
+| T2 | Is the decision stable on identical inputs? | Portfolio Manager ×3, Research Manager ×3 | **Rating stable; core conditions stable; added conditions not.** PM Underweight 3/3, RM Underweight 3/3 (baseline Underweight both). RM key numbers agree (Q4 guide $348–351M, RPO $799.7M, GAAP gross margin 50.15%, EBITDA 42–43%). PM conditions, compared one by one (audit finding M3): the baseline's two triggers (completed close above $87; another comparable RPO decline with rising top-25 concentration) appear in all three repeats; repeats 1 and 2 add a MACD-cross trigger and repeat 2 adds Adjusted EBITDA margin < 42%. So the plan's pass rule ("key numbers and conditions agree") is **only partly met**. I did not treat this as the "decision unstable" stop because the rating and both core triggers held and none of T4–T6 compares PM conditions (T4 is a read, T5 compares the RM recommendation, T6 counts Fundamentals disclosure rejections). That is a judgement, recorded for the user's decision. | PM $0.37, RM $0.11 | measurement |
 | T3 | Does the prior rating anchor the new one? | Research Manager ×3 with prior thesis withheld (trace confirms no prior rating in prompt) | **No anchoring seen**: Underweight 3/3, same as with the prior thesis. The debate itself never mentions the prior thesis. No onward run needed. | $0.25 | measurement |
 | T4 | Do the risk roles argue their own direction? | Free read of the baseline's 9 risk turns | **Pass on the baseline; no fix tried.** Round 1: Aggressive = hold (differs from the Trader's trim), Conservative = reduce faster, Neutral = reduce modestly; each lists what would change it. Figures not in a turn's own prompt (e.g. $515.7M conversions, $134.1M year-end RPO) all appear earlier in the run's source records or debate. | $0 | no change |
 | T5 | Lessons digest for the Research Manager and risk roles | Prompt change (digest after the debate history / round instruction); free prove confirmed only that text changed; RM ×3 | **Dropped.** Underweight 3/3, and none of the three plans used or mentioned the digest, so "used where relevant" is not shown; by the plan the risk roles are not run when the RM output does not change. Reverted (diff kept at `step-tests-runs/t5-dropped.diff`). | $0.29 | **drop** |
@@ -120,3 +121,18 @@ Kept change: `679a0bd4` (`tradingagents/agents/analysts/fundamentals_analyst.py`
 | Development | $25 | $4.90 (ledger $4.32 + one call cut off mid-flight) |
 | Final confirmation | $12 | $8.33 |
 | Total | $49 | $21.75 |
+
+## Independent audit
+
+- Run `64592106-8ebd-471d-b889-3e0da0fe3f60` through the frozen-manifest executor, GPT-6 Astra,
+  candidate `b47fb367..87dd85c8`, build size small declared / medium effective (more than 10 files or
+  500 lines), caps 25/45 turns and $10/$16. Completed: 32 turns, $0.91, 6.0 minutes, soft turn limit
+  reached, stop reason `reviewer_completed`. Records: `~/Claude/audits/step-tests-20261109/`.
+- Findings and closure:
+
+| # | Severity | Finding | Review | Closure |
+|---|---|---|---|---|
+| H1 | High | Reservations lived only in memory; a killed process lost them, and two invocations did not share admission | Confirmed (happened once: the cut-off T6 call) | Each call now writes a `reserve` row before it is sent and a `settle` row when it ends; an unsettled reservation keeps counting; admission and settlement hold an exclusive lock file beside the ledger. Tests: interrupted call blocks the next invocation; two meters share one cap. |
+| M2 | Medium | Output folders were created and caches copied before the launcher-path guard ran; ledger path unchecked; recall without a checkpoint never reached the guard | Confirmed by source order | Every command checks all its output paths (and the ledger) first. Parametrized test runs each command against a simulated launcher home and asserts nothing was created. |
+| M3 | Medium | T2 recorded as stable although PM conditions differ; stop gate bypassed | Partly confirmed: the record overstated stability; whether the stop applied is a user decision | T2 row corrected with the condition-by-condition comparison and the reasoning; decision raised to the user. |
+| L4 | Low | Recall window was up to ~800 characters | Confirmed | All matched spans must lie in one 400-character interval; boundary tests; T1 recomputed (unchanged). |
