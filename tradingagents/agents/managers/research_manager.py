@@ -10,7 +10,11 @@ from tradingagents.agents.context import (
     get_language_instruction,
 )
 from tradingagents.agents.document_questions import enforce_followup_judgments
-from tradingagents.agents.schemas import DocumentFollowupJudgment, ResearchPlan, render_research_plan
+from tradingagents.agents.schemas import (
+    DocumentFollowupJudgment,
+    ResearchPlan,
+    render_research_plan,
+)
 from tradingagents.agents.shared_valuation import replay_cases
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,

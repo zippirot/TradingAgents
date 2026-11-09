@@ -6,7 +6,7 @@ The goal text itself was not available to the builder; these decisions come from
 
 ## Verification (builder-run, not independently rerun)
 
-- Full local suite at the last implementation commit `043e2d93`: 4035 passed, 10 skipped, 1 deselected.
+- Full local suite on the final branch head: 4047 passed, 10 skipped, 1 deselected.
 - The 10 skips are `langchain_aws` missing and private DOCN inputs unavailable.
 - No paid model or vendor call was made. No remote CI exists for this unpushed branch.
 - Offline replays read `full_states_log_2026-11-09_520623df.json` and the cached NBIS companyfacts.
@@ -64,6 +64,18 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 ## Scope added after the plan
 
 Commit `043e2d93` adds M2 and M1 from the 2026-11-09 audit of staging `55edfd7e`, requested through another session: a repeated corrected claim keeps the review warning, and the reassessment PM sees labelled originals plus its prior decision. E1 from that audit was already closed by Build E; an apostrophe regression was added.
+
+## Independent audit
+
+GPT-6 Astra through the frozen executor on `524fe352`: 32 turns, $1.75, 18 minutes, one High and two Medium. All three were reproduced by running them, and all are closed on this branch.
+
+| Finding | Disposition | Closure |
+|---|---|---|
+| High: quoted request-body keys kept in provider error text (X1) | confirmed | Text after any serialized request key is dropped; quoted JSON, Python dictionaries and pydantic input values tested against the log and the helper. |
+| Medium: trigger and checkpoint section bodies dropped (X2) | confirmed | Heading-delimited sections are copied whole; tested through `create_trader`. |
+| Medium: empty FINAL TRANSACTION PROPOSAL accepted (X2) | confirmed | Both labels need Buy, Hold or Sell; empty, invalid and valid forms tested through `create_trader`. |
+
+Commits after the audited head changed the Trader fallback, error redaction, the prompt-only list filter, and lint-only imports. No second audit was run; the skill directs bounded review over repeated audits. Audit record: `~/Claude/audits/docs/superpowers/audits/2026-11-09-report-defect-closure-final/`.
 
 ## Process departures
 

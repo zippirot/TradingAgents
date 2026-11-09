@@ -22,23 +22,33 @@ from tradingagents.agents.structured import (
     invoke_structured_or_freetext,
 )
 
-
-_ACTION_LINE = re.compile(r"^\W*(?:action\W+(?:buy|hold|sell)\b|final transaction proposal\W)", re.I | re.M)
+_ACTION_LINE = re.compile(r"^\W*(?:action|final transaction proposal)\W+(?:buy|hold|sell)\b", re.I | re.M)
 _REASONING = re.compile(r"^\W*reasoning\b", re.I | re.M)
-_STRATEGIC_ACTIONS = re.compile(r"\*\*Strategic Actions\*\*:?\s*(.*?)(?=\n\s*\*\*[^*\n]+\*\*|\Z)", re.S)
+_HEADING = re.compile(r"^[ \t]*(?:\*\*(?P<bold>[^*\n]+)\*\*|#{1,6}[ \t]+(?P<hash>[^\n]+))", re.M)
 _CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
 
 
 def _carried_plan(investment_plan: str) -> str:
-    """The Research Manager's actions and checkpoints, copied word for word."""
-    match = _STRATEGIC_ACTIONS.search(investment_plan or "")
-    actions = match.group(1).strip() if match else ""
-    remainder = (investment_plan or "").replace(match.group(0), "", 1) if match else (investment_plan or "")
-    checkpoints = [line.strip() for line in remainder.splitlines() if _CHECKPOINT.search(line)]
+    """The Research Manager's actions and checkpoint sections, copied word for word."""
+    plan = investment_plan or ""
+    marks = list(_HEADING.finditer(plan))
+    actions, sections, covered = "", [], []
+    for mark, following in zip(marks, [*marks[1:], None], strict=False):
+        title = mark["bold"] or mark["hash"]
+        end = following.start() if following else len(plan)
+        if title.strip().rstrip(":").casefold() == "strategic actions" and not actions:
+            actions = plan[mark.end():end].lstrip(": \n").rstrip()
+            covered.append((mark.start(), end))
+        elif _CHECKPOINT.search(title):
+            sections.append(plan[mark.start():end].rstrip())
+            covered.append((mark.start(), end))
+    remainder = "".join(ch for index, ch in enumerate(plan) if not any(a <= index < b for a, b in covered))
+    loose = [line.strip() for line in remainder.splitlines() if _CHECKPOINT.search(line)]
     lines = ["**Carried from the Research Manager's plan (not restated by the Trader)**", ""]
     lines.append(actions or "No Strategic Actions section was found in the Research Manager's plan.")
-    if checkpoints:
-        lines += ["", *checkpoints]
+    for block in (*sections, "\n".join(loose)):
+        if block:
+            lines += ["", block]
     return "\n".join(lines)
 
 

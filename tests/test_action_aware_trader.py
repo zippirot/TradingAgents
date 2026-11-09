@@ -1,3 +1,4 @@
+import pytest
 from io import StringIO
 
 from rich.console import Console
@@ -128,3 +129,36 @@ def test_structured_success_does_not_append_block():
     finish = MagicMock(side_effect=AssertionError("must not run"))
     text = invoke_structured_or_freetext(structured, MagicMock(), "p", render_trader_proposal, "Trader", finish_freetext=finish)
     assert "Carried from" not in text and "Wait." in text
+
+
+def _forced_fallback(free_text, plan):
+    from unittest.mock import MagicMock
+
+    from tests.test_structured_agents import _make_trader_state
+    from tradingagents.agents.trader.trader import create_trader
+
+    llm = MagicMock()
+    llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
+    llm.invoke.return_value = MagicMock(content=free_text, response_metadata={})
+    return create_trader(llm)({**_make_trader_state(), "investment_plan": plan})["trader_investment_plan"]
+
+
+def test_forced_fallback_keeps_heading_delimited_trigger_and_checkpoint_bodies():
+    plan = ("**Strategic Actions**: Trim.\n\n**Triggers**\n- Revenue below $348m\n- Margin below 50%\n\n"
+            "**Checkpoints**\n- Review after Q4 filing\n\n**Other**\n- Not carried")
+    text = _forced_fallback("**Action**: Sell\n\n**Reasoning**\n\nBecause.", plan)
+    assert "Trim." in text
+    assert "**Triggers**\n- Revenue below $348m\n- Margin below 50%" in text
+    assert "**Checkpoints**\n- Review after Q4 filing" in text
+    assert "Not carried" not in text
+
+
+@pytest.mark.parametrize("line", ["FINAL TRANSACTION PROPOSAL:", "FINAL TRANSACTION PROPOSAL: **MAYBE**", "**Action**:"])
+def test_forced_fallback_with_empty_or_invalid_action_fails_stage(line):
+    with pytest.raises(ValueError, match="no Action line"):
+        _forced_fallback(f"{line}\n\n**Reasoning**\n\nBecause.", _RM_PLAN)
+
+
+@pytest.mark.parametrize("line", ["FINAL TRANSACTION PROPOSAL: **SELL**", "**Action**: Hold"])
+def test_forced_fallback_with_valid_action_completes(line):
+    assert "Carried from" in _forced_fallback(f"{line}\n\n**Reasoning**\n\nBecause.", _RM_PLAN)

@@ -71,12 +71,17 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
 _last_failure: ContextVar[tuple[str, str] | None] = ContextVar("structured_failure", default=None)
 
 
+_REQUEST_CONTENT = re.compile(
+    r"""(?is)["']?\b(?:request[_ ]?body|messages|prompt|input(?:_value)?|content|tools)\b["']?\s*[:=].*""")
+
+
 def provider_error_text(exc: BaseException) -> str:
     """First 500 characters of a provider error, without keys or request content."""
     text = " ".join(str(exc).split())
     text = re.sub(r"(?i)\b(bearer\s+|api[_-]?key[\"'=:\s]+)\S+", r"\1[redacted]", text)
     text = re.sub(r"\b[sprk]{1,2}-[A-Za-z0-9_-]{8,}", "[redacted]", text)
-    text = re.sub(r"(?is)(request[_ ]?body|[\"']messages[\"'])\s*[:=].*", r"\1: [omitted]", text)
+    # Anything serialized from the request can follow these keys; keep only what precedes them.
+    text = _REQUEST_CONTENT.sub("[request content omitted]", text)
     return text[:500]
 
 

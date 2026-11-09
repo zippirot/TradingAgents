@@ -454,7 +454,6 @@ def finalize_peer_reference(state, config):
 
 
 def _cell(value):
-    from html import escape
     return str(value).replace("|", r"\|").replace("\n", " ")
 
 

@@ -220,7 +220,6 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 def summary_input_for_report(prepared_state: dict, settings: dict | None = None, parts=None):
     """Build the same summary context used at finalization and during offline export."""
 
-    from tradingagents.agents.decision_context import _display
     from tradingagents.report_summary import build_summary_input
 
     retained = prepared_state.get("run_settings")

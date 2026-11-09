@@ -576,3 +576,23 @@ def test_fallback_record_carries_error_class_and_message():
     assert "schema rejected field stop_loss" in row["error_message"]
     for secret in ("sk-abcdefghijkl", "tok123", "secret"):
         assert secret not in row["error_message"]
+
+
+@pytest.mark.parametrize("payload", [
+    '400 {"request_body": {"prompt": "PRIVATE_SENTINEL"}}',
+    "400 {'request_body': {'messages': [{'content': 'PRIVATE_SENTINEL'}]}}",
+    'bad "messages": [{"role": "user", "content": "PRIVATE_SENTINEL"}]',
+    "validation failed input_value='PRIVATE_SENTINEL', api_key=sk-abcdefghijkl123",
+])
+def test_serialized_request_content_never_reaches_diagnostics(payload, caplog):
+    import logging
+    from unittest.mock import MagicMock
+
+    from tradingagents.agents.structured import invoke_structured, provider_error_text
+
+    llm = MagicMock()
+    llm.invoke.side_effect = ValueError(payload)
+    with caplog.at_level(logging.WARNING):
+        assert invoke_structured(llm, "p", "Trader") is None
+    assert "PRIVATE_SENTINEL" not in caplog.text and "sk-abcdef" not in caplog.text
+    assert "PRIVATE_SENTINEL" not in provider_error_text(ValueError(payload))

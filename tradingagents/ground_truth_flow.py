@@ -11,7 +11,6 @@ from tradingagents.ground_truth import (
 )
 from tradingagents.ground_truth_recovery import checkpoint
 
-
 _UNVALIDATED_LABEL = '[Unvalidated original model text, shown only for this reassessment]\n'
 
 
