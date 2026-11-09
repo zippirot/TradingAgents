@@ -63,9 +63,9 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 ## Build W: regressions from run 2a2e47dd
 
-Fix commits `210a039c`, `3fb83b78`, `6acbe527` and `8c230492` on top of `0236255d`. No paid report run was made.
+Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492` and `54ba3133` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4079 passed, 10 skipped, 1 deselected on `8c230492`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4083 passed, 10 skipped, 1 deselected on `54ba3133`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -90,6 +90,8 @@ Re-audit of `24376a3c` ($1.02, 32 turns): no Critical or High, two Medium, both 
 - Decimals split into digits, so "$1.5 billion" and "$5.1 billion" got one key.
 
 Exact keys are the full description again. Quantities, scale and negation are read before stemming and must match for any fuzzy alias. `test_opposite_or_different_amount_events_stay_separate` failed before and passes after.
+
+Second re-audit of `7bdf3767` ($0.77, 23 turns): no Critical or High, two Medium, both in W5 matching, both confirmed and closed in `54ba3133`: signs were dropped from quantities (-5% and +5% matched), and a word set cannot show what a negation applies to. Negated wording is now never fuzzy-aliased, and signs must match. Events the matcher cannot be sure of stay as separate rows.
 
 The audits also noted lint is not green; that is the one finding at the base recorded above.
 
