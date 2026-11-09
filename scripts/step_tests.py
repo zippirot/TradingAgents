@@ -790,6 +790,50 @@ def cmd_recall(args) -> int:
     return 0
 
 
+# ------------------------------------------------------- T6 disclosure counts
+
+def cmd_disclosures(args) -> int:
+    """Re-check a Fundamentals output with the real Evidence Check (no model call)."""
+    from tradingagents.attempt_trace import AttemptRecorder
+    from tradingagents.source_replay import ReplaySession, session_context
+
+    run = SavedRun(Path(args.run).expanduser())
+    out = Path(args.out).expanduser().resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    shutil.copytree(run.root / "cache", out / "cache", ignore=shutil.ignore_patterns("checkpoints"))
+    # A placeholder key and a $0 cap: any model call would be refused unsent.
+    meter = CostMeter(out / "ledger.jsonl", "disclosure-check", 0.0, "disclosures")
+    graph = build_graph(run, out, [meter], api_key="disclosure-check-no-request-is-sent")
+    snapshots = checkpoint_states(run, graph.workflow)
+    before = state_before("Evidence Check", snapshots)
+    scope = next((row["scope"] for row in run.trace_rows()
+                  if row.get("event") == "source_session_start"), None)
+    results = {}
+    for name in ["baseline", *args.outputs]:
+        state = dict(before)
+        if name != "baseline":
+            produced = json.loads(Path(name).read_text())
+            state.update({key: produced[key] for key in ("fundamentals_report", "disclosure_evidence")
+                          if key in produced})
+        recorder = AttemptRecorder(out / "check", f"check-{uuid.uuid4()}")
+        session = ReplaySession(recorder, scope, baseline=run.attempt) if scope is not None else None
+        with session_context(session):
+            update = node_runnable(graph, "Evidence Check").invoke(state, {"callbacks": [meter]})
+        evidence = update.get("disclosure_evidence") or {}
+        model = evidence.get("model_extraction") or {}
+        results[name] = {"counts": evidence.get("submission_counts"),
+                         "accepted": [{key: claim.get(key) for key in ("metric", "value", "upper_value", "unit",
+                                                                      "period", "kind", "comparator", "locator",
+                                                                      "period_locator", "quote")}
+                                      for claim in model.get("claims") or []],
+                         "rejected": model.get("rejected"),
+                         "replay_misses": len(session.misses) if session else None}
+    (out / "disclosures.json").write_text(json.dumps(results, indent=2, ensure_ascii=False) + "\n")
+    for name, row in results.items():
+        print(name, row["counts"], "misses", row["replay_misses"])
+    return 0
+
+
 def check_code_location() -> None:
     import cli
     import tradingagents
@@ -828,9 +872,13 @@ def main(argv: list[str] | None = None) -> int:
     recall.add_argument("--run", required=True)
     recall.add_argument("--facts", required=True)
     recall.add_argument("--out", required=True)
+    check = sub.add_parser("disclosures")
+    check.add_argument("--run", required=True)
+    check.add_argument("--out", required=True)
+    check.add_argument("outputs", nargs="*")
     args = parser.parse_args(argv)
     return {"baseline": cmd_baseline, "prove": cmd_prove, "step": cmd_step,
-            "recall": cmd_recall}[args.command](args)
+            "recall": cmd_recall, "disclosures": cmd_disclosures}[args.command](args)
 
 
 if __name__ == "__main__":
