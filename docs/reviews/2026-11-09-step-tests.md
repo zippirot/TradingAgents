@@ -44,7 +44,7 @@ Subcommands: `baseline` (also the final run, `--budget final`), `prove`, `step`,
 
 ### Verification so far
 
-- Full offline suite at `26dd4d57`: 4120 passed, 10 skipped (private DOCN fixtures absent), 1 deselected; Ruff clean. Interim only; the final commit is re-run.
+- Full offline suite at `42a99d35` (all product, tool and test changes; only this record line follows): 4122 passed, 10 skipped (private DOCN fixtures absent), 1 deselected; `ruff check .` clean. Local only; branch unpushed, so no exact-SHA CI.
 
 - `tests/test_step_tests_tool.py`: 12 passed (scripted, offline): checkpoint proof reproduces the
   Research Manager, first risk turn and Portfolio Manager prompts exactly; a changed prompt is
