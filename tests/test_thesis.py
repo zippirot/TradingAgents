@@ -332,7 +332,7 @@ def test_condition_kept_by_id_alone_is_preserved_without_warning():
     assert next_thesis['conditions'] == prior['conditions']
     assert next_thesis['prior_conditions'][0]['disposition'] == 'kept'
     assert next_thesis['prior_conditions'][0]['disposition_reason'] == 'reason not supplied'
-    assert next_thesis['warnings']
+    assert not any('omitted from proposal' in item for item in next_thesis['warnings'])
 
 
 def test_duplicate_dispositions_preserve_prior_without_consuming_new_proposal_slots():
