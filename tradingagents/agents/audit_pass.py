@@ -1,6 +1,5 @@
 """Bounded advisory audit. Findings have no rating or evidence authority."""
 import hashlib
-import html
 import json
 import re
 from collections.abc import Mapping
@@ -798,7 +797,7 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id, sdk_retries_dis
 
 
 def _escape(value, limit=500):
-    value = html.escape(str(value)[:limit].replace("\r", " ").replace("\n", " "), quote=True)
+    value = str(value)[:limit].replace("\r", " ").replace("\n", " ")
     return re.sub(r"([\\*_\[\]\x60#>|])", r"\\\1", value)
 
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 import re
 from datetime import date
 from decimal import Decimal, localcontext
-from html import escape
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -443,12 +442,12 @@ def peer_range(peers: list[dict], *, include_quality=False) -> dict:
 def render_own_history(record: dict) -> str:
     lines = ["### Own valuation history", ""]
     if record.get("status") != "available":
-        return "\n".join(lines + ["Unavailable: " + escape(str(record.get("reason", "No history")))])
+        return "\n".join(lines + ["Unavailable: " + str(record.get("reason", "No history"))])
     s = record["statistics"]
     lines += [
-        escape(record["label"]) + ".",
+        str(record["label"]) + ".",
         f"Equity value / trailing revenue: low {s['low']}×, median {s['median']}×, high {s['high']}× across {s['count']} quarters.",
-        f"Split-adjusted price basis through {escape(record['split_basis_date'])}; source {escape(record['split_source_id'])}.",
+        f"Split-adjusted price basis through {str(record['split_basis_date'])}; source {str(record['split_source_id'])}.",
         "", "Quarter | Completed close | Share date | Revenue period | Multiple | Sources",
         "--- | --- | --- | --- | ---: | ---",
     ]
@@ -456,21 +455,21 @@ def render_own_history(record: dict) -> str:
         period = row["revenue_fact"]["period_start"] + " to " + row["revenue_fact"]["period_end"]
         sources = ", ".join(row["revenue_fact"]["source_ids"] + row["share_fact"]["source_ids"] + [row["price_source_id"]])
         cells = [row["quarter_end"], row["price_session"], row["share_date"], period, row["multiple"] + "×", sources]
-        lines.append(" | ".join(escape(str(cell)).replace("|", "&#124;") for cell in cells))
+        lines.append(" | ".join(str(cell).replace("|", r"\|") for cell in cells))
     position = record.get("current_position") or {}
     if position.get("status") == "available":
-        lines.extend(["", f"Today: {escape(position['multiple'])}×, {escape(position['relative_to_range'])} historical range ({position['quarters_at_or_below']} of {position['quarters']} quarters at or below)."] )
+        lines.extend(["", f"Today: {str(position['multiple'])}×, {str(position['relative_to_range'])} historical range ({position['quarters_at_or_below']} of {position['quarters']} quarters at or below)."] )
     return "\n".join(lines)
 
 
 def render_peer_statistics(record: dict) -> str:
     if record.get("status") != "available":
-        return "Unavailable: " + escape(str(record.get("reason", "No peer statistics")))
+        return "Unavailable: " + str(record.get("reason", "No peer statistics"))
     growth, margin = record["trailing_revenue_growth"], record["gross_margin"]
     return (
-        f"{escape(record['ticker'])}: equity value / trailing revenue {escape(record['multiple'])}× "
-        f"at completed close {escape(record['price_session'])}; shares {escape(record['share_date'])}; "
-        f"revenue {escape(record['revenue_fact']['period_start'])} to {escape(record['revenue_fact']['period_end'])}; "
-        f"growth {escape(growth.get('percent', 'unavailable'))}%; "
-        f"gross margin {escape(margin.get('percent', 'unavailable'))}%."
+        f"{str(record['ticker'])}: equity value / trailing revenue {str(record['multiple'])}× "
+        f"at completed close {str(record['price_session'])}; shares {str(record['share_date'])}; "
+        f"revenue {str(record['revenue_fact']['period_start'])} to {str(record['revenue_fact']['period_end'])}; "
+        f"growth {str(growth.get('percent', 'unavailable'))}%; "
+        f"gross margin {str(margin.get('percent', 'unavailable'))}%."
     )

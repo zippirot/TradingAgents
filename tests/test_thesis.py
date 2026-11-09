@@ -173,7 +173,7 @@ def test_current_render_discloses_missing_reason_and_truncates_unvalidated_text(
     rendered = thesis.render_thesis(item)
     assert 'Comparison not satisfied; thesis role unspecified' in rendered and 'kept' in rendered and 'reason not supplied' in rendered
     assert 'unvalidated research' in rendered.lower() and '[truncated]' in rendered
-    assert '<script>' not in rendered and '&lt;script&gt;' in rendered and 'target |' not in rendered
+    assert '&lt;' not in rendered and 'target |' not in rendered and r'target \|' in rendered
     assert 'x'*1001 not in rendered
     assert prior['version_id'] in rendered
 

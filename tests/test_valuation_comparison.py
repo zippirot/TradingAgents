@@ -113,7 +113,9 @@ def test_decision_date_does_not_relabel_later_forward_capital(monkeypatch):
     assert record['label'] == 'conditional decision-date scenario'
     raw['rerating_assumption'] = '<script>| test'
     rendered = render_valuation_comparison(compare(state(monkeypatch), raw))
-    assert '<script>' not in rendered
+    assert '&lt;' not in rendered and r'\| test' in rendered
+    from tradingagents.report_html import _markdown
+    assert '<script>' not in _markdown().render(rendered)
 
 
 def test_different_scenario_funding_uses_each_rows_share_and_obligation_bridge(monkeypatch):

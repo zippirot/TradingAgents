@@ -57,7 +57,7 @@ def test_summary_decodes_only_generated_pm_display_entities():
     assert "Cost < revenue; \\*\\*conditional\\*\\*." in source
     assert "Source says &lt;source&gt; literally." in source
     assert "PP&amp;E" not in source
-    assert summary["source_input_digest"] != raw_summary["source_input_digest"]
+    assert summary["source_input_digest"] == raw_summary["source_input_digest"]  # nothing left to decode
     assert published == original_state and parts == original_parts
 
     page = render_report("DOCN", published, None, parts)

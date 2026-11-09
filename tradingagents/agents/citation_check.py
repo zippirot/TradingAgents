@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
-from html import escape
 
 from tradingagents.agents.evidence_presentation import evidence_references
 
@@ -15,6 +14,7 @@ _NUMBER = re.compile(
 )
 _DIRECT = re.compile(r'^- \[([FC]\d+)\] [^:\n]+: (.+)$', re.M)
 _REFERENCE = re.compile(r'^- ([KD]\d+): source_id ([^;\n]+);', re.M)
+_CALCULATION_INPUTS = re.compile(r'^- \[(C\d+)\] .*; inputs ([F\d, ]+)$', re.M)
 
 
 def _decimal(value: object) -> Decimal | None:
@@ -39,6 +39,7 @@ def _canonical_values(state: Mapping) -> dict[str, list[tuple[Decimal, str]]]:
         if match and (number := _decimal(match[1])) is not None:
             unit = match[2].replace('(rounded for display)', '').strip()
             values.setdefault(label, []).append((number, unit))
+    _add_prompt_only_facts(state, values)
     references = dict(_REFERENCE.findall(evidence_references(brief)))
     disclosure = state.get('disclosure_evidence') or {}
     if not isinstance(disclosure, dict):
@@ -68,6 +69,27 @@ def _canonical_values(state: Mapping) -> dict[str, list[tuple[Decimal, str]]]:
                         if item not in values.setdefault(label, []):
                             values[label].append(item)
     return values
+
+
+def _add_prompt_only_facts(state: Mapping, values: dict) -> None:
+    """F labels shown to the analysts from the source brief resolve to their facts."""
+    references = state.get('prompt_evidence_references')
+    evidence = state.get('financial_evidence')
+    if not isinstance(references, Mapping) or not isinstance(evidence, Mapping):
+        return
+    facts = {f.get('fact_id'): f for f in evidence.get('facts') or () if isinstance(f, Mapping)}
+    for fact_id, label in references.items():
+        fact = facts.get(fact_id)
+        if (fact is not None and isinstance(label, str) and label.startswith('F') and label not in values
+                and (number := _decimal(fact.get('value'))) is not None):
+            values[label] = [(number, str(fact.get('unit') or ''))]
+
+
+def _calculation_inputs(state: Mapping) -> dict[str, set[str]]:
+    brief = state.get('canonical_financial_context')
+    if not isinstance(brief, str):
+        return {}
+    return {label: set(re.findall(r'F\d+', inputs)) for label, inputs in _CALCULATION_INPUTS.findall(brief)}
 
 
 def _numbers(sentence: str) -> list[tuple[Decimal, str]]:
@@ -121,6 +143,7 @@ def check_pm_citations(state: Mapping) -> dict:
     pm = (state.get('unvalidated_outputs') or {}).get('portfolio_manager') or {}
     structured = pm.get('structured') or {}
     canonical = _canonical_values(state)
+    inputs_of = _calculation_inputs(state)
     matched = checked = uncited = citation_only = 0
     mismatches = []
     unresolved = []
@@ -134,6 +157,10 @@ def check_pm_citations(state: Mapping) -> dict:
             if not stated:
                 citation_only += 1
                 continue
+            # A derived figure is stated with its inputs; the inputs need not be restated.
+            explained = {fact for label in labels if label.startswith('C')
+                         and any(_matches(stated, value, unit) for value, unit in canonical.get(label) or ())
+                         for fact in inputs_of.get(label, ())}
             for label in labels:
                 options = canonical.get(label)
                 if not options:
@@ -141,7 +168,7 @@ def check_pm_citations(state: Mapping) -> dict:
                         unresolved.append(label)
                     continue
                 checked += 1
-                if any(_matches(stated, value, unit) for value, unit in options):
+                if label in explained or any(_matches(stated, value, unit) for value, unit in options):
                     matched += 1
                 else:
                     mismatches.append({
@@ -160,8 +187,8 @@ def render_pm_citation_check(result: Mapping) -> str:
              f"Uncited sentences: {result['uncited_sentences']} (not checked).",
              f"Citation-only sentences: {result.get('citation_only_sentences', 0)} (not checked)."]
     for item in result.get('mismatches', []):
-        lines.append(f"- {item['citation_id']}: {escape(item['sentence'])} "
-                     f"Canonical value: {escape(item['canonical_value'])}.")
+        lines.append(f"- {item['citation_id']}: {str(item['sentence'])} "
+                     f"Canonical value: {str(item['canonical_value'])}.")
     if result.get('unresolved_citations'):
         labels = ', '.join(result['unresolved_citations'])
         lines.append(f"Citations without a numeric canonical value: {labels} (not checked).")

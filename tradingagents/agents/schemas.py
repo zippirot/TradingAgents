@@ -21,7 +21,6 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from enum import StrEnum
-from html import escape
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -495,7 +494,7 @@ def render_pm_decision(decision: PortfolioDecision, target_result: TargetResult 
 
 def _target_text(value) -> str:
     """Keep source/assumption text on one escaped line in deterministic output."""
-    return escape(" ".join(str(value).split())).replace("|", r"\|")
+    return " ".join(str(value).split()).replace("|", r"\|")
 
 
 def render_target_result(result: TargetResult | dict | None) -> str:
@@ -505,7 +504,7 @@ def render_target_result(result: TargetResult | dict | None) -> str:
     publication boundaries must replay the saved request against canonical
     evidence before passing the result here.
     """
-    from tradingagents.agents.valuation_comparison import display_number
+    from tradingagents.agents.valuation_comparison import display_number, display_value
 
     if isinstance(result, dict):
         try:
@@ -533,7 +532,7 @@ def render_target_result(result: TargetResult | dict | None) -> str:
     label = ("Historical diagnostic" if historical else
              "Conditional decision-date valuation" if linked else "Conditional valuation sensitivity")
     parts = [
-        f"**{label}**: {display_number(result.target)} {_target_text(result.unit)} (conditional calculation)",
+        f"**{label}**: {display_value(result.target, _target_text(result.unit))} (conditional calculation)",
         "",
         f"**Valuation method**: {_target_text(result.method)}; {_target_text(result.accounting_basis)}.",
         f"**Valuation period**: {result.valuation_period_start} to {result.valuation_period_end}.",
@@ -556,7 +555,7 @@ def render_target_result(result: TargetResult | dict | None) -> str:
         parts.append("**Subjective weight rationale**: " + _target_text(result.weight_rationale))
     if result.method == "pe":
         parts.append(f"**Multiple assumption date**: {result.multiple_assumption_date or 'not supplied'}.")
-        parts.append(f"**Earnings bridge**: {display_number(result.earnings_value)} {_target_text(result.unit)} × {display_number(result.multiple)} = {display_number(result.target)}; {_target_text(result.eps_basis)} EPS.")
+        parts.append(f"**Earnings bridge**: {display_value(result.earnings_value, _target_text(result.unit))} × {display_number(result.multiple)} = {display_number(result.target)}; {_target_text(result.eps_basis)} EPS.")
     if result.method == "ev_revenue":
         parts.extend([
             f"**Source capital snapshot**: {result.capital_snapshot_date}; each scenario uses its own capital bridge below.",

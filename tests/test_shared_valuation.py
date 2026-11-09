@@ -373,3 +373,20 @@ def test_prompt_contract_names_share_changes():
 
     assert "share_changes" in text and "cash_changes" in text and "converted_principal" in text
     assert "must also be removed from the borrowings estimate" in text
+
+
+def test_disputed_row_marked_in_summary_table():
+    row = {"name": "Base", "case_id": "case-1", "version": 1, "disputed_by": ["A1"], "result": {"target": "40", "unit": "USD/shares"}}
+    from tradingagents.agents.shared_valuation import _summary_value
+
+    assert _summary_value(row) == "40.00 USD/shares — disputed (A1), excluded from range"
+    del row["disputed_by"]
+    assert _summary_value(row) == "40.00 USD/shares"
+
+
+def test_missing_value_renders_unavailable_without_unit():
+    from tradingagents.agents.valuation_comparison import display_value
+
+    assert display_value(None, "USD/shares") == "unavailable"
+    assert display_value("12", "USD/shares") == "12.00 USD/shares"
+    assert display_value("12", None) == "12.00"

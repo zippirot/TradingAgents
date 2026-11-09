@@ -503,16 +503,15 @@ def load_latest_thesis(config, ticker, known_at):
 
 
 def _display(value, limit=300):
-    from html import escape
     text = ' '.join(str(value if value is not None else 'unknown').split())
     truncated = len(text) > limit
     if truncated:
         text = text[:limit]
-    # Flatten line breaks and escape markup so research prose cannot create
-    # report headings, HTML, or additional table columns.
-    text = escape(text, quote=True).replace('|', '&#124;')
+    # Flatten line breaks and escape markdown so research prose cannot create
+    # report headings or additional table columns. HTML export escapes once.
     for marker in ('\\', '`', '*', '_', '[', ']'):
         text = text.replace(marker, '\\' + marker)
+    text = text.replace('|', r'\|')
     return text + (' [truncated]' if truncated else '')
 
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
-from html import escape
 
 from tradingagents.agents.evidence_validation import obligation_checks
 from tradingagents.agents.valuation import TargetResult, validate_target
@@ -136,7 +135,7 @@ def compare_valuation(state: dict, result: TargetResult, request) -> dict:
 
 
 def _cell(value):
-    return escape(' '.join(str(value).split())).replace('|', r'\|')
+    return ' '.join(str(value).split()).replace('|', r'\|')
 
 
 def display_number(value):
@@ -152,6 +151,12 @@ def display_number(value):
     if number and (abs(number) < Decimal('0.01') or abs(number) >= Decimal('1e12')):
         return f'{number:.2E}'
     return f'{number:.2f}'
+
+
+def display_value(value, unit=None):
+    """A number with its unit; a missing number never carries a unit."""
+    shown = display_number(value)
+    return shown if shown == 'unavailable' or not unit else f'{shown} {unit}'
 
 
 _number = display_number

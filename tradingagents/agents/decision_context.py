@@ -5,14 +5,13 @@ import calendar
 import re
 from datetime import date, timedelta
 from decimal import Decimal
-from html import escape
 
 from tradingagents.agents.issuer_events import financing_sensitivities
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
 from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_cases import CaseSelection, obligation_bases
-from tradingagents.agents.valuation_comparison import display_number
+from tradingagents.agents.valuation_comparison import display_number, display_value
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 from tradingagents.memory.thesis import (
@@ -343,7 +342,7 @@ def prepare_decision_context(state: dict) -> dict:
 
 def _display(value):
     # Compact opaque hashes only in presentation; exact text stays in evidence.json.
-    text = escape(re.sub(r"\b[0-9a-fA-F]{32,64}\b", "[source reference in evidence.json]", str(value)))
+    text = re.sub(r"\b[0-9a-fA-F]{32,64}\b", "[source reference in evidence.json]", str(value))
     return re.sub(r'([\\`*_\[\]()#!|])', r'\\\1', text)
 
 
@@ -389,7 +388,7 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
         count = sum(not case.get('disputed_by') for case in values)
         amount = (display_number(group["low"]) if count == 1 else display_number(group["low"]) + "–" + display_number(group["high"])) if count else 'unavailable'
         label = ("Conditional case value" if count == 1 else "Conditional case range") if count else 'No undisputed conditional range'
-        lines.append(f"**{label}**: {amount} {_display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
+        lines.append(f"**{label}**: {amount if amount == 'unavailable' else amount + ' ' + _display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
                      f"{_display(group['multiple_basis'])}; {_display(group['share_basis'])}; {_display(group['accounting_basis'])}.")
         for case in values:
             fixed = ", ".join(case["unchanged_from_snapshot"])
@@ -418,7 +417,7 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
                       + '; excluded from conditional range') if disputed else ''
         lines.append(f"Adopted {adopted['case_id']} v{adopted['version']}{annotation}.")
         if adopted["decision_date"]:
-            lines.append(f"{adopted['decision_date']}: {display_number(adopted['value'])} {_display(adopted['unit'])} — assumption, not a forecast: "
+            lines.append(f"{adopted['decision_date']}: {display_value(adopted['value'], _display(adopted['unit']))} — assumption, not a forecast: "
                          + _display(adopted["rerating_assumption"]))
         else:
             lines.append("no dated assumption supplied")

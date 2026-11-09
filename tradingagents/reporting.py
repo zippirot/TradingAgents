@@ -21,7 +21,7 @@ from tradingagents.agents.evidence_presentation import (
 from tradingagents.agents.output_validation import enforce_publication
 from tradingagents.agents.rating import run_rating
 from tradingagents.agents.schemas import label_legacy_trader_price
-from tradingagents.agents.valuation_comparison import display_number
+from tradingagents.agents.valuation_comparison import display_value
 from tradingagents.dataflows.files import locked, replace_file
 
 UNVALIDATED_RESEARCH_NOTICE_SENTENCES = (
@@ -219,49 +219,14 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 def summary_input_for_report(prepared_state: dict, settings: dict | None = None, parts=None):
     """Build the same summary context used at finalization and during offline export."""
-    from html import unescape
 
     from tradingagents.agents.decision_context import _display
     from tradingagents.report_summary import build_summary_input
 
     retained = prepared_state.get("run_settings")
     source_parts = report_sections(prepared_state) if parts is None else parts
-    originals = prepared_state.get("unvalidated_outputs")
-    pm = originals.get("portfolio_manager") if isinstance(originals, dict) else None
-    structured = pm.get("structured") if isinstance(pm, dict) else None
-    if isinstance(structured, dict):
-        replacements = []
-        for key, label in (("executive_summary", "Executive Summary"),
-                           ("investment_thesis", "Investment Thesis")):
-            raw = structured.get(key)
-            if isinstance(raw, str) and raw.strip():
-                displayed = _display(raw[:20000])
-                marker = f"**{label} — unvalidated PM reasoning**:\n\n{displayed}"
-                replacements.append((marker, marker.replace(displayed, unescape(displayed), 1)))
-        if replacements:
-            projected_parts = []
-            for part in source_parts:
-                if not isinstance(part, (list, tuple)) or len(part) != 3 or part[1] != "5_portfolio" or not isinstance(part[2], (list, tuple)):
-                    projected_parts.append(part)
-                    continue
-                heading, folder, rows = part
-                projected_rows = []
-                for row in rows:
-                    if isinstance(row, (list, tuple)) and len(row) == 3 and row[1] == "decision.md" and isinstance(row[2], str):
-                        projected_rows.append((row[0], row[1], _replace_pm_summary_text(row[2], replacements)))
-                    else:
-                        projected_rows.append(row)
-                projected_parts.append((heading, folder, projected_rows))
-            source_parts = projected_parts
     return build_summary_input(prepared_state, retained if isinstance(retained, dict) else settings,
                                source_parts)
-
-
-def _replace_pm_summary_text(text: str, replacements: list[tuple[str, str]]) -> str:
-    """Undo only the HTML layer added around retained structured PM prose."""
-    for marker, replacement in replacements:
-        text = text.replace(marker, replacement, 1)
-    return text
 
 
 def _plain_markdown(value: str) -> str:
@@ -515,6 +480,24 @@ def _markdown_cell(value) -> str:
     return str(value if value is not None else "").replace("|", "\\|").replace("\n", " ")
 
 
+def _prompt_only_references(final_state: dict, canonical_labels: dict) -> list[str]:
+    references = final_state.get("prompt_evidence_references")
+    evidence = final_state.get("financial_evidence")
+    if not isinstance(references, dict) or not isinstance(evidence, dict):
+        return []
+    facts = {f.get("fact_id"): f for f in evidence.get("facts") or () if isinstance(f, dict)}
+    rows = []
+    for fact_id, label in references.items():
+        fact = facts.get(fact_id)
+        if fact is None or fact_id in canonical_labels or not re.fullmatch(r"F\d+", str(label)):
+            continue
+        start, end = fact.get("period_start"), fact.get("period_end")
+        period = f"{start} to {end}" if start else f"as of {end}"
+        rows.append((int(label[1:]), f"- {label}: {_markdown_cell(fact.get('metric'))}; {period}; "
+                                     f"{_markdown_cell(fact.get('value'))} {_markdown_cell(fact.get('unit'))}; fact_id {fact_id}"))
+    return [row for _, row in sorted(rows)]
+
+
 def evidence_appendix(final_state: dict) -> str:
     """Deterministic coverage and arithmetic; model prose remains unvalidated."""
     quality = evidence_quality_snapshot(final_state)
@@ -570,11 +553,7 @@ def evidence_appendix(final_state: dict) -> str:
         ]
         for calculation in calculations:
             value = calculation.get("result")
-            result = (
-                "unavailable"
-                if value is None
-                else f"{display_number(value)} {calculation.get('unit') or ''}".strip()
-            )
+            result = display_value(value, calculation.get("unit"))
             lines.append(
                 " | ".join(
                     _markdown_cell(x)
@@ -595,6 +574,11 @@ def evidence_appendix(final_state: dict) -> str:
     references = evidence_references(canonical)
     if references:
         lines += ["", references]
+    prompt_only = _prompt_only_references(final_state, labels)
+    if prompt_only:
+        lines += ["", "#### Prompt-only references", "",
+                  "Facts the analysts saw in the shared source brief but which are outside the canonical appendix.", "",
+                  *prompt_only]
     if "advisory_audit" in final_state:
         lines += ["", render_advisory_audit(final_state["advisory_audit"],
                                             dispositions=prepare_audit_dispositions(final_state))]

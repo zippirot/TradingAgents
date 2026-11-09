@@ -115,3 +115,41 @@ def test_exact_full_precision_percent_and_millions_match_before_display_rounding
 def test_oversized_claimed_number_is_mismatch_without_crash():
     result = check_pm_citations(_state("Revenue was $" + "9" * 400 + " million (F46)."))
     assert (result["matched"], result["checked"]) == (0, 1)
+
+
+_NOV_BRIEF = (
+    "- [F44] Revenue: 229000000 USD; period\n"
+    "- [F46] Revenue: 320000000 USD; period\n"
+    "- [F50] Gross Profit: 160000000 USD; period\n"
+    "- [C15] revenue yoy growth: pass; 39.87 (rounded for display) percent; Derived revenue growth; inputs F46, F44\n"
+)
+
+
+def _nov_state(summary, **extra):
+    return {"canonical_financial_context": _NOV_BRIEF,
+            "unvalidated_outputs": {"portfolio_manager": {"structured": {"executive_summary": summary, "investment_thesis": ""}}},
+            **extra}
+
+
+def test_inputs_of_matched_calculation_are_not_mismatches():
+    result = check_pm_citations(_nov_state("Revenue grew 39.87% year over year (F46, F44, C15)."))
+    assert result["mismatches"] == [] and (result["matched"], result["checked"]) == (3, 3)
+
+
+def test_inputs_of_unmatched_calculation_still_mismatch():
+    result = check_pm_citations(_nov_state("Revenue grew 50% year over year (F46, F44, C15)."))
+    assert {item["citation_id"] for item in result["mismatches"]} == {"F46", "F44", "C15"}
+
+
+def test_unrelated_fact_label_still_mismatches():
+    result = check_pm_citations(_nov_state("Revenue grew 39.87% year over year (F50, C15)."))
+    assert [item["citation_id"] for item in result["mismatches"]] == ["F50"]
+
+
+def test_prompt_only_label_resolves_to_fact_value():
+    extra = {"prompt_evidence_references": {"fact-63": "F63"},
+             "financial_evidence": {"facts": [{"fact_id": "fact-63", "value": "1071000000", "unit": "USD"}]}}
+    result = check_pm_citations(_nov_state("Current assets were $1,071 million (F63).", **extra))
+    assert result["unresolved_citations"] == [] and result["matched"] == 1
+    wrong = check_pm_citations(_nov_state("Current assets were $900 million (F63).", **extra))
+    assert [item["citation_id"] for item in wrong["mismatches"]] == ["F63"]

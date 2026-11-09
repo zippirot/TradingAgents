@@ -216,3 +216,54 @@ def test_the_packaged_logo_stays_inert(tmp_path):
     tags = set(re.findall(r"<\s*([a-zA-Z][\w:-]*)", logo))
     assert tags <= {"svg", "path", "rect", "circle", "g", "defs", "clipPath", "linearGradient", "stop"}
     assert not re.search(r"\son\w+\s*=|href|url\(|@import|javascript:|<!entity|<!doctype", logo, re.IGNORECASE)
+
+
+def _prompt_only_state():
+    return {"canonical_financial_context": "",
+            "prompt_evidence_references": {"fact-63": "F63", "fact-unknown": "F64", "source-1": "S2"},
+            "financial_evidence": {"facts": [{"fact_id": "fact-63", "metric": "Current Assets", "value": "1071000000",
+                                              "unit": "USD", "period_start": None, "period_end": "2026-09-30"}]}}
+
+
+def test_prompt_only_fact_labels_render_with_values(tmp_path):
+    from tradingagents.reporting import evidence_appendix
+
+    text = evidence_appendix(_prompt_only_state())
+    assert "#### Prompt-only references" in text
+    assert "- F63: Current Assets; as of 2026-09-30; 1071000000 USD; fact_id fact-63" in text
+    assert "F64" not in text and "S2" not in text
+
+
+def _thesis_card_text():
+    from tradingagents.memory.thesis import render_thesis
+
+    return render_thesis({"version_id": "v1", "canonical_rating": "Hold", "recommendation_disposition": "kept",
+                          "rationale": "DOCN's margin | R&D <script>alert(1)</script>",
+                          "conditions": []})
+
+
+def test_apostrophe_in_condition_renders_literally():
+    from tradingagents.report_html import _markdown
+
+    page = _markdown().render(_thesis_card_text())
+    assert "&#x27;" not in page and ("DOCN'" in page or "DOCN&#39;" in page or "DOCN’" in page)
+    assert "&#x27;" not in page and "&amp;amp;" not in page and "&amp;#" not in page
+
+
+def test_script_in_markdown_stays_inert_in_html():
+    from tradingagents.report_html import _markdown
+
+    page = _markdown().render(_thesis_card_text())
+    assert "<script>" not in page and "&lt;script&gt;" in page
+
+
+def test_markdown_export_has_no_html_entities():
+    text = _thesis_card_text()
+    assert "&#" not in text and "&lt;" not in text and "&amp;" not in text
+    assert "DOCN's margin" in text
+
+
+def test_pipe_in_cell_still_escaped_for_tables():
+    from tradingagents.agents.shared_valuation import _cell
+
+    assert _cell("a | b's") == r"a \| b's"

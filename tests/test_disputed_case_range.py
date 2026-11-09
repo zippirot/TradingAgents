@@ -51,7 +51,9 @@ def test_all_disputed_has_no_range():
     card = prepare_decision_context(inputs(all_cases=True))
     assert card['scenarios']['supported_count'] == 0
     assert card['case_groups'][0]['low'] is None
-    assert 'No undisputed conditional range' in render_decision_context(card)
+    page = render_decision_context(card)
+    assert 'No undisputed conditional range' in page
+    assert '**No undisputed conditional range**: unavailable; case period' in page
 
 
 def test_adopted_disputed_case_keeps_supported_value_and_is_visibly_marked():

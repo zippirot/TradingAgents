@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from decimal import Decimal, localcontext
-from html import escape
 
 LABEL = "Mechanical sensitivity from reference ranges, not a forecast"
 BASIS = "equity value / revenue"
@@ -257,7 +256,7 @@ def validate_mechanical_valuation_grid(state, record):
 
 
 def _cell(value):
-    return escape(" ".join(str(value).split())).replace("|", "&#124;")
+    return " ".join(str(value).split()).replace("|", r"\|")
 
 
 

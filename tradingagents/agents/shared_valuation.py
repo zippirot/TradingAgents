@@ -9,7 +9,6 @@ import hashlib
 import json
 import re
 from decimal import Decimal, localcontext
-from html import escape
 
 from pydantic import ValidationError
 
@@ -21,6 +20,7 @@ from tradingagents.agents.valuation_comparison import (
     comparable_quote,
     compare_valuation,
     display_number,
+    display_value,
     price_implied_valuation,
     render_valuation_comparison,
 )
@@ -300,7 +300,15 @@ def replay_cases(state, *, revision=None):
 
 
 def _cell(value):
-    return escape(" ".join(str(value).split())).replace("|", r"\|")
+    return " ".join(str(value).split()).replace("|", r"\|")
+
+
+def _summary_value(row):
+    result = row["result"]
+    value = display_value(result["target"], result["unit"])
+    if row.get("disputed_by"):
+        return f"{value} — disputed ({', '.join(row['disputed_by'])}), excluded from range"
+    return value
 
 
 def render_shared_valuation(record):
@@ -320,7 +328,7 @@ def render_shared_valuation(record):
             result = row["result"]
             lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue", "revenue_case": row["request"].get("multiple_basis", "") + " / " + row["request"].get("multiple_period", "") + " revenue"}[result["method"]],
                 f"{result['valuation_period_start']} to {result['valuation_period_end']}",
-                f"{display_number(result['target'])} {result['unit']}" if result['status'] == 'supported'
+                _summary_value(row) if result['status'] == 'supported'
                 else "Unavailable — unfunded scenario")))
         if any(row["result"]["method"] == "ev_revenue" or row["request"].get("forecast") for row in rows):
             lines += ["", "Future-period scenario values are not discounted to today."]
@@ -356,7 +364,7 @@ def render_shared_valuation(record):
                             if category not in request["capital"]["obligations"]:
                                 assumptions.append(_cell(item["reason"]))
                     label = (f"Sensitivity only, same numerical multiple held fixed — {_cell(basis)}: "
-                             f"{display_number(price)} {_cell(result['unit'])}.")
+                             f"{display_value(price, _cell(result['unit']))}.")
                     lines.append(" ".join([label, *assumptions]))
             elif result["method"] == "ev_revenue":
                 s = result["scenario_results"][0]

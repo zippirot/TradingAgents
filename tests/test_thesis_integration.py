@@ -83,8 +83,7 @@ def test_three_condition_kinds_roundtrip_through_publication_and_next_run(tmp_pa
     assert [row.get('kind', 'metric') for row in run['thesis']['conditions']] == [
         'metric', 'price_level', 'event']
     assert 'stated but not retained' in run['final_trade_decision']
-    assert '<script>' not in run['final_trade_decision']
-    assert '&lt;script&gt;' in run['final_trade_decision']
+    assert '&lt;' not in run['final_trade_decision']
     html = _render_agent_text(_markdown(), run['final_trade_decision'])
     assert '<script>' not in html and 'Settlement announced' in html
     config = {'results_dir': str(tmp_path)}
