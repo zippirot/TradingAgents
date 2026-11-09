@@ -33,6 +33,12 @@ def _text(value, limit=240):
     return cleaned if len(cleaned) <= limit else cleaned[:limit] + '… [truncated]'
 
 
+def _condition_metric(row):
+    if row.get('kind') == 'price_level':
+        return f"Completed close ({row.get('currency') or row.get('quote_currency') or 'currency unknown'})"
+    return row.get('metric') or row.get('description') or 'Unnamed measurement'
+
+
 def _plain_horizon(value):
     """Accept a narrow complete value, never prose or language keyword filters."""
     if not isinstance(value, str) or len(value) > 120:
@@ -280,7 +286,7 @@ def prepare_decision_context(state: dict) -> dict:
         disposition = supplied.get('disposition')
         if disposition not in {'kept', 'overridden', 'retired', 'superseded'}:
             disposition = 'not supplied'
-        condition_rows.append({'metric': _text(observed.get('metric') or observed.get('description') or observed.get('instrument'), 100),
+        condition_rows.append({'metric': _text(_condition_metric(observed), 100),
                                **{key: observed.get(key) for key in ('kind', 'comparator', 'threshold', 'unit', 'quote_currency')},
                                'condition_id': observed['condition_id'], 'status': observed['status'],
                                'thesis_role': observed.get('thesis_role', 'unspecified'),
@@ -293,9 +299,9 @@ def prepare_decision_context(state: dict) -> dict:
     for condition in conditions:
         if not isinstance(condition, dict) or condition.get('condition_id') in known:
             continue
-        condition_rows.append({**condition, 'metric': condition.get('metric') or condition.get('description') or condition.get('instrument') or 'condition',
+        condition_rows.append({**condition, 'metric': _text(_condition_metric(condition), 100),
                                'status': 'unobserved', 'status_label': 'New advisory proposal; not yet observed',
-                               'disposition': 'proposed', 'reason': _text(thesis.get('rationale'), 1000) or 'reason not supplied'})
+                               'disposition': 'proposed', 'reason': _text(condition.get('rationale'), 1000) or 'reason not supplied'})
     excerpts = []
     assumptions = thesis.get('assumptions', [])
     if isinstance(assumptions, list):

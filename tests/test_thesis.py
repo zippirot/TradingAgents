@@ -1,4 +1,5 @@
 """Advisory conditions do not acquire publication or trading authority."""
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -8,9 +9,17 @@ from tradingagents.memory import thesis
 
 
 def condition(**updates):
-    return dict(metric='Revenue', metric_definition='Revenue', period_start='2026-07-01',
-                period_end='2026-09-30', comparator='>=', threshold='100', unit='USD',
-                basis='US-GAAP', expiry='2026-12-31', rationale='Growth assumption', **updates)
+    return {'metric': 'Revenue', 'metric_definition': 'Revenue', 'period_start': '2026-07-01',
+            'period_end': '2026-09-30', 'comparator': '>=', 'threshold': '100', 'unit': 'USD',
+            'basis': 'US-GAAP', 'expiry': '2026-12-31', 'rationale': 'Growth assumption',
+            'thesis_role': 'reconsideration_trigger', **updates}
+
+
+def legacy_role(item):
+    """Rows saved before a role was required still load as unspecified."""
+    for row in item['conditions']:
+        row['thesis_role'] = 'unspecified'
+    return item
 
 
 def state(value='99', quantum=None):
@@ -147,7 +156,7 @@ def test_specialized_metric_definition_cannot_borrow_consolidated_fact():
 
 
 def test_prior_render_preserves_condition_id_and_advisory_observation():
-    item = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
+    item = legacy_role(thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4())))
     item['observations'] = thesis.observe_conditions(item,state('99'))
     rendered = thesis.render_prior_thesis(item)
     assert item['conditions'][0]['condition_id'] in rendered
@@ -157,7 +166,7 @@ def test_prior_render_preserves_condition_id_and_advisory_observation():
 
 
 def test_current_render_discloses_missing_reason_and_truncates_unvalidated_text():
-    prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
+    prior = legacy_role(thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4())))
     prior['observations'] = thesis.observe_conditions(prior,state())
     item = thesis.prepare_thesis({'rationale':'<script>target | ' + 'x'*1000, 'assumptions':['y'*1000]},
                                 prior,'Buy','2026-11-04',str(uuid4()))
@@ -453,8 +462,10 @@ def test_published_same_run_projection_preserves_legacy_thesis_exactly():
     ('unspecified', '99', 'Comparison not satisfied; thesis role unspecified'),
 ])
 def test_condition_role_separates_comparison_from_thesis_meaning(role, value, expected):
-    proposed = condition(thesis_role=role)
+    proposed = condition(thesis_role='supports_thesis' if role == 'unspecified' else role)
     prior = thesis.prepare_thesis({'conditions':[proposed]}, None, 'Underweight', '2026-11-04', str(uuid4()))
+    if role == 'unspecified':
+        legacy_role(prior)
     prior['observations'] = thesis.observe_conditions(prior, state(value))
     assert len(prior['observations']) == 1
     assert expected in thesis.render_prior_thesis(prior)
@@ -466,7 +477,7 @@ def test_condition_role_separates_comparison_from_thesis_meaning(role, value, ex
 
 
 def test_role_annotation_does_not_rekey_measurement_or_rewrite_prior_meaning():
-    old = thesis.prepare_thesis({'conditions':[condition()]}, None, 'Underweight', '2026-11-04', str(uuid4()))
+    old = legacy_role(thesis.prepare_thesis({'conditions':[condition()]}, None, 'Underweight', '2026-11-04', str(uuid4())))
     old['observations'] = thesis.observe_conditions(old, state('99'))
     identity = old['conditions'][0]['condition_id']
     new = thesis.prepare_thesis({'conditions':[condition(thesis_role='reconsideration_trigger')],
@@ -499,17 +510,69 @@ def test_conflicting_roles_for_same_measurement_stay_unclassified():
     assert any('Conflicting roles' in item for item in proposed['warnings'])
 
 
-@pytest.mark.parametrize('disposition', [None, 'kept'])
-def test_reproposal_can_reset_classified_role_to_unspecified(disposition):
+def test_reproposal_without_role_cannot_reset_classified_role():
     prior = thesis.prepare_thesis({'conditions':[condition(thesis_role='supports_thesis')]},
                                   None,'Buy','2026-11-04',str(uuid4()))
-    prior['observations'] = thesis.observe_conditions(prior,state('99'))
-    identifier = prior['conditions'][0]['condition_id']
-    candidate = {'conditions':[condition(thesis_role='unspecified')]}
-    if disposition:
-        candidate['dispositions'] = [{'condition_id':identifier,'disposition':disposition,
-                                     'reason':'Retain measurement, reset uncertain intent'}]
-    result = thesis.prepare_thesis(candidate,prior,'Buy','2026-11-04',str(uuid4()))
+    result = thesis.prepare_thesis({'conditions':[condition(thesis_role='unspecified')]},prior,'Buy','2026-11-04',str(uuid4()))
+    assert result['conditions'][0]['thesis_role'] == 'supports_thesis'
+    assert any('needs thesis_role' in item for item in result['warnings'])
+
+
+# The four conditions the Portfolio Manager re-proposed under new IDs on 2026-11-09.
+_KEPT_2026_11_09 = [
+    ('condition-b4a06d3f2a2417465aea567d', 'Revenue', '<', '348000000', 'USD'),
+    ('condition-50d0200549bad7bc235725b8', 'Gross Margin', '>=', '55.5', 'percent'),
+    ('condition-9bbf5f6fbb0cbb87e7c13893', 'Gross Margin', '<', '50.15', 'percent'),
+    ('condition-af8fefbc38ca248c57935577', 'Operating Margin', '>', '10.28', 'percent'),
+]
+
+
+def _nov_condition(metric, comparator, threshold, unit, definition):
+    return {'kind': 'metric', 'metric': metric, 'metric_definition': definition, 'period_start': '2026-10-01',
+            'period_end': '2026-12-31', 'comparator': comparator, 'threshold': threshold, 'unit': unit,
+            'basis': 'US-GAAP', 'expiry': '2027-04-30', 'rationale': 'Own reason.',
+            'thesis_role': 'reconsideration_trigger'}
+
+
+def _nov_prior():
+    rows = []
+    for identifier, metric, comparator, threshold, unit in _KEPT_2026_11_09:
+        row = _nov_condition(metric, comparator, threshold, unit, metric)
+        row.pop('kind')
+        rows.append({**row, 'condition_id': identifier})
+    return {'version_id': 'prior', 'canonical_rating': 'Underweight', 'conditions': rows}
+
+
+def test_reproposed_identical_condition_is_aliased_not_duplicated():
+    new = [_nov_condition(m, c, t, u, f'{m} as re-worded') for _, m, c, t, u in _KEPT_2026_11_09]
+    # A numerically equal threshold written differently is still the same condition.
+    new[0]['threshold'] = '348000000.00'
+    result = thesis.prepare_thesis(
+        {'conditions': new, 'dispositions': [{'condition_id': i, 'disposition': 'kept', 'reason': 'Keep.'}
+                                             for i, *_ in _KEPT_2026_11_09]},
+        _nov_prior(), 'Underweight', '2026-11-09', str(uuid4()))
+    assert [row['condition_id'] for row in result['conditions']] == [i for i, *_ in _KEPT_2026_11_09]
+    assert all(len(row['condition_aliases']) == 1 for row in result['conditions'])
+    assert not any('omitted from proposal' in item for item in result['warnings'])
+
+
+def test_different_threshold_is_a_new_condition():
+    identifier, metric, comparator, _, unit = _KEPT_2026_11_09[1]
+    result = thesis.prepare_thesis(
+        {'conditions': [_nov_condition(metric, comparator, '56', unit, 'Reworded')],
+         'dispositions': [{'condition_id': identifier, 'disposition': 'kept', 'reason': 'Keep.'}]},
+        _nov_prior(), 'Underweight', '2026-11-09', str(uuid4()))
+    assert len(result['conditions']) == 2
     assert result['conditions'][0]['condition_id'] == identifier
-    assert result['conditions'][0]['thesis_role'] == 'unspecified'
-    assert result['prior_conditions'][0]['thesis_role'] == 'supports_thesis'
+    assert 'condition_aliases' not in result['conditions'][0]
+    assert any('omitted from proposal' in item for item in result['warnings'])
+
+
+def test_reproposal_does_not_mutate_the_prior_record():
+    prior = _nov_prior()
+    before = json.loads(json.dumps(prior))
+    identifier, metric, comparator, threshold, unit = _KEPT_2026_11_09[0]
+    thesis.prepare_thesis({'conditions': [_nov_condition(metric, comparator, threshold, unit, 'Reworded')],
+                           'dispositions': [{'condition_id': identifier, 'disposition': 'kept', 'reason': 'Keep.'}]},
+                          prior, 'Underweight', '2026-11-09', str(uuid4()))
+    assert prior == before

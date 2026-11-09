@@ -57,11 +57,11 @@ def test_three_condition_kinds_roundtrip_through_publication_and_next_run(tmp_pa
     monkeypatch.setattr(publication, 'get_current_date', lambda: '2026-11-04')
     install(monkeypatch, now='2026-11-04T22:00:00+00:00')
     quote = prices.get_price_observation('DOCN', '2026-11-04')
-    event = {'kind': 'event', 'description': '<script>Settlement announced</script>',
+    event = {'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': '<script>Settlement announced</script>',
              'confirming_evidence': '8-K reporting note settlement',
              'expiry': '2027-01-31', 'rationale': 'Open question'}
     proposal = {'rationale': 'Research', 'conditions': [
-        condition(), {'kind': 'price_level', 'comparator': '>=', 'threshold': '85',
+        condition(), {'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '>=', 'threshold': '85',
                       'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Watch close'},
         event, {**event, 'confirming_evidence': ''}]}
     decision = PortfolioDecision(rating='Hold', executive_summary='Wait',
@@ -130,10 +130,10 @@ def test_kept_prior_and_eight_new_conditions_survive_publication_and_next_run(tm
         'dispositions': [{'condition_id': identifier, 'disposition': 'kept',
                           'reason': 'Still an open research question'} for identifier in kept_ids],
         'conditions': [*[{**condition(), 'threshold': str(200 + index)} for index in range(4)],
-            *[{'kind': 'price_level', 'comparator': '>=', 'threshold': str(level),
+            *[{'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '>=', 'threshold': str(level),
                'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Observe completed close'}
               for level in (80, 85)],
-            *[{'kind': 'event', 'description': event,
+            *[{'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': event,
                'confirming_evidence': 'Subsequent SEC filing', 'expiry': '2027-01-31',
                'rationale': 'Remain unobserved until explicitly disposed'}
               for event in ('Note settlement confirmed', 'Actual ATM issuance disclosed')]]}

@@ -73,3 +73,29 @@ def test_two_gross_margin_conditions_render_distinct_thresholds_and_all_four():
     assert page.count('Advisory conditions at a glance') == 1
     for threshold in ('50.15', '55.5', '57.3', '60.1'):
         assert threshold + ' percent' in page
+
+
+def _proposal_rows(condition):
+    from tradingagents.agents.decision_context import prepare_decision_context
+
+    value = inputs()
+    value['thesis'] = {'rationale': 'One thesis-wide rationale.', 'conditions': [condition]}
+    return prepare_decision_context(value)['conditions']
+
+
+def test_price_level_row_shows_completed_close_and_currency():
+    row, = _proposal_rows({'condition_id': 'condition-p', 'kind': 'price_level', 'comparator': '>=',
+                           'threshold': '87.34', 'currency': 'USD', 'rationale': 'A level.'})
+    assert row['metric'] == 'Completed close (USD)'
+
+
+def test_event_row_shows_its_description():
+    row, = _proposal_rows({'condition_id': 'condition-e', 'kind': 'event', 'description': 'Notes settled.',
+                           'rationale': 'An event.'})
+    assert row['metric'] == 'Notes settled.'
+
+
+def test_new_proposal_reason_is_its_own_rationale():
+    row, = _proposal_rows({'condition_id': 'condition-p', 'kind': 'price_level', 'comparator': '<',
+                           'threshold': '68.6', 'currency': 'USD', 'rationale': 'Its own reason.'})
+    assert row['reason'] == 'Its own reason.'

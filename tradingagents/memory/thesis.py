@@ -106,22 +106,37 @@ def _normalize_condition(condition, package=None):
     return condition.model_copy(update=updates), {k:getattr(condition,k) for k in updates}
 
 
+def _exact_threshold(threshold):
+    # Tuple normalization is exact even beyond Decimal's default context
+    # precision (no normalize()).
+    sign, digits, exponent = threshold.as_tuple()
+    digits = list(digits)
+    if not any(digits):
+        return [0, [0], 0]
+    while digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+    return [sign, digits, exponent]
+
+
 def _id(condition):
-    # Measurement identity excludes explanatory prose. Tuple normalization is
-    # exact even beyond Decimal's default context precision (no normalize()).
+    # Measurement identity excludes explanatory prose.
     payload = {k:v for k,v in _row_data(condition).items() if k not in {'rationale', 'thesis_role'}}
     if condition.threshold is None:
         return 'condition-' + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:24]
-    sign, digits, exponent = condition.threshold.as_tuple()
-    digits = list(digits)
-    if not any(digits):
-        sign, digits, exponent = 0, [0], 0
-    else:
-        while digits[-1] == 0:
-            digits.pop()
-            exponent += 1
-    payload['threshold'] = [sign, digits, exponent]
+    payload['threshold'] = _exact_threshold(condition.threshold)
     return 'condition-' + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:24]
+
+
+def _content_key(row):
+    """What a condition tests, ignoring its ID-bearing definition text and expiry."""
+    item = _condition(row)
+    threshold = None if item.threshold is None else repr(_exact_threshold(item.threshold))
+    if item.kind == 'metric':
+        return ('metric', item.metric, item.period_start, item.period_end, item.comparator, threshold, item.unit, item.basis)
+    if item.kind == 'price_level':
+        return ('price_level', item.comparator, threshold, item.currency)
+    return ('event', ' '.join(item.description.split()))
 
 
 def _condition(row):
@@ -146,6 +161,9 @@ def _conditions(values, *, preserve_ids=False, package=None, quote_currency=None
         try:
             payload = dict(item)
             condition, originals = _normalize_condition(_condition(payload), package)
+            if not preserve_ids and condition.thesis_role == 'unspecified':
+                name = condition.metric or condition.description or f'{condition.comparator} {condition.threshold} {condition.currency}'
+                raise ValueError(f'{name[:120]} needs thesis_role supports_thesis or reconsideration_trigger')
             if condition.kind == 'price_level' and not preserve_ids and condition.currency != quote_currency:
                 raise ValueError('price level currency does not match a validated instrument quote currency')
             saved_originals = payload.get('original_labels', {}) if preserve_ids else {}
@@ -386,6 +404,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
     dispositions = dispositions if isinstance(dispositions, list) else []
     preserved = []
     retired = set()
+    proposed_content = {_content_key(row) for row in conditions}
     for previous in prior_conditions:
         identifier = previous['condition_id']
         matches = _matches(previous, dispositions)
@@ -396,13 +415,21 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
             retired.add(identifier)
         elif matches and matches[0].get('disposition') == 'kept':
             preserved.append(previous)
-            if not any(c['condition_id'] == identifier for c in conditions):
+            if not any(c['condition_id'] == identifier for c in conditions) and _content_key(previous) not in proposed_content:
                 warnings.append(f'Kept condition {identifier} omitted from proposal; prior condition retained')
     # Bound new proposals independently; explicit keeps must not consume their slots.
     combined = {row['condition_id']: row for row in preserved}
+    kept_by_content = {_content_key(row): row['condition_id'] for row in preserved}
     for row in conditions:
         if row['condition_id'] not in retired:
-            if row['condition_id'] in combined:
+            kept_id = kept_by_content.get(_content_key(row))
+            if kept_id is not None and kept_id != row['condition_id']:
+                kept = combined[kept_id]
+                aliases = list(dict.fromkeys([*kept.get('condition_aliases', []), row['condition_id']]))[:8]
+                combined[kept_id] = {**kept, 'condition_aliases': aliases, 'thesis_role': row['thesis_role']}
+                if kept.get('thesis_role', 'unspecified') != row['thesis_role']:
+                    warnings.append(f"Condition {kept_id} role set by this version’s proposal; prior observations retain their original interpretation.")
+            elif row['condition_id'] in combined:
                 prior_role = combined[row['condition_id']].get('thesis_role', 'unspecified')
                 combined[row['condition_id']] = {**combined[row['condition_id']], 'thesis_role': row['thesis_role']}
                 if prior_role != row['thesis_role']:

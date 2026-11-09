@@ -42,7 +42,6 @@ class ThesisModel(ScriptedModel):
 @pytest.mark.parametrize('role,label', [
     ('supports_thesis', 'Support condition breached'),
     ('reconsideration_trigger', 'Reconsideration trigger not met'),
-    ('unspecified', 'Comparison not satisfied; thesis role unspecified'),
 ])
 def test_pending_thesis_roles_cross_real_graph_and_restart(tmp_path, monkeypatch, role, label):
     now = datetime(2026, 11, 4, 22, tzinfo=UTC)

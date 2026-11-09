@@ -26,7 +26,7 @@ def test_legacy_metric_identity_and_shape():
 
 
 def test_event_and_invalid_sibling_are_visible():
-    event = {'kind': 'event', 'description': 'Settlement announced',
+    event = {'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': 'Settlement announced',
              'confirming_evidence': '8-K reporting note settlement',
              'expiry': '2027-01-31', 'rationale': 'Open question'}
     saved = thesis.prepare_thesis({'conditions': [event, {**event, 'confirming_evidence': ''},
@@ -53,7 +53,7 @@ def test_prompt_context_is_plain_text_and_rationale_is_longer():
 
 
 def test_pm_keeps_valid_event_when_sibling_invalid():
-    event = {'kind': 'event', 'description': 'Settlement announced',
+    event = {'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': 'Settlement announced',
              'confirming_evidence': '8-K reporting note settlement',
              'expiry': '2027-01-31', 'rationale': 'Open question'}
     raw = {'conditions': [condition(), event, {**event, 'confirming_evidence': ''}]}
@@ -70,9 +70,9 @@ def test_pm_keeps_valid_event_when_sibling_invalid():
 def test_pm_schema_accepts_all_three_kinds():
     proposal = ThesisProposal.model_validate({'conditions': [
         condition(),
-        {'kind': 'price_level', 'comparator': '<', 'threshold': '80',
+        {'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '<', 'threshold': '80',
          'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Watch close'},
-        {'kind': 'event', 'description': 'Settlement announced',
+        {'thesis_role': 'reconsideration_trigger', 'kind': 'event', 'description': 'Settlement announced',
          'confirming_evidence': '8-K reporting settlement',
          'expiry': '2027-01-31', 'rationale': 'Open question'}]})
     assert [item.kind for item in proposal.conditions] == ['metric', 'price_level', 'event']
@@ -81,7 +81,7 @@ def test_pm_schema_accepts_all_three_kinds():
 def test_price_level_uses_only_validated_completed_close(monkeypatch):
     install(monkeypatch, now='2026-11-04T22:00:00+00:00')
     quote = prices.get_price_observation('DOCN', '2026-11-04')
-    price = {'kind': 'price_level', 'comparator': '>=', 'threshold': '85',
+    price = {'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '>=', 'threshold': '85',
              'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Watch close'}
     saved = thesis.prepare_thesis({'conditions': [price]}, None, 'Hold', '2026-11-04',
                                   str(uuid4()), price_observation=quote, ticker='DOCN')
@@ -121,7 +121,7 @@ def test_expired_price_condition_is_unobserved(monkeypatch):
     install(monkeypatch, now='2026-11-04T20:00:00+00:00')
     quote = prices.get_price_observation('DOCN', '2026-11-04')
     assert quote['session_date'] == '2026-11-03'
-    price = {'kind': 'price_level', 'comparator': '>=', 'threshold': '80',
+    price = {'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '>=', 'threshold': '80',
              'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Watch close'}
     run = {'company_of_interest': 'DOCN', 'trade_date': '2026-11-04', 'price_observation': quote}
     saved = thesis.prepare_thesis({'conditions': [price]}, None, 'Hold', '2026-11-04',
@@ -138,7 +138,7 @@ def test_retained_price_condition_uses_weekend_completed_close(monkeypatch):
             metadata={'currentTradingPeriod': {'regular': {
                 'end': datetime(2026, 10, 29, 21, tzinfo=UTC)}}})
     initial_quote = prices.get_price_observation('DOCN', '2026-10-29')
-    price = {'kind': 'price_level', 'comparator': '>=', 'threshold': '80',
+    price = {'thesis_role': 'reconsideration_trigger', 'kind': 'price_level', 'comparator': '>=', 'threshold': '80',
              'currency': 'USD', 'expiry': '2026-12-31', 'rationale': 'Watch close'}
     original = thesis.prepare_thesis({'conditions': [price]}, None, 'Hold', '2026-10-29',
                                      str(uuid4()), price_observation=initial_quote, ticker='DOCN')
@@ -152,3 +152,16 @@ def test_retained_price_condition_uses_weekend_completed_close(monkeypatch):
         'company_of_interest': 'DOCN', 'trade_date': '2026-11-01',
         'price_observation': sunday_quote})[0]
     assert observation['status'] == 'met'
+
+
+def test_new_proposal_without_role_is_rejected_legacy_rows_still_load():
+    for role in ({}, {'thesis_role': 'unspecified'}):
+        row = {k: v for k, v in condition().items() if k != 'thesis_role'} | role
+        saved = thesis.prepare_thesis({'conditions': [row]}, None, 'Hold', '2026-11-04', str(uuid4()))
+        assert saved['conditions'] == []
+        assert any('Revenue needs thesis_role' in item for item in saved['warnings'])
+    legacy = {k: v for k, v in condition().items() if k != 'thesis_role'}
+    legacy['condition_id'] = 'condition-' + 'a' * 24
+    carried = thesis.prepare_thesis({}, {'conditions': [legacy]}, 'Hold', '2026-11-04', str(uuid4()))
+    assert carried['conditions'][0]['condition_id'] == legacy['condition_id']
+    assert thesis.condition_role_label(carried['conditions'][0]) == 'Unspecified thesis role'

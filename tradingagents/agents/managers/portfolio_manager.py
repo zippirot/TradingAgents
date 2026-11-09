@@ -138,8 +138,8 @@ the specific evidence that would confirm it (for example, an 8-K reporting note
 settlement), and expiry, without threshold or comparator. Do not derive structured
 conditions from unstated implications. Gross Margin uses Gross
 Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAAP.
-Set thesis_role: supports_thesis supports the current thesis; reconsideration_trigger
-means reconsider if met; unspecified means unknown intent. A trigger not met is
+Every new condition must set thesis_role: supports_thesis supports the current
+thesis; reconsideration_trigger means reconsider if met. A trigger not met is
 not a failed thesis. Never infer legacy intent from comparator or rating.
 For each prior ID give kept/overridden/retired and a specific reason. Conditions
 never choose the rating; unknown measurements stay unknown. Legacy rules, including
