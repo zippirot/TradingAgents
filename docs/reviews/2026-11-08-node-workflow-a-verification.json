@@ -1,6 +1,6 @@
 {
   "stage": "Na",
-  "status": "local_accepted_ready_for_staging",
+  "status": "local_accepted_integration_ci_correction",
   "public_safe_summary": true,
   "canonical_base": "ed24ec18d6b50734f378617755f60800e1d66aee",
   "paid_source": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
@@ -104,7 +104,7 @@
     "new_audit_runs": 0
   },
   "published_staging_ci": {
-    "status": "pending"
+    "status": "failed_first_candidate_correction_in_verification"
   },
   "limits": [
     "Receipt-level no-new-source inference; actual mixed_input labels preserved.",
@@ -169,5 +169,50 @@
     "absolute_personal_path_and_common_secret_patterns": 0,
     "all_24_application_test_blobs_exact": true,
     "amendment_1_verbatim": true
+  },
+  "first_public_staging": {
+    "sha": "7a2e6eeb79bbb597bc69c1706e976cb7eded4f1d",
+    "ci_run": 42542282190,
+    "conclusion": "failure",
+    "failed_jobs": [
+      "tests (py3.11, UTC)",
+      "tests (py3.12, UTC)",
+      "tests (py3.13, UTC)",
+      "tests (py3.14, UTC)"
+    ],
+    "passed_jobs": [
+      "ruff (strict, full repo)",
+      "clean-install smoke",
+      "tests (py3.12, America/New_York)"
+    ],
+    "failure": "Pre-existing historical OHLCV fixture used host date, inventing tomorrow in exchange timezone just after UTC midnight. Real fail-closed product behavior correct.",
+    "failed_test": "tests/test_undated_tools_as_of.py::test_a_historical_run_is_not_told_todays_date[get_YFin_data_online]",
+    "fixture_changed": true,
+    "application_changed": false,
+    "local_utc_reproduction": "1 failed / 4 passed before correction; same invalid action verification window.",
+    "affected_focused": "105 passed in 2.35s after fixture correction.",
+    "log_sha256": "b90fb9e794c400b1a46be45cb34803bad9d4642df6fb0d2d71eeb7cc495164cf",
+    "corrected_ny_parameter_cases": "5 passed in 2.18s"
+  },
+  "independent_integration_review": {
+    "status": "pending",
+    "scope": "Only public packaging plus pre-existing timezone fixture correction; original accepted application blobs unchanged.",
+    "per_run_limits": {
+      "soft_usd": 4,
+      "hard_usd": 8,
+      "soft_turns": 20,
+      "hard_turns": 40
+    },
+    "authority": "Existing independent audit retry authority and unchanged aggregate Na audit cap; reduced per-run caps only."
+  },
+  "corrected_integration_verification": {
+    "status": "passed",
+    "environment": "Python 3.12, TZ=UTC",
+    "result": "3585 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 73.33s",
+    "log_sha256": "fbf38436e7ce3725b1e722781b2de901ee023668e96e82e70bcb9fa004e59294",
+    "ruff": "All checks passed!",
+    "fixture_only_source_difference": true,
+    "accepted_na_24_blobs_unchanged": true,
+    "paid_runs_repeated": 0
   }
 }

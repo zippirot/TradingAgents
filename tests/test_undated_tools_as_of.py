@@ -226,7 +226,10 @@ def test_a_historical_run_is_not_told_todays_date(func, args, tmp_path):
     """A header stamped with the wall clock tells a backtest when it is really running."""
     set_config({"data_cache_dir": str(tmp_path)})
     statement = pd.DataFrame({pd.Timestamp("2025-03-31"): [1.0]}, index=["Total Assets"])
-    sessions = pd.bdate_range(date.today() - timedelta(days=21), date.today())
+    # Yahoo's metadata is checked in the exchange timezone. Just after UTC
+    # midnight, a host-date fixture can invent tomorrow's New York session.
+    exchange_today = pd.Timestamp.now(tz="America/New_York").date()
+    sessions = pd.bdate_range(exchange_today - timedelta(days=21), exchange_today)
     prices = pd.DataFrame({"Open": [1.0] * len(sessions), "High": [1.0] * len(sessions),
                            "Low": [1.0] * len(sessions), "Close": [1.0] * len(sessions),
                            "Volume": [1] * len(sessions), "Stock Splits": [0.0] * len(sessions)},
