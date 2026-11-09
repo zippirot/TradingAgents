@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status (2026-11-08, final Nb local acceptance):** All seven local builds are accepted. R5/R1/R2/R4/R3/Na are integrated; canonical staging advanced separately to `5e1c86b64f85e078dbdeb05ac9dc966d23031333` with the accepted Ground Truth feature. Nb retained DOCN/MSFT proofs ran at `0addf850`; actual final Claude Fable `6eec6a8f` confirms KEEP Nb.1, Nb.2 not adopted and zero open Critical/High/Medium. Original FA3 and ML1 behavior gaps remain disclosed as not adopted. Clean public preparation `a8156e0a` preserves the newer staging feature and passes 3960 tests/Ruff plus the affected CLI bridge. Nb staging publication/exact CI and final integrated report remain pending. Whole analysis exposure $146.03944475 includes unknown holds under the unchanged $235 ceiling. Raw evidence/history remain private. Production and Machine 1 are separate release stages.
+**Status (2026-11-08, integrated staging acceptance):** All seven builds and approved keep/drop dispositions are complete at accepted implementation staging `856314e4b1dae655e8de548445a19af8c299dd51`; exact CI42560106100 passed all seven jobs. Actual final Claude Fable6eec6a8f confirms KEEP Nb.1, Nb.2 not adopted and zero open Critical/High/Medium. Original FA3 and ML1 behavior gaps remain disclosed as not adopted. The newer Ground Truth staging feature is preserved; combined source passed3960tests/Ruff and the affected CLI bridge. The required integrated acceptance report is `docs/reviews/2026-11-08-workflow-gap-closure.md`. This report delivery changes only documentation; exact final delivery SHA/CI is separately recorded at completion. Analysis exposure146.03944475 includes unknown holds under the unchanged235ceiling. Raw evidence/history remain private. Staging is unreleased; production and Machine1 remain separate approved stages.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -426,7 +426,7 @@ Phase 2 is split by risk. **Build Na** holds the lower-risk changes: agents use 
 ### Nb.1 Risk roles test direction before sizing (RK1) — approved D3
 **Files:** the same three debators.
 - Per approved D3: in round 1 each role states its **own** direction (add / hold / reduce / exit) from its risk lens, with the evidence that would change it, before critiquing the Trader. Replace "create a compelling case for the trader's decision" with "make the strongest case for the direction your risk lens supports, including if that differs from the Trader". Rounds 2–3: answer the other roles' numbered points (same rule as N4.1). The final round must name what remains unresolved rather than restate.
-- [x] `test_aggressive_prompt_no_longer_presumes_trader_direction`, `test_round_one_requires_own_direction` (actual nine parameterized role/round behavior cases plus completed retained comparison; final Fable KEEP).
+- [x] `tests/test_nb_judgment_prompts.py::test_risk_roles_choose_direction_and_answer_points_in_the_actual_round` (nine role/round cases; covers the planned aggressive-direction and round-one checks). Actual retained pair and final Fable KEEP complete the runtime proof.
 
 ### Nb.2 Lessons reach the roles that use them (ML1)
 

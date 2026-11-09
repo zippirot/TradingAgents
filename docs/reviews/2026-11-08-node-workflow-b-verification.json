@@ -1,6 +1,6 @@
 {
-  "scope": "Public-safe local Nb acceptance and integration-preparation evidence. Raw prompts, ledger, private paths and private ancestry are excluded. Future exact published staging CI is unverified until actually observed.",
-  "status": "accepted_locally_pending_published_staging_CI",
+  "scope": "Public-safe observed staging implementation acceptance at856314e4 and full integrated plan dispositions. Final report delivery is documentation-only; its exact delivery SHA/CI is recorded separately.",
+  "status": "accepted_staging_implementation_and_integrated_plan",
   "implementation_base": "35e9ed10b0d97636d1b24819b29430c5444b291b",
   "actual_retained_paid_source": "0addf8500f8f2d3875dcd1f2c24aa0cf5438427d",
   "actual_retained_paid_tree": "8021fe22cf07b86b562c2775d3be86acbf184312",
@@ -140,7 +140,406 @@
     "Three DOCN citation flags remain (7/10 matched); five spot checks do not validate all prose.",
     "No supported final shared case/target in retained DOCN; conditional sensitivities are not targets or returns.",
     "Raw callbacks differ in direct metadata UUIDs; overall code/state/report bytes differ after preserving separate Ground Truth integration. No paid run occurred on combined public source.",
-    "Eight Low findings/limits retained. Exact future published CI remains unverified.",
+    "Eight Low findings/limits retained. Implementation CI42560106100 passed all7; final documentation delivery CI is separately recorded.",
     "Production, stable application and Machine 1 acceptance are separate release stages."
-  ]
+  ],
+  "accepted_implementation_staging_sha": "856314e4b1dae655e8de548445a19af8c299dd51",
+  "published_implementation_CI": {
+    "id": 42560106100,
+    "url": "https://github.com/zippirot/TradingAgents/actions/runs/42560106100",
+    "head_sha": "856314e4b1dae655e8de548445a19af8c299dd51",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "clean-install smoke",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.12, America/New_York)",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.14, UTC)",
+        "conclusion": "success"
+      },
+      {
+        "name": "ruff (strict, full repo)",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.11, UTC)",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.12, UTC)",
+        "conclusion": "success"
+      },
+      {
+        "name": "tests (py3.13, UTC)",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "integrated_plan_record": {
+    "report": "docs/reviews/2026-11-08-workflow-gap-closure.md",
+    "all14paid_attempts": [
+      {
+        "slot": "phase1-DOCN",
+        "classification": "authorized_failed_attempt_not_acceptance",
+        "source": {
+          "feature_sha": "9c252791a44d2a99c61c4224f8c9c35efc599e38",
+          "published_equivalent_sha": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
+          "tree": "486eb6474781334dd595ad4b426b9de58f0e471f"
+        },
+        "execution": "failed_no_retry",
+        "error_class": "BudgetStoppedError",
+        "wire_calls": 4,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "23d0a963a26cf287ea344438ec34aed420ffce1f566e878fd1ce5e770c642d90",
+        "terminal_receipt_sha256": "e8cfeb2db572bb7faae6699bba8d6106025ca3eb05188c2236fd5583b1d7b486",
+        "assessment_sha256": null,
+        "state_sha256": null,
+        "publication": null,
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "phase1-MSFT",
+        "classification": "superseded_pre_correction_source_not_fresh_baseline_acceptance",
+        "source": {
+          "feature_sha": "9c252791a44d2a99c61c4224f8c9c35efc599e38",
+          "published_equivalent_sha": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
+          "tree": "486eb6474781334dd595ad4b426b9de58f0e471f"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 13,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "704d0758c5d316f2fe21b85c587bafd98070ff169a916d9b6e37d7b6d8a854ab",
+        "terminal_receipt_sha256": "50e6f313fe0b54a83eb0a7efaf00cadb28b4eac1349d3a391e05cea39ec9d5f1",
+        "assessment_sha256": "0d63ab05d44f175370a83163949a19bbf1676f3cf865069122e4104f1f37fb6c",
+        "state_sha256": "bf4d8179e2b58fb8008463154091979801c8cf44fbf3248f25502bae7a0c2efe",
+        "publication": {
+          "decision_id": "7595b0e5-4719-406b-bfe3-965eb2e413f8",
+          "record_sha256": "b97ed467df1832a6efca0b73bac77e785cf3522162b3735c27d9dbe307724077",
+          "evidence_sha256": null,
+          "published_at": "2026-11-08T15:56:34.886160+00:00"
+        },
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "phase1-DOCN-repeat1",
+        "classification": "authorized_failed_attempt_not_acceptance",
+        "source": {
+          "feature_sha": "9c252791a44d2a99c61c4224f8c9c35efc599e38",
+          "published_equivalent_sha": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
+          "tree": "486eb6474781334dd595ad4b426b9de58f0e471f"
+        },
+        "execution": "failed_no_retry",
+        "error_class": "BudgetStoppedError",
+        "wire_calls": 26,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "da265ec90a15584969438de3693fa3a467bb0850e3f7e50c0184569de421d17a",
+        "terminal_receipt_sha256": "b6ca7373ca48b679924a2531e3b344197db08bf921be638f028fd3d826854528",
+        "assessment_sha256": null,
+        "state_sha256": null,
+        "publication": null,
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "phase1-DOCN-repeat2",
+        "classification": "superseded_pre_correction_source_not_fresh_baseline_acceptance",
+        "source": {
+          "feature_sha": "9c252791a44d2a99c61c4224f8c9c35efc599e38",
+          "published_equivalent_sha": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
+          "tree": "486eb6474781334dd595ad4b426b9de58f0e471f"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 33,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "d5eecd24519a1a27f8f3ecb3082a62982cb6426ea69f25ff9493b2478633aef6",
+        "terminal_receipt_sha256": "ca6999894533c07318e8ddf55f45b49b33fd11b83923d2b493ce787c4ae693bb",
+        "assessment_sha256": "6ce39e11b54a536b34b0f6cba6f9c90578862e46bb1e4cb553662caa31167c41",
+        "state_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+        "publication": {
+          "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+          "record_sha256": "d1de2bee1e23b9f8fd5db1a8d29aebfb44b54e0929679dc988b73f4102dddf75",
+          "evidence_sha256": null,
+          "published_at": "2026-11-08T16:44:54.512627+00:00"
+        },
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "phase1-fresh-DOCN",
+        "classification": "accepted_exact_ed24_phase1_baseline",
+        "source": {
+          "feature_sha": "ed24ec18d6b50734f378617755f60800e1d66aee",
+          "published_equivalent_sha": "ed24ec18d6b50734f378617755f60800e1d66aee",
+          "tree": "05299a6e3378805aab00f02c25ebf6b2b1f477e4"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 32,
+        "approval_sha256": "d8b6f6914b4d5639153e0489734c345a8ccff7cf39aa61e2981571888646e8d1",
+        "start_receipt_sha256": "732fb5b2f5cf03111d856cf17cf138b7500226435ad717e26454ae64d204daf0",
+        "terminal_receipt_sha256": "a7b129efb8da14365551fca22e72f6fa85dbef3b1e8e3f184620cd02973b87f4",
+        "assessment_sha256": "430f06e2a3c8c9c8b76d85e3fd049f9bdacf07e97988b350964e595d75afb5bb",
+        "state_sha256": "6b269435d483f535fef9f2b0d5f1efc8630ef438f143ab989a7fff8e6dbf88fa",
+        "publication": {
+          "decision_id": "039e9ce6-d4a1-4f86-8723-a3531eef6cf5",
+          "record_sha256": "bae4bed561ab80f6fb5acf2fb7b5f79c7c8a656c8242b805134b8a2174c7c9fd",
+          "published_at": "2026-11-08T18:07:19.723410+00:00",
+          "evidence_sha256": "ab8e5c67a3e0438187610d481dd0ee66bd037fcbb337cb52f5e6b96b4779d951"
+        },
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "phase1-fresh-MSFT",
+        "classification": "accepted_exact_ed24_phase1_baseline",
+        "source": {
+          "feature_sha": "ed24ec18d6b50734f378617755f60800e1d66aee",
+          "published_equivalent_sha": "ed24ec18d6b50734f378617755f60800e1d66aee",
+          "tree": "05299a6e3378805aab00f02c25ebf6b2b1f477e4"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 13,
+        "approval_sha256": "d8b6f6914b4d5639153e0489734c345a8ccff7cf39aa61e2981571888646e8d1",
+        "start_receipt_sha256": "bebc4a86f563f3da6fc3cea0b0d1f78d28c95c392058a52e64fe8609e0ada9cd",
+        "terminal_receipt_sha256": "21f0784b86601a1a4fa246845f5b37a1b5c78798ab083e7650741396c3b84b32",
+        "assessment_sha256": "267d415a43fa8f1c8dc8b4e9f6dd2d245399afc28de747813b27d2985eb241ed",
+        "state_sha256": "dbd8b438adc109bda2958edfb4e57774bda86e8fe3377825a58ffb491f8d292f",
+        "publication": {
+          "decision_id": "3f736b6a-2ce2-450b-8aa8-4eda0eeee459",
+          "record_sha256": "d48247f07e18893e19171ee9aa92c43c48c9c2160e6ab0fa944fa2a5c4f11ab5",
+          "published_at": "2026-11-08T18:13:04.336227+00:00",
+          "evidence_sha256": "1aebb85ddcb94eead0a9bf3b5b9e8389b85323b36572f3b961b879d04de08197"
+        },
+        "comparison_replay_status": null,
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Na-DOCN",
+        "classification": "historical_nonfinal_candidate",
+        "source": {
+          "feature_sha": "ab888b207d8886ee536e2fbd3ab6fb76f6f09a08",
+          "tree": "1f6cce657dd89f58442cc125d0ef9a949d5fd9e3",
+          "baseline_source_sha": "ed24ec18d6b50734f378617755f60800e1d66aee"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 33,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "c17078e520ac8bd7aa51a98439b800bfb901026826effc66ad29ae5c58531897",
+        "terminal_receipt_sha256": "6f5632b2f896f6caf36374512c64742557d66c9ab3e04c83d7e7d243fc566978",
+        "assessment_sha256": "b631bed3107363bce389b3440ff475945bf7a9fad86ad7ce7b90a5cced73c3ad",
+        "state_sha256": "2f48de346aec116935ef9275c55565cced195709cdf8d03e1c5c8afb60edbd65",
+        "publication": {
+          "decision_id": "e198b0ed-b84c-4b68-8d06-3e1e21a01ffe",
+          "record_sha256": "78aad947d457ff8cf84a578211ec4cb3ef5e24400a14bb64508c22c7139d09eb",
+          "published_at": "2026-11-08T19:21:17.475910+00:00",
+          "evidence_sha256": "53443f073b4c4eba3f05dea4ef86ed2c3d0bcdb6bb4aeca444915752a8c78e1a"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Na-MSFT",
+        "classification": "historical_nonfinal_candidate",
+        "source": {
+          "feature_sha": "ab888b207d8886ee536e2fbd3ab6fb76f6f09a08",
+          "tree": "1f6cce657dd89f58442cc125d0ef9a949d5fd9e3",
+          "baseline_source_sha": "ed24ec18d6b50734f378617755f60800e1d66aee"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 13,
+        "approval_sha256": "1b99e6ba4abe2b75e185076e17df22cff1959db0f100d4d2f9f0bdc6dbb1e86c",
+        "start_receipt_sha256": "5b397c29cd3f462bc86f8cf432fbc77e5bc4db2cd05ee37173526ad1cba47b2f",
+        "terminal_receipt_sha256": "2bce043a95006cfa58424dd5ab8e3af94778829434d9d276bc9fdf33538ce28a",
+        "assessment_sha256": "b373fa4f25999e8df03aeb0a5be35287ebcf642da54203365f872d9ea268cb5a",
+        "state_sha256": "d8530c4003db58288e144cf390347a1a1b854fad520d937f1379314c7666ec59",
+        "publication": {
+          "decision_id": "82e4a1df-a336-4e76-9e80-7d6cca302bdd",
+          "record_sha256": "561be8823343c479a63512dd97eb2e6e4a7c9c463aa91424583ebfc166cc0a03",
+          "published_at": "2026-11-08T19:40:04.051178+00:00",
+          "evidence_sha256": "e1b5f1f51c3f6e94d2fba7e65680c4622448f91a1ffe1647be27bd6210aca45b"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Na-retained-DOCN",
+        "classification": "retained_Na_pair_actual_source3d1_historical_public35e9_equivalence_separate",
+        "source": {
+          "feature_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "tree": "990f3a49c335d961e40fb229d7d8b53667c30f7e",
+          "baseline_source_sha": "ed24ec18d6b50734f378617755f60800e1d66aee"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 34,
+        "approval_sha256": "b6c24fd42420cfbadd068fc60aefa1faa66551087c533c89bb4143fad2876449",
+        "start_receipt_sha256": "b2b5e618adb7c064401511468a76ed08c637cc6c37bde7d45fcd12224e9af267",
+        "terminal_receipt_sha256": "dd19a0c192ffc7b41da8802c9cf550586c322682092c958b1c244d0a7b41bf83",
+        "assessment_sha256": "c22d2a4e8ff6dd096861dd4fad13a7355c2e8400657ac2f144e3c74e13195f35",
+        "state_sha256": "5c2b25e71dd110f7a9e91005b093a496a33c1edaf9a164dbc28d33e40c8c495a",
+        "publication": {
+          "decision_id": "89f493c3-6b2f-42de-a144-89c49be0d8d9",
+          "record_sha256": "fd73861fb986410534b4f7eef699e85786c2bf6312f51a94717c27f0b7a04184",
+          "published_at": "2026-11-08T23:01:52.328484+00:00",
+          "evidence_sha256": "0b9f153c37e0f55d299efbbed6d9f32a2c9a057f9d3bab29e027a7d0559067e1"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Na-retained-MSFT",
+        "classification": "retained_Na_pair_actual_source3d1_historical_public35e9_equivalence_separate",
+        "source": {
+          "feature_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "tree": "990f3a49c335d961e40fb229d7d8b53667c30f7e",
+          "baseline_source_sha": "ed24ec18d6b50734f378617755f60800e1d66aee"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 11,
+        "approval_sha256": "748db69c43c225065299519ff6f80e25904fd12d296cb72279b3f113cb897a57",
+        "start_receipt_sha256": "236ede91e145864650b43fa0fdff2fe2ee000d2709ee3595a35f8b6267913b20",
+        "terminal_receipt_sha256": "51a9f10a3f556411a28054eb0d7a6fb84f64b5282fd27cbebb902e5498127940",
+        "assessment_sha256": "1488ef6c8f34edaab0eb4cfd746698fad8374a4ef5eacc932d82eab86d306d30",
+        "state_sha256": "0c93cc0a385546108e668fca6fd59b9c1000ef14bd062b828e4e3350840fbba4",
+        "publication": {
+          "decision_id": "0d26a730-a63d-4e34-8a87-f4e67c4389a9",
+          "record_sha256": "86bb144b53ff056defe64d7dddfc4b42920ed0578dc5a7a97b923d8ed72e2e05",
+          "published_at": "2026-11-08T23:08:26.068754+00:00",
+          "evidence_sha256": "2ec01b6c8b5e98436051d179d5ea13f6fe9693a1e59c1d158a3eaaef73927e09"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Nb-DOCN",
+        "classification": "historical_nonfinal_candidate",
+        "source": {
+          "feature_sha": "6cd3e6c7d768cc33e913effad194bf681e5d1ef9",
+          "tree": "2e9e83cb2e4a187367b0f5d60c61714fb01268f2",
+          "baseline_source_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "canonical_staging_sha": "35e9ed10b0d97636d1b24819b29430c5444b291b"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 33,
+        "approval_sha256": "5e6251feb98b50ce71efd1d540a98ea0f0829b3b52a1af39952ac66bb9a3dcfa",
+        "start_receipt_sha256": "278ff2a1e09c4b16105fa81e469c27d811e900c5834e33fa413cd14417506167",
+        "terminal_receipt_sha256": "bc8172c286cae4ca7d401bc1965f06a3fa8d97cab2bcc1bbce5860e2fcd023b3",
+        "assessment_sha256": "17382cf74628c57a45fce4b9a13640bf6548b5225b8945f6ce1f5224b6d30852",
+        "state_sha256": "add3e791d3b9b01f073fae76457de28179363ba217ab46fa581a8f1ba3dfaaaa",
+        "publication": {
+          "decision_id": "9a695a99-767b-43ff-8f93-50082f10e46e",
+          "record_sha256": "85db107f4b863f08642215e1e30dc7c414d5d26977e33e42862a21982427f312",
+          "published_at": "2026-11-09T01:47:30.224695+00:00",
+          "evidence_sha256": "b59bacb2240b21f2791b190d4a581da4a39b6a89471ed5fb710c25c6e428f83f"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Nb-MSFT",
+        "classification": "historical_nonfinal_candidate",
+        "source": {
+          "feature_sha": "6cd3e6c7d768cc33e913effad194bf681e5d1ef9",
+          "tree": "2e9e83cb2e4a187367b0f5d60c61714fb01268f2",
+          "baseline_source_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "canonical_staging_sha": "35e9ed10b0d97636d1b24819b29430c5444b291b"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 13,
+        "approval_sha256": "61ecbd2bf8789b840117116718fbfd3b8cf1de6d6ec60641e9f827c1b5e4936e",
+        "start_receipt_sha256": "cb8d14875cf4cd5c11ff23ff3cedcbe47a97e7c527dbbc4004993436ecf434b8",
+        "terminal_receipt_sha256": "161024cfb667f603ab07aea75145e6f22dba84f8a534604ca0defb6cc8281873",
+        "assessment_sha256": "8bfcbfe621a7b2fc4f0f7b652296bd1b00cdd53ba94a34b2c6a5d6558892cf94",
+        "state_sha256": "26481c1b5e4fe9539938146339af5894ee3846c1f39506df9dbf40cd5de7620e",
+        "publication": {
+          "decision_id": "076ddf8c-417a-4348-b6a6-a3c571c2055b",
+          "record_sha256": "772dd92f8edae6dd5188c0b39851e62a1a911f14e196e66caceb172e34e4cf10",
+          "published_at": "2026-11-09T01:55:07.512245+00:00",
+          "evidence_sha256": "51f8db946ad23608cecbcc91bec6e6afcaabc55699b9b212fade51d2cf0f2273"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Nb-retained-DOCN",
+        "classification": "retained_Nb1_pair_actual_source0add_public_combined_bridge_separate",
+        "source": {
+          "feature_sha": "0addf8500f8f2d3875dcd1f2c24aa0cf5438427d",
+          "tree": "8021fe22cf07b86b562c2775d3be86acbf184312",
+          "baseline_source_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "canonical_staging_sha": "35e9ed10b0d97636d1b24819b29430c5444b291b",
+          "observed_integration_staging_sha": "5e1c86b64f85e078dbdeb05ac9dc966d23031333"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 32,
+        "approval_sha256": "930c9545e6256d2291756c34867b5f3c10c6875a947b6e01487968ea4caf3e8b",
+        "start_receipt_sha256": "a3c876c8e5356e0222089fe0a6965ab562a969117f6e73bd32d35a80478d6c86",
+        "terminal_receipt_sha256": "d41d296043217fad916c0ea25d9623d994d39da2567c7dd2b077b775565e8afb",
+        "assessment_sha256": "f4bbcac9eb60a30ccca2683e6add1850aa0cfe6c80b9c784d01dfa911db676e3",
+        "state_sha256": "c555a4a36dae56c84584b7c6d1648dc3015c88e8e2250ad401a3e7e901bd44db",
+        "publication": {
+          "decision_id": "e4cf660b-9a06-456e-adca-5bf8b90a0ede",
+          "record_sha256": "244fd28726ef2c90ae5e7203c77f4c6c1941e7d20398e812d6f91f292ff4a402",
+          "published_at": "2026-11-09T03:18:08.443635+00:00",
+          "evidence_sha256": "58eb19cd854e9897aafea439ad8758daa54d07d90444128bbbedcbdf20a27670"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      },
+      {
+        "slot": "Nb-retained-MSFT",
+        "classification": "retained_Nb1_pair_actual_source0add_public_combined_bridge_separate",
+        "source": {
+          "feature_sha": "0addf8500f8f2d3875dcd1f2c24aa0cf5438427d",
+          "tree": "8021fe22cf07b86b562c2775d3be86acbf184312",
+          "baseline_source_sha": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+          "canonical_staging_sha": "35e9ed10b0d97636d1b24819b29430c5444b291b",
+          "observed_integration_staging_sha": "5e1c86b64f85e078dbdeb05ac9dc966d23031333"
+        },
+        "execution": "returned_successfully_proof_not_yet_assessed",
+        "error_class": null,
+        "wire_calls": 12,
+        "approval_sha256": "ef8f492af8b1f5b5da3b1f771e6902fca1925c82dd0df2777c0fade06c03eda1",
+        "start_receipt_sha256": "e200f49216731a7d356bcd2f27df16adfd728d46e8cff183d9f132af09417653",
+        "terminal_receipt_sha256": "8eb0eafd6ab520cbde0e1bc766e7127661341842afbc9b3ba2da4c19a22ba142",
+        "assessment_sha256": "08d7787e2b164416b326011bdd19ed80d90f3083ebaa5f9faebe9c76a86b4f78",
+        "state_sha256": "c96831c0ebaff2eb9719280d89a1c7f2167020def817859fbf2702f7c176d5a2",
+        "publication": {
+          "decision_id": "924c8faf-c247-4a7d-8d6b-1ec99b361c2f",
+          "record_sha256": "5ef8847e11647e3ed449b4d97d3982f249aa4b411ee8ee8a1197742261a487fd",
+          "published_at": "2026-11-09T03:24:10.251528+00:00",
+          "evidence_sha256": "b08adaaacf7e6fb45c810b06e4f75904481d900dfd9dec3027047e55c86d5d8a"
+        },
+        "comparison_replay_status": "mixed_input",
+        "original_stores_unchanged": true
+      }
+    ],
+    "inventory_private_receipt_sha256": "4c13b382f6301f92363a1c944747776cd276e6af114399e57d0f2dddf731a87f",
+    "all_run_claims": 14,
+    "returned_successfully": 12,
+    "failed": 2,
+    "wire_calls": 302,
+    "original_preNa_snapshot_manifest_sha256": "7447a46b3e3dd15e339c4e1c386ec83b49f9b4c2cce890386a488980deb0999b",
+    "original_preNa_snapshot_canonical_sha256": "a9eaffd8eee2434cd8111df07ab55dec34e3dea4dbbe25d5cc0461403cf3d8db",
+    "original_preNa_memory_sha256": "e6258917214907ad1d42d482f9850f915ec7fcc34b6ed3f9b1d3c7865d845102",
+    "material_closure_evidence_sha256": "f763be292222570816f665e380cfbdc81aa55321d81fd46ad73381f5b9f71567",
+    "original_gap_dispositions": "Reportmapsallownerstasks;N2.2/FA3andNb.2/ML1notadopted,notfixed.",
+    "approved_original_Amendment1": "Preservedhistoricaltext;all26namedchecksmapactual/equivalentassertions;sourceproofsinstagerecords."
+  }
 }

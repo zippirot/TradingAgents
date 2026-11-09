@@ -1,4 +1,4 @@
-# Nb: independent risk directions — local acceptance
+# Nb: independent risk directions — staging acceptance
 
 Nb.1 is kept. Risk roles state their own direction and change-of-mind evidence before critiquing the Trader, answer the other roles’ numbered points in later rounds, and name unresolved matters in the final round. Scheduling, rating eligibility and publication safeguards stay unchanged. Nb.2 is not adopted: the original frozen memory contained no eligible lessons, so its required positive qualitative judgment was unavailable. Original ML1 remains disclosed.
 
@@ -16,7 +16,7 @@ Actual permitted Claude Fable run `6eec6a8f-9e7a-4f39-8dc0-5ff2e4c6cf00` complet
 
 The audit confirmed strict item 4 rejection of Nb.2, preserving its original initial KEEP-with-unexercised-disclosure as a historical judgment. The Na N2.3-only no-event exception did not waive Nb acceptance. The failed benefit was dropped, not repaired or retried; the separately approved retained pair was actually run.
 
-Initial privacy Medium is closed by a verified default-deny on the private branch and a clean public integration route. Explicit remote selection can bypass the default; no universal prevention is claimed. Fresh pre-push ancestry/content checks are still required. Frozen Claude did not execute tests, inspect GitHub or recompute hashes; separately executed mechanical verifiers matched all 60 raw trace files and 42 lossless starts/40 observed ends/two explicitly missing Trader ends. Eight Low findings and these limitations remain.
+Initial privacy Medium is closed by a verified default-deny on the private branch and a clean public integration route. Explicit remote selection can bypass the default; no universal prevention is claimed. Fresh pre-push checks subsequently excluded all ten private Nb commits and 22 private evidence objects before the actual authorized staging push. Frozen Claude did not execute tests, inspect GitHub or recompute hashes; separately executed mechanical verifiers matched all 60 raw trace files and 42 lossless starts/40 observed ends/two explicitly missing Trader ends. Eight Low findings and these limitations remain.
 
 ## Newer staging preserved and verified
 
@@ -30,6 +30,6 @@ The first combined fixture correctly rejected the already-consumed real retained
 
 ## Delivery boundary
 
-Local Nb acceptance is complete. Exact published staging CI remains to be observed before integrated plan acceptance. Current base 5e1 CI 42549961745 passed all seven jobs; that is predecessor evidence, not a future Nb pass. Only accepted source and sanitized records may advance. Staging is unreleased; production, stable application and Machine 1 acceptance remain separate approved stages.
+Nb implementation is accepted at staging `856314e4b1dae655e8de548445a19af8c299dd51`; exact CI `42560106100` passed all seven jobs. The final integrated report records every build, gap disposition and paid attempt. This documentation-only delivery preserves all tested implementation blobs; its exact final SHA/CI is recorded separately at completion. Staging remains unreleased; production, stable application and Machine 1 acceptance require separate authority.
 
 The adjacent verification JSON records source identities, hashes, run IDs, checks and limitations without private prompt bodies or ledger entries.
