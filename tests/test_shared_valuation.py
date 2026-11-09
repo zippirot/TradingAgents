@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from decimal import Decimal
 
 from tests.test_valuation import ev_request, evidence, pe_request
 from tradingagents.agents.shared_valuation import prepare_shared_valuation, render_shared_valuation
@@ -18,12 +19,13 @@ def state(rows):
 
 
 def test_shared_rows_calculate_independently_and_do_not_choose_target():
-    from tests.test_case_valuation import revenue_case
+    from tests.test_case_valuation import bridge, revenue_case
     low, high = revenue_case()["request"], revenue_case()["request"]
     for raw in (low, high):
         raw["capital"]["cash"]["value"] = "100"
         raw["capital"]["closing_shares"]["value"] = "100"
         raw["capital"]["obligations"]["borrowings"]["value"] = "200"
+        bridge(raw)
     high["multiple"] = "4"
     inputs = state([{"name": "Lower", "request": low}, {"name": "Higher", "request": high}])
     original = deepcopy(inputs)
@@ -287,3 +289,87 @@ def test_explicit_empty_proposal_is_distinct_from_malformed_payload():
     malformed = state([])
     malformed['financial_claim_validation']['raw_report'] = '```valuation_scenarios\n[broken\n```'
     assert 'malformed' in prepare_shared_valuation(malformed)['reasons'][0]
+
+
+def _docn_notes_case(borrowings):
+    """The 2026-11-09 DOCN case: 2026 notes repaid with cash, 2030 notes converted."""
+    from tests.test_source_bound_lease_sensitivities import example
+
+    inputs, submitted = example()
+    facts = inputs["financial_evidence"]["facts"]
+    snapshot = {f["metric"]: Decimal(str(f["value"])) for f in facts
+                if f["period_end"] == "2026-09-30" and f["period_start"] is None}
+    capital = submitted[0]["request"]["capital"]
+    capital["closing_shares"]["value"] = "128000000"
+    capital["share_changes"] = [
+        {"source": "conversion", "shares": "3900000", "converted_principal": "153200000",
+         "instrument": "2030 convertible notes", "reason": "Converted at the stated price."},
+        {"source": "sbc", "shares": str(Decimal("128000000") - snapshot["Common Shares Outstanding"] - 3900000),
+         "instrument": "RSUs and ESPP", "reason": "Ongoing issuance."}]
+    capital["cash"]["value"] = "500000000"
+    repaid = Decimal("-312300000")
+    capital["cash_changes"] = [
+        {"source": "debt", "amount": str(repaid), "reason": "2026 notes settled in cash."},
+        {"source": "operations", "amount": str(Decimal("500000000") - snapshot["Cash and Equivalents"] - repaid),
+         "reason": "Free cash flow."}]
+    capital["obligations"]["borrowings"]["value"] = borrowings
+    return inputs, submitted
+
+
+def test_conversion_shares_with_principal_still_in_borrowings_is_rejected():
+    inputs, submitted = _docn_notes_case("150000000")
+    record = prepare_shared_valuation(inputs, submitted)
+    assert not record["rows"]
+    assert "Converted principal 153200000 still counted in borrowings" in " ".join(record["reasons"])
+
+
+def test_conversion_shares_with_borrowings_reduced_is_supported():
+    inputs, submitted = _docn_notes_case("0")
+    record = prepare_shared_valuation(inputs, submitted)
+    assert len(record["rows"]) == 1, record["reasons"]
+    assert any("2030 convertible notes" in a for a in record["rows"][0]["result"]["assumptions"])
+
+
+def _bridge_case(mutate):
+    from tests.test_case_valuation import revenue_case
+
+    row = revenue_case()
+    mutate(row["request"]["capital"])
+    return prepare_shared_valuation(state([row]))
+
+
+def test_estimated_shares_without_share_changes_is_rejected():
+    record = _bridge_case(lambda c: c.update(share_changes=[]))
+    assert not record["rows"] and "share_changes must sum" in " ".join(record["reasons"])
+
+
+def test_conversion_requires_principal():
+    def mutate(capital):
+        capital["share_changes"][0]["source"] = "conversion"
+    assert not _bridge_case(mutate)["rows"]
+
+
+_ATM_SHARES = {"source": "atm", "shares": "10", "instrument": "ATM program", "reason": "Sold under the program."}
+_ATM_CASH = {"source": "atm", "amount": "-20", "reason": "Net proceeds."}
+
+
+def test_atm_cash_without_atm_shares_is_rejected():
+    record = _bridge_case(lambda c: c.update(cash_changes=[_ATM_CASH]))
+    assert not record["rows"] and "ATM proceeds and ATM shares must both be stated" in " ".join(record["reasons"])
+
+
+def test_atm_shares_without_atm_cash_is_rejected():
+    record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES]))
+    assert not record["rows"] and "ATM proceeds and ATM shares must both be stated" in " ".join(record["reasons"])
+
+
+def test_atm_cash_and_shares_together_is_supported():
+    record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[_ATM_CASH]))
+    assert len(record["rows"]) == 1, record["reasons"]
+
+
+def test_prompt_contract_names_share_changes():
+    from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS as text
+
+    assert "share_changes" in text and "cash_changes" in text and "converted_principal" in text
+    assert "must also be removed from the borrowings estimate" in text

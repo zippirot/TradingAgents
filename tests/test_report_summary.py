@@ -492,3 +492,23 @@ def test_executive_evidence_framing_follows_final_case_authority(language, selec
         stale = build_summary_input(state, settings, parts)
         assert stale["constraints"]["adopted_case"] is None
         assert stale["source_input_digest"] != context["source_input_digest"]
+
+
+@pytest.mark.parametrize("version,author", [(1, "proposed by the fundamentals analyst"), (2, "revised by the Research Manager")])
+def test_adopted_case_attribution_follows_version(version, author):
+    from tradingagents.report_summary import _evidence_sentence
+
+    constraints = {"evidence_status": "limited", "adopted_case": {"case_id": "case-1", "version": version}}
+    sentence = _evidence_sentence(constraints, "English")
+    assert f"a validated case ({author}) whose" in sentence
+
+
+@pytest.mark.parametrize("language", ["English", "Spanish", "Portuguese", "French", "German", "Chinese",
+                                      "Japanese", "Korean", "Hindi", "Arabic", "Russian"])
+def test_adopted_case_attribution_is_one_sentence_in_every_language(language):
+    from tradingagents.report_summary import _evidence_sentence, _sentence_count
+
+    constraints = {"evidence_status": "limited", "adopted_case": {"case_id": "case-1", "version": 2}}
+    assert _sentence_count(_evidence_sentence(constraints, language)) == 1
+    assert "{" not in _evidence_sentence(constraints, language, attributed=False)
+    assert "  " not in _evidence_sentence(constraints, language, attributed=False)

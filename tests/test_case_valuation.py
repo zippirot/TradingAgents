@@ -12,7 +12,25 @@ def value(amount, reference):
             "reason": "Illustrative closing balance based on the dated filing."}
 
 
+def bridge(request, shares=100, cash=100):
+    """State what moved estimated closing shares and cash away from the snapshot."""
+    capital = request["capital"]
+    share_delta = Decimal(capital["closing_shares"]["value"]) - shares
+    cash_delta = Decimal(capital["cash"]["value"]) - cash
+    capital["share_changes"] = [{"source": "sbc", "shares": str(share_delta), "instrument": "RSUs",
+                                 "reason": "Illustrative issuance."}] if share_delta else []
+    capital["cash_changes"] = [{"source": "operations", "amount": str(cash_delta),
+                                "reason": "Illustrative cash flow."}] if cash_delta else []
+    return request
+
+
 def revenue_case(basis="borrowings_only"):
+    row = _unbridged_case(basis)
+    bridge(row["request"])
+    return row
+
+
+def _unbridged_case(basis):
     return {"name": "Base", "request": {"method": "revenue_case", "revenue_fact_id": "revenue",
             "forecast": forecast(), "multiple": "3", "multiple_basis": basis, "multiple_period": "forward",
             "multiple_assumption_date": "2026-10-19", "multiple_rationale": "Assumed market pricing.",
@@ -81,6 +99,7 @@ def test_exact_revision_selection_and_dated_horizon(monkeypatch):
     for v, amt in zip([revised["request"]["capital"]["closing_shares"], revised["request"]["capital"]["cash"],
                        revised["request"]["capital"]["obligations"]["borrowings"]], [100, 100, 200], strict=True):
         v["value"] = str(amt)
+    bridge(revised["request"])
     record = replay_cases(inputs, revision=[revised])
     inputs["shared_valuation_scenarios"] = record
     card = prepare_decision_context(inputs)
@@ -219,6 +238,7 @@ def test_dated_link_requires_split_compatible_close_and_only_its_own_capital(mon
     for item, amount in ((cap["closing_shares"], "100"), (cap["cash"], "100"),
                          (cap["obligations"]["borrowings"], "200")):
         item.update(value=amount, assumption="unchanged_from_snapshot")
+    bridge(row["request"])
     cap["obligations"].update(finance_leases=value(25, "finance"), equipment=value(12, "equipment"))
     inputs = {**state([row]), **quoted(monkeypatch, splits=(0, 2)), "final_rating": "Hold"}
     record = prepare_shared_valuation(inputs)

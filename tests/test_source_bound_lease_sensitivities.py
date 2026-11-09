@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 from tests.docn_workflow_fixture import source_state
-from tests.test_case_valuation import revenue_case, value
+from tests.test_case_valuation import bridge, revenue_case, value
 from tradingagents.agents.shared_valuation import (
     SCOPE,
     prepare_shared_valuation,
@@ -33,6 +33,8 @@ def example():
     capital["cash"] = value(650000000, fact_id("Cash and Equivalents", "2026-09-30"))
     capital["closing_shares"] = value(128000000, fact_id("Common Shares Outstanding", "2026-09-30"))
     capital["obligations"] = {"borrowings": value(450000000, fact_id("Total Borrowings", "2026-09-30"))}
+    snapshot = {f["metric"]: Decimal(str(f["value"])) for f in facts if f["period_end"] == "2026-09-30" and f["period_start"] is None}
+    bridge(request, snapshot["Common Shares Outstanding"], snapshot["Cash and Equivalents"])
     return state, [submitted]
 
 

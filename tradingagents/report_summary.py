@@ -188,17 +188,30 @@ _NO_ADOPTION = {
     "Russian": "Качество доказательств: {quality}; выбор сценария не подтверждён итоговой проверкой, а оценки по сценариям зависят от допущений.",
 }
 _ADOPTED_CASE = {
-    "English": "Evidence quality is {quality}; the portfolio manager adopted a validated case whose conditional value at the end of the case period depends on its stated assumptions.",
-    "Spanish": "La calidad de la evidencia es {quality}; el gestor adoptó un escenario validado cuyo valor condicional al cierre del período depende de los supuestos indicados.",
-    "Portuguese": "A qualidade da evidência é {quality}; o gestor adotou um cenário validado cujo valor condicional ao fim do período depende das premissas declaradas.",
-    "French": "La qualité des preuves est {quality} ; le gérant a retenu un scénario validé dont la valeur en fin de période dépend des hypothèses énoncées.",
-    "German": "Die Beleglage ist {quality}; das Portfoliomanagement hat ein geprüftes Szenario gewählt, dessen bedingter Wert am Periodenende von den genannten Annahmen abhängt.",
-    "Chinese": "证据质量为{quality}；投资组合经理采用了经过验证的情景，其期末估值取决于所列假设。",
-    "Japanese": "証拠の質は{quality}で、運用責任者が採用した検証済みシナリオの期末評価額は、明示された前提条件に依存する。",
-    "Korean": "증거 품질은 {quality}이며 운용자가 채택한 검증된 시나리오의 기말 평가액은 명시된 가정에 따라 달라진다.",
-    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; पोर्टफोलियो प्रबंधक ने सत्यापित परिदृश्य चुना है और उसकी अवधि के अंत का सशर्त मूल्य बताई गई मान्यताओं पर निर्भर है।",
-    "Arabic": "جودة الأدلة {quality}؛ اعتمد مدير المحفظة سيناريو اجتاز التحقق وتعتمد قيمته المشروطة في نهاية الفترة على الافتراضات المذكورة.",
-    "Russian": "Качество доказательств: {quality}; управляющий выбрал проверенный сценарий, условная оценка на конец его периода зависит от указанных допущений.",
+    "English": "Evidence quality is {quality}; the portfolio manager adopted a validated case {author} whose conditional value at the end of the case period depends on its stated assumptions.",
+    "Spanish": "La calidad de la evidencia es {quality}; el gestor adoptó un escenario validado {author} cuyo valor condicional al cierre del período depende de los supuestos indicados.",
+    "Portuguese": "A qualidade da evidência é {quality}; o gestor adotou um cenário validado {author} cujo valor condicional ao fim do período depende das premissas declaradas.",
+    "French": "La qualité des preuves est {quality} ; le gérant a retenu un scénario validé {author} dont la valeur en fin de période dépend des hypothèses énoncées.",
+    "German": "Die Beleglage ist {quality}; das Portfoliomanagement hat ein geprüftes Szenario {author} gewählt, dessen bedingter Wert am Periodenende von den genannten Annahmen abhängt.",
+    "Chinese": "证据质量为{quality}；投资组合经理采用了经过验证的情景{author}，其期末估值取决于所列假设。",
+    "Japanese": "証拠の質は{quality}で、運用責任者が採用した検証済みシナリオ{author}の期末評価額は、明示された前提条件に依存する。",
+    "Korean": "증거 품질은 {quality}이며 운용자가 채택한 검증된 시나리오{author}의 기말 평가액은 명시된 가정에 따라 달라진다.",
+    "Hindi": "साक्ष्य की गुणवत्ता {quality} है; पोर्टफोलियो प्रबंधक ने सत्यापित परिदृश्य {author} चुना है और उसकी अवधि के अंत का सशर्त मूल्य बताई गई मान्यताओं पर निर्भर है।",
+    "Arabic": "جودة الأدلة {quality}؛ اعتمد مدير المحفظة سيناريو اجتاز التحقق {author} وتعتمد قيمته المشروطة في نهاية الفترة على الافتراضات المذكورة.",
+    "Russian": "Качество доказательств: {quality}; управляющий выбрал проверенный сценарий {author}, условная оценка на конец его периода зависит от указанных допущений.",
+}
+_CASE_AUTHOR = {
+    "English": ("(proposed by the fundamentals analyst)", "(revised by the Research Manager)"),
+    "Spanish": ("(propuesto por el analista fundamental)", "(revisado por el gerente de investigación)"),
+    "Portuguese": ("(proposto pelo analista fundamentalista)", "(revisado pelo gerente de pesquisa)"),
+    "French": ("(proposé par l'analyste fondamental)", "(révisé par le responsable de la recherche)"),
+    "German": ("(vom Fundamentalanalysten vorgeschlagen)", "(vom Research-Manager überarbeitet)"),
+    "Chinese": ("（由基本面分析师提出）", "（由研究经理修订）"),
+    "Japanese": ("（ファンダメンタルズアナリストの提案）", "（リサーチマネージャーの修正）"),
+    "Korean": ("(펀더멘털 애널리스트 제안)", "(리서치 매니저 수정)"),
+    "Hindi": ("(मौलिक विश्लेषक द्वारा प्रस्तावित)", "(अनुसंधान प्रबंधक द्वारा संशोधित)"),
+    "Arabic": ("(اقترحه محلل الأساسيات)", "(نقحه مدير البحوث)"),
+    "Russian": ("(предложен фундаментальным аналитиком)", "(пересмотрен руководителем исследований)"),
 }
 _FALLBACK = {
     "English": ("The full narrative summary is unavailable because this saved run has no retained editorial summary.",
@@ -428,10 +441,17 @@ def _rating_sentence(rating, language):
     return f"{rating} {meaning}." if language in {"English", "Spanish", "Portuguese", "French", "German", "Arabic", "Russian"} else f"{rating}：{meaning}。"
 
 
-def _evidence_sentence(constraints, language):
+def _evidence_sentence(constraints, language, attributed=True):
     quality = constraints["evidence_status"]
-    template = (_ADOPTED_CASE if constraints["adopted_case"] else _NO_ADOPTION).get(language)
-    return template.format(quality=quality) if template else ""
+    case = constraints["adopted_case"]
+    template = (_ADOPTED_CASE if case else _NO_ADOPTION).get(language)
+    if not template:
+        return ""
+    if not case:
+        return template.format(quality=quality)
+    if not attributed:  # wording of summaries saved before attribution existed
+        return template.format(quality=quality, author="").replace("  ", " ")
+    return template.format(quality=quality, author=_CASE_AUTHOR[language][case["version"] == 2])
 
 
 def build_summary_input(prepared_state: dict, settings: dict | None, parts) -> dict:
@@ -681,8 +701,9 @@ def resolve_summary(context: dict, saved_record) -> dict:
             items = _body_items({"sentences": saved_record.get("body_items")},
                                 {section["key"] for section in context["sections"]}, context["rating"])
             sentences = saved_record.get("sentences")
+            lasts = (last, _evidence_sentence(context["constraints"], context["language"], attributed=False))
             if (items is not None and isinstance(sentences, list)
-                    and sentences == [first, *(item["text"] for item in items), last]):
+                    and any(sentences == [first, *(item["text"] for item in items), end] for end in lasts)):
                 return {"status": "completed", "reason": None, "source_input_digest": context["source_input_digest"],
                         "process": process, "sentences": list(sentences)}
             reason = "invalid_saved_summary"

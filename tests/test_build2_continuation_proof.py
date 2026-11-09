@@ -364,6 +364,9 @@ def private_drill(tmp):
         # R1's added optional sensitivity output; retain every native checkpoint,
         # original case-result, role, source, budget and transport assertion.
         stack.enter_context(patch.object(shared_valuation, "_source_bound_lease_requests", return_value={}))
+        # This checkpoint predates the capital-bridge contract; freeze it like the sensitivities above.
+        from tradingagents.agents import valuation_cases
+        stack.enter_context(patch.object(valuation_cases, "_validate_capital_bridge", return_value=None))
         for module in (httpx, httpx2):
             stack.enter_context(
                 patch.object(module.HTTPTransport, "handle_request", transport(module))

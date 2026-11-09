@@ -118,6 +118,17 @@ def _source_bound_lease_requests(request, result, package, outlooks, sensitiviti
     return supplemental
 
 
+def _request_record(request):
+    """Dump a request; a case with no stated bridge keeps its original record shape."""
+    record = request.model_dump(mode="json")
+    capital = record.get("capital")
+    if isinstance(capital, dict):
+        for key in ("share_changes", "cash_changes"):
+            if not capital.get(key):
+                capital.pop(key, None)
+    return record
+
+
 def prepare_shared_valuation(state, requests=None):
     """Calculate optional inputs without modifying state or making external calls.
 
@@ -207,7 +218,7 @@ def prepare_shared_valuation(state, requests=None):
             case_id = "case-" + hashlib.sha256(name.strip().encode()).hexdigest()[:16]
             rows.append({"name": name.strip(), "case_id": case_id, "version": 1,
                          **({"scenario_role": scenario_role} if scenario_role is not None else {}),
-                         "request": request.model_dump(mode="json"), "result": result.model_dump(mode="json"),
+                         "request": _request_record(request), "result": result.model_dump(mode="json"),
                          "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
         except ValidationError as exc:

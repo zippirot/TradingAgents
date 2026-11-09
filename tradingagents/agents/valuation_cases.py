@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal, localcontext
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from tradingagents.agents.accounting_checks import validate_obligation_category
 from tradingagents.agents.valuation import (
@@ -29,12 +29,34 @@ class CapitalValue(_Record):
     assumption: Literal["estimated", "unchanged_from_snapshot"]
 
 
+class ShareChange(_Record):
+    source: Literal["conversion", "atm", "sbc", "buyback", "other"]
+    shares: Decimal = Field(max_digits=40)
+    converted_principal: Decimal | None = Field(default=None, gt=0, max_digits=40)
+    instrument: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=1, max_length=600)
+
+    @model_validator(mode="after")
+    def _principal_matches_source(self):
+        if (self.source == "conversion") != (self.converted_principal is not None):
+            raise ValueError("converted_principal is required for a conversion and only for a conversion")
+        return self
+
+
+class CashChange(_Record):
+    source: Literal["atm", "operations", "debt", "other"]
+    amount: Decimal = Field(max_digits=40)
+    reason: str = Field(min_length=1, max_length=600)
+
+
 class CaseCapital(_Record):
     valuation_date: date
     currency: str = Field(min_length=3, max_length=3)
     closing_shares: CapitalValue
     cash: CapitalValue
     obligations: dict[str, CapitalValue]
+    share_changes: tuple[ShareChange, ...] = Field(default=(), max_length=12)
+    cash_changes: tuple[CashChange, ...] = Field(default=(), max_length=12)
 
 
 class RevenueCase(_Record):
@@ -62,6 +84,30 @@ def obligation_bases(obligations):
              "finance_equipment": ("borrowings", "finance_equipment") if "finance_equipment" in obligations else ("borrowings", "finance_leases", "equipment")}
     bases["all_leases"] = (*bases["finance_equipment"], "operating_leases")
     return bases
+
+
+def _validate_capital_bridge(capital, refs):
+    """One instrument, one role: tie estimated shares and cash to what changed them."""
+    shares, cash = capital.closing_shares, capital.cash
+    share_delta = shares.value - refs["closing_shares"][0].value
+    if (share_delta or capital.share_changes) and sum(c.shares for c in capital.share_changes) != share_delta:
+        raise ValueError(f"share_changes must sum to the {share_delta} difference from the snapshot share count")
+    cash_delta = cash.value - refs["cash"][0].value
+    if (cash_delta or capital.cash_changes) and sum(c.amount for c in capital.cash_changes) != cash_delta:
+        raise ValueError(f"cash_changes must sum to the {cash_delta} difference from the snapshot cash balance")
+    if any(c.source == "atm" for c in capital.share_changes) != any(c.source == "atm" for c in capital.cash_changes):
+        raise ValueError("ATM proceeds and ATM shares must both be stated")
+    converted = sum(c.converted_principal for c in capital.share_changes if c.source == "conversion")
+    borrowings = capital.obligations.get("borrowings")
+    if not converted or borrowings is None:
+        return
+    # Debt repaid with cash already explains part of the fall in borrowings, so
+    # it cannot also absorb the converted principal. Principal can exceed the
+    # carrying value net of issuance costs; retiring everything always suffices.
+    snapshot = sum(f.value for f in refs["borrowings"])
+    repaid = max(-sum(c.amount for c in capital.cash_changes if c.source == "debt"), Decimal(0))
+    if snapshot - borrowings.value < min(converted + repaid, snapshot):
+        raise ValueError(f"Converted principal {converted} still counted in borrowings")
 
 
 def price_case(request, package, outlooks):
@@ -104,6 +150,7 @@ def price_case(request, package, outlooks):
             raise ValueError(f"{label} needs a reason and compatible same-snapshot references")
         if v.assumption == "unchanged_from_snapshot" and sum(f.value for f in facts) != v.value:
             raise ValueError(f"{label} unchanged from snapshot conflicts with its source value")
+    _validate_capital_bridge(capital, refs)
     components = {k: v.fact_ids for k, v in obligations.items()}
     for category in components:
         validate_obligation_category(category, refs[category])
@@ -126,6 +173,10 @@ def price_case(request, package, outlooks):
         assumptions = [forecast, f"Assumed {request.multiple_basis} / revenue multiple {request.multiple}, {period_label}."]
         for label, v in values.items():
             assumptions.append(f"{label}: {v.value} ({v.assumption.replace('_', ' ')}); references {', '.join(v.fact_ids)}. Reason: {v.reason}")
+        for change in capital.share_changes:
+            assumptions.append(f"share change ({change.source}, {change.instrument}): {change.shares}. Reason: {change.reason}")
+        for change in capital.cash_changes:
+            assumptions.append(f"cash change ({change.source}): {change.amount}. Reason: {change.reason}")
         result = TargetResult(status="supported", method="revenue_case", target=equity / capital.closing_shares.value,
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
             shares_outstanding=capital.closing_shares.value, multiple=request.multiple,

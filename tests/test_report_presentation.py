@@ -29,7 +29,7 @@ def test_display_precision_never_rounds_nonzero_to_zero(value, expected):
 
 
 def test_shared_render_rounds_only_display_and_keeps_traceable_inputs():
-    from tests.test_case_valuation import revenue_case
+    from tests.test_case_valuation import bridge, revenue_case
 
     row = revenue_case()
     request = row["request"]
@@ -37,6 +37,7 @@ def test_shared_render_rounds_only_display_and_keeps_traceable_inputs():
     for label, amount in (("closing_shares", "100"), ("cash", "100")):
         request["capital"][label]["value"] = amount
     request["capital"]["obligations"]["borrowings"]["value"] = "200"
+    bridge(request)
     record = prepare_shared_valuation(scenario_state([row]))
     original = deepcopy(record)
     text = render_shared_valuation(record)
