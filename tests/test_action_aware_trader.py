@@ -1,6 +1,6 @@
-import pytest
 from io import StringIO
 
+import pytest
 from rich.console import Console
 
 from cli import display

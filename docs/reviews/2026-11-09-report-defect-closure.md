@@ -65,7 +65,7 @@ The recorded thesis is re-rendered as saved, so the duplicate rows only disappea
 
 Fix commits `210a039c`, `3fb83b78`, `6acbe527`, `8c230492`, `54ba3133`, `0cbaaa45` and `4f0791c0` on top of `0236255d`. No paid report run was made.
 
-Verification (builder-run): full `pytest -q` 4089 passed, 10 skipped, 1 deselected on `4f0791c0`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+Verification (builder-run): full `pytest -q` 4089 passed, 10 skipped, 1 deselected on `4f0791c0`. The final commit, which sorts the imports of `tests/test_action_aware_trader.py` so that `ruff check` is clean, was run through full `pytest -q` and `ruff check` after committing, with the same counts. That one-line import change was not re-audited.
 
 Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
 
@@ -99,7 +99,7 @@ Fourth re-audit of `0fb7aa2c` ($0.71, 27 turns): no Critical or High, two Medium
 
 Fifth re-audit of `d2815821` ($0.63, 21 turns): no findings at any severity. Six passes cost $4.89 in total, all ten Medium findings were in W5 event matching.
 
-The audits also noted lint is not green; that is the one finding at the base recorded above.
+The audits also noted lint was not green; that was the one finding present at the base, fixed in the final commit.
 
 Plan adjustments:
 
