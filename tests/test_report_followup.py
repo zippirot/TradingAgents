@@ -47,6 +47,46 @@ def test_free_text_trader_carries_the_block_exactly_once():
     assert "- Gross margin below 50.15%" in text
 
 
+_PRICED_RM_PLAN = ("**Recommendation**: Underweight\n\n"
+                   "**Strategic Actions**: Trim exposure.\nStop Loss: 95\nEntry Price: 70\n\n"
+                   "**Rationale**: Bear wins.")
+
+
+def _fallback_llm(content):
+    llm = MagicMock()
+    llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
+    llm.invoke.return_value = MagicMock(content=content, response_metadata={})
+    return llm
+
+
+def test_carried_block_keeps_price_shaped_manager_lines_word_for_word():
+    """The price relabelling is for the Trader's own text; the block says it is copied."""
+    structured = create_trader(_structured_trader_llm(
+        {}, TraderProposal(action="Sell", reasoning="Trim.", advisory_invalidation_level=90.5)))
+    free_text = create_trader(_fallback_llm("**Action**: Sell\n\n**Reasoning**\n\nBecause.\n\nStop Loss: 88"))
+    for trader in (structured, free_text):
+        result = trader({**_make_trader_state(), "investment_plan": _PRICED_RM_PLAN})
+        text = result["trader_investment_plan"]
+        carried = text[text.index(_CARRIED):]
+        assert "Trim exposure.\nStop Loss: 95\nEntry Price: 70" in carried
+        assert "Advisory Thesis Invalidation Level" not in carried and "Legacy Price Level" not in carried
+        assert result["messages"][0].content == text
+        # Report preparation applies the relabelling again.
+        assert label_legacy_trader_price(text) == text
+    lines = [line for line in structured({**_make_trader_state(), "investment_plan": _PRICED_RM_PLAN})[
+        "trader_investment_plan"].splitlines() if "Advisory Thesis Invalidation Level" in line]
+    assert lines == ["**Advisory Thesis Invalidation Level**: 90.5"]
+
+
+def test_trader_authored_stop_on_a_sell_is_still_relabelled():
+    text = create_trader(_fallback_llm("**Action**: Sell\n\n**Reasoning**\n\nBecause.\n\nStop Loss: 88"))(
+        {**_make_trader_state(), "investment_plan": _PRICED_RM_PLAN})["trader_investment_plan"]
+    own = text[:text.index("**" + _CARRIED)]
+    assert "**Advisory Thesis Invalidation Level (unvalidated)**: 88" in own
+    assert "Stop Loss" not in own
+    assert own.rstrip().endswith("holdings may be unknown.")
+
+
 # Y2 ------------------------------------------------------------------------
 
 def _labelled(**fields):
@@ -116,6 +156,25 @@ def test_trader_is_asked_for_qualitative_sizing_only():
     assert "qualitative" in prompt
     description = TraderProposal.model_json_schema()["properties"]["position_sizing"]["description"]
     assert "qualitative" in description.lower() and "%" not in description
+
+
+def test_currency_code_and_fraction_allocations_are_withheld():
+    for text in ("Allocate USD 25,000.", "Reduce the position by 1/2.", "Sell one-third now.",
+                 "Cut the position in half.", "Trim by EUR 10k."):
+        assert qualitative_sizing(text) == _WITHHELD, text
+
+
+def test_dates_and_qualitative_sentences_survive_the_sizing_filter():
+    for text in ("Add nothing until the second half of 2027.", "Review on 11/09/2026.",
+                 "Hold a core position through the December 1, 2026 maturity."):
+        assert qualitative_sizing(text) == text
+    proposal = TraderProposal(
+        action="Sell", reasoning="Trim.",
+        position_sizing="Keep a core position. Allocate USD 25,000. Review on 11/09/2026.")
+    expected = f"**Position Sizing**: Keep a core position. Review on 11/09/2026. {_WITHHELD}"
+    assert expected in render_trader_proposal(proposal)
+    text = create_trader(_structured_trader_llm({}, proposal))(_make_trader_state())["trader_investment_plan"]
+    assert expected in text and "25,000" not in text and text.count(_WITHHELD) == 1
 
 
 # Y4 ------------------------------------------------------------------------

@@ -12,6 +12,7 @@ from tradingagents.agents.context import (
     get_portfolio_context_from_state,
 )
 from tradingagents.agents.schemas import (
+    CARRIED_PLAN_HEADING,
     TraderProposal,
     label_legacy_trader_price,
     render_trader_proposal,
@@ -44,7 +45,7 @@ def _carried_plan(investment_plan: str) -> str:
             covered.append((mark.start(), end))
     remainder = "".join(ch for index, ch in enumerate(plan) if not any(a <= index < b for a, b in covered))
     loose = [line.strip() for line in remainder.splitlines() if _CHECKPOINT.search(line)]
-    lines = ["**Carried from the Research Manager's plan (not restated by the Trader)**", ""]
+    lines = [CARRIED_PLAN_HEADING, ""]
     lines.append(actions or "No Strategic Actions section was found in the Research Manager's plan.")
     for block in (*sections, "\n".join(loose)):
         if block:

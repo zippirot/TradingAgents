@@ -254,7 +254,9 @@ class TraderProposal(BaseModel):
 
 _NUMERIC_SIZING = re.compile(
     r"\d\s*(?:%|percent\b|per cent\b|bps\b|bp\b|basis points?\b)"
-    r"|[$€£]\s*\d"
+    r"|[$€£]\s*\d|\b(?:USD|EUR|GBP|CAD)\s*\d"
+    r"|(?<![\d/])\d\s*/\s*\d(?![\d/])"
+    r"|\b(?:one|two|three)[\s-](?:half|halves|thirds?|quarters?|fifths?)\b|\b(?:by|in)\s+half\b"
     r"|\d[\d,.]*\s*(?:k|m|mm|thousand|million)?\s*(?:shares?|USD|dollars)\b"
     r"|\b(?:half|thirds?|quarters?)\s+(?:of\s+)?(?:the|your|its|a)\s+(?:\w+\s+)?"
     r"(?:position|holdings?|allocation|stake|exposure)\b",
@@ -312,8 +314,18 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
     return "\n".join(parts)
 
 
+CARRIED_PLAN_HEADING = "**Carried from the Research Manager's plan (not restated by the Trader)**"
+
+
 def label_legacy_trader_price(text: str) -> str:
     """Keep ambiguous legacy or action-inconsistent free-text levels out of canonical purchase fields."""
+    # The carried Research Manager block is a copy; only the Trader's own text is relabelled.
+    own, heading, carried = text.partition(CARRIED_PLAN_HEADING)
+    body = own.rstrip() if heading else own
+    return _label_trader_levels(body) + own[len(body):] + heading + carried
+
+
+def _label_trader_levels(text: str) -> str:
     text = re.sub(
         r"(?im)^([ \t]*(?:[-*][ \t]+)?)(?:\*\*)?Entry Price(?:\*\*)?:",
         r"\1**Legacy Price Level (meaning unverified)**:", text,

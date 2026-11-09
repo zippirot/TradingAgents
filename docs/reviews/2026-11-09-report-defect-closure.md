@@ -158,6 +158,8 @@ Two existing expectations in `tests/test_structured_agents.py` were changed beca
 
 Known limits: the sizing filter works on whole sentences, so the qualitative words in a sentence that also states a number are withheld with it (in `eea86100` "trim in stages toward a modest underweight" went with the percentage; the carried Research Manager block states the same action). A sizing sentence that quotes a price with a currency sign is also withheld. The free-text fallback text is not filtered. No paid confirming run was made.
 
+Independent audit of `49fdec6e` (GPT-6 Astra, 24 turns, $0.55): no Critical or High, two Medium, both confirmed by running them and closed in the next commit. (1) The price relabel also rewrote price-shaped lines inside the copied Research Manager block; the relabel now stops at the carried heading, which also holds when report preparation applies it again. (2) The sizing filter missed `USD 25,000`, `1/2` and `one-third`; it now catches currency codes, numeric fractions and word fractions while dates such as 11/09/2026 pass. Four closure tests, red then green; full suite 4108 passed, 10 skipped, 1 deselected; ruff clean; replay unchanged. Plan adjustment: Y1 asked to append the block after the relabel; skipping the block inside the relabel gives the same result on both paths. Audit record: `~/Claude/audits/docs/superpowers/audits/2026-11-09-build-y-followup/`.
+
 Not in Y (display, recorded for later): "Reconsideration trigger unknown; kept" wording for quarters not yet reported; blank unit on the price row; case diff keyed on title; duplicated disclosure excerpts; "consensus: not_retrieved" beside vendor consensus.
 
 ## Process departures
