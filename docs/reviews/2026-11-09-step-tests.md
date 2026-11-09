@@ -44,6 +44,8 @@ Subcommands: `baseline`, `prove`, `step`, `recall`.
 
 ### Verification so far
 
+- Full offline suite at `26dd4d57`: 4120 passed, 10 skipped (private DOCN fixtures absent), 1 deselected; Ruff clean. Interim only; the final commit is re-run.
+
 - `tests/test_step_tests_tool.py`: 12 passed (scripted, offline): checkpoint proof reproduces the
   Research Manager, first risk turn and Portfolio Manager prompts exactly; a changed prompt is
   reported with its first difference; onward runs follow the graph's routing; the meter refuses,
