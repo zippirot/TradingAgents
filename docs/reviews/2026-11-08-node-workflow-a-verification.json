@@ -1,6 +1,6 @@
 {
   "stage": "Na",
-  "status": "local_accepted_integration_ci_correction",
+  "status": "local_accepted_fixture_closed_corrected_staging_ci_pending",
   "public_safe_summary": true,
   "canonical_base": "ed24ec18d6b50734f378617755f60800e1d66aee",
   "paid_source": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
@@ -104,7 +104,9 @@
     "new_audit_runs": 0
   },
   "published_staging_ci": {
-    "status": "failed_first_candidate_correction_in_verification"
+    "status": "not_yet_run_for_corrected_candidate_at_this_record",
+    "required_before_nb": true,
+    "acceptance_receipt": "Operator-private na-public-integration-acceptance.json records final published SHA and actual seven-job CI. A future checkpoint must distinguish this frozen pre-publication record."
   },
   "limits": [
     "Receipt-level no-new-source inference; actual mixed_input labels preserved.",
@@ -195,7 +197,7 @@
     "corrected_ny_parameter_cases": "5 passed in 2.18s"
   },
   "independent_integration_review": {
-    "status": "pending",
+    "status": "completed_no_open_material_findings",
     "scope": "Only public packaging plus pre-existing timezone fixture correction; original accepted application blobs unchanged.",
     "per_run_limits": {
       "soft_usd": 4,
@@ -203,7 +205,28 @@
       "soft_turns": 20,
       "hard_turns": 40
     },
-    "authority": "Existing independent audit retry authority and unchanged aggregate Na audit cap; reduced per-run caps only."
+    "authority": "Existing independent audit retry authority and unchanged aggregate Na audit cap; reduced per-run caps only.",
+    "run_id": "2dfdc98c-c1e4-4981-86a8-c9e34ef89c80",
+    "audited_sha": "6676efcd14039a133fdb266c309ccd462f53e4fe",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "turns": 17,
+    "cost_usd": 0.89644275,
+    "elapsed_ms": 357918,
+    "stop_reason": "reviewer_completed",
+    "findings": {
+      "Critical": 0,
+      "High": 0,
+      "Medium": 0,
+      "Low": 2
+    },
+    "lows": [
+      "Residual host dates in historical request arguments/final assertion; benign for current UTC/NY cases, broader clock cleanup deferred.",
+      "Frozen reviewer cannot independently rerun private test logs or inspect CI; limitation preserved."
+    ],
+    "manifest_validation": "Passed at frozen6676 before later docs-only closure record.",
+    "all_16_explicit_head_bodies_delivered": true,
+    "new_paid_product_runs": 0
   },
   "corrected_integration_verification": {
     "status": "passed",
@@ -214,5 +237,10 @@
     "fixture_only_source_difference": true,
     "accepted_na_24_blobs_unchanged": true,
     "paid_runs_repeated": 0
+  },
+  "integration_fixture_object": {
+    "path": "tests/test_undated_tools_as_of.py",
+    "blob": "6ef3d9803f78f66d71c7fa301f58ad2580c842f5",
+    "only_additional_test_change": "Use exchange-local date for mock session range; original assertions unchanged."
   }
 }
