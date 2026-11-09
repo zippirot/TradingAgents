@@ -1,0 +1,70 @@
+== V 9a4e4262
+3981 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 91.81s (0:01:31)
+0
+rows in recorded 1
+as recorded: unavailable 0 ['Row 1 omitted: share_changes must sum to the 10079269 difference from the snapshot share count']
+cash 666096000 shares 117920731 debt 461630000
+with stated bridge: unavailable 0 ['Row 1 omitted: Converted principal 153200000 still counted in borrowings']
+== T 1937a1d3
+3986 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 91.80s (0:01:31)
+0
+7 [('metric', 'Revenue', 1, 'reconsideration_trigger'), ('metric', 'Gross Margin', 1, 'reconsideration_trigger'), ('metric', 'Gross Margin', 1, 'reconsideration_trigger'), ('metric', 'Operating Margin', 1, 'reconsideration_trigger'), ('price_level', '68.6', 0,
+warnings: ['Condition at index 4 stated but not retained: >= 87.34 USD needs thesis_role supports_thesis or reconsideration_trigger']
+Revenue | kept | Q4 revenue below management's $348M floor remains relevant; 
+Gross Margin | kept | Q4 GAAP gross margin recovery to 55.5% remains a discretiona
+Gross Margin | kept | Q4 gross margin below 50.15% remains a discretionary caution
+Operating Margin | kept | Q4 GAAP operating margin above 10.28% remains a discretionar
+Completed close (USD) | proposed | Neutral analyst's downside review reference for the retained
+Disclosure of how DOCN's 2026 convertibl | proposed | Settlement determines how much liquidity, share issuance or 
+Disclosure of material ATM issuance or a | proposed | Assess dilution and buildout feasibility; ATM authorization 
+== E 894ecede
+3997 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 90.96s (0:01:30)
+0
+citation 7 7 mismatch [] unresolved []
+#### Prompt-only references
+
+Facts the analysts saw in the shared source brief but which are outside the canonical appendix.
+
+- F56: Revenue; 2025-10-01 to 2026-09-30; 1102671000 USD; fact_id [hash]
+- F57: Diluted EPS; 2025-01-01 to 2025-12-31; 2.52 USD/shares; fact_id [hash]
+- F58: Basic EPS; 2025-01-01 to 2025-12-31; 2.83 USD/shares; fact_id 3af75832a2e9e1ff1a6d2646984ab0985c8b5c
+True True
+html 393254 {'&#x27;': 0, '&amp;#': 0, '&#124;': 0, 'unavailable USD': 0, '&amp;amp;': 0, '&\#': 0} entities ['&amp;', '&gt;', '&lt;', '&quot;']
+md 326033 {'&#x27;': 0, '&amp;#': 0, '&#124;': 0, 'unavailable USD': 0, '&amp;amp;': 0, '&\#': 0} entities []
+old md entities ['&#x27;', '&amp;', '&gt;', '&lt;']
+== P 338ceec3
+4002 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 92.27s (0:01:32)
+0
+('Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.', 'Total Assets ambiguous at 2023-12-31; not used for peer statistics', 'Current Assets ambiguous at 2023-12-31; not used for peer
+== FX a2110a82
+4016 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 91.42s (0:01:31)
+0
+{'bull-1': 'no_relevant_passage', 'bull-2': 'no_relevant_passage', 'bear-1': 'no_relevant_passage', 'bear-2': 'no_relevant_passage'}
+bull-1 unanswered The retrieved passages report RPO but do not explain the $94.1M quarter-over-quarter decli
+bull-2 unanswered No retrieved passage establishes ATM shares actually sold, proceeds received or remaining 
+bear-1 unanswered The retrieved passages do not classify the $2.955B undiscounted uncommenced lease commitme
+bear-2 unanswered No retrieved passage; model judgment 'partially_answered' discarded. The November 3 10-Q, 
+**Carried from the Research Manager's plan (not restated by the Trader)**
+
+For DOCN, target an exposure below a standard allocation; trim existing excess exposure or remain on the sidelines rather than initiate a full position. Determine actual trades and sizing with the portfolio manager using current holdings, liquidity, execution 
+1042
+== S 56cb6490
+FAILED tests/test_filing_search_acquisition.py::test_model_package_limit_unchanged
+1 failed, 4028 passed, 10 skipped, 1 deselected, 34 warnings, 100 subtests passed in 93.39s (0:01:33)
+0
+0 Total revenue | 1.208 billion full year 2026 
+  Q: •Total revenue of $1.208 to $1.211 billion, up approximately 34% year-over-year. 
+  S: •Total revenue of $1.208 to $1.211 billion, up approximately 34% year-over-year.
+2 Total revenue | 348 million fourth quarter ending December 31, 2026 
+  Q: •Total revenue of $348 to $351 million, up 44% to 45% year-over-year. 
+  S: •Total revenue of $348 to $351 million, up 44% to 45% year-over-year.
+3 Adjusted free cash flow margin | 20 % full year 2026 
+  Q: •Adjusted free cash flow margin in the range of 20% to 22% of revenue. 
+  S: •Adjusted free cash flow margin in the range of 20% to 22% of revenue.
+4 Revenue | 321 million Third Quarter 2026 
+  Q: •Revenue was $321 million, an increase of 40%. 
+  S: •Revenue was $321 million, an increase of 40%.
+=== REPLAY
+accepted [('Total revenue', '1.208', 'block-46'), ('revenue growth', '60', 'block-4'), ('Total revenue', '348', 'block-41'), ('Adjusted free cash flow margin', '20', 'block-48'), ('Revenue', '321', 'block-12')]
+rejected ['record 5: source-linked disclosure context: numeric quote drops part of the source subject or qualifier (sec-document-50c5238792c42c2bf334f42aa055cd50', 'record 6: source-linked disclosure context: numeric quote drops part of the source subject or q
+=== STRIPPED

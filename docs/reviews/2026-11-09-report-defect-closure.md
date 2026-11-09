@@ -34,6 +34,21 @@ Retained proof: `docs/reviews/report-defect-closure-proof-tools/replay.py` rerun
 | F and X | `a2110a82` (one commit, not separate groups) |
 | S | `56cb6490` |
 
+### Per-commit proof
+
+Each build commit was exported on its own, then its full suite and its replay were run. These runs came after the commits, so they are retrospective. Output: `report-defect-closure-proof-tools/per-commit-results.txt`.
+
+| Build | Commit | Full suite at that commit | Replay |
+|---|---|---|---|
+| V | `9a4e4262` | 3981 passed | Defect gone |
+| T | `1937a1d3` | 3986 passed | Defect gone |
+| E | `894ecede` | 3997 passed | Defect gone |
+| P | `338ceec3` | 4002 passed | Exclusion disclosed |
+| F, X | `a2110a82` | 4016 passed | Defect gone |
+| S | `56cb6490` | 4028 passed, 1 failed | Five accepted, three correctly rejected |
+
+The S failure is a test fixture only, corrected in `043e2d93`.
+
 ### Rendered-report comparison
 
 `complete_report.md` rendered from the recorded state at `55edfd7e` and at this branch differs on about 90 of 3,323 lines. Excluding the export timestamp, every line falls in one of these groups:
@@ -80,6 +95,7 @@ Commits after the audited head changed the Trader fallback, error redaction, the
 ## Process departures
 
 - The goal text reached the builder only after the builds were committed. Named tests were therefore written with each build, not always first.
+- Build P was committed after focused tests only; its full suite was first run on that exact commit retrospectively and passed.
 - Commit `56cb6490` (S) carried one failing fixture test (`test_model_package_limit_unchanged`), corrected in `043e2d93`. Every other build's final commit had a passing full suite.
 - Commit `043e2d93` is outside the goal's nine defects; another session relayed it as requested by the user. It is a separate commit and can be reverted alone.
 
