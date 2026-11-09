@@ -172,4 +172,14 @@ def test_signed_or_negated_events_are_never_fuzzy_aliased(prior_text, new_text):
 
 
 def test_hyphenated_compound_number_is_not_a_negative():
-    assert thesis._event_profile('Cuts its at-least-60% 2027 guidance.')[2] == frozenset(('60', '2027'))
+    assert thesis._event_profile('Cuts its at-least-60% 2027 guidance.')[2] == ('60', '2027')
+
+
+@pytest.mark.parametrize('prior_text,new_text', [
+    ('Management revises 2027 revenue growth guidance from 5% to 10%.', 'Management revises 2027 revenue growth guidance from 10% to 5%.'),
+    ('Management issues 2027 revenue growth guidance above 5%.', 'Management issues 2027 revenue growth guidance below 5%.'),
+    ('Management lowers 2027 guidance by 5%.', 'Management lowers 2027 guidance to 5%.'),
+])
+def test_any_differing_content_word_or_value_order_stays_separate(prior_text, new_text):
+    _, saved = _restated(prior_text, new_text)
+    assert len(saved['conditions']) == 2

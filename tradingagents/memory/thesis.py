@@ -140,39 +140,34 @@ def _content_key(row):
     return ('event', ' '.join(item.description.split()))
 
 
-_EVENT_STOP_WORDS = frozenset(
-    ['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'how', 'if', 'in', 'into', 'is', 'its', 'of', 'on', 'or', 's', 'that', 'the', 'their', 'to', 'was', 'were', 'whether', 'will', 'with'])
-# Two descriptions that differ in direction, negation or scale describe different events.
-_EVENT_DIRECTIONS = frozenset(('cut', 'lower', 'reduc', 'decreas', 'declin', 'rais', 'increas', 'withdraw'))
+_EVENT_STOP_WORDS = frozenset(('a', 'an', 'and', 'how', 'is', 'its', 'of', 'or', 's', 'that', 'the', 'their', 'was', 'were', 'will'))
 _EVENT_NEGATIONS = frozenset(('not', 'no', 'never', 'without', 'cannot', 'fail', 'fails', 'failed'))
-_EVENT_SCALES = frozenset(('thousand', 'million', 'billion', 'trillion'))
-_EVENT_SIMILARITY = 0.6
+_EVENT_SYNONYMS = {'financ': 'fund'}
 
 
 def _event_profile(description):
-    """Stemmed words for similarity, plus what must match exactly, read before stemming."""
+    """Stemmed words, whether negated, and values in order, read before stemming."""
     text = description.casefold().replace('’', "'")
     # A sign counts only when it is not the hyphen of a compound such as at-least-60%.
-    quantities = frozenset(sign + value.replace(',', '') for sign, value in
-                           re.findall(r'(?:(?<![\w.])([-+−])\$?)?([a-z]*\d[\d,]*(?:\.\d+)?[a-z]*)', text))
+    quantities = tuple(sign + value.replace(',', '') for sign, value in
+                       re.findall(r'(?:(?<![\w.])([-+−])\$?)?([a-z]*\d[\d,]*(?:\.\d+)?[a-z]*)', text))
     words = re.findall(r"[^\W\d_]+(?:'t)?", text)
     negated = any(word in _EVENT_NEGATIONS or word.endswith("n't") for word in words)
     # Enough stemming that "settled" and "settlement" are one word.
-    stems = frozenset(re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) for word in words
-                      if word not in _EVENT_STOP_WORDS and word not in _EVENT_NEGATIONS and not word.endswith("n't"))
-    return stems, negated, quantities, stems & _EVENT_DIRECTIONS, frozenset(words) & _EVENT_SCALES
+    stems = (re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) for word in words
+             if word not in _EVENT_STOP_WORDS)
+    return frozenset(_EVENT_SYNONYMS.get(stem, stem) for stem in stems), negated, quantities
 
 
 def _same_event(first, second):
-    """Paraphrases of one event; a differing quantity, direction or negation is a different event."""
+    """Rewordings of one event only: the same content words and values, and no negation.
+
+    An uncertain pair stays as two rows, which costs a duplicate instead of a lost condition.
+    """
     if first[0] != 'event' or second[0] != 'event':
         return False
-    (left, left_negated, *left_exact), (right, right_negated, *right_exact) = (
-        _event_profile(first[1]), _event_profile(second[1]))
-    # Word sets cannot show what a negation applies to, so negated wording is never treated as a paraphrase.
-    if not left or not right or left_negated or right_negated or left_exact != right_exact:
-        return False
-    return len(left & right) / len(left | right) >= _EVENT_SIMILARITY
+    left, right = _event_profile(first[1]), _event_profile(second[1])
+    return bool(left[0]) and left == right and not left[1]
 
 
 def _kept_match(key, kept_by_content):
