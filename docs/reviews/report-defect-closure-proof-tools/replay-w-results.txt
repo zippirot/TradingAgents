@@ -1,0 +1,12 @@
+W1 rows: [('Base: FY2027 revenue at management 60%+ floor, borrowings-only EV', 'supported', '74.8647144714995148350533871648526504524687334217322917110053'), ('Downside: FY2027 growth 40%, compressed borrowings-only multiple', 'supported', '44.8574529374950602969808378019150413505191264515263309150852')]
+W1 reasons: []
+W2 retained record still validates: True
+W2 enforced: [('bull-1', 'partially_answered'), ('bull-2', 'unanswered'), ('bear-1', 'answered'), ('bear-2', 'unanswered')]
+W2 card: ['- bear-1 (bear): "customer concentration percentage of revenue" — Retrieval: passages retrieved; search phrase']
+W3 score: 4 Good
+W3 invalid or identity findings: []
+W3 inputs: {'Stages': 'completed', 'Models/tools': 'fallback recovered', 'Run identity': 'matched', 'Report integrity': 'verified', 'Audit coverage': 'sufficient'}
+W5 event rows: [("Disclosure of how DOCN's 2026 convertible notes were settled", 1), ('Disclosure of material ATM issuance or a substantive capacit', 1), ('Management cuts its at-least-60% 2027 revenue growth guidanc', 0)]
+W5 omitted warnings: []
+W6 double periods on card: 0
+W6 citation mismatches: []

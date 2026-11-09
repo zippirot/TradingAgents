@@ -61,6 +61,32 @@ The S failure is a test fixture only, corrected in `043e2d93`.
 
 The recorded thesis is re-rendered as saved, so the duplicate rows only disappear when `prepare_thesis` runs, which the T replay shows.
 
+## Build W: regressions from run 2a2e47dd
+
+Fix commit `210a039c` on top of `0236255d`. No paid report run was made.
+
+Verification (builder-run): full `pytest -q` 4071 passed, 10 skipped, 1 deselected on `210a039c`. `ruff check` reports one finding, an import-order issue in `tests/test_action_aware_trader.py` that is already present at `0236255d` and was left alone.
+
+Replay of `2a2e47dd` (`report-defect-closure-proof-tools/replay_w.py`, output in `replay-w-results.txt`):
+
+| Target | Result |
+|---|---|
+| Two supported cases | Base $74.86 and Downside $44.86, both supported, no rejection reasons |
+| bear-1 keeps the RM's judgment | `answered`; bull-1 keeps `partially_answered`; the two post-filing questions stay `unanswered` |
+| Operational audit | 4/5 Good, run identity matched, no malformed records. The 4 reflects the recorded Trader and Sentiment fallbacks in that run. |
+| One row per event condition | Three event rows; both paraphrases aliased; no "omitted from proposal" warnings |
+| No ".." on the card | 0; citation mismatches 0 |
+
+Unverified: W4's live effect. Nothing offline can show that OpenRouter's Anthropic route now returns structured output. Acceptance is zero `fallback_recovered` records for the Trader and Sentiment Analyst on the next paid DOCN run, deferred by user decision.
+
+Plan adjustments:
+
+- W5: Jaccard 0.6 on plain tokens scored the real "settled or refinanced" pair at 0.56, so it missed. Added light suffix stemming. The same threshold would also have merged "2026 notes" with "2030 notes" and "cuts guidance" with "raises guidance", so differing numbers or direction words now keep events separate.
+- W2: also applied to saved records whose status is `no_relevant_passage` but which hold passages, so the retained `2a2e47dd` record and resumed checkpoints behave the same way.
+- W4: pinning and the no-forced-tool-choice flag ship together as the plan says, so forced tool choice is not sent for `anthropic/` models on OpenRouter even though the pinned host accepts it. A reply without the tool call falls to the free-text path and would show as a fallback.
+- W6: `comparison` is a structured record, so its `value` and `unit` are read rather than parsing text.
+- `document-access-proof-tools/live_cli.py` now counts the new status. The historical Build2 continuation fixture freezes the provider pin, because that proof's budget guard refuses route overrides. Future paid runs through that proof adapter would need the guard revisited; normal app runs do not use it.
+
 ## Plan adjustments
 
 0. **Worktree.** One worktree with sequential builds replaces the base plan's one worktree per build; technically equivalent, per the goal.

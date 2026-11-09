@@ -17,7 +17,7 @@ Build size: **medium**. Recommended implementer: Claude Opus 5.5 (`claude-opus-5
 
 ## Execution status (2026-11-09)
 
-Done on `claude/report-defect-closure-20261109`: V1-V3, T1-T3, E1-E4, P1, F1-F2, X1-X2, S1-S3. Deferred: X3 (no paid calls), S4 (decision: not added). Adjustments, commits and proofs: `docs/reviews/2026-11-09-report-defect-closure.md`. Independent audit run; its one High and two Medium findings are closed. This plan has no checkboxes; this section is its status record.
+Done on `claude/report-defect-closure-20261109`: V1-V3, T1-T3, E1-E4, P1, F1-F2, X1-X2, S1-S3. W1-W7 are built, see Build W below. Deferred: X3 (no paid calls, superseded by W4), S4 (decision: not added). Adjustments, commits and proofs: `docs/reviews/2026-11-09-report-defect-closure.md`. Independent audit run; its one High and two Medium findings are closed. This plan has no checkboxes; this section is its status record.
 
 ## Finding coverage
 
@@ -199,6 +199,63 @@ Replay: bear-2 shows `unanswered` with the override note; `pytest tests/test_doc
 `pytest tests/test_audit_role_coverage.py tests/test_sec_documents.py tests/test_evidence_validation.py`; replay shows audit coverage per role at or near 100% of the final turn and guidance grounding unchanged at 15/15.
 
 ---
+
+## Build W — Regression closure after the first installed run (added 2026-11-09 evening)
+
+Builds V–S completed at `0236255d` (branch `claude/report-defect-closure-20261109`, installed on the launcher, not integrated). The first run on it, DOCN decision `2a2e47dd` (attempt `~/.tradingagents/logs/DOCN/2026-11-09/113825-f2806bec`, state `full_states_log_2026-11-09_2a2e47dd.json`), confirmed most fixes and exposed three regressions plus the root cause of the Trader fallback. Target: the `520623df` run had two priced cases and operational quality 4/5; the new run must have both again, with every V–S improvement kept.
+
+| Observed in `2a2e47dd` | Cause confirmed in source | Task |
+|---|---|---|
+| Both valuation rows "malformed valuation request at capital.share_changes.0.instrument"; no card range | `ShareChange.instrument` is required for every source; the analyst's two `sbc` entries had none. Its debt treatment was correct (2026 notes removed, 2030 notes kept). | W1 |
+| bull-1 and bear-1 retrieved 3 passages each, status `no_relevant_passage`; RM judgments "answered"/"partially_answered" discarded, including the top-25 concentration 27% vs 11% passage (10-Q block-305) | `_relevance` requires every content word of a phrase in one passage; F1 then coerces on that status regardless of passage count | W2 |
+| Operational quality 2/5, "Run identity: mismatched or malformed record" | F1 records code `followup_judgment_overridden`, which is not in `operational_audit.REASONS`, so `_valid_row` rejects the two records | W3 |
+| Trader and Sentiment Analyst fallbacks, now with the retained error: `tool_choice: type tool and any are not supported for this model`, providers Azure and Google | OpenRouter routes `anthropic/claude-opus-5.5` to providers that reject forced tool choice; `get_capabilities` has no OpenRouter Anthropic entry | W4 |
+| Two kept event conditions re-proposed as paraphrases ("how … were settled or refinanced" vs "settlement or refinancing of …"); four rows for two ideas, two "omitted from proposal" warnings | `_content_key` for events is the exact normalised description; PM prompt does not tell it to reference kept IDs | W5 |
+| Reason lines end ".."; citation check flags the PM's "6%" against D1 | `decision_context.py:362` appends a period to text that already ends with one; D-label values come from claim values only, not `comparison` percentages | W6 |
+| All three risk analysts called the Q4 operating-margin condition a dropped RM requirement; audit flagged all three | Risk prompts receive the RM plan and the prior-thesis context without labelling which is which | W7 |
+
+### W1 Instrument only where an instrument exists
+**Files:** `tradingagents/agents/valuation_cases.py` (`ShareChange`), `tradingagents/agents/analysts/fundamentals_analyst.py` (`SHARED_VALUATION_INPUTS` ~:170), `tests/test_shared_valuation.py`.
+- `instrument: str | None = None`; the model validator requires it, with `converted_principal`, only when `source == "conversion"`. Prompt line shows `"instrument"` and `"converted_principal"` as conversion-only fields.
+- Tests: `test_sbc_share_change_without_instrument_is_accepted`, `test_conversion_without_instrument_is_rejected`, and a replay of the two `2a2e47dd` requests that must both come back `supported`.
+
+### W2 Override only when nothing was retrieved
+**Files:** `tradingagents/agents/document_questions.py` (`_relevance` ~:187, `_NO_PASSAGE_STATUSES` :33, override ~:350-370), `tests/test_document_followup.py`, `tests/test_na_followup_judgments.py`.
+- New status `passages_retrieved_unmatched` when passages exist but no phrase matches; it is not in `_NO_PASSAGE_STATUSES`, so the RM judgment stands. The card prints "Retrieval: passages retrieved; search phrase not matched". `no_relevant_passage` is reserved for zero passages. Legacy records keep validating.
+- Tests: `test_rm_judgment_kept_when_passages_exist_without_phrase_match` (bear-1 replay keeps "answered"), `test_zero_passages_still_coerces_to_unanswered`, `test_legacy_status_still_validates`.
+
+### W3 Register the new observation code
+**Files:** `tradingagents/operational_audit.py` (`REASONS`), `tests/test_operational_audit.py`.
+- Add `followup_judgment_overridden` with severity 5 and meaning "A follow-up judgment was replaced by the retrieval result."
+- Tests: `test_followup_override_code_is_valid`, and `assess_audit` on the replayed `2a2e47dd` state reports 0 invalid records and "Run identity: matched".
+
+### W4 Structured output survives OpenRouter provider routing
+**Files:** `tradingagents/llm_clients/openai_client.py`, `tradingagents/llm_clients/capabilities.py`, `tests/test_llm_clients*.py`.
+- Primary: for OpenRouter and a model ID starting `anthropic/`, send `extra_body={"provider": {"order": ["Anthropic"], "allow_fallbacks": False}}` so forced tool choice reaches a provider that supports it and the audit's model-identity check sees one provider.
+- Fallback flag, applied in the same change: an `^anthropic/` capability entry with `supports_tool_choice=False`, the pattern already used for DeepSeek and MiniMax, so if routing still fails the schema ships as a tool without a forced choice and parsing falls through to the existing free-text path.
+- Tests: `test_openrouter_anthropic_requests_pin_provider_order`, `test_openrouter_anthropic_omits_forced_tool_choice_when_flagged`, and the X1 error record remains populated on failure. Live confirmation is the next paid DOCN run: zero `fallback_recovered` records for the Trader and Sentiment Analyst is the acceptance.
+
+### W5 A kept condition is referenced, not re-proposed
+**Files:** `tradingagents/memory/thesis.py` (`_content_key` ~:131-139, merge ~:407-418), `tradingagents/agents/managers/portfolio_manager.py` (~:133-141), `tests/test_thesis.py`, `tests/test_structured_agent_prompts.py`.
+- Event key becomes a normalised token set (casefold, strip punctuation, drop stop words); a new event whose token set has Jaccard similarity ≥ 0.6 with a preserved prior event becomes its alias instead of a new row. Metric and price-level keys unchanged.
+- PM prompt gains one sentence: to keep a prior condition, dispose it as kept by its condition_id and do not restate it as a new condition.
+- Tests: `test_paraphrased_event_is_aliased` (both pairs from `2a2e47dd`), `test_different_event_is_new`, `test_pm_prompt_says_reference_kept_ids`.
+
+### W6 Two cosmetic corrections
+**Files:** `tradingagents/agents/decision_context.py` (~:362), `tradingagents/agents/citation_check.py` (`_canonical_values`), `tests/test_decision_page.py`, `tests/test_citation_check.py`.
+- Strip a trailing period from the reason before appending one.
+- For D labels, also collect percentages from each claim's `comparison` text (for example "an increase of 6%") as `(value, "percent")`.
+- Tests: `test_reason_has_single_terminal_period`, `test_disclosure_comparison_percentage_matches`.
+
+### W7 Risk analysts see whose conditions they are reading
+**Files:** `tradingagents/agents/risk_mgmt/{aggressive,conservative,neutral}_debator.py` (~:27-28), `tradingagents/agents/context.py` (~:555), `tests/test_structured_agent_prompts.py`.
+- The prior-thesis block in the shared context is headed "Prior thesis conditions (advisory; not Research Manager plan requirements)" and the RM plan block "Research Manager plan (this run)". One sentence in each risk prompt: attribute a condition to its source before calling it kept or dropped.
+- Tests: `test_risk_prompt_labels_prior_thesis_and_rm_plan`.
+
+### W proof
+Replay `2a2e47dd`: two supported cases on the card; bear-1 keeps the RM's judgment; operational audit reports 0 invalid records; one row per event condition; no ".." in the decision card. Full `pytest -q` and `ruff check`. Then one paid DOCN run (existing authorization, no retry) to confirm W4: no Trader or Sentiment fallback records.
+
+**W estimate:** small; GPT-6 Sol (`gpt-6-sol`) medium in Codex or the current Claude session; 3–5 active hours plus 0.5–1 h audit. W4's live effect cannot be proven offline.
 
 ## Sequence
 
