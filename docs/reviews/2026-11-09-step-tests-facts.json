@@ -1,0 +1,21 @@
+{
+  "source": "DigitalOcean 8-K filed 2026-11-03 (Item 8.01 equity distribution agreement; Exhibit 99.1 Q3 2026 press release) and the 424B5 ATM prospectus supplement, as cached by the launcher on 2026-11-09.",
+  "match_rule": "A fact is present when every pattern matches (case-insensitive) inside one 400-character window.",
+  "facts": [
+    {"id": "atm_1b", "fact": "$1.0 billion at-the-market equity program (agreement of 2026-11-02)", "patterns": ["at.the.market|\\bATM\\b|equity distribution", "\\$\\s?1(\\.0)?\\s?(billion|bn|B)\\b|\\$\\s?1,000(,000,000| million)"]},
+    {"id": "rpo_q3_2026", "fact": "RPO $800 million at 2026-09-30", "patterns": ["RPO|remaining performance obligation", "\\$\\s?800(\\.0)?\\s?(million|M)\\b|800,0\\d\\d"]},
+    {"id": "rpo_q3_2025", "fact": "RPO $61 million in Q3 2025 (history)", "patterns": ["RPO|remaining performance obligation", "\\$\\s?61(\\.\\d)?\\s?(million|M)\\b"]},
+    {"id": "rpo_12m", "fact": "$345 million of RPO expected within 12 months", "patterns": ["RPO|remaining performance obligation|next 12 months|twelve months", "\\$\\s?345(\\.\\d)?\\s?(million|M)\\b"]},
+    {"id": "fy26_revenue_outlook", "fact": "FY2026 revenue outlook $1.208-$1.211 billion", "patterns": ["1[.,]208", "1[.,]211"]},
+    {"id": "fy26_ebitda_margin", "fact": "FY2026 adjusted EBITDA margin outlook 41-42%", "patterns": ["EBITDA", "41(\\s?%)?\\s?(-|–|to)\\s?42\\s?%"]},
+    {"id": "fy26_fcf_margin", "fact": "FY2026 adjusted free cash flow margin outlook 20-22%", "patterns": ["free cash flow|FCF", "20(\\s?%)?\\s?(-|–|to)\\s?22\\s?%"]},
+    {"id": "fy26_eps", "fact": "FY2026 non-GAAP diluted EPS outlook $1.60-$1.62", "patterns": ["1\\.60", "1\\.62"]},
+    {"id": "q4_revenue_outlook", "fact": "Q4 2026 revenue outlook $348-$351 million, +44-45%", "patterns": ["348", "351"]},
+    {"id": "growth_2027", "fact": "Expected 2027 revenue growth 60%+", "patterns": ["2027", "60\\s?%\\s?\\+|60\\+\\s?%|60%\\s?or more|at least 60"]},
+    {"id": "q3_revenue", "fact": "Q3 2026 revenue $321 million, +40%", "patterns": ["\\$\\s?321(\\.\\d)?\\s?(million|M)\\b|321,\\d\\d\\d|320\\.\\d"]},
+    {"id": "arr", "fact": "ARR $1,285 million, +40%", "patterns": ["ARR|run.rate", "1,285|1\\.285|1\\.29\\s?(billion|B)"]},
+    {"id": "ai_arr", "fact": "AI customer ARR $376 million, +288%", "patterns": ["\\$\\s?376(\\.\\d)?\\s?(million|M)\\b|288\\s?%"]},
+    {"id": "notes_repurchase", "fact": "~$472 million of 2030 convertible notes repurchased, funded by a registered direct offering", "patterns": ["\\$\\s?472(\\.\\d)?\\s?(million|M)\\b|472,\\d\\d\\d"]},
+    {"id": "cash_q3", "fact": "Cash and cash equivalents $666 million at 2026-09-30", "patterns": ["\\$\\s?666(\\.\\d)?\\s?(million|M)\\b|666,\\d\\d\\d"]}
+  ]
+}

@@ -676,6 +676,108 @@ def cmd_step(args) -> int:
     return 0
 
 
+# ------------------------------------------------------------------ T1 recall
+
+def fact_present(text: str, patterns: list[str], window: int = 400) -> bool:
+    """Every pattern matches, case-insensitively, inside one window of text."""
+    import re
+
+    compiled = [re.compile(pattern, re.I) for pattern in patterns]
+    for match in compiled[0].finditer(text):
+        lo, hi = max(0, match.start() - window), match.end() + window
+        if all(rx.search(text, lo, hi) for rx in compiled[1:]):
+            return True
+    return False
+
+
+def _strings(value, path=""):
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _strings(item, f"{path}.{key}" if path else str(key))
+    elif isinstance(value, (list, tuple)):
+        for index, item in enumerate(value):
+            yield from _strings(item, f"{path}[{index}]")
+    elif hasattr(value, "content"):
+        yield from _strings(value.content, path)
+
+
+def _document_text(raw: str) -> str:
+    import html
+    import re
+
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", raw)))
+
+
+def _prompt_text(prompts) -> str:
+    return "\n".join(text for _, text in _strings(prompts))
+
+
+def recall_layers(run: SavedRun, snapshots: list | None) -> dict[str, dict[str, str]]:
+    """The text each layer holds: sources, what each analyst saw and wrote, the state
+    handed to the debate, and the Bull and Bear prompts."""
+    layers: dict[str, dict[str, str]] = {"sources": {}, "analyst_tool_results": {},
+                                          "analyst_reports": {}, "debate_state": {},
+                                          "bull_prompt": {}, "bear_prompt": {}}
+    for path in sorted((run.root / "cache" / "sec_documents").glob("*.json")):
+        document = json.loads(path.read_text())
+        layers["sources"][document.get("url", path.name)] = _document_text(document.get("text", ""))
+    rows = run.trace_rows()
+    for row in rows:
+        stage = row.get("stage", "")
+        if not stage.endswith("Analyst") or stage in RISK_NODES:
+            continue
+        if row.get("event") == "tool_end":
+            layers["analyst_tool_results"].setdefault(stage, "")
+            layers["analyst_tool_results"][stage] += "\n" + _prompt_text(row.get("output"))
+        if row.get("event") == "model_end":
+            # The last model output of each analyst is its report.
+            layers["analyst_reports"][stage] = _prompt_text(row.get("outputs"))
+    if snapshots is not None:
+        for field, text in _strings(state_before("Bull Researcher", snapshots)):
+            layers["debate_state"][field] = text
+    for layer, stage in (("bull_prompt", "Bull Researcher"), ("bear_prompt", "Bear Researcher")):
+        prompts = run.recorded_prompts(stage)
+        if prompts:
+            layers[layer]["first turn"] = _prompt_text(prompts[0])
+    return layers
+
+
+def cmd_recall(args) -> int:
+    run = SavedRun(Path(args.run).expanduser())
+    facts = json.loads(Path(args.facts).read_text())["facts"]
+    snapshots = None
+    if run.checkpoint_db().exists():
+        work = Path(args.out).expanduser().resolve()
+        work.mkdir(parents=True, exist_ok=False)
+        graph = build_graph(run, work, [], api_key="recall-no-request-is-sent")
+        snapshots = checkpoint_states(run, graph.workflow)
+    layers = recall_layers(run, snapshots)
+    results = []
+    for fact in facts:
+        found = {layer: sorted(name for name, text in texts.items()
+                               if fact_present(text, fact["patterns"]))
+                 for layer, texts in layers.items()}
+        results.append({"id": fact["id"], "fact": fact["fact"],
+                        "reaches_bull": bool(found["bull_prompt"]),
+                        "reaches_bear": bool(found["bear_prompt"]), "found_in": found})
+    report = {"attempt": str(run.attempt), "facts": results,
+              "reached_both": sum(r["reaches_bull"] and r["reaches_bear"] for r in results),
+              "total": len(results)}
+    out = Path(args.out).expanduser().resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "recall.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
+    for row in results:
+        last = next((layer for layer in ("bear_prompt", "bull_prompt", "debate_state",
+                                          "analyst_reports", "analyst_tool_results", "sources")
+                     if row["found_in"][layer]), "nowhere")
+        print(f"{row['id']:24} bull={row['reaches_bull']!s:5} bear={row['reaches_bear']!s:5} "
+              f"furthest={last}")
+    print(f"reached both: {report['reached_both']} of {report['total']}")
+    return 0
+
+
 def check_code_location() -> None:
     import cli
     import tradingagents
@@ -710,8 +812,13 @@ def main(argv: list[str] | None = None) -> int:
     step.add_argument("--budget", default="development")
     step.add_argument("--cap", type=float, default=25.0)
     step.add_argument("--label", required=True)
+    recall = sub.add_parser("recall")
+    recall.add_argument("--run", required=True)
+    recall.add_argument("--facts", required=True)
+    recall.add_argument("--out", required=True)
     args = parser.parse_args(argv)
-    return {"baseline": cmd_baseline, "prove": cmd_prove, "step": cmd_step}[args.command](args)
+    return {"baseline": cmd_baseline, "prove": cmd_prove, "step": cmd_step,
+            "recall": cmd_recall}[args.command](args)
 
 
 if __name__ == "__main__":

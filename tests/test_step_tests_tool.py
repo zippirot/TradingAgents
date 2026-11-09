@@ -210,3 +210,31 @@ def test_a_call_heard_twice_is_reserved_and_recorded_once(tmp_path):
         meter.on_llm_end(result, run_id="a")
     assert len((tmp_path / "ledger.jsonl").read_text().splitlines()) == 1
     assert not meter.reserved
+
+
+@pytest.mark.unit
+def test_a_fact_is_present_only_when_its_patterns_share_a_window():
+    patterns = ["RPO|remaining performance obligation", r"\$\s?800(\.0)?\s?(million|M)\b"]
+    assert step_tests.fact_present("Remaining performance obligation was $800 million.", patterns)
+    assert not step_tests.fact_present("RPO grew." + " filler" * 200 + " $800 million", patterns)
+    assert not step_tests.fact_present("RPO was $8,000 million", patterns)
+
+
+@pytest.mark.unit
+def test_recall_follows_a_fact_from_the_debate_state_into_the_bull_and_bear_prompts(
+        isolated, monkeypatch, offline):  # noqa: F811
+    _saved_run(isolated / "run", monkeypatch, ScriptedModel())
+    monkeypatch.setattr(trading_graph, "create_tier_client", lambda config, tier, **k: _Client(ScriptedModel()))
+    facts = isolated / "facts.json"
+    facts.write_text(json.dumps({"facts": [
+        {"id": "ticker", "fact": "the ticker", "patterns": ["NVDA"]},
+        {"id": "absent", "fact": "never present", "patterns": ["no such phrase anywhere"]}]}))
+
+    step_tests.main(["recall", "--run", str(isolated / "run"), "--facts", str(facts),
+                     "--out", str(isolated / "recall")])
+
+    report = json.loads((isolated / "recall" / "recall.json").read_text())
+    rows = {row["id"]: row for row in report["facts"]}
+    assert rows["ticker"]["reaches_bull"] and rows["ticker"]["reaches_bear"]
+    assert rows["ticker"]["found_in"]["debate_state"]
+    assert not rows["absent"]["reaches_bull"] and report["reached_both"] == 1
