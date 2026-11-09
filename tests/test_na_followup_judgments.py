@@ -138,3 +138,13 @@ def test_rm_sentence_states_the_rule():
 
     from tradingagents.agents.managers import research_manager
     assert 'must be unanswered; any other classification is discarded' in inspect.getsource(research_manager)
+
+
+def test_rendered_rm_prompt_states_the_no_passage_rule():
+    state, payload = state_and_payload()
+    llm = MagicMock()
+    structured = MagicMock()
+    structured.invoke.return_value = ResearchPlan.model_validate(payload)
+    llm.with_structured_output.return_value = structured
+    create_research_manager(llm)(state)
+    assert 'must be unanswered; any other classification is discarded' in str(structured.invoke.call_args.args[0])

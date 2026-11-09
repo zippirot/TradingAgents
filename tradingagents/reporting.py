@@ -489,7 +489,7 @@ def _prompt_only_references(final_state: dict, canonical_labels: dict) -> list[s
     rows = []
     for fact_id, label in references.items():
         fact = facts.get(fact_id)
-        if fact is None or fact_id in canonical_labels or not re.fullmatch(r"F\d+", str(label)):
+        if fact is None or fact.get("value") is None or fact_id in canonical_labels or not re.fullmatch(r"F\d+", str(label)):
             continue
         start, end = fact.get("period_start"), fact.get("period_end")
         period = f"{start} to {end}" if start else f"as of {end}"

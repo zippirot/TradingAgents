@@ -165,3 +165,17 @@ def test_new_proposal_without_role_is_rejected_legacy_rows_still_load():
     carried = thesis.prepare_thesis({}, {'conditions': [legacy]}, 'Hold', '2026-11-04', str(uuid4()))
     assert carried['conditions'][0]['condition_id'] == legacy['condition_id']
     assert thesis.condition_role_label(carried['conditions'][0]) == 'Unspecified thesis role'
+
+
+def test_rendered_pm_prompt_requires_a_role_for_every_new_condition():
+    from unittest.mock import MagicMock
+
+    from tests.test_memory_log import _make_pm_state
+    from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+
+    llm = MagicMock()
+    llm.with_structured_output.side_effect = NotImplementedError('free text')
+    llm.invoke.return_value = MagicMock(content='**Rating**: Hold\n\nReason.')
+    create_portfolio_manager(llm)(_make_pm_state())
+    prompt = str(llm.invoke.call_args.args[0])
+    assert 'Every new condition must set thesis_role' in prompt and 'unspecified means' not in prompt
