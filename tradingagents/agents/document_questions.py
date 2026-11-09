@@ -5,6 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from contextlib import suppress
+
+from pydantic import ValidationError
 
 from tradingagents.agents.document_access import (
     _scope,
@@ -35,8 +38,8 @@ def document_question_instruction(state) -> str:
     if state.get("asset_type") != "stock" or not state.get("_document_question_final_turn"):
         return ""
     return (
-        "At the end of this final debate turn, name up to two specific questions "
-        "that retained SEC documents could answer. Append exactly one fenced "
+        "At the end of this final debate turn, give up to two short filing search phrases (3–6 words), "
+        "not full questions, for what retained SEC documents could establish. Append exactly one fenced "
         "document_questions JSON string list, for example "
         "```document_questions\n[\"lease commitments not yet commenced\"]\n```. "
         "Use [] if there are no questions. Keep each question at most 200 characters. "
@@ -387,7 +390,18 @@ def render_document_followups(state, final_decision_text: str = "") -> str:
             prefix += " (vendor transcript, wording unverified)"
         detail = result.get("reason", "")
         label = _retrieval_status(record, result)
-        lines.append(f"{prefix} — Retrieval: {label}. RM answer judgment unavailable."
+        supplied = state.get('document_followup_judgments')
+        matches = [row for row in supplied if isinstance(row, dict)
+                   and row.get('question_id') == result['question_id']] if isinstance(supplied, list) else []
+        judgment = None
+        if len(matches) == 1:
+            from tradingagents.agents.schemas import DocumentFollowupJudgment
+            with suppress(ValidationError):
+                judgment = DocumentFollowupJudgment.model_validate(matches[0])
+        interpretation = ('RM answer judgment unavailable.' if judgment is None else
+            f'RM answer judgment (unvalidated): {judgment.classification.replace("_", " ")}. '
+            + judgment.explanation)
+        lines.append(f"{prefix} — Retrieval: {label}. {interpretation}"
                      + (f" {detail}." if detail else ""))
         if result["passages"]:
             cited = [

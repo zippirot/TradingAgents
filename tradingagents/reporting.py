@@ -204,11 +204,49 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 def summary_input_for_report(prepared_state: dict, settings: dict | None = None, parts=None):
     """Build the same summary context used at finalization and during offline export."""
+    from html import unescape
+
+    from tradingagents.agents.decision_context import _display
     from tradingagents.report_summary import build_summary_input
 
     retained = prepared_state.get("run_settings")
+    source_parts = report_sections(prepared_state) if parts is None else parts
+    originals = prepared_state.get("unvalidated_outputs")
+    pm = originals.get("portfolio_manager") if isinstance(originals, dict) else None
+    structured = pm.get("structured") if isinstance(pm, dict) else None
+    if isinstance(structured, dict):
+        replacements = []
+        for key, label in (("executive_summary", "Executive Summary"),
+                           ("investment_thesis", "Investment Thesis")):
+            raw = structured.get(key)
+            if isinstance(raw, str) and raw.strip():
+                displayed = _display(raw[:20000])
+                marker = f"**{label} — unvalidated PM reasoning**:\n\n{displayed}"
+                replacements.append((marker, marker.replace(displayed, unescape(displayed), 1)))
+        if replacements:
+            projected_parts = []
+            for part in source_parts:
+                if not isinstance(part, (list, tuple)) or len(part) != 3 or part[1] != "5_portfolio" or not isinstance(part[2], (list, tuple)):
+                    projected_parts.append(part)
+                    continue
+                heading, folder, rows = part
+                projected_rows = []
+                for row in rows:
+                    if isinstance(row, (list, tuple)) and len(row) == 3 and row[1] == "decision.md" and isinstance(row[2], str):
+                        projected_rows.append((row[0], row[1], _replace_pm_summary_text(row[2], replacements)))
+                    else:
+                        projected_rows.append(row)
+                projected_parts.append((heading, folder, projected_rows))
+            source_parts = projected_parts
     return build_summary_input(prepared_state, retained if isinstance(retained, dict) else settings,
-                               report_sections(prepared_state) if parts is None else parts)
+                               source_parts)
+
+
+def _replace_pm_summary_text(text: str, replacements: list[tuple[str, str]]) -> str:
+    """Undo only the HTML layer added around retained structured PM prose."""
+    for marker, replacement in replacements:
+        text = text.replace(marker, replacement, 1)
+    return text
 
 
 def _plain_markdown(value: str) -> str:
@@ -423,6 +461,8 @@ def evidence_snapshot(final_state: dict) -> dict:
         "transcript_sources",
         "document_search_trace",
         "document_followups",
+        "document_followup_judgments",
+        "prompt_evidence_references",
         "shared_source_brief",
         "price_observation",
         "valuation_price_comparison",

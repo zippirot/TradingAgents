@@ -63,6 +63,11 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        quality = state.get('evidence_quality') or {}
+        quality_checks = quality.get('checks') or []
+        evidence_line = (f"Evidence quality: {quality.get('status', 'unknown')} "
+                         f"({sum(row.get('status') == 'pass' for row in quality_checks)} pass / "
+                         f"{sum(row.get('status') == 'unavailable' for row in quality_checks)} unavailable)")
 
         audit_context = (render_advisory_audit(state["advisory_audit"], dispositions=prepare_audit_dispositions(state))
                          if "advisory_audit" in state else
@@ -88,6 +93,7 @@ def create_portfolio_manager(llm):
 ---
 
 **Rating Scale**:
+{evidence_line}
 - **Buy**: Strong conviction to enter/add
 - **Overweight**: Favorable, gradually increase exposure
 - **Hold**: Maintain position
@@ -119,7 +125,7 @@ Disclose divergence from these ranges; do not invent consensus.
 
 ---
 
-Ground conclusions in specific evidence. Weigh competing cases independently of speaking order. Choose Hold for balanced or insufficient evidence; conflict alone is not a reason to Hold. Do not force a direction to appear decisive.
+Ground conclusions in specific evidence. Attribute every price level and condition to the role that proposed it. Weigh competing cases independently of speaking order. Choose Hold for balanced or insufficient evidence; conflict alone is not a reason to Hold. Do not force a direction to appear decisive.
 
 ## Advisory thesis continuity
 
@@ -146,7 +152,7 @@ Write in order, rating first:
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
 - **Executive Summary**: call and action
 - **Investment Thesis**: decisive evidence and reconsideration conditions
-- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Use the configured default of {horizon_months} months unless a different horizon is justified in horizon_reason. Never infer from forecasts; missing or invalid means incomplete, rating unchanged.
+- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Use the configured default of {horizon_months} months unless a specific evidence-based reason for a different horizon is stated in horizon_reason. Never infer from forecasts; missing or invalid means incomplete, rating unchanged.
 
 {NO_EXTERNAL_TOOLS}{EVIDENCE_DISCIPLINE}{get_language_instruction()}"""
 

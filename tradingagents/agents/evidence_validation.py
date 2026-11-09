@@ -822,6 +822,27 @@ def assess_financial_package(
         update.pop("evidence_quality")
         update.pop("financial_claim_validation")
         return update
+    from tradingagents.agents.evidence_presentation import prompt_reference_map
+
+    retained_source_ids = {source.source_id for source in package.sources}
+    if disclosures is not None:
+        retained_source_ids.update(document.source_id for document in disclosures.documents)
+    if state.get("price_observation"):
+        from tradingagents.dataflows.vendors.yahoo.price_observation import (
+            validate_price_observation,
+        )
+
+        try:
+            price = validate_price_observation(
+                state["price_observation"], state["company_of_interest"], package.as_of,
+            )
+            retained_source_ids.add(price["source_id"])
+        except (KeyError, TypeError, ValueError):
+            pass
+    update["prompt_evidence_references"] = prompt_reference_map(
+        update["canonical_financial_context"], state.get("shared_source_brief") or "",
+        fact_ids=(fact.fact_id for fact in package.facts), source_ids=retained_source_ids,
+    )
     if extraction is not None:
         update["filing_fact_extraction"] = extraction.model_dump(mode="json")
     if quality["status"] == "insufficient":

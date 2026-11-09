@@ -69,6 +69,18 @@ def get_language_instruction() -> str:
     )
 
 
+def risk_conversation_view(state: dict, *opponents: str) -> str:
+    """Show history once, retaining missing latest turns and honest opening markers."""
+    history = state.get('history', '') or ''
+    parts = [history] if history else []
+    for opponent in opponents:
+        response = (state.get(f'current_{opponent}_response') or '').strip()
+        if response and response in history:
+            continue
+        parts.append(opponent_argument_or_opening(response, f'{opponent} analyst'))
+    return '\n'.join(parts)
+
+
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
     """Opponent's latest argument, or an explicit opening marker when empty.
 
@@ -441,8 +453,38 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
             state.get("asset_type", "stock"),
         )
     brief = state.get("shared_source_brief")
+    canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None
+    references = state.get("prompt_evidence_references")
+    projected = isinstance(canonical, str) and bool(canonical.strip()) and isinstance(references, dict)
     if isinstance(brief, str) and brief:
-        context += "\n\n" + brief
+        if projected:
+            from tradingagents.agents.evidence_presentation import (
+                fact_reference_labels,
+                prompt_id_view,
+            )
+
+            represented = set(fact_reference_labels(canonical))
+            canonical_lines = set(canonical.splitlines())
+            supplement = []
+            for line in brief.splitlines():
+                if line in canonical_lines:
+                    continue
+                if line.startswith("{"):
+                    import json
+
+                    try:
+                        item = json.loads(line)
+                    except ValueError:
+                        item = None
+                    if isinstance(item, dict) and item.get("fact_id") in represented:
+                        continue
+                supplement.append(line)
+            if supplement:
+                context += "\n\nPre-analyst source facts not represented by the accepted context:\n" + prompt_id_view(
+                    "\n".join(supplement), references,
+                )
+        else:
+            context += "\n\n" + brief
     reference = state.get("valuation_reference_brief")
     if isinstance(reference, str) and reference:
         context += "\n\n" + reference
@@ -456,9 +498,16 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
             context += "\n\n" + shared_mechanical
     # Before analysts, use only the retained bounded brief. Later research roles
     # also receive the final gate's canonical assessment and labeled narratives.
-    canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None
     if isinstance(canonical, str) and canonical.strip():
-        context += "\n\n" + canonical
+        if projected:
+            from tradingagents.agents.evidence_presentation import (
+                prompt_id_view,
+                without_reference_appendix,
+            )
+
+            context += "\n\n" + prompt_id_view(without_reference_appendix(canonical), references)
+        else:
+            context += "\n\n" + canonical
         validation = state.get("financial_claim_validation")
         raw = validation.get("raw_report") if isinstance(validation, Mapping) else None
         if isinstance(raw, str):

@@ -108,6 +108,15 @@ class TraderAction(StrEnum):
 # ---------------------------------------------------------------------------
 
 
+class DocumentFollowupJudgment(BaseModel):
+    """Unvalidated RM interpretation; never a deterministic retrieval result."""
+
+    question_id: str = Field(min_length=1, max_length=32)
+    classification: Literal['answered', 'partially_answered', 'unanswered']
+    explanation: str = Field(min_length=1, max_length=2000,
+        description='For answered/partial: what the passage establishes, figure and source reference, and effect on the bull/bear point. For unanswered: what remains unknown. Unvalidated research judgment.')
+
+
 class ResearchPlan(BaseModel):
     """Structured investment plan produced by the Research Manager.
 
@@ -117,6 +126,8 @@ class ResearchPlan(BaseModel):
     instructions the trader can execute against.
     """
 
+    followup_judgments: list[DocumentFollowupJudgment] = Field(default_factory=list, max_length=4,
+        description='One unvalidated interpretation per actual document follow-up question_id; keep retrieval status separate from the answer judgment.')
     revised_cases: Annotated[Any, WithJsonSchema({"anyOf": [
         {"type": "array", "maxItems": 3, "items": {"type": "object", "properties": {
             "name": {"type": "string"}, "request": {"type": "object"}},
@@ -149,13 +160,18 @@ class ResearchPlan(BaseModel):
 
 def render_research_plan(plan: ResearchPlan) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
-    return "\n".join([
+    lines = [
         f"**Recommendation**: {plan.recommendation.value}",
         "",
         f"**Rationale**: {plan.rationale}",
         "",
         f"**Strategic Actions**: {plan.strategic_actions}",
-    ])
+    ]
+    if plan.followup_judgments:
+        lines.extend(['', '**Document follow-up judgments (unvalidated)**'])
+        lines.extend(f'- {row.question_id}: {row.classification.replace("_", " ")} — {row.explanation}'
+                     for row in plan.followup_judgments)
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

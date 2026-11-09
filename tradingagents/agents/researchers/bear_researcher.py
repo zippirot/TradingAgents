@@ -34,6 +34,10 @@ def create_bear_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
+        engagement = ("List the opponent's numbered points from their last turn; answer or concede each. "
+                      "Do not change your own stated triggers without saying so."
+                      if investment_debate_state.get('count', 0) >= 2 else '')
+
         prompt = f"""You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
 If shared valuation scenarios are available, identify the specific forecast or multiple you accept or dispute and support your challenge with evidence. The table is conditional and fixed for this debate, not a mandated base case. State what would change your view. Any numerical alternative you propose remains unvalidated until the final calculator evaluates it.
@@ -45,6 +49,8 @@ Key points to focus on:
 - Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
 - Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+
+{engagement}
 
 Resources available:
 

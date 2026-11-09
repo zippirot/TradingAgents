@@ -1,6 +1,6 @@
 # TradingAgents workflow gap closure (post A–D)
 
-**Status (2026-11-08, R4 live-gap closure):** R5/R1/R2/R4/R3 code builds are accepted and integrated at staging `c4b70a3618016fd630bee3c4ddf5b671c4d919bc`, with all seven exact-SHA CI jobs green. Real Phase1 DOCN/MSFT runs completed on tree-equivalent feature source `9c252791a44d2a99c61c4224f8c9c35efc599e38`; MSFT was REVIEW and its skipped PM/risk behavior is unexercised. DOCN completed all stages but exposed R4 truncation of four new price/event conditions when four prior conditions were kept. The owning correction is isolated in `codex/condition-continuity-fix` from exact confirmed staging and passes3564 default tests/Ruff plus recorded-response publication/next-run proof and documented multi-cycle retirement policy. Actual independent Claude local closure at `011523472c71d830d94f7186d067a64a3485e115` has zero open Critical/High/Medium; integration/CI and fresh same-source live acceptance remain incomplete. Na/Nb have not started. See `docs/reviews/2026-11-08-condition-continuity-fix.md` and its bound verification. User-approved product allowance is $30 per remaining analysis within unchanged $120 total, including all charges/unknown holds; no automatic retries or extra slots. Necessary staging integrations/pushes and audit retries under existing caps remain advance-approved until2026-11-09T05:20:03Z. Production stays `9ade69bf155d1b25699d3aecfff3c1b07752aff0`; release, stable-app actions and exact-production Machine1 acceptance remain separate approvals.
+**Status (2026-11-08, Na local acceptance):** R5/R1/R2/R4/R3 and the condition-continuity correction are integrated at staging `ed24ec18d6b50734f378617755f60800e1d66aee`. Na retained DOCN/MSFT comparisons and actual Claude Fable closure are complete: KEEP eleven changes, N2.2 not adopted, zero open Critical/High/Medium findings. This public integration preserves the accepted application/test blobs while excluding private prompt/audit history. Exact published staging CI and Nb remain pending. Approved Amendment 2 governs the remaining comparisons and finite $235 analysis ceiling; private key capacity is not spending authority. Production and Machine 1 release acceptance remain separate.
 
 **Goal:** Close every gap found by the 2026-11-07 node-by-node workflow audit, so that:
 1. evidence the system already retrieved reaches every agent that needs it;
@@ -333,53 +333,57 @@ Phase 2 is split by risk. **Build Na** holds the lower-risk changes: agents use 
 
 **Worktree slug:** `node-workflow-a`. Starts from the staging commit that contains all of Phase 1. Its baseline is the Phase 1 traced DOCN run (see Sequence), plus a matching MSFT baseline run on the same commit.
 
+**Host-start application (2026-11-08):** the approved Amendment1 Na additions G2p, G9p and G8p below are part of this build and its existing two comparison runs/keep-drop rubric. The fresh baselines are literal sourceed24ec18; MSFT REVIEW leaves skipped-role behavior unexercised and must be reported as such. No baseline/provider/runtime pass is inferred from local prompt tests.
+
+**Na local acceptance checkpoint (2026-11-08):** actual retained pair ran at `3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934`; all 24 application/test blobs are identical in this clean integration. DOCN remains Underweight/limited; MSFT remains REVIEW/insufficient with downstream roles unexercised. Actual Fable rescore retained eleven changes and dropped N2.2; final closure `7617f414-e487-4fe5-8ddd-6e67f1fcf192` at private audited candidate `8883bfd65faada400d4866ea7d1883c140e33451` completed with zero Critical/High/Medium and seven Low findings. Private acceptance record: `aacfbb89da96d0feca34a6a2e83edd106e307567`. Source identity preserves the paid proofs without claiming a paid run on a different Git SHA. Complete default suite and Ruff passed on these objects; the clean integration gets its own local verification and exact published CI. Raw prompts, controller bodies, private traces and ledger remain local. See the public-safe review and verification JSON. Nb is unstarted.
+
 ### N1 — Research Manager, Trader and risk debate
 
 #### N1.1 The Research Manager answers with what it looked up (RM1)
 **Files:** `tradingagents/agents/managers/research_manager.py`.
 - Add an instruction: for each document follow-up, classify it as **answered**, **partially answered** or **unanswered** by the retrieved passages (retrieval status from R2.2 is shown but is not the answer). For answered or partial: one line on what the passage establishes, with the figure and source ID, and whether it changes the bull or bear point it was raised for. For unanswered: say what is still unknown. Add the classification to the RM's structured output so the card can show it (R2.2), labelled unvalidated.
-- [ ] `test_rm_prompt_requires_followup_classification`, `test_rm_output_schema_has_followup_classification`.
+- [x] `test_rm_prompt_requires_followup_classification`, `test_rm_output_schema_has_followup_classification`.
 - N1.1 also owns `test_card_shows_retrieval_status_and_rm_judgment_separately`, proving the structured judgment survives state delivery and rendering. If N1.1 is dropped, the card keeps R2's honest unavailable-judgment display.
 
 #### N1.2 Risk roles see the research plan (TR1, RK4)
 **Files:** `tradingagents/agents/risk_mgmt/aggressive_debator.py`, `conservative_debator.py`, `neutral_debator.py` (~:28–31).
 - Give each risk role the Research Manager's recommendation, rationale and stated conditions (`investment_plan`, compact form), in addition to the Trader's proposal. Instruct them to flag any Trader step that drops or contradicts a research condition.
-- [ ] `test_risk_prompts_include_investment_plan_conditions` (DOCN baseline: "50.15 % and 55.5 %" condition present).
+- [x] `test_risk_prompts_include_investment_plan_conditions` (DOCN baseline: "50.15 % and 55.5 %" condition present).
 
 #### N1.4 The PM attributes levels to their source and sees the evidence status (TR3, P5)
 **Files:** `tradingagents/agents/managers/portfolio_manager.py`, `tradingagents/agents/trader/trader.py`.
 - PM: "Attribute every price level and condition to the role that proposed it." Add one line near the rating rules: "Evidence quality: <status> (<pass> pass / <unavailable> unavailable)", from `evidence_quality`.
 - Trader: "Keep technical levels exactly as the market report states them; do not merge separate levels into bands."
-- [ ] `test_pm_prompt_states_evidence_quality`, `test_trader_prompt_preserves_levels`.
+- [x] `test_pm_prompt_states_evidence_quality`, `test_trader_prompt_preserves_levels`.
 
 ### N2 — Analysts
 
 #### N2.2 Disclosure rules the model can follow (FA3)
 - Trim the disclosure-record rules to the subset the validator enforces, and add one worked example per record type (guidance range, unit-bearing amount, financing event).
-- [ ] `test_disclosure_prompt_contains_one_example_per_record_type`. Measured in the comparison runs: model-caused disclosure rejections should fall (baseline: 3 of 9 on DOCN 11-07).
+- [x] **Not adopted** after independent keep/drop: restore the accepted baseline disclosure instructions exactly; remove the now-inapplicable examples test. The original extraction-behavior gap remains disclosed. Retained-pair proof and material closure complete; test-name mappings for retained tasks are in the verification record.
 
 #### N2.3 Say "not checkable" instead of "not supported" (SE3)
 - Sentiment prompt: a claim the analyst has no data to test (for example, a past price level without price history) is "not checkable with my inputs", not "not supported".
-- [ ] `test_sentiment_prompt_distinguishes_uncheckable`.
+- [x] `test_sentiment_prompt_distinguishes_uncheckable`.
 
 ### N4 — Debate hygiene and prompt size (BB4, BB2, BB3, RK2, CN2)
 
 #### N4.1 Answer the opponent's points (BB4)
 - Bull and Bear, rounds 2+: "List the opponent's numbered points from their last turn; answer or concede each. Do not change your own stated triggers without saying so."
-- [ ] `test_debate_prompt_requires_point_by_point_answer`.
+- [x] `test_debate_prompt_requires_point_by_point_answer`.
 
 #### N4.2 Ask for search phrases, not questions (BB2)
 - Document-question instruction: ask for "short filing search phrases (3–6 words)", matching the existing example.
-- [ ] `test_document_question_instruction_asks_for_phrases`.
+- [x] `test_document_question_instruction_asks_for_phrases`.
 
 #### N4.3 Shorter prompts (BB3, RK2)
 - Prompt view of evidence uses the short IDs the agents already cite (F12, S54), and keeps the hash-to-short-ID map in state for traceability. Risk prompts pass the history once, without repeating the last two turns separately.
-- [ ] `test_prompt_view_uses_short_ids_and_map_round_trips`, `test_risk_prompt_has_no_duplicate_turns`. Expected: about 18 % fewer characters per debate call (measured in the comparison run).
+- [x] `test_prompt_view_uses_short_ids_and_map_round_trips`, `test_risk_prompt_has_no_duplicate_turns`. Expected: about 18 % fewer characters per debate call (measured in the comparison run).
 
 #### N4.4 One evidence view for later roles (CN2)
 **Files:** `tradingagents/agents/context.py` (~:401–417).
 - After Evidence Check, roles from Bull/Bear onward receive the canonical context only; the pre-analyst brief is reduced to the items the canonical context does not carry (for example, Build B filing terms if not already canonical, and the R1.1 financing lines), labelled as such. Today both go in, about 95.7k chars per research call, with the same facts in two formats.
-- [ ] `test_post_gate_roles_get_canonical_context_without_duplicate_brief`, `test_brief_only_items_still_reach_later_roles`.
+- [x] `test_post_gate_roles_get_canonical_context_without_duplicate_brief`, `test_brief_only_items_still_reach_later_roles`.
 
 ### How comparison runs work (Na and Nb)
 
@@ -667,3 +671,14 @@ This is an acceptance check on R1.2 and R1.3, not new code unless it fails.
 **Approved by the user on 2026-11-07:**
 1. Decision horizon: a configurable six-month default the Portfolio Manager must use unless it states a reason (G9, G9p).
 2. Append this amendment to the base plan before R1 starts.
+
+
+## Approved Amendment 2 — frozen-source proof and supplemental analysis authority
+
+**User-approved 2026-11-08:** “Current models + $235 ceiling (Recommended)” in response to the explicit method/budget question. This supplements the existing plan without changing production defaults or the independent audit requirement. Approved Amendment1, including its six-month default, remains intact.
+
+1. **Controlled-source interpretation for future comparisons.** A verified no-new-source envelope may satisfy the same-frozen-source objective: retain the baseline trace and immutable pre-baseline cache/memory/publication snapshot, ticker/date/analysis clock/model settings and separate disposable copies. Exact requests replay the recorded source; new requests may use already-frozen raw cache when supported, otherwise return visibly typed unavailable. Deny all non-model external transports and fail unknown transport attempts. Do not fake cache freshness, acquire new vendor inputs, or substitute baseline validation/calculation/model outputs for current candidate calculations. Keep every actual replayed/mixed_input label and missing-data disclosure. Original mixed live-input Na runs remain uncontrolled. Complete source/store/hash receipts and independent review still establish whether each new comparison meets this interpretation; the amendment is not an automatic pass.
+2. **Named remaining analysis authority.** Use current quick `anthropic/claude-opus-5.5` and deep `openai/gpt-6.1-terra-pro` models, the same recorded four-analyst/3+3-round/settings/clock/six-month configuration. Authorize Na-retained-DOCN/MSFT; retain the existing Nb-DOCN/MSFT candidate slots; authorize Nb-retained-DOCN/MSFT only if exactly one Nb change is dropped and one remains. No repeated failed analysis or unlisted supplemental slot is automatic. Retained-source exact clean SHA/tree and corresponding baseline/snapshot hashes must be bound before paid sends.
+3. **Finite analysis limits.** Whole-task analysis ceiling rises from120to235USD, inclusive of existing39.04296010verified charges and44.079168unknown holds(83.12212810exposure). Per-analysis maximum:30DOCN/20MSFT. Six maximum remaining analyses add at most150exposure, for233.12212810combined maximum. Do not release unknown reservations or increase any cap implicitly. Independent audit caps/authority stay unchanged and separate.
+4. **Readiness and funding remain required.** Qualified real wrapper/CLI offline source is442b; current14operator checks plus unchanged10guard/22wrapper checks and the corrected28-mock-request CLI proof support plumbing only. Use the existing financial guard, serialized wire, global task ledger/lock, one-shot claims and actual provider pricing/headroom. Account funding/key changes are not made by this amendment. Fresh actual API allowance must cover each cap plus all prior held reservations before its claim. No paid analysis has been admitted merely by approving this amendment.
+5. **Remaining acceptance and boundaries.** Rescore the retained pair, inspect numeric/rating/condition/evidence behavior, complete required stable-source checks and actual frozen Claude Fable closure with no in-scope Critical/High/Medium before Na acceptance/integration. Nb waits for all approved predecessors. Keep failed prompt changes dropped rather than repairing/retrying them. Existing staging/release/production/Machine1 boundaries and standing authority expiry remain unchanged.
