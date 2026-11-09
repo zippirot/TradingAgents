@@ -213,6 +213,18 @@ def test_missing_completed_close_reason_reaches_stock_snapshot_and_indicator(mon
     assert "74.24" not in stock + report + indicators
 
 
+def test_snapshot_receives_completed_session_window_with_missing_close(monkeypatch, tmp_path):
+    _, _, frame = install(monkeypatch, tmp_path, now="2026-11-05T22:00:00+00:00")
+    frame.loc[frame.index[1], "Close"] = float("nan")
+    data = ohlcv.load_ohlcv("DOCN", "2026-11-05", fill_gaps=False)
+    assert data.attrs["completed_session_dates"] == [
+        "2026-11-03", "2026-11-04", "2026-11-05",
+    ]
+    report = snapshot.build_verified_market_snapshot("DOCN", "2026-11-05")
+    assert "Last 3 available completed sessions (up to 252)" in report
+    assert "1 completed session has no available close" in report
+
+
 def test_partial_missing_close_does_not_claim_completed_fallback(monkeypatch, tmp_path):
     _, _, frame = install(monkeypatch, tmp_path)
     frame.loc[frame.index[-1], "Close"] = float("nan")

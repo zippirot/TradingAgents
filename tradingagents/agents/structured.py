@@ -24,7 +24,11 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from tradingagents.operational_capture import record_operation
+from tradingagents.operational_capture import (
+    delivered_narrative,
+    record_operation,
+    remember_structured_raw,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +52,16 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     will use free-text generation for every call instead of one-shot fallback.
     """
     try:
-        return llm.with_structured_output(schema)
+        try:
+            return llm.with_structured_output(schema, include_raw=True)
+        except TypeError:
+            return llm.with_structured_output(schema)
     except (NotImplementedError, AttributeError) as exc:
         logger.warning(
             "%s: provider does not support with_structured_output (%s); "
             "falling back to free-text generation",
-            agent_name, exc,
+            agent_name, type(exc).__name__,
+            extra={"diagnostic_agent": agent_name, "diagnostic_error_class": type(exc).__name__},
         )
         return None
 
@@ -65,10 +73,16 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
     invocations, a list of message dicts for chat models that take that
     shape), so a caller can forward the same value to its free-text fallback.
     """
+    remember_structured_raw(None)
     if structured_llm is None:
         return None
     try:
         result = structured_llm.invoke(prompt)
+        if isinstance(result, dict) and "parsed" in result and "raw" in result:
+            remember_structured_raw(result["raw"])
+            if result.get("parsing_error") is not None:
+                raise ValueError("structured output parsing failed")
+            result = result["parsed"]
         if result is None:
             # A thinking model can answer in plain text instead of calling
             # the tool, leaving the parser with nothing to return. Treat it
@@ -78,7 +92,8 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
     except Exception as exc:
         logger.warning(
             "%s: structured-output invocation failed (%s); retrying once as free text",
-            agent_name, exc,
+            agent_name, type(exc).__name__,
+            extra={"diagnostic_agent": agent_name, "diagnostic_error_class": type(exc).__name__},
         )
         return None
 
@@ -93,8 +108,9 @@ def invoke_structured_or_freetext(
     """Run the structured call and render to markdown; fall back to free-text on any failure."""
     result = invoke_structured(structured_llm, prompt, agent_name)
     if result is not None:
-        return render(result)
-    text = plain_llm.invoke(prompt).content
+        return delivered_narrative(render(result))
+    raw = plain_llm.invoke(prompt)
+    text = delivered_narrative(raw.content, raw)
     if structured_llm is not None:
         record_operation('fallback_recovered')
     return text

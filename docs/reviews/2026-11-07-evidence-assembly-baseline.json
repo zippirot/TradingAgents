@@ -1,0 +1,81 @@
+{
+  "r5_feature_and_staging_sha": "730bbe04ce7ba382367463dccca57bc39b7e0e92",
+  "ci_url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247",
+  "ci_status": "completed",
+  "ci_conclusion": "success",
+  "ci_jobs": [
+    {
+      "name": "tests (py3.13, UTC)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472185"
+    },
+    {
+      "name": "clean-install smoke",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472317"
+    },
+    {
+      "name": "tests (py3.14, UTC)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472330"
+    },
+    {
+      "name": "tests (py3.11, UTC)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472334"
+    },
+    {
+      "name": "tests (py3.12, America/New_York)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472363"
+    },
+    {
+      "name": "ruff (strict, full repo)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472365"
+    },
+    {
+      "name": "tests (py3.12, UTC)",
+      "conclusion": "success",
+      "url": "https://github.com/zippirot/TradingAgents/actions/runs/42444835247/job/128621472461"
+    }
+  ],
+  "local_pytest": {
+    "summary": "3358 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests in 59.10s",
+    "log": "/tmp/r5-730bbe0-staging-pytest.log",
+    "sha256": "b7282fa7da298ecd166eaa285ffa9a210785490b3c6081bb4f2c61fbe801cedd"
+  },
+  "lease_baseline": {
+    "source_sha256": "d9505e263d70b0e59aba03d6f75c250c7c6d320e22070cbc5002876811e27f2b",
+    "rows": [
+      {
+        "name": "Base: FY2027 near management 60%+ floor, 5.0x trailing EV/revenue",
+        "obligations": [
+          "borrowings"
+        ],
+        "target": "77.734375",
+        "sensitivities": {},
+        "warnings": [
+          "Same-period management outlook unavailable for Revenue; no consensus assumed.",
+          "finance_equipment sensitivity unavailable: equipment, finance_leases unknown.",
+          "all_leases sensitivity unavailable: equipment, finance_leases, operating_leases unknown.",
+          "Funding feasibility unassessed. No cash plug or discounting."
+        ]
+      },
+      {
+        "name": "Cautious: capacity/ramp slippage, 3.5x trailing EV/revenue",
+        "obligations": [
+          "borrowings"
+        ],
+        "target": "44.6691176470588235294117647058823529411764705882352941176471",
+        "sensitivities": {},
+        "warnings": [
+          "Same-period management outlook unavailable for Revenue; no consensus assumed.",
+          "finance_equipment sensitivity unavailable: equipment, finance_leases unknown.",
+          "all_leases sensitivity unavailable: equipment, finance_leases, operating_leases unknown.",
+          "Funding feasibility unassessed. No cash plug or discounting."
+        ]
+      }
+    ]
+  }
+}

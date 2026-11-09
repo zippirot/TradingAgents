@@ -1,0 +1,246 @@
+{
+  "stage": "Na",
+  "status": "local_accepted_fixture_closed_corrected_staging_ci_pending",
+  "public_safe_summary": true,
+  "canonical_base": "ed24ec18d6b50734f378617755f60800e1d66aee",
+  "paid_source": "3d1cc1d2f91d24bc2b0c4b7c56042760ceff1934",
+  "audited_source": "8883bfd65faada400d4866ea7d1883c140e33451",
+  "private_acceptance_record": "aacfbb89da96d0feca34a6a2e83edd106e307567",
+  "candidate_python_objects": {
+    "tests/test_na_analyst_prompts.py": "38c91e607cd649eb6bb95e2ef321b7376ccd512c",
+    "tests/test_na_context_projection.py": "4d1f6f7d4d6d30d5ae85446cdec085d593d3d205",
+    "tests/test_na_followup_judgments.py": "6137908ad939ab6316e6d05f67ff2b059ea7ceb9",
+    "tests/test_na_followup_rendering.py": "ee5b75d884a0516ae65d8f6ca2d3f9ca3705ca7a",
+    "tests/test_na_handoff_prompts.py": "610dfcc6988807b5f83799dd6f72bf35d8be6ed1",
+    "tradingagents/agents/analysts/fundamentals_analyst.py": "9f4c15880aad235985e08f5a1adb919e33416b9e",
+    "tradingagents/agents/analysts/market_analyst.py": "65e1b1b9f778627d64e69a5c784876d3761f6fa8",
+    "tradingagents/agents/analysts/sentiment_analyst.py": "d2852e83b6e56c9fcbd1ae8c638a75259e6be3f0",
+    "tradingagents/agents/context.py": "1c5dd8e93c2140c71dc95eb8fe4a94e3d36bfbda",
+    "tradingagents/agents/document_questions.py": "19858047cd0752d0b69715e19b3745215844cba7",
+    "tradingagents/agents/evidence_presentation.py": "93fc48040e4db3c4e41c49172c85e38efe3acbae",
+    "tradingagents/agents/evidence_validation.py": "784d1501209051fb78baaed059fe70553bc3ab21",
+    "tradingagents/agents/managers/portfolio_manager.py": "c5992bb3a49c0c9964170ada55cd27e412797d6a",
+    "tradingagents/agents/managers/research_manager.py": "ee448f2961c1367a536d83eb23e37b0039c8f778",
+    "tradingagents/agents/researchers/bear_researcher.py": "99d252e331552f0082eb4d33e0fb0828d491e8f2",
+    "tradingagents/agents/researchers/bull_researcher.py": "6bee65866e65cdcc1975728a8bb6a66cbbea5f04",
+    "tradingagents/agents/risk_mgmt/aggressive_debator.py": "f091c6cec124af237676ec6abc8147cde3cc9f5a",
+    "tradingagents/agents/risk_mgmt/conservative_debator.py": "f729904ea865e13df9d704cc81e2d50bcf24a07c",
+    "tradingagents/agents/risk_mgmt/neutral_debator.py": "ce529d1df1f961a09d07b0c7301d67b945d6a501",
+    "tradingagents/agents/schemas.py": "ca5b5c1c7d3aabf9e9f1bb635eddd9d502f28ba4",
+    "tradingagents/agents/state.py": "156f829e2e4456ca0dec0f6b7b916b28d4df55e7",
+    "tradingagents/agents/trader/trader.py": "06d05c74d8fb3aa451b969ee358d4c6184d56970",
+    "tradingagents/graph/trading_graph.py": "70db2cb0ba2d0d850ddcaa4023c06b584ca48e24",
+    "tradingagents/reporting.py": "8d2020fc2b7da717f0d8665283563af38e11294d"
+  },
+  "equivalence": "Exact changed application/test Git blobs; all other application/dependency/CI files unchanged from canonical base. Paid execution is on paid_source, not the integration commit.",
+  "keep": [
+    "N1.1",
+    "N1.2",
+    "N1.4",
+    "N2.3",
+    "N4.1",
+    "N4.2",
+    "N4.3",
+    "N4.4",
+    "G2p",
+    "G8p",
+    "G9p"
+  ],
+  "not_adopted": [
+    "N2.2"
+  ],
+  "retained_runs": {
+    "DOCN": {
+      "id": "89f493c3-6b2f-42de-a144-89c49be0d8d9",
+      "state_sha256": "5c2b25e71dd110f7a9e91005b093a496a33c1edaf9a164dbc28d33e40c8c495a",
+      "rating": "Underweight",
+      "quality": "limited",
+      "source_mode": "mixed_input",
+      "misses": 4
+    },
+    "MSFT": {
+      "id": "0d26a730-a63d-4e34-8a87-f4e67c4389a9",
+      "state_sha256": "0c93cc0a385546108e668fca6fd59b9c1000ef14bd062b828e4e3350840fbba4",
+      "rating": "REVIEW",
+      "quality": "insufficient",
+      "source_mode": "mixed_input",
+      "misses": 3,
+      "downstream_roles": "NOT_EXERCISED"
+    }
+  },
+  "independent_audit": {
+    "executor": "frozen-manifest real Claude",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "override": "User-approved permitted Claude alternative",
+    "final_run_id": "7617f414-e487-4fe5-8ddd-6e67f1fcf192",
+    "stop_reason": "reviewer_completed",
+    "turns": 57,
+    "cost_usd": 4.162179,
+    "findings": {
+      "Critical": 0,
+      "High": 0,
+      "Medium": 0,
+      "Low": 7
+    },
+    "rescore_run_id": "029892be-8d5a-4f76-85d0-749ecb31ff16",
+    "raw_artifacts": "Private; public summary and hashes only."
+  },
+  "private_prompt_packet_sha256": "cabd4478cc1a29bc544072c8e5ab2b7d5863cc2ccc001a40b4184a46b92b6d68",
+  "integration_verification": {
+    "status": "passed",
+    "python": "3.12",
+    "pytest": {
+      "result": "3585 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 80.35s",
+      "log_sha256": "7805ac4ac72ba92f9f754c6e051916e290ce046a670873500adc9bbe65ef6da1"
+    },
+    "ruff": {
+      "result": "All checks passed!",
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "full_diff_inspected": true,
+    "exact_source_blob_parity": 24,
+    "new_paid_runs": 0,
+    "new_audit_runs": 0
+  },
+  "published_staging_ci": {
+    "status": "not_yet_run_for_corrected_candidate_at_this_record",
+    "required_before_nb": true,
+    "acceptance_receipt": "Operator-private na-public-integration-acceptance.json records final published SHA and actual seven-job CI. A future checkpoint must distinguish this frozen pre-publication record."
+  },
+  "limits": [
+    "Receipt-level no-new-source inference; actual mixed_input labels preserved.",
+    "MSFT downstream roles skipped.",
+    "Current DOCN RM answered/partial branch not exercised.",
+    "Five numeric spot checks per run do not validate all prose.",
+    "Four DOCN PM citation flags remain visible.",
+    "N2.2 original behavior gap remains not adopted.",
+    "Production and Machine 1 acceptance separate."
+  ],
+  "contract_test_map": {
+    "N1.1": [
+      "tests/test_na_followup_judgments.py::test_rm_judgments_survive_typed_graph_and_card_without_changing_retrieval",
+      "tests/test_na_followup_judgments.py::test_fallback_and_ambiguous_judgments_remain_unavailable",
+      "tests/test_na_followup_judgments.py::test_followup_judgment_schema_rejects_unknown_classification",
+      "tests/test_na_followup_judgments.py::test_new_advisory_fields_survive_existing_full_state_log_and_evidence"
+    ],
+    "N1.2": [
+      "tests/test_na_handoff_prompts.py::test_risk_receives_research_conditions_and_each_opponent_turn_once"
+    ],
+    "N1.4": [
+      "tests/test_na_handoff_prompts.py::test_trader_preserves_separate_levels_and_requires_band_table_citations",
+      "tests/test_na_handoff_prompts.py::test_pm_sees_quality_at_rating_rules_and_evidence_based_horizon_override"
+    ],
+    "N2.2": [],
+    "N2.3": [
+      "tests/test_na_analyst_prompts.py::test_sentiment_prompt_distinguishes_uncheckable"
+    ],
+    "N4.1": [
+      "tests/test_na_handoff_prompts.py::test_second_research_round_requires_numbered_point_response"
+    ],
+    "N4.2": [
+      "tests/test_na_handoff_prompts.py::test_document_question_instruction_asks_for_short_phrases"
+    ],
+    "N4.3": [
+      "tests/test_na_context_projection.py::test_gate_retains_exact_to_short_reference_map",
+      "tests/test_na_context_projection.py::test_supplement_aliases_only_retained_exact_identifiers",
+      "tests/test_na_context_projection.py::test_already_short_ids_do_not_rewrite_ordinary_source_prose",
+      "tests/test_na_followup_judgments.py::test_new_advisory_fields_survive_existing_full_state_log_and_evidence",
+      "tests/test_na_handoff_prompts.py::test_risk_receives_research_conditions_and_each_opponent_turn_once"
+    ],
+    "N4.4": [
+      "tests/test_na_context_projection.py::test_postgate_prompt_shortens_only_proven_duplicate_facts"
+    ],
+    "G2p": [
+      "tests/test_na_analyst_prompts.py::test_market_prior_trading_claims_cite_price_band_table",
+      "tests/test_na_handoff_prompts.py::test_trader_preserves_separate_levels_and_requires_band_table_citations"
+    ],
+    "G8p": [
+      "tests/test_na_analyst_prompts.py::test_fundamentals_multiple_rationale_requires_same_basis_reference"
+    ],
+    "G9p": [
+      "tests/test_na_handoff_prompts.py::test_pm_sees_quality_at_rating_rules_and_evidence_based_horizon_override"
+    ]
+  },
+  "test_name_adjustment": "Several planned descriptive test names are combined under concrete behavior-test functions. Their assertions were inspected; this is a mechanical naming mapping, not an acceptance waiver.",
+  "contract_test_disposition": "N2.2not adopted: its examples-only test removed with the dropped behavior, not weakened to pass. Its original test/receipt preserved in pre_n22_drop_verification and sourcehistory. All11retained item maps remain applicable.",
+  "public_packaging_checks": {
+    "files": 27,
+    "private_prompt_packet_excluded": true,
+    "private_ancestry_excluded": true,
+    "absolute_personal_path_and_common_secret_patterns": 0,
+    "all_24_application_test_blobs_exact": true,
+    "amendment_1_verbatim": true
+  },
+  "first_public_staging": {
+    "sha": "7a2e6eeb79bbb597bc69c1706e976cb7eded4f1d",
+    "ci_run": 42542282190,
+    "conclusion": "failure",
+    "failed_jobs": [
+      "tests (py3.11, UTC)",
+      "tests (py3.12, UTC)",
+      "tests (py3.13, UTC)",
+      "tests (py3.14, UTC)"
+    ],
+    "passed_jobs": [
+      "ruff (strict, full repo)",
+      "clean-install smoke",
+      "tests (py3.12, America/New_York)"
+    ],
+    "failure": "Pre-existing historical OHLCV fixture used host date, inventing tomorrow in exchange timezone just after UTC midnight. Real fail-closed product behavior correct.",
+    "failed_test": "tests/test_undated_tools_as_of.py::test_a_historical_run_is_not_told_todays_date[get_YFin_data_online]",
+    "fixture_changed": true,
+    "application_changed": false,
+    "local_utc_reproduction": "1 failed / 4 passed before correction; same invalid action verification window.",
+    "affected_focused": "105 passed in 2.35s after fixture correction.",
+    "log_sha256": "b90fb9e794c400b1a46be45cb34803bad9d4642df6fb0d2d71eeb7cc495164cf",
+    "corrected_ny_parameter_cases": "5 passed in 2.18s"
+  },
+  "independent_integration_review": {
+    "status": "completed_no_open_material_findings",
+    "scope": "Only public packaging plus pre-existing timezone fixture correction; original accepted application blobs unchanged.",
+    "per_run_limits": {
+      "soft_usd": 4,
+      "hard_usd": 8,
+      "soft_turns": 20,
+      "hard_turns": 40
+    },
+    "authority": "Existing independent audit retry authority and unchanged aggregate Na audit cap; reduced per-run caps only.",
+    "run_id": "2dfdc98c-c1e4-4981-86a8-c9e34ef89c80",
+    "audited_sha": "6676efcd14039a133fdb266c309ccd462f53e4fe",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "turns": 17,
+    "cost_usd": 0.89644275,
+    "elapsed_ms": 357918,
+    "stop_reason": "reviewer_completed",
+    "findings": {
+      "Critical": 0,
+      "High": 0,
+      "Medium": 0,
+      "Low": 2
+    },
+    "lows": [
+      "Residual host dates in historical request arguments/final assertion; benign for current UTC/NY cases, broader clock cleanup deferred.",
+      "Frozen reviewer cannot independently rerun private test logs or inspect CI; limitation preserved."
+    ],
+    "manifest_validation": "Passed at frozen6676 before later docs-only closure record.",
+    "all_16_explicit_head_bodies_delivered": true,
+    "new_paid_product_runs": 0
+  },
+  "corrected_integration_verification": {
+    "status": "passed",
+    "environment": "Python 3.12, TZ=UTC",
+    "result": "3585 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 73.33s",
+    "log_sha256": "fbf38436e7ce3725b1e722781b2de901ee023668e96e82e70bcb9fa004e59294",
+    "ruff": "All checks passed!",
+    "fixture_only_source_difference": true,
+    "accepted_na_24_blobs_unchanged": true,
+    "paid_runs_repeated": 0
+  },
+  "integration_fixture_object": {
+    "path": "tests/test_undated_tools_as_of.py",
+    "blob": "6ef3d9803f78f66d71c7fa301f58ad2580c842f5",
+    "only_additional_test_change": "Use exchange-local date for mock session range; original assertions unchanged."
+  }
+}

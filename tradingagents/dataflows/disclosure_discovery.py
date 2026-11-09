@@ -11,6 +11,7 @@ from decimal import Decimal
 from tradingagents.dataflows.disclosure_context import (
     _HEADING,
     central_estimate_clause,
+    collapse_quote_packages,
     lower_bound_clause,
     outlook_period,
     qualified_value_spans,
@@ -20,7 +21,6 @@ from tradingagents.dataflows.disclosure_evidence import (
     DisclosureResult,
     validate_disclosure_claims,
 )
-from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
 _NUMBER = r'\d[\d,]*(?:\.\d+)?'
 
@@ -46,7 +46,7 @@ def _amount(span):
 
 
 def discover_disclosures(packages) -> DisclosureResult:
-    packages = tuple(DisclosurePackage.model_validate(p) for p in packages)
+    packages = collapse_quote_packages(packages)
     blocks = {(d.source_id, b.locator): b.section + '\n' + b.text
               for p in packages for d in p.documents for b in d.blocks}
     proposed = []
@@ -105,6 +105,9 @@ def discover_disclosures(packages) -> DisclosureResult:
                         r'(?P<quote>(?P<metric>Revenue|AI Customer ARR) was \$(?P<value>' + _NUMBER
                         + r') (?P<unit>million|billion)), an (?:increase|decrease) of (?P<growth>'
                         + _NUMBER + r')%', text, re.I):
+                        if any(p['source_id'] == doc.source_id and p['locator'] == block.locator
+                               and p['metric'] == match['metric'] for p in proposed):
+                            continue  # The complete qualified-sentence path already proposed this value.
                         definition = definitions.get(match['metric'])
                         data = {'source_id': doc.source_id, 'locator': block.locator,
                             'metric': match['metric'], 'value': _decimal(match['value']), 'unit': match['unit'],

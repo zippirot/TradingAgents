@@ -13,8 +13,10 @@ from html import escape
 
 from pydantic import ValidationError
 
+from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
+from tradingagents.agents.evidence_validation import _select_compatible_fact, obligation_checks
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
-from tradingagents.agents.valuation_cases import RevenueCase, price_case
+from tradingagents.agents.valuation_cases import RevenueCase, obligation_bases, price_case
 from tradingagents.agents.valuation_comparison import (
     comparable_quote,
     compare_valuation,
@@ -49,6 +51,71 @@ def _comparable(request, result):
     if isinstance(request, EVRevenueTarget):
         return (*common, request.perimeter, request.shares_fact_id, request.revenue_fact_id)
     return (*common, request.eps_fact_id, request.eps_basis, request.forecast is not None)
+
+
+def _source_bound_lease_requests(request, result, package, outlooks, sensitivities):
+    """Price missing lease perimeters on separate requests with dated filing balances."""
+    supplemental = {}
+    capital = request.capital
+    if "borrowings" not in capital.obligations:
+        return supplemental
+    bases = {"borrowings_finance_equipment_less_cash_v1": "finance_equipment",
+             "all_classified_obligations_less_cash_v1": "all_leases"}
+    by_id = {f.fact_id: f for f in package.facts}
+    # A check may use a complete total when component selection returned
+    # nothing. An absent component is fine; competing versions are ambiguous.
+    dated = {}
+    for fact in package.facts:
+        if fact.period_start is None and fact.period_end == result.capital_snapshot_date and fact.value is not None:
+            dated.setdefault(fact.metric, []).append(fact)
+    ambiguous_categories = {
+        category for category, metrics in _OBLIGATION_METRICS.items()
+        if any(len(dated.get(metric, ())) > 1 and _select_compatible_fact(package, dated[metric]) is None
+               for metric in metrics)
+    }
+    for check in obligation_checks(package):
+        basis = bases.get(check.method)
+        if not basis or check.status != "pass" or basis == request.multiple_basis or basis in sensitivities:
+            continue
+        relevant = {"finance_equipment", "finance_leases", "equipment"}
+        if basis == "all_leases":
+            relevant.add("operating_leases")
+        if ambiguous_categories & relevant:
+            continue
+        source_facts = [by_id[i] for i in check.input_fact_ids]
+        if any(f.period_end != result.capital_snapshot_date or f.unit != capital.currency for f in source_facts):
+            continue
+        candidate = request.model_dump(mode="json")
+        candidate["multiple_basis"] = basis
+        obligations = candidate["capital"]["obligations"]
+        # Keep the submitted combined/separate representation if one exists.
+        permitted = (obligation_bases(obligations)[basis]
+                     if obligations.keys() & {"finance_equipment", "finance_leases", "equipment"}
+                     else relevant)
+        for category, metrics in _OBLIGATION_METRICS.items():
+            if category in obligations or category not in permitted:
+                continue
+            group = [f for f in source_facts if f.metric in metrics]
+            if group:
+                with localcontext() as ctx:
+                    ctx.prec = 60
+                    obligations[category] = {
+                        "value": str(sum(f.value for f in group)), "fact_ids": [f.fact_id for f in group],
+                        "assumption": "unchanged_from_snapshot",
+                        "reason": (f"{category} obligations as of {result.capital_snapshot_date} held constant "
+                                   f"through {capital.valuation_date}, with no growth or repayment assumed."),
+                    }
+        if obligations.keys() == capital.obligations.keys():
+            continue
+        try:
+            priced, _ = price_case(RevenueCase.model_validate(candidate), package, outlooks)
+        except (ValueError, ArithmeticError):
+            # An overlapping category or nonpositive equity can invalidate only
+            # this alternative. Never replace the accepted case or guess a price.
+            continue
+        sensitivities[basis] = str(priced.target)
+        supplemental[basis] = candidate
+    return supplemental
 
 
 def prepare_shared_valuation(state, requests=None):
@@ -89,8 +156,12 @@ def prepare_shared_valuation(state, requests=None):
     rows, reasons, comparisons = [], [], []
     for index, row in enumerate(requests, 1):
         try:
-            if not isinstance(row, dict) or set(row) != {"name", "request"}:
+            if (not isinstance(row, dict) or not {"name", "request"} <= set(row)
+                    or set(row) - {"name", "request", "scenario_role"}):
                 raise ValueError("Expected name and request fields")
+            scenario_role = row.get("scenario_role")
+            if scenario_role is not None and (not isinstance(scenario_role, str) or not scenario_role.strip()):
+                raise ValueError("Scenario role must be an explicit nonempty string")
             name = row["name"]
             if not isinstance(name, str) or not name.strip() or len(name) > 80:
                 raise ValueError("Scenario name missing or oversized")
@@ -98,9 +169,11 @@ def prepare_shared_valuation(state, requests=None):
             if not isinstance(raw, dict):
                 raise ValueError("Scenario request malformed")
             sensitivities = {}
+            supplemental = {}
             if raw.get("method") == "revenue_case":
                 request = RevenueCase.model_validate(raw)
                 result, sensitivities = price_case(request, package, outlooks)
+                supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities)
             elif raw.get("method") == "ev_revenue" and raw.get("capital_structure_assumption") == "forward_capital_v1":
                 request = EVRevenueTarget.model_validate(raw)
                 if len(request.scenarios) != 1 or request.scenarios[0].weight != 1:
@@ -133,8 +206,10 @@ def prepare_shared_valuation(state, requests=None):
                 comparison = compare_valuation(state, result, request)
             case_id = "case-" + hashlib.sha256(name.strip().encode()).hexdigest()[:16]
             rows.append({"name": name.strip(), "case_id": case_id, "version": 1,
+                         **({"scenario_role": scenario_role} if scenario_role is not None else {}),
                          "request": request.model_dump(mode="json"), "result": result.model_dump(mode="json"),
-                         "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities})
+                         "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
+                         **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
         except ValidationError as exc:
             error = exc.errors(include_input=False)[0]
             reasons.append(f"Row {index} omitted: malformed valuation request at " + ".".join(map(str, error["loc"])))
@@ -157,6 +232,31 @@ def prepare_shared_valuation(state, requests=None):
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
     return _record(status, requests, rows, reasons)
+
+
+def annotate_disputed_cases(state, record):
+    """An accepted finding can exclude a displayed case, never alter its math."""
+    from tradingagents.agents.audit_pass import prepare_audit_dispositions
+    findings = [f for f in prepare_audit_dispositions(state)['findings'] if f['disposition'] == 'accepted']
+    def prose(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key in {'reason', 'rationale', 'multiple_rationale', 'assumption_text'} and isinstance(item, str):
+                    yield item
+                elif isinstance(item, (dict, list)):
+                    yield from prose(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from prose(item)
+    rows = []
+    for row in record.get('rows', []):
+        text = list(prose(row.get('request', {})))
+        ids = [f['finding_id'] for f in findings
+               if (f.get('case_id') == row['case_id'] if f.get('case_id') else
+                   bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text))]
+        clean = {key: value for key, value in row.items() if key != 'disputed_by'}
+        rows.append({**clean, **({'disputed_by': ids} if ids else {})})
+    return {**record, 'rows': rows}
 
 
 def replay_cases(state, *, revision=None):
@@ -229,14 +329,24 @@ def render_shared_valuation(record):
                       "Source fact IDs: " + ", ".join(_cell(v) for v in result["input_fact_ids"])
                       + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]
             lines.append(f"Case ID {row['case_id']}, version {row['version']}.")
+            if row.get('disputed_by'):
+                lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; excluded from conditional range. Arithmetic retained unchanged.')
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"
                 lines.append(f"{_cell(request['multiple_basis'])} / revenue ({clock}): {display_number(request['forecast']['value'])} × {display_number(request['multiple'])}; " +
                              ("equity basis, no debt or cash adjustment" if request['multiple_basis'] == 'equity' else f"less net obligations {display_number(result['net_obligations'])}") +
                              f"; divide by {display_number(result['shares_outstanding'])} assumed closing common shares at {request['capital']['valuation_date']}.")
+                supplemental = row.get("source_bound_sensitivity_requests", {})
                 for basis, price in row["sensitivities"].items():
-                    lines.append(f"Sensitivity only, same numerical multiple held fixed — {_cell(basis)}: {display_number(price)} {_cell(result['unit'])}.")
+                    assumptions = []
+                    if basis in supplemental:
+                        for category, item in supplemental[basis]["capital"]["obligations"].items():
+                            if category not in request["capital"]["obligations"]:
+                                assumptions.append(_cell(item["reason"]))
+                    label = (f"Sensitivity only, same numerical multiple held fixed — {_cell(basis)}: "
+                             f"{display_number(price)} {_cell(result['unit'])}.")
+                    lines.append(" ".join([label, *assumptions]))
             elif result["method"] == "ev_revenue":
                 s = result["scenario_results"][0]
                 lines.append(f"Revenue {display_number(s['revenue'])} × multiple {display_number(s['multiple'])} = enterprise value {display_number(s['enterprise_value'])}; less scenario net obligations {display_number(s['net_obligations'])} = conditional equity {display_number(s['equity_value'])}.")
@@ -253,7 +363,14 @@ def render_shared_valuation(record):
                 lines.append(f"Decision date: {result.get('decision_date') or 'not specified'}; unvalidated rerating assumption: {_cell(result.get('rerating_assumption') or 'not supplied')}.")
             lines.append("")
             lines += ["- " + _cell(v) for v in result["assumptions"] if not v.startswith("Scenario weights and valuation multiples")]
-            lines += ["- Limitation: " + _cell(v) for v in result["warnings"]]
+            for warning in result["warnings"]:
+                # Original warnings remain in the base result. Qualify their
+                # scope when the separate source-bound request is available.
+                prefix = "Original submission: " if any(
+                    warning.startswith(basis + " sensitivity unavailable:")
+                    for basis in row.get("source_bound_sensitivity_requests", {})
+                ) else "Limitation: "
+                lines.append("- " + prefix + _cell(warning))
             if result['method'] != 'revenue_case':
                 lines += ["", render_valuation_comparison(row.get('comparison'))]
     if record.get("status") == "partial":

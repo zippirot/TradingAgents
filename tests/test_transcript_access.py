@@ -127,7 +127,7 @@ def test_failed_provider_and_missing_source_stay_unavailable(monkeypatch):
     state.update(access.prepare_transcript_sources(state, {"news"}))
     assert state["transcript_sources"]["status"] == "unavailable"
     assert access.validated_transcript_record(state) is None
-    assert "provider unavailable" in access.transcript_analyst_context(state)
+    assert "provider or cache unavailable" in access.transcript_analyst_context(state)
     state, _ = state_with_sec_corpus()
     state["document_sources"] = None
     monkeypatch.setattr(access.vendor_transcript, "get_latest_transcript_evidence",

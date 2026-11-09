@@ -399,8 +399,16 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key not in self.kwargs:
                 continue
-            if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
-                continue
+            if key == "reasoning_effort":
+                if self.provider == "openrouter":
+                    # OpenRouter accepts reasoning.effort for any routed model
+                    # that supports reasoning; its IDs do not follow OpenAI's naming.
+                    llm_kwargs["extra_body"] = {"reasoning": {"effort": self.kwargs[key]}}
+                    continue
+                if self.provider in ("openai", "chatgpt") and not _supports_reasoning_effort(self.model):
+                    logger.warning("reasoning effort %r not forwarded to provider %r",
+                                   self.kwargs[key], self.provider)
+                    continue
             llm_kwargs[key] = self.kwargs[key]
 
         # The subclass (provider quirks) comes from the registry spec.

@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.market import get_closes
+from tradingagents.dataflows.vendors.yahoo.market import get_closes, get_settlement_closes
 from tradingagents.memory.log import is_trading_entry
+from tradingagents.source_replay import source_now
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +103,68 @@ def calendar_exit_date(entry, months):
                          day=min(entry.day, calendar.monthrange(year, month + 1)[1]))
 
 
+class PricePass:
+    """One publication pass's prices; full bounds are planned before lazy reads.
+
+    Nothing survives this object. A failed symbol is not repeatedly requested
+    by sibling endpoints, and unrelated symbols remain independently readable.
+    """
+
+    def __init__(self, records, before):
+        self.before = before
+        self.starts = {}
+        self.prices = {}
+        for record in records:
+            start = datetime.strptime(record['requested_as_of'], '%Y-%m-%d')
+            if record['evaluation_mode'] == 'prospective':
+                stamp = datetime.fromisoformat(record['published_at'])
+                if stamp.utcoffset() is None:
+                    raise ValueError('Publication timestamp requires timezone')
+                start = max(start, datetime.combine(stamp.date(), datetime.min.time()) - timedelta(days=1))
+            for symbol, first in ((record['ticker'], start),
+                                  (record['benchmark'], start - timedelta(days=7))):
+                symbol = normalize_symbol(symbol)
+                self.starts[symbol] = min(self.starts.get(symbol, first), first)
+
+    def get(self, symbol):
+        symbol = normalize_symbol(symbol)
+        if symbol not in self.prices:
+            start = self.starts[symbol].strftime('%Y-%m-%d')
+            try:
+                self.prices[symbol] = get_settlement_closes(symbol, start, self.before)
+            except Exception as exc:
+                self.prices[symbol] = exc
+        value = self.prices[symbol]
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    def window(self, symbol, start, end):
+        value = self.get(symbol)
+        dates = value.index.tz_localize(None) if value.index.tz is not None else value.index
+        return value[(dates >= start) & (dates < end)]
+
+    def instrument(self, record):
+        """Retain the calculator's publication-session and completed-bar rules."""
+        value = self.get(record['ticker'])
+        cutoff = datetime.strptime(record['requested_as_of'], '%Y-%m-%d')
+        zone = getattr(value.index, 'tz', None)
+        if record['evaluation_mode'] == 'prospective':
+            if zone is None:
+                raise ValueError('Instrument timezone unavailable for publication-session cutoff')
+            stamp = datetime.fromisoformat(record['published_at']).astimezone(zone)
+            cutoff = max(cutoff, datetime.combine(stamp.date(), datetime.min.time()))
+        before = datetime.strptime(self.before, '%Y-%m-%d')
+        if zone is not None:
+            before = min(before, datetime.combine(source_now(zone).date(), datetime.min.time()))
+        cleaned = _by_day(value)
+        return cleaned[(cleaned.index > cutoff) & (cleaned.index < before)], cutoff, before
+
+
 def fetch_outcome(
     ticker: str, trade_date: str, holding_days: int | None = 5, benchmark: str = "SPY",
     *, published_at: str | None = None, prices_before: str | None = None,
-    calendar_months: int | None = None, benchmark_alignment: str = "asof",
+    calendar_months: int | None = None, benchmark_alignment: str = "asof", price_fetcher=None,
 ) -> dict | None:
     """Return a reconstructable daily-close outcome, or None while pending.
 
@@ -113,6 +172,7 @@ def fetch_outcome(
     not establish executable timestamps. Benchmark prices retain their actual
     sessions when calendars differ, rather than inheriting stock dates.
     """
+    fetch = price_fetcher or get_closes
     if calendar_months is not None:
         if type(calendar_months) is not int or calendar_months not in (3, 6) or holding_days is not None:
             raise ValueError("calendar endpoints require 3 or 6 months and holding_days=None")
@@ -134,7 +194,7 @@ def fetch_outcome(
     # the completed cutoff so an old fixed end date cannot strand a mature run.
     from tradingagents.dataflows.date_window import get_current_date
     before = datetime.strptime(prices_before or get_current_date(), "%Y-%m-%d")
-    before = min(before, datetime.combine(datetime.now().date(), datetime.min.time()))
+    before = min(before, datetime.combine(source_now().astimezone().date(), datetime.min.time()))
     if request_start >= before:
         return None
     end = (calendar_exit_date(request_start, calendar_months) + timedelta(days=21)
@@ -147,7 +207,7 @@ def fetch_outcome(
     retrieval_spans = []
     chunk_start = request_start
     for attempt in range(3):
-        raw = get_closes(ticker, chunk_start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+        raw = fetch(ticker, chunk_start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
         timezone = getattr(raw.index, "tz", None)
         if not raw.empty:
             if timezone_observed and timezone != stock_timezone:
@@ -155,7 +215,7 @@ def fetch_outcome(
             stock_timezone = timezone
             timezone_observed = True
         if timezone is not None:
-            exchange_today = datetime.now(timezone).date()
+            exchange_today = source_now(timezone).date()
             before = min(before, datetime.combine(exchange_today, datetime.min.time()))
         if publication is not None and not raw.empty:
             if timezone is None:
@@ -170,8 +230,14 @@ def fetch_outcome(
             chunk = chunk[(chunk.index >= chunk_start) & (chunk.index < end)
                           & (chunk.index > start) & (chunk.index < before)]
             stock = pd.concat([stock, chunk]).sort_index() if not stock.empty else chunk
-        retrieval_spans.append({"start": chunk_start.strftime("%Y-%m-%d"),
-                                "end_exclusive": end.strftime("%Y-%m-%d")})
+        span = {"start": chunk_start.strftime("%Y-%m-%d"),
+                "end_exclusive": end.strftime("%Y-%m-%d")}
+        if (price_fetcher is not None and raw.attrs.get('settlement_request_start')
+                and raw.attrs.get('settlement_request_end')):
+            span = {'start': raw.attrs['settlement_request_start'],
+                    'end_exclusive': raw.attrs['settlement_request_end']}
+        if span not in retrieval_spans:
+            retrieval_spans.append(span)
         complete = (not stock.empty and
                     ((stock.index >= calendar_exit_date(stock.index[0], calendar_months)).any()
                      if calendar_months else len(stock) > holding_days))
@@ -205,12 +271,12 @@ def fetch_outcome(
     end_str = min(end, before).strftime("%Y-%m-%d")
     # From a week earlier, so the benchmark has a close on or before entry.
     bench_start = (start - timedelta(days=7)).strftime("%Y-%m-%d")
-    benchmark_prices = get_closes(benchmark, bench_start, end_str)
+    benchmark_prices = fetch(benchmark, bench_start, end_str)
     bench = _by_day(benchmark_prices)
     benchmark_before = before
     benchmark_timezone = getattr(benchmark_prices.index, "tz", None)
     if benchmark_timezone is not None:
-        benchmark_today = datetime.now(benchmark_timezone).date()
+        benchmark_today = source_now(benchmark_timezone).date()
         benchmark_before = min(benchmark_before, datetime.combine(benchmark_today, datetime.min.time()))
     bench = bench[bench.index < benchmark_before]
 
@@ -278,12 +344,44 @@ def fetch_outcome(
 class Settlement:
     """What a settlement pass did: the decisions it settled and those it could not."""
 
+    endpoint_immature: list[tuple[str, str]] = field(default_factory=list)
+    endpoint_terminal: list[tuple[str, str]] = field(default_factory=list)
+    endpoint_deferred: list[tuple[str, str]] = field(default_factory=list)
+    skipped_publications: list[dict] = field(default_factory=list)
     endpoint_settled: list[tuple[str, str]] = field(default_factory=list)  # (decision_id, endpoint)
     settled: list[tuple[str, str]] = field(default_factory=list)  # (ticker, date)
     failed: list[tuple[str, str, str]] = field(default_factory=list)  # (ticker, date, reason)
 
 
-def settle_pending(
+def _publication_settlement(config, ticker=None, wait=True):
+    result = Settlement()
+    if config.get('results_dir'):
+        from tradingagents.memory.publication_outcomes import settle_publications
+        endpoints = settle_publications(config, ticker, wait=wait)
+        result.endpoint_settled.extend(endpoints['settled'])
+        result.endpoint_immature.extend(endpoints['immature'])
+        result.endpoint_terminal.extend(endpoints['terminal'])
+        result.endpoint_deferred.extend(endpoints['deferred'])
+        result.skipped_publications.extend(endpoints['skipped'])
+        result.failed.extend((ticker or 'publication', identity, reason)
+                             for identity, reason in endpoints['failed'])
+    return result
+
+
+def _extend_settlement(result, done):
+    for name in ('endpoint_settled', 'endpoint_immature', 'endpoint_terminal', 'endpoint_deferred',
+                 'skipped_publications', 'settled', 'failed'):
+        getattr(result, name).extend(getattr(done, name))
+    return result
+
+
+def settle_pending(ticker, memory_log, reflector, config, wait=True):
+    """One publication price pass, followed by the unchanged legacy policy."""
+    return _extend_settlement(_publication_settlement(config, ticker, wait),
+                              _settle_legacy_pending(ticker, memory_log, reflector, config, wait))
+
+
+def _settle_legacy_pending(
     ticker: str, memory_log, reflector, config: dict, wait: bool = True
 ) -> Settlement:
     """Settle ``ticker``'s pending decisions whose holding window has traded.
@@ -296,11 +394,6 @@ def settle_pending(
     With ``wait=False`` a pass already running elsewhere is left to do the work.
     """
     result = Settlement()
-    if config.get("results_dir"):
-        from tradingagents.memory.publication_outcomes import settle_publications
-        endpoints = settle_publications(config, ticker, wait=wait)
-        result.endpoint_settled.extend(endpoints["settled"])
-        result.failed.extend((ticker, decision_id, reason) for decision_id, reason in endpoints["failed"])
     with memory_log.settling(wait=wait) as held:
         if not held:
             return result
@@ -343,7 +436,8 @@ def settle_pending(
                 result.failed.append((ticker, entry["date"], f"reflection failed: {exc}"))
                 continue
             if memory_log.update_with_outcome(
-                ticker, entry["date"], raw, alpha, days, reflection, resolution_date=resolution_date
+                ticker, entry["date"], raw, alpha, days, reflection,
+                resolution_date=resolution_date, expected_entry=entry,
             ):
                 result.settled.append((ticker, entry["date"]))
     return result
@@ -380,14 +474,8 @@ def settle_all_pending(memory_log, reflector, config: dict, wait: bool = True) -
     A run settles its own ticker; a ticker no longer analysed would otherwise
     keep its decisions pending, and their lessons out of later runs.
     """
-    result = Settlement()
-    tickers = [e["ticker"] for e in memory_log.get_pending_entries() if is_trading_entry(e)]
-    if config.get("results_dir"):
-        from tradingagents.memory.publication import list_records
-        tickers.extend(r["ticker"] for r in list_records(config))
+    result = _publication_settlement(config, wait=wait)
+    tickers = [e['ticker'] for e in memory_log.get_pending_entries() if is_trading_entry(e)]
     for ticker in dict.fromkeys(tickers):
-        done = settle_pending(ticker, memory_log, reflector, config, wait=wait)
-        result.endpoint_settled.extend(done.endpoint_settled)
-        result.settled.extend(done.settled)
-        result.failed.extend(done.failed)
+        _extend_settlement(result, _settle_legacy_pending(ticker, memory_log, reflector, config, wait=wait))
     return result

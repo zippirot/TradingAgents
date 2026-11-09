@@ -1,0 +1,137 @@
+{
+  "base_commit": "1b0ffc4fd5118e4ed99b360fa949ed4d40929514",
+  "head_commit": "0bd4a9985e00c2ac1eec5538cb69d2bd2d9a7ada",
+  "requested_model": "~anthropic/claude-fable-latest",
+  "served_model": "~anthropic/claude-fable-latest",
+  "status": "completed",
+  "actual_turns": 54,
+  "reviewed_files": [
+    "cli/run.py",
+    "cli/run_logging.py",
+    "cli/stats_handler.py",
+    "cli/updates.py",
+    "docs/reviews/2026-11-07-operations-and-page-acceptance.md",
+    "docs/reviews/2026-11-07-operations-browser.json",
+    "docs/reviews/2026-11-07-operations-runtime.json",
+    "docs/reviews/2026-11-07-operations-source-context.md",
+    "docs/reviews/operations-cli-proof.py",
+    "docs/superpowers/plans/2026-11-07-operations-and-page.md",
+    "tests/test_analyst_execution.py",
+    "tests/test_build2_continuation_proof.py",
+    "tests/test_cache_writes.py",
+    "tests/test_cli_attempt_operations.py",
+    "tests/test_cli_headless.py",
+    "tests/test_date_boundaries.py",
+    "tests/test_evidence_gate.py",
+    "tests/test_graph_end_to_end.py",
+    "tests/test_ohlcv_cache_freshness.py",
+    "tests/test_ohlcv_latest_bar.py",
+    "tests/test_openrouter_model_select.py",
+    "tests/test_operational_capture.py",
+    "tests/test_operations_metadata.py",
+    "tests/test_preanalyst_acquisition.py",
+    "tests/test_run_logging.py",
+    "tests/test_transcript_access.py",
+    "tests/test_transcript_tool_integration.py",
+    "tests/test_undated_tools_as_of.py",
+    "tests/test_vendor_routing.py",
+    "tests/test_yahoo_rate_limit.py",
+    "tests/test_yfinance_stale_ohlcv_guard.py",
+    "tradingagents/agents/analysts/turn.py",
+    "tradingagents/agents/document_access.py",
+    "tradingagents/agents/evidence_validation.py",
+    "tradingagents/agents/managers/portfolio_manager.py",
+    "tradingagents/agents/managers/research_manager.py",
+    "tradingagents/agents/researchers/bear_researcher.py",
+    "tradingagents/agents/researchers/bull_researcher.py",
+    "tradingagents/agents/risk_mgmt/aggressive_debator.py",
+    "tradingagents/agents/risk_mgmt/conservative_debator.py",
+    "tradingagents/agents/risk_mgmt/neutral_debator.py",
+    "tradingagents/agents/structured.py",
+    "tradingagents/agents/tools.py",
+    "tradingagents/agents/transcript_access.py",
+    "tradingagents/dataflows/errors.py",
+    "tradingagents/dataflows/router.py",
+    "tradingagents/dataflows/vendors/alpha_vantage/indicator.py",
+    "tradingagents/dataflows/vendors/yahoo/market.py",
+    "tradingagents/dataflows/vendors/yahoo/ohlcv.py",
+    "tradingagents/default_config.py",
+    "tradingagents/graph/setup.py",
+    "tradingagents/graph/trading_graph.py",
+    "tradingagents/llm_clients/factory.py",
+    "tradingagents/llm_clients/openai_client.py",
+    "tradingagents/operational_capture.py",
+    "tradingagents/report_html.py",
+    "tradingagents/reporting.py"
+  ],
+  "summary": "Independent audit of frozen Build D range 1b0ffc4f..0bd4a998 (codex/operations-and-page, 59 files) against the frozen D2–D10 requirements, using only the supplied request.json (diff, source-context bodies, receipts). All ten tasks are implemented substantially as specified and each has matching tests in the diff: D2 run-owned sanitized WARNING log with cleanup/restore and traceback-location-only exception rendering; D3 per-attempt directories, run-id state archives with strict atomic writes plus latest pointer, exact-run-id recovery with legacy fallback, interrupted-vs-failed attempt events, and message-buffer callback restoration; D4 coverage-scoped token line that never fabricates zero, Decimal-validated dual-price estimate with partial/billing disclaimers, retained source_hash/effort provenance that wins on re-export, price keys excluded from the checkpoint signature, and opt-out '0' enabling the update check; D5 save-path yes/no rejection, relative-path anchoring with escape check, one interactive retry that provably cannot reuse the failed resolved path, and unattended no-prompt failure with exit code 1; D6 OpenRouter extra_body.reasoning.effort verified at real payload level with Step 8 exposure and dropped-effort warnings; D7 type-name-only vendor diagnostics, bounded reason codes for retained-source failures, a strict fixed+dated-regex allowlist for NoMarketData detail (stale literal verified to match its producer exactly), sanitized ToolNode error handling, and dummy-secret compiled-graph regressions covering prompts, state, evidence and the new log; D8 truncation notes applied at the delivered-narrative boundary across analyst/wrap-up/research/risk/PM/structured-render/fallback paths using the existing finish detection, generation-info-only finish propagated exactly once with no double counting; D9 tool-call-ID-matched all_tools_failed with blank-success treated as no support, plain report warning and shared-evidence distinction; D10 action-requested downloads, full-window split verification before the as_of filter on both download and cache paths, typed unavailability for later splits/malformed/insufficient coverage/>400-day requests, legacy-cache refetch, and action columns stripped before any model-visible output. The Build2 continuation shim correctly strips only the new operational_delivery token while production checkpoint invalidation is preserved. The offline CLI proof script is genuinely native (real run_analysis/TradingAgentsGraph, socket-deny, credential isolation, SHA-verified recorded input, dummy-secret absence assertions) and its receipt is internally consistent with the code. No Critical, High or Medium in-scope gaps were found; seven Low findings are documented (diagnostic-specificity loss for indicator failures under the D7 allowlist, implicit contextvar coupling in D8 truncation labeling, short-absolute-path rejection in D5, formatter reliance on lazy log args, silent no-envelope degradation for providers rejecting include_raw, temporary root-level lowering affecting other handlers, and non-merging extra_body assignment). Test counts, CLI/browser receipts and CI-matrix coverage remain builder-attested or deferred as the packet itself declares; this audit grants no integration or release authority.",
+  "limitations": [
+    "Read-only audit of the single frozen request.json; I did not and could not execute pytest, ruff, the CLI replay script, or any browser proof. The reported suite result (3306 passed / 10 skipped / 1 deselected at da6f1876), the runtime receipt (2026-11-07-operations-runtime.json) and the browser receipt (2026-11-07-operations-browser.json) are builder-attested evidence; I verified their internal consistency with the diff and the proof script's assertions, not their execution.",
+    "Module bodies outside the supplied source-context set were not available. Notably unverified: the portfolio_manager/research_manager code above the diff hunks (where `decision` is produced and whether validate_final_case/replay make intermediate LLM calls, relevant to the D8 contextvar finding), cli/selections.py beyond the supplied _prompt_selections body, collect_tool_outputs, _local_midnight/_number internals, yf_retry/raise_for_empty, and the producers of several fixed allowlist literals in no_data_available (e.g. 'not covered', 'no fundamentals'); I could not confirm every allowlisted literal exactly matches its producer, only the stale-row literal and the historical-adjustment literals.",
+    "Browser-evidence reuse (receipt bound to early candidate 28ad8f39) rests on the builder's attestation that renderer, copy script and DOM were unchanged by subsequent D7 commits; the frozen packet contains no per-commit diff to verify this independently.",
+    "The acceptance claims about intermediate candidates (6 failures at 28ad8f39, 1 failure at 3b36ec12, peer-review-found defects fixed with regression proof) are builder narrative; only the final-state code and tests are in the frozen diff.",
+    "CI matrix (Python 3.11–3.14), fresh-install smoke, and Machine 1 acceptance are explicitly deferred and remain unverified for this local unpushed branch, as the packet itself states.",
+    "Converged within the soft budget (~28 turns); every changed file's diff hunk was read, but the four full modules reproduced in the source context (run.py, ohlcv.py, setup.py, structured.py and graph bodies) were verified selectively at the decision-relevant regions rather than line-by-line against their stated excerpt SHA-256 values, which I could not recompute without the repository."
+  ],
+  "findings": [
+    {
+      "severity": "low",
+      "title": "D7 allowlist silently drops sanitized locally generated indicator no-data details (e.g. '{indicator} unavailable: TypeName', '{indicator} could not be read for {date}: TypeName'), so an invalid LLM-chosen indicator now reads downstream as a generic no-usable-market-data message that can be mistaken for missing symbol coverage; the distinction survives only in logs",
+      "path": "tradingagents/dataflows/router.py"
+    },
+    {
+      "severity": "low",
+      "title": "delivered_narrative(raw=None) depends on the ambient _last_structured_raw contextvar; any future LLM/structured invocation between invoke_structured and the render call in the same node (e.g. inside validate_final_case or replay helpers in portfolio_manager/research_manager) would mislabel or drop the truncation note. Correct today per supplied code, but the coupling is implicit and unguarded",
+      "path": "tradingagents/operational_capture.py"
+    },
+    {
+      "severity": "low",
+      "title": "_resolve_save_path rejects any input shorter than three characters, including valid short absolute paths (e.g. '/a') and '~', forcing the default after one re-prompt; spec text ties the length rule to yes/no confusion, not absolute operator paths which D5 acceptance says remain supported",
+      "path": "cli/run.py"
+    },
+    {
+      "severity": "low",
+      "title": "Run-log sanitization relies on log call sites using lazy %-args: any app-owned logger call that eagerly formats provider exception text into the message string itself (msg is kept verbatim when it is a str) would bypass _SafeRunFormatter's argument suppression; known offenders were fixed but the formatter cannot enforce this globally",
+      "path": "cli/run_logging.py"
+    },
+    {
+      "severity": "low",
+      "title": "bind_structured's include_raw TypeError fallback means providers whose with_structured_output rejects include_raw get no raw envelope, so successful structured narratives on those providers can never receive a truncation note (silent degradation, no warning is logged for this path)",
+      "path": "tradingagents/agents/structured.py"
+    },
+    {
+      "severity": "low",
+      "title": "configure_run_logging lowers the root logger level to WARNING when it was higher, which also makes all pre-existing root handlers (e.g. a console handler set to ERROR) emit WARNING records for the duration of the run; level is restored on cleanup but the side effect during the run is undocumented",
+      "path": "cli/run_logging.py"
+    },
+    {
+      "severity": "low",
+      "title": "In openai_client the openrouter branch assigns llm_kwargs['extra_body'] by replacement rather than merge; nothing else sets extra_body at construction today, but a future registry/spec-supplied extra_body would be silently overwritten",
+      "path": "tradingagents/llm_clients/openai_client.py"
+    }
+  ],
+  "classification": {
+    "declared_build_size": "medium",
+    "effective_build_size": "large",
+    "escalation_reasons": [
+      "Frozen scope changes more than 10 files or more than 500 lines.",
+      "Frozen scope changes more than 30 files or more than 2,000 lines."
+    ]
+  },
+  "progress": {
+    "observed_events": 6882,
+    "last_activity_at": "2026-11-07T22:44:07.584Z",
+    "last_activity_kind": "stdout"
+  },
+  "ledger": {
+    "soft_budget_usd": 18,
+    "hard_budget_usd": 30,
+    "soft_turn_limit": 40,
+    "turn_limit": 70,
+    "wall_clock_limit_minutes": 150,
+    "actual_cost_usd": 5.963897,
+    "actual_elapsed_ms": 2300244,
+    "soft_limit_reached": true
+  },
+  "stop_reason": "reviewer_completed"
+}

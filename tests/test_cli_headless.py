@@ -264,7 +264,7 @@ def test_an_interactive_run_asks_for_the_html_page_and_opens_it(monkeypatch, tmp
 
     run._offer_reports(STATE, _report_graph(tmp_path), "NVDA")
 
-    page = tmp_path / "rel" / "out" / "complete_report.html"
+    page = tmp_path / "reports" / "rel" / "out" / "complete_report.html"
     assert page.exists() and browser.opened == [page.resolve().as_uri()]
     assert [q for q in asked if "HTML" in q] and [q for q in asked if "browser" in q]
 

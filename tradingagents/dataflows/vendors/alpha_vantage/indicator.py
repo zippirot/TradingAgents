@@ -69,7 +69,7 @@ def get_indicator(
         # the router decides. yfinance rejects a name nobody serves.
         raise NoMarketDataError(
             symbol, symbol,
-            f"Alpha Vantage does not serve {indicator}; it serves {list(supported_indicators)}"
+            "Requested indicator is not supported by this vendor"
         )
 
     as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
@@ -142,7 +142,7 @@ def get_indicator(
             # router try the next vendor, which computes it; returning prose
             # counted as a successful answer and ended the chain here.
             raise NoMarketDataError(
-                symbol, symbol, f"Alpha Vantage does not serve the {indicator} indicator"
+                symbol, symbol, "Requested indicator is not supported by this vendor"
             )
 
         lines = data.strip().split('\n')
@@ -215,5 +215,5 @@ def get_indicator(
         # instead of returning the failure as a successful-looking string.
         raise
     except Exception as e:
-        logger.warning("Alpha Vantage indicator %s failed: %s", indicator, e)
-        raise NoMarketDataError(symbol, symbol, f"{indicator} unavailable: {e}") from e
+        logger.warning("Alpha Vantage indicator %s failed: %s", indicator, type(e).__name__)
+        raise NoMarketDataError(symbol, symbol, "Indicator calculation or retrieval unavailable") from e

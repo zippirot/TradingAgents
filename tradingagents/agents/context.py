@@ -69,6 +69,18 @@ def get_language_instruction() -> str:
     )
 
 
+def risk_conversation_view(state: dict, *opponents: str) -> str:
+    """Show history once, retaining missing latest turns and honest opening markers."""
+    history = state.get('history', '') or ''
+    parts = [history] if history else []
+    for opponent in opponents:
+        response = (state.get(f'current_{opponent}_response') or '').strip()
+        if response and response in history:
+            continue
+        parts.append(opponent_argument_or_opening(response, f'{opponent} analyst'))
+    return '\n'.join(parts)
+
+
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
     """Opponent's latest argument, or an explicit opening marker when empty.
 
@@ -111,7 +123,11 @@ def resolve_instrument_identity(ticker: str) -> dict:
     (``XAUUSD`` -> ``GC=F``, #983).
     """
     try:
-        return _identity(ticker)
+        from tradingagents.source_replay import current_session
+
+        # A process-global identity cache cannot supply a comparison's source
+        # journal. Re-run this small projection against its recorded raw profile.
+        return _identity.__wrapped__(ticker) if current_session() else _identity(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
@@ -227,8 +243,17 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             state.get("price_observation") or {}, state["company_of_interest"],
             date.fromisoformat(state["trade_date"]),
         )
+        from decimal import Decimal
+
+        from tradingagents.agents.valuation_comparison import display_number
+
+        price = display_number(quote['close'])
+        if quote.get('price_precision') is not None:
+            rounded = f"{Decimal(quote['close']):.{quote['price_precision']}f}"
+            if Decimal(rounded) != 0:
+                price = rounded
         lines.append(
-            f"Canonical completed price: {quote['close']} {quote['currency']}; session {quote['session_date']}; "
+            f"Canonical completed price: {price} {quote['currency']}; session {quote['session_date']}; "
             f"timezone {quote['exchange_timezone']}; basis {quote['adjustment_basis']}; "
             f"source_id {quote['source_id']}. Dated completed close, not an executable or intraday quote."
         )
@@ -239,6 +264,11 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
     except (ValueError, TypeError, KeyError):
         reason = (state.get("price_observation") or {}).get("reason", "No verifiable completed price retained")
         lines.append("Canonical completed price unavailable: " + str(reason)[:500])
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(state)
+    if terms:
+        lines.extend(terms.splitlines())
     lines.append("Source scope: " + str(acquisition.get("status", "unavailable")) + "; " + str(acquisition.get("reason") or "")[:500])
     checks = acquisition.get("source_checks") or []
     for check in checks[:12]:
@@ -273,10 +303,52 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
     if package is None:
         lines.append("Financial source facts unavailable or source integrity not established; do not infer missing values.")
     else:
+        from tradingagents.agents.evidence_presentation import fact_reference_labels
+
+        liquidity = next((c for c in state.get("financial_calculations", ())
+                          if c.get("method") == "cash_plus_marketable_securities_v1"), None)
+        if liquidity:
+            labels = fact_reference_labels(state.get("canonical_financial_context", ""))
+            input_labels = {labels[ident] for ident in liquidity.get("input_fact_ids", ()) if ident in labels}
+            canonical_lines = str(state.get("canonical_financial_context", "")).splitlines()
+            lines.extend(line for line in canonical_lines if (
+                "cash plus marketable securities:" in line
+                or any(line.startswith(f"- [{label}]") for label in input_labels)))
+        from tradingagents.agents.issuer_events import issuer_supplement
+
+        # Acquisition already uses this deterministic matcher; rebind to the
+        # retained filing package rather than trusting a later event summary.
+        financing = issuer_supplement({}, state.get("filing_evidence"),
+                                     cik=package.cik, as_of=str(package.as_of))
+        for event in financing["financing_records"]:
+            if event['type'] != 'at_the_market_program':
+                lines.append(
+                    f"Financing disclosure: {event['form']} filed {event['known_at']}; "
+                    f"source_id {event['source_id']}, {event['locator']}; "
+                    f"reporting currency {event['currency'] or 'unresolved'}. Source statement: {event['quote']}"
+                )
+                continue
+            denomination = event["currency"] or "source $; denomination unknown"
+            lines.append(
+                f"Financing authorization: {event['form']} filed {event['known_at']}; "
+                f"at-the-market program up to {event['authorized_amount']} {denomination}; "
+                f"source_id {event['source_id']}, {event['locator']}. "
+                "Authorized capacity does not establish issuance; remaining capacity is unknown."
+            )
+        from tradingagents.agents.retained_kpi_context import (
+            render_lease_maturities,
+            render_retained_kpi_history,
+        )
+
+        for retained_context in (render_retained_kpi_history(state), render_lease_maturities(state)):
+            if retained_context:
+                lines.append(retained_context)
         # Latest records from each metric, plus annual earnings/revenue baselines.
         # Round-robin selection avoids rich history crowding out other definitions.
         groups = {}
         for fact in package.facts:
+            if fact.metric.startswith("Unclassified Marketable Securities ["):
+                continue  # Raw aliases remain in evidence, never duplicated as accepted liquidity.
             groups.setdefault(fact.metric, []).append(fact)
         for group in groups.values():
             group.sort(key=lambda f: (f.period_end, f.origin == "reported"), reverse=True)
@@ -381,8 +453,38 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
             state.get("asset_type", "stock"),
         )
     brief = state.get("shared_source_brief")
+    canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None
+    references = state.get("prompt_evidence_references")
+    projected = isinstance(canonical, str) and bool(canonical.strip()) and isinstance(references, dict)
     if isinstance(brief, str) and brief:
-        context += "\n\n" + brief
+        if projected:
+            from tradingagents.agents.evidence_presentation import (
+                fact_reference_labels,
+                prompt_id_view,
+            )
+
+            represented = set(fact_reference_labels(canonical))
+            canonical_lines = set(canonical.splitlines())
+            supplement = []
+            for line in brief.splitlines():
+                if line in canonical_lines:
+                    continue
+                if line.startswith("{"):
+                    import json
+
+                    try:
+                        item = json.loads(line)
+                    except ValueError:
+                        item = None
+                    if isinstance(item, dict) and item.get("fact_id") in represented:
+                        continue
+                supplement.append(line)
+            if supplement:
+                context += "\n\nPre-analyst source facts not represented by the accepted context:\n" + prompt_id_view(
+                    "\n".join(supplement), references,
+                )
+        else:
+            context += "\n\n" + brief
     reference = state.get("valuation_reference_brief")
     if isinstance(reference, str) and reference:
         context += "\n\n" + reference
@@ -396,9 +498,16 @@ def get_instrument_context_from_state(state: Mapping[str, Any], *, include_mecha
             context += "\n\n" + shared_mechanical
     # Before analysts, use only the retained bounded brief. Later research roles
     # also receive the final gate's canonical assessment and labeled narratives.
-    canonical = state.get("canonical_financial_context") if not brief or state.get("evidence_quality") else None
     if isinstance(canonical, str) and canonical.strip():
-        context += "\n\n" + canonical
+        if projected:
+            from tradingagents.agents.evidence_presentation import (
+                prompt_id_view,
+                without_reference_appendix,
+            )
+
+            context += "\n\n" + prompt_id_view(without_reference_appendix(canonical), references)
+        else:
+            context += "\n\n" + canonical
         validation = state.get("financial_claim_validation")
         raw = validation.get("raw_report") if isinstance(validation, Mapping) else None
         if isinstance(raw, str):

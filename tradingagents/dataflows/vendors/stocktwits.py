@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen
 from tradingagents.dataflows.date_window import coverage_gap, in_window
 from tradingagents.dataflows.symbols import crypto_base
 from tradingagents.operational_capture import record_operation
+from tradingagents.source_replay import external_input
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,12 @@ def fetch_stocktwits_messages(
     """
     url = _API.format(ticker=_stocktwits_symbol(ticker))
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
-    try:
+    def acquire():
         with urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read())
+            return resp.read()
+
+    try:
+        data = json.loads(external_input("stocktwits_feed", {"url": url}, acquire))
     except (OSError, http.client.HTTPException, json.JSONDecodeError) as exc:
         # OSError covers URLError/TimeoutError/connection resets; HTTPException
         # covers chunked-transfer errors (IncompleteRead/BadStatusLine, #1024).

@@ -470,6 +470,7 @@ def evaluate_publications(config, known_at=None):
         endpoint_group_key,
         endpoint_label,
         load_outcomes,
+        terminal_at,
     )
 
     cutoff = _summary_cutoff(
@@ -488,6 +489,7 @@ def evaluate_publications(config, known_at=None):
         },
         "groups": [],
         "observations": [],
+        "terminal_outcomes": [],
         "publications": [],
         "integrity_errors": [],
         "calibration": {
@@ -568,6 +570,7 @@ def evaluate_publications(config, known_at=None):
                         "primary": 0,
                         "resolved": 0,
                         "pending": 0,
+                        "unresolvable": 0,
                         "revisions": 0,
                         "review_or_ineligible": 0,
                         "_rows": [],
@@ -577,6 +580,13 @@ def evaluate_publications(config, known_at=None):
                     group["revisions" if directional else "review_or_ineligible"] += 1
                     continue
                 group["primary"] += 1
+                terminal = terminal_at(endpoint, cutoff)
+                if terminal:
+                    group['unresolvable'] += 1
+                    report['terminal_outcomes'].append({
+                        'decision_id': record['decision_id'], 'endpoint': name,
+                        'reason': terminal['reason'], 'known_at': terminal['known_at']})
+                    continue
                 outcome = endpoint.get("outcome")
                 resolved = (
                     endpoint["status"] == "resolved"
@@ -823,7 +833,7 @@ def render_publication_evaluation(report):
         mean = group["distributions"]["excess"]["mean"]
         hit = group["directional_excess_hit_rate"]
         lines.append(
-            f"- {group['evaluation_mode']}; {group['horizon_label']}; {group['benchmark']} ({group['benchmark_alignment']}): resolved {group['resolved']}, pending {group['pending']}; "
+            f"- {group['evaluation_mode']}; {group['horizon_label']}; {group['benchmark']} ({group['benchmark_alignment']}): resolved {group['resolved']}, pending {group['pending']}, unresolvable {group.get('unresolvable', 0)}; "
             + (f"mean excess {mean:+.2%}" if mean is not None else "mean excess unavailable")
             + (
                 f"; directional hit rate {hit:.1%}"

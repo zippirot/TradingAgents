@@ -22,15 +22,19 @@ def news_tool_coverage(messages) -> dict:
                 status = 'unavailable'
             elif text.startswith(('NO_DATA_AVAILABLE:', 'No news found for ')):
                 status = 'no_data'
+            elif 'Coverage: degraded: search_fallback, headlines_only' in text.split('### ', 1)[0]:
+                status = 'degraded'
             elif text.strip():
                 status = 'available'
             else:
                 status = 'unavailable'
             results.append(status)
-        status = ('available' if 'available' in results else 'unavailable' if 'unavailable' in results
+        status = ('degraded' if 'degraded' in results else 'available' if 'available' in results else 'unavailable' if 'unavailable' in results
                   else 'no_data' if results else 'not_retrieved')
         coverage[category] = {'status': status, 'tool': tool, 'calls': len(results),
                               'failed_calls': results.count('unavailable')}
+        if 'degraded' in results:
+            coverage[category]['reason'] = 'search_fallback, headlines_only'
     coverage['consensus'] = {'status': 'not_retrieved', 'reason': 'News and issuer disclosures do not establish analyst consensus'}
     return coverage
 
@@ -48,6 +52,7 @@ def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted
     if package is not None:
         package = DisclosurePackage.model_validate(package)
         if package.cik == cik and package.as_of == cutoff:
+            eligible_documents = []
             for document in package.documents:
                 filing = document.filing
                 if (filing.cik != cik or filing.filed_date > cutoff
@@ -64,7 +69,11 @@ def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted
                     continue
                 if not document.blocks:
                     continue
-                financing.extend(_financing_records(document, cutoff))
+                eligible_documents.append(document)
+            for document in eligible_documents:
+                filing = document.filing
+                financing.extend(_financing_records(
+                    document, cutoff, currency_binding=_filing_currency_binding(eligible_documents, filing.accession)))
                 events.append({'source_id': document.source_id, 'url': document.url,
                                'content_hash': document.content_hash, 'known_at': str(filing.filed_date),
                                'report_date': str(filing.report_date) if filing.report_date else None,
@@ -101,23 +110,84 @@ def issuer_supplement(coverage: dict, package, *, cik: str, as_of: str, accepted
         + "Authorized capacity does not establish issuance; remaining capacity and actual issuance are unknown. "
         f"Source: {r['url']}, {r['locator']}; filed {r['known_at']}; hash {r['content_hash']}. "
         f"Complete source statement: {r['quote']}"
-        for r in financing
+        for r in financing if r['type'] == 'at_the_market_program'
     )
+    other_financing = '\n'.join(
+        f"- Financing disclosure: {r['form']} filed {r['known_at']}; source_id {r['source_id']}, "
+        f"{r['locator']}. Complete source statement: {r['quote']}"
+        for r in financing if r['type'] != 'at_the_market_program')
+    financing_text = '\n'.join(text for text in (financing_text, other_financing) if text)
     return {'coverage': coverage, 'events': events, 'text': text,
             'financing_records': financing, 'financing_text': financing_text}
 
 
-def _financing_records(document, cutoff):
-    """Recognize only an explicit dated ATM authorization, never usage or dilution.
+def _filing_currency_binding(documents, accession):
+    """Only an explicit USD reporting declaration in this filed accession."""
+    bindings = []
+    currencies = set()
+    for document in documents:
+        if document.filing.accession != accession:
+            continue
+        for block in document.blocks:
+            if block.truncated:
+                continue
+            if (block.currency and block.currency_locator
+                    and re.search(r"iso4217:" + re.escape(block.currency) + r"\b", block.currency_locator)):
+                currencies.add(block.currency)
+                if block.currency == 'USD':
+                    bindings.append({'source_id': document.source_id, 'locator': block.locator,
+                                     'quote': block.currency_locator})
+            stated = re.search(
+                r"All (?:dollar )?amounts in this (?:filing|report|agreement) are (?:stated )?in "
+                r"(U\.S\. dollars|Canadian dollars|Australian dollars)\.", block.text)
+            if stated:
+                currency = {'U.S. dollars': 'USD', 'Canadian dollars': 'CAD', 'Australian dollars': 'AUD'}[stated[1]]
+                currencies.add(currency)
+                if currency == 'USD':
+                    bindings.append({'source_id': document.source_id, 'locator': block.locator, 'quote': stated[0]})
+    return bindings[0] if currencies == {'USD'} and bindings else None
 
-    A dollar symbol alone does not establish denomination. Only an explicit
+
+def _financing_records(document, cutoff, *, currency_binding=None):
+    """Recognize dated financing statements; only ATM authorizations have capacity values.
+
+    Notes and credit agreements retain complete source quotations without
+    assigning their amounts to issuance or remaining capacity. A dollar symbol
+    alone does not establish denomination. Only an explicit
     local agreement-currency statement can populate currency; retain its source.
     No FX conversion or model interpretation enters the complete paragraph.
     """
     records = []
     for block in document.blocks:
         text = block.text
-        if block.truncated or not re.search(r'“?at-the-market”?[”"]? offering program', text, re.I):
+        if block.truncated:
+            continue
+        dated = re.match(r'On ([A-Z][a-z]+ \d{1,2}, \d{4}), the Company ', text)
+        if dated:
+            try:
+                day = datetime.strptime(dated[1], '%B %d, %Y').date()
+            except ValueError:
+                continue
+            if day > min(cutoff, document.filing.filed_date):
+                continue
+            action = text[dated.end():]
+            kind = ('notes' if re.match(
+                r'issued \$\d[\d,]*(?:\.\d+)? (?:million|billion) '
+                r'(?:aggregate principal amount of |of )?(?:\d+(?:\.\d+)?% )?'
+                r'(?:(?:senior|convertible|subordinated) )*notes\b', action, re.I)
+                else 'credit_agreement' if re.match(
+                    r'entered into (?:a|an|the) (?:amended and restated )?credit agreement\b', action, re.I)
+                else None)
+            if kind:
+                # Source quotations only. Do not reinterpret credit capacity or
+                # issued notes as an ATM authorization/issuance sensitivity.
+                records.append({'type': kind, 'form': document.filing.form, 'event_date': str(day),
+                    'source_id': document.source_id, 'url': document.url, 'locator': block.locator,
+                    'known_at': str(document.filing.filed_date), 'content_hash': document.content_hash,
+                    'quote': text, 'currency': 'USD' if currency_binding else None,
+                    'currency_source': currency_binding})
+                continue
+        if not re.search(r'“?at-the-market”?[”"]? offering program', text, re.I):
             continue
         event = re.match(r'On ([A-Z][a-z]+ \d{1,2}, \d{4}), the Company entered into an equity distribution agreement\b', text)
         amounts = list(re.finditer(r'aggregate offering price of up to \$(\d+(?:\.\d+)?) (million|billion)\b', text, re.I))
@@ -141,7 +211,9 @@ def _financing_records(document, cutoff):
                         'Australian dollars': 'AUD'}[denomination[1]]
             currency_source = {'source_id': document.source_id, 'locator': block.locator,
                                'quote': denomination[0]}
-        records.append({'type': 'at_the_market_program', 'event_date': str(day),
+        elif not denominations and currency_binding is not None:
+            currency, currency_source = 'USD', currency_binding
+        records.append({'type': 'at_the_market_program', 'form': document.filing.form, 'event_date': str(day),
             'authorized_amount': str(amount), 'source_unit': '$', 'currency': currency,
             'currency_source': currency_source, 'amount_comparator': 'up_to',
             'issuance': None, 'remaining_capacity': None, 'source_id': document.source_id,
@@ -167,6 +239,8 @@ def financing_sensitivities(state):
         return []
     result = []
     for record in records:
+        if record['type'] != 'at_the_market_program':
+            continue
         row = {key: record[key] for key in ("event_date", "authorized_amount", "currency", "remaining_capacity",
                                              "issuance", "source_id", "locator", "known_at")}
         result.append(row)

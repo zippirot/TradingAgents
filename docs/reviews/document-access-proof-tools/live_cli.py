@@ -295,11 +295,13 @@ def assess_document_feature_proof(state: dict, work: Path, ticker: str) -> dict:
     try:
         followups = state.get("document_followups")
         if followups:
-            lookup_document_questions(state)  # revalidate exact retained answers
+            lookup_document_questions(state)  # revalidate exact retained source results
         rows = followups.get("results", []) if isinstance(followups, dict) else []
-        found = [row for row in rows if row.get("status") == "found" and row.get("passages")]
-        result("debate_followups", bool(rows) and bool(found),
-               f"{len(rows)} questions; {len(found)} with retained passages")
+        with_passages = [row for row in rows if row.get("status") in {
+            "found", "relevant_passages_found", "no_relevant_passage",
+        } and row.get("passages")]
+        result("debate_followups", bool(rows) and bool(with_passages),
+               f"{len(rows)} questions; {len(with_passages)} with retained source passages; no answer judgment")
         if followups:
             hashes["followup_record"] = followups.get("record_hash")
     except (ValueError, TypeError, KeyError) as exc:

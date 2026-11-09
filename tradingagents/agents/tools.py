@@ -320,16 +320,18 @@ def _retained_source_package(ticker, cutoff, state, field):
     record = state["evidence_acquisition"]
     if (record.get("schema_version") != 1 or record.get("ticker") != normalize_symbol(ticker)
             or record.get("as_of") != str(cutoff)):
-        raise VendorUnavailableError("Requested issuer or cutoff differs from retained source evidence; no newer source was fetched")
+        raise VendorUnavailableError("Requested issuer or cutoff differs from retained source evidence; no newer source was fetched",
+                                     reason_code="retained_scope_mismatch")
     if record.get("status") != "ready":
-        raise VendorUnavailableError(record.get("reason") or "Retained source evidence unavailable")
+        raise VendorUnavailableError("Retained source evidence unavailable", reason_code="retained_source_unavailable")
     if field == "filing_evidence" and record.get("disclosure_error"):
-        raise VendorUnavailableError(record["disclosure_error"])
+        raise VendorUnavailableError("Retained filing evidence unavailable", reason_code="retained_filing_unavailable")
     if field == "financial_evidence" and not any(
         check.get("code") == "source_integrity" and check.get("status") == "pass"
         for check in record.get("source_checks", ())
     ):
-        raise VendorUnavailableError("Retained financial source integrity is not established")
+        raise VendorUnavailableError("Retained financial source integrity is not established",
+                                     reason_code="retained_integrity_unavailable")
     try:
         model = EvidencePackage if field == "financial_evidence" else DisclosurePackage
         package = model.model_validate(state.get(field))
@@ -338,7 +340,8 @@ def _retained_source_package(ticker, cutoff, state, field):
             raise ValueError("Retained source package issuer/cutoff mismatch")
         return package
     except (ValueError, TypeError) as exc:
-        raise VendorUnavailableError("Retained source package unavailable or invalid; no replacement vintage fetched") from exc
+        raise VendorUnavailableError("Retained source package unavailable or invalid; no replacement vintage fetched",
+                                     reason_code="retained_package_invalid") from exc
 
 
 @tool

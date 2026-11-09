@@ -130,6 +130,39 @@ def check_balance_sheet(package: EvidencePackage, assets_id, liabilities_id, equ
         return _unavailable(method, ids, "incompatible_inputs", str(exc))
 
 
+def check_cash_plus_marketable_securities(package: EvidencePackage) -> Calculation:
+    """Statement liquidity, separate from valuation cash and obligation bridges."""
+    method = "cash_plus_marketable_securities_v1"
+    cash = [f for f in package.facts if f.metric == "Cash and Equivalents"
+            and f.value is not None and f.period_start is None]
+    if not cash:
+        return _unavailable(method, (), "cash_not_reported", "Cash and equivalents not reported")
+    end = max(f.period_end for f in cash)
+    cash = [f for f in cash if f.period_end == end]
+    securities = [f for f in package.facts if f.metric == "Current Marketable Securities"
+                  and f.value is not None and f.period_end == end]
+    if not securities:
+        return _unavailable(method, (), "marketable_securities_not_reported",
+                            "Marketable securities not reported")
+    ids = tuple(f.fact_id for f in (*cash, *securities))
+    try:
+        if len(cash) != 1 or len(securities) != 1:
+            raise ValueError("Cash or current securities balance is ambiguous or missing")
+        facts = _facts(package, ids)
+        _same(facts)
+        _money(facts)
+        if facts[0].period_start is not None or any(f.value < 0 for f in facts):
+            raise ValueError("Current liquidity requires nonnegative instant balances")
+        with localcontext() as ctx:
+            ctx.prec = 50
+            result = facts[0].value + facts[1].value
+        return Calculation(method=method, status="pass", result=result, unit=facts[0].unit,
+                           input_fact_ids=ids, reason_code="calculated",
+                           message="Statement cash and current marketable securities; not unrestricted valuation cash and not a liquidity forecast")
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incompatible_inputs", str(exc))
+
+
 def _signed_components(package, ids, signed_components):
     if any(sign not in (-1, 1) or isinstance(sign, bool) for _, sign in signed_components):
         raise ValueError("components require explicit +1 or -1 signs")

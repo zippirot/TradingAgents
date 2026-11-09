@@ -12,11 +12,13 @@ Configured by TypeSafe's own SDK variables, ``TYPESAFE_API_KEY``,
 block says screening was unavailable.
 """
 
+import contextlib
 import logging
 import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 
 import requests
 
@@ -78,22 +80,34 @@ def system_one(state, questions: dict) -> dict[str, dict]:
         "questions": questions,
     }
     headers = {"Authorization": f"Bearer {os.environ.get('TYPESAFE_API_KEY', '')}"}
+    from tradingagents.source_replay import external_input
+
+    url = _url()
+
+    def acquire():
+        response = requests.post(url, json=body, headers=headers, timeout=_TIMEOUT)
+        payload = None
+        if response.status_code == 200:
+            with contextlib.suppress(ValueError):
+                payload = response.json()
+        return {"status": response.status_code, "payload": payload,
+                "retry_after": _retry_after(response)}
     backoff, retry_after = 1.0, None
     for attempt in range(_ATTEMPTS):
         if attempt:
             time.sleep(retry_after if retry_after is not None else backoff * random.uniform(0.8, 1.2))
             backoff *= 2
         try:
-            response = requests.post(_url(), json=body, headers=headers, timeout=_TIMEOUT)
+            response = external_input("typesafe_post_screen", {"url": url, "body": body}, acquire)
         except requests.RequestException as exc:
             failure, retry_after = type(exc).__name__, None
             if isinstance(exc, _TRANSIENT):
                 continue
             break
-        if response.status_code == 200:
-            return _answers(response, questions)
-        failure, retry_after = f"HTTP {response.status_code}", _retry_after(response)
-        if response.status_code not in _RETRY_STATUSES:
+        if response["status"] == 200:
+            return _answers(response["payload"], questions)
+        failure, retry_after = f"HTTP {response['status']}", response["retry_after"]
+        if response["status"] not in _RETRY_STATUSES:
             break
     raise TypeSafeError(failure)
 
@@ -105,9 +119,8 @@ def _retry_after(response) -> float | None:
         return None
 
 
-def _answers(response, questions: dict) -> dict[str, dict]:
+def _answers(payload, questions: dict) -> dict[str, dict]:
     try:
-        payload = response.json()
         answers = payload["answers"]
         if all(answers[q]["type"] == spec["type"] for q, spec in questions.items()):
             logger.debug("TypeSafe answered with %s", payload.get("model"))
@@ -169,13 +182,19 @@ def _ask_each(instrument: str, posts: list[str]) -> list[dict]:
     sent are cancelled, and those in flight finish in the background unread."""
     answers: list = [None] * len(posts)
     pool = ThreadPoolExecutor(max_workers=_WORKERS)
+    futures = {}
     try:
         futures = {
-            pool.submit(system_one, {"instrument": instrument, "post": post}, QUESTIONS): i
+            pool.submit(copy_context().run, system_one, {"instrument": instrument, "post": post}, QUESTIONS): i
             for i, post in enumerate(posts)
         }
         for future in as_completed(futures):
             answers[futures[future]] = future.result()
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
+        from tradingagents.source_replay import current_session
+
+        session = current_session()
+        if session and any(not future.done() for future in futures):
+            session.unfinished_sources = True
     return answers

@@ -13,7 +13,10 @@ def prices(monkeypatch, dates, missing_benchmark=()):
     stock = pd.Series([100. + i for i in range(len(index))], index=index)
     benchmark = pd.Series([400. + i for i in range(len(index))], index=index)
     benchmark = benchmark.drop([pd.Timestamp(day, tz='America/New_York') for day in missing_benchmark])
-    monkeypatch.setattr(settlement, 'get_closes', lambda ticker, *args: stock if ticker == 'DOCN' else benchmark)
+    def price_source(ticker, *args):
+        return stock if ticker == 'DOCN' else benchmark
+    monkeypatch.setattr(settlement, 'get_closes', price_source)
+    monkeypatch.setattr(settlement, 'get_settlement_closes', price_source)
 
 
 @pytest.mark.parametrize('entry,months,nominal,exit_date', [
@@ -132,9 +135,11 @@ def test_calendar_exact_exit_gap_stays_pending_and_later_windows_independent(tmp
     dates = pd.bdate_range('2024-01-31','2024-08-01').strftime('%Y-%m-%d').tolist()
     prices(monkeypatch, dates, ['2024-04-30'])
     monkeypatch.setattr(outcomes,'get_current_date',lambda:'2024-08-02')
-    outcomes.settle_publications(config)
+    result = outcomes.settle_publications(config)
     saved = outcomes.load_outcomes(config,record)
     assert saved['endpoints']['3_calendar_months']['status'] == 'pending'
+    assert result['terminal'] == []
+    assert any('3_calendar_months' in reason for _, reason in result['failed'])
     assert saved['endpoints']['6_calendar_months']['status'] == 'resolved'
     assert saved['endpoints']['5_sessions']['status'] == 'resolved'
     # Later retrieval must never masquerade as a lesson known at its old exit.

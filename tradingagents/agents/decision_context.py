@@ -9,7 +9,7 @@ from html import escape
 
 from tradingagents.agents.issuer_events import financing_sensitivities
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
-from tradingagents.agents.shared_valuation import replay_cases
+from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_cases import CaseSelection, obligation_bases
 from tradingagents.agents.valuation_comparison import display_number
@@ -65,6 +65,19 @@ def decision_horizon(state: dict) -> dict:
         if len(labels) == 1:
             plain = _plain_horizon(labels[0])
     if plain:
+        months = pm.get('configured_horizon_months')
+        if fresh and type(months) is int and months > 0:
+            default = f'{months} months'
+            reason = _text(structured.get('horizon_reason'), 1200)
+            if not structured:
+                reasons = re.findall(r'(?im)^\s*(?:\*\*)?Horizon Reason(?:\*\*)?:\s*([^\r\n]+)', pm.get('fallback', '')[:12000])
+                reason = _text(reasons[0], 1200) if len(reasons) == 1 else ''
+            same = re.fullmatch(rf'{months}\s+months?', plain, re.I) is not None
+            if not same and reason:
+                return {'text': f'{plain} (PM override: {reason})', 'value': plain, 'status': 'explicit',
+                        'authority': 'Portfolio Manager horizon override; unvalidated model reasoning'}
+            return {'text': f'{default} (configured default)', 'value': default, 'status': 'explicit',
+                    'authority': 'configured decision horizon' if same else 'PM supplied a different horizon without a reason; configured default applied'}
         return {'text': plain, 'status': 'explicit', 'authority': 'Portfolio Manager stated horizon; unvalidated model text'}
     if fresh:
         return {'text': 'incomplete — explicit decision horizon required', 'status': 'incomplete',
@@ -142,7 +155,8 @@ def validate_final_case(state, request, cases=None):
             return result.model_copy(update={"decision_date": None, "rerating_assumption": None})
         if not selection.decision_date:
             raise ValueError("Rerating assumption requires a decision date")
-        if not _within_horizon(package.as_of, selection.decision_date, decision_horizon(state)["text"]):
+        horizon = decision_horizon(state)
+        if not _within_horizon(package.as_of, selection.decision_date, horizon.get("value", horizon["text"])):
             raise ValueError("Decision date outside the stated decision horizon")
         if result.multiple_assumption_date is None:
             raise ValueError("Dated link requires a dated multiple")
@@ -186,14 +200,15 @@ def _case_groups(rows):
                  **{k:capital[k] for k in ("closing_shares","cash") if k in capital}}.items()
                  if v["assumption"] == "unchanged_from_snapshot"]
         group["cases"].append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
+                               **({'disputed_by': row['disputed_by']} if row.get('disputed_by') else {}),
                                "value": result["target"], "unchanged_from_snapshot": fixed})
         comparison = row.get("comparison") or {}
         if comparison.get("status") == "available":
             group["completed_close"] = {k: comparison["price"][k] for k in ("close", "session_date", "currency")}
     for group in groups.values():
-        values = [Decimal(c["value"]) for c in group["cases"]]
-        group.update(low=str(min(values)), high=str(max(values)))
-        if "completed_close" in group:
+        values = [Decimal(c["value"]) for c in group["cases"] if not c.get('disputed_by')]
+        group.update(low=str(min(values)) if values else None, high=str(max(values)) if values else None)
+        if "completed_close" in group and values:
             close = Decimal(group["completed_close"]["close"])
             group["close_position"] = "below" if close < min(values) else "above" if close > max(values) else "at" if len(values) == 1 else "within"
     return list(groups.values())
@@ -224,10 +239,14 @@ def prepare_decision_context(state: dict) -> dict:
     request = final_request(state)
     target = TargetResult(status='unsupported', reasons=('Canonical evidence or supported valuation request unavailable.',))
     replayed = replay_cases(state) if eligible else {"status": "unavailable", "rows": []}
+    replayed = annotate_disputed_cases(state, replayed)
     if eligible:
         target = validate_final_case(state, request, replayed)
     selected = isinstance(request, dict) and request.get("method") == "case" and target.status == "supported"
-    supported_scenarios = sum(not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
+    adopted_disputes = (next((list(row.get('disputed_by') or []) for row in replayed.get('rows', [])
+                              if (row.get('case_id'), row.get('version')) ==
+                              (request.get('case_id'), request.get('version'))), []) if selected else [])
+    supported_scenarios = sum(not row.get("disputed_by") and not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
                                and _mapping(_mapping(row.get('result')).get('decision_use')).get('suitability') == 'conditional')
                               for row in replayed.get('rows', []) if isinstance(row, dict))
     if not eligible:
@@ -255,13 +274,14 @@ def prepare_decision_context(state: dict) -> dict:
     dispositions = dispositions if isinstance(dispositions, list) else []
     observations = observe_conditions(prior, state if eligible else {})
     condition_rows = []
-    for observed in observations[:8]:
-        matches = [d for d in dispositions[:8] if isinstance(d, dict) and d.get('condition_id') == observed['condition_id']]
+    for observed in observations:
+        matches = [d for d in dispositions if isinstance(d, dict) and d.get('condition_id') == observed['condition_id']]
         supplied = matches[0] if len(matches) == 1 else {}
         disposition = supplied.get('disposition')
         if disposition not in {'kept', 'overridden', 'retired', 'superseded'}:
             disposition = 'not supplied'
-        condition_rows.append({'metric': _text(observed.get('metric'), 100),
+        condition_rows.append({'metric': _text(observed.get('metric') or observed.get('description') or observed.get('instrument'), 100),
+                               **{key: observed.get(key) for key in ('kind', 'comparator', 'threshold', 'unit', 'quote_currency')},
                                'condition_id': observed['condition_id'], 'status': observed['status'],
                                'thesis_role': observed.get('thesis_role', 'unspecified'),
                                'status_label': condition_status_label(observed),
@@ -269,8 +289,13 @@ def prepare_decision_context(state: dict) -> dict:
                                'reason': _text(supplied.get('disposition_reason')) or 'reason not supplied'})
     conditions = thesis.get('conditions', [])
     conditions = conditions if isinstance(conditions, list) else []
-    changes = [_text(f"{condition_role_label(c)}: {c.get('metric', 'condition')} {c.get('comparator', '')} {c.get('threshold', '')} {c.get('unit', '')}; period {c.get('period_end', 'unspecified')}")
-               for c in conditions[:3] if isinstance(c, dict)]
+    known = {row['condition_id'] for row in condition_rows}
+    for condition in conditions:
+        if not isinstance(condition, dict) or condition.get('condition_id') in known:
+            continue
+        condition_rows.append({**condition, 'metric': condition.get('metric') or condition.get('description') or condition.get('instrument') or 'condition',
+                               'status': 'unobserved', 'status_label': 'New advisory proposal; not yet observed',
+                               'disposition': 'proposed', 'reason': _text(thesis.get('rationale'), 1000) or 'reason not supplied'})
     excerpts = []
     assumptions = thesis.get('assumptions', [])
     if isinstance(assumptions, list):
@@ -294,16 +319,19 @@ def prepare_decision_context(state: dict) -> dict:
             'case_groups': _case_groups(replayed['rows']) if horizon['status'] == 'explicit' else [],
             'adopted_case': ({'case_id': request['case_id'], 'version': request['version'], 'value': str(target.target),
                               'unit': target.unit, 'decision_date': str(target.decision_date) if target.decision_date else None,
-                              'rerating_assumption': target.rerating_assumption} if selected else None),
-            'no_case_reason': (_text(_mapping(_mapping(originals.get('portfolio_manager')).get('structured')).get('no_case_reason'))
+                              'rerating_assumption': target.rerating_assumption,
+                              'disputed_by': adopted_disputes} if selected else None),
+            'no_case_reason': (_text(_mapping(_mapping(originals.get('portfolio_manager')).get('structured')).get('no_case_reason'), 1200)
                                or ('reason not supplied' if _mapping(originals.get('portfolio_manager')).get('case_contract') else ''))
                               if eligible and not selected else '',
             'target': {'status': target.status, 'decision_use': target.decision_use.model_dump(mode='json'),
                        'reasons': [_text(r) for r in (*target.reasons, *target.decision_use.reasons)[:3]]},
             'scenarios': {'status': replayed['status'], 'supported_count': supported_scenarios,
-                          'diagnostic_count': len(replayed.get('rows', [])) - supported_scenarios},
+                          'diagnostic_count': sum(bool(row.get('diagnostic_only')) for row in replayed.get('rows', [])),
+                          'disputed_count': sum(bool(row.get('disputed_by')) for row in replayed.get('rows', []))},
             'trader_provisional': _trader(trader), 'conditions': condition_rows,
-            'proposed_changes': changes, 'excerpts': excerpts[:4],
+            'condition_warnings': [str(w) for w in thesis.get('warnings', []) if isinstance(w, str) and 'stated but not retained' in w],
+            'proposed_changes': [], 'excerpts': excerpts[:4],
             'research_only': 'Advisory conditions do not enforce a rating. No validated stop, numerical allocation or broker instruction is published.'}
 
 
@@ -313,20 +341,27 @@ def _display(value):
     return re.sub(r'([\\`*_\[\]()#!|])', r'\\\1', text)
 
 
-def render_condition_summary(record: dict, *, include_mechanical: bool = True) -> str:
+def render_condition_summary(record: dict, *, include_mechanical: bool = True, include_cases: bool = True) -> str:
     """Compact advisory outcomes beside the rating, retaining uncertainty and reasons."""
     rows = record.get('conditions') or []
     lines = ['**Advisory conditions at a glance** (not automatic rating rules):']
     if not rows:
         lines.append('No prior structured observations; condition status is unknown.')
     for row in rows:
+        threshold = ' '.join(str(row.get(key) or '') for key in ('comparator', 'threshold', 'unit')).strip()
+        if row.get('kind') == 'price_level':
+            threshold += ' ' + str(row.get('quote_currency') or '')
         lines.append(f"- {_display(condition_role_label(row))} — {_display(row['metric'])}: "
+                     + (f"{_display(threshold)}; " if threshold else '') +
                      f"{_display(row.get('status_label') or condition_status_label(row))}; "
                      f"{_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
+    lines.extend('Condition coverage: ' + _display(warning) for warning in record.get('condition_warnings', []))
     history = _mapping(record.get('assumption_changes'))
     if history.get('status') == 'available':
+        if history.get('summary_message'):
+            lines.append(_display(history['summary_message']))
         for change in history.get('rows', [])[:31]:
-            lines.append(f"Changed since {_display(history['prior_as_of'])}: "
+            lines.append(f"Changed since {_display(history.get('prior_label') or history['prior_as_of'])}: "
                          f"{_display(change['scenario'])} {_display(change['field'])} "
                          f"{_display(change['previous'])} → {_display(change['current'])}")
         if history.get('new_filings_between') is False:
@@ -335,19 +370,29 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True) -
         lines.append('Assumption changes: no prior directional publication was available at this run’s cutoff.')
     else:
         lines.append('Assumption changes unavailable: no verified comparison was recorded for this run.')
+    if include_cases:
+        lines.append(render_case_summary(record, include_mechanical=include_mechanical))
+    return '\n'.join(lines)
+
+
+def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str:
+    """Retain the case inventory and assumptions after the price-implied view."""
+    lines = []
     for group in record.get("case_groups", []):
         values = group["cases"]
-        amount = display_number(group["low"]) if len(values) == 1 else display_number(group["low"]) + "–" + display_number(group["high"])
-        label = "Conditional case value" if len(values) == 1 else "Conditional case range"
+        count = sum(not case.get('disputed_by') for case in values)
+        amount = (display_number(group["low"]) if count == 1 else display_number(group["low"]) + "–" + display_number(group["high"])) if count else 'unavailable'
+        label = ("Conditional case value" if count == 1 else "Conditional case range") if count else 'No undisputed conditional range'
         lines.append(f"**{label}**: {amount} {_display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
                      f"{_display(group['multiple_basis'])}; {_display(group['share_basis'])}; {_display(group['accounting_basis'])}.")
         for case in values:
             fixed = ", ".join(case["unchanged_from_snapshot"])
             lines.append(f"- {_display(case['name'])} ({case['case_id']} v{case['version']}): {display_number(case['value'])}" +
+                         ('; disputed by accepted audit finding ' + ', '.join(case['disputed_by']) + '; excluded from conditional range' if case.get('disputed_by') else '') +
                          ("; unchanged from snapshot: " + _display(fixed) if fixed else ""))
         quote = group.get("completed_close")
         lines.append(f"Completed close {display_number(quote['close'])} {quote['currency']} on {quote['session_date']}: "
-                     f"{group['close_position']} the conditional value{'s' if len(values) > 1 else ''}." if quote else "Comparable completed close unavailable.")
+                     f"{group['close_position']} the conditional value{'s' if count > 1 else ''}." if quote and count else "Comparable completed-close position unavailable for an undisputed range.")
     for financing in record.get("financing", []):
         lines.append(f"Financing authorization {financing['event_date']}: up to {display_number(financing['authorized_amount'])} "
                      f"{financing['currency'] or 'source $ (denomination unknown)'}; remaining capacity unknown; actual issuance unknown. "
@@ -362,7 +407,10 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True) -
             lines.append("Financing sensitivity unavailable: " + _display(financing.get("reason")))
     adopted = record.get("adopted_case")
     if adopted:
-        lines.append(f"Adopted {adopted['case_id']} v{adopted['version']}.")
+        disputed = adopted.get('disputed_by') or []
+        annotation = ('; disputed by accepted audit finding ' + ', '.join(disputed)
+                      + '; excluded from conditional range') if disputed else ''
+        lines.append(f"Adopted {adopted['case_id']} v{adopted['version']}{annotation}.")
         if adopted["decision_date"]:
             lines.append(f"{adopted['decision_date']}: {display_number(adopted['value'])} {_display(adopted['unit'])} — assumption, not a forecast: "
                          + _display(adopted["rerating_assumption"]))
@@ -378,12 +426,12 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True) -
     return '\n'.join(lines)
 
 
-def render_decision_context(record: dict, *, include_mechanical: bool = True) -> str:
+def render_decision_context(record: dict, *, include_mechanical: bool = True, include_cases: bool = True) -> str:
     """Render a freshly prepared card; all model text stays escaped and labeled."""
     title = 'Legacy reported rating' if record['status'] == 'legacy' else 'Canonical Portfolio Manager rating'
     coverage = record['coverage']
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
-             render_condition_summary(record, include_mechanical=include_mechanical),
+             render_condition_summary(record, include_mechanical=include_mechanical, include_cases=include_cases),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
@@ -391,19 +439,11 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True) ->
              f"**Trader provisional action**: {_display(record['trader_provisional'])}; this is not the canonical Portfolio Manager rating."]
     lines += ['Coverage limit: ' + _display(text) for text in coverage['limits']]
     lines += ['Target limitation: ' + _display(text) for text in record['target']['reasons']]
-    lines += ['', '**Advisory condition disposition**:']
-    if not record['conditions']:
-        lines.append('No prior structured condition observations available; no binding rule inferred.')
-    for row in record['conditions']:
-        lines.append(f"- {_display(row['metric'])}: {_display(row.get('status_label') or condition_status_label(row))}; {_display(row['disposition'])}. Reason (unvalidated): {_display(row['reason'])}.")
-    if record['proposed_changes']:
-        lines += ['', '**Advisory conditions — unvalidated research proposals**:']
-        lines += ['- ' + _display(text) for text in record['proposed_changes']]
     if record['excerpts']:
         # Even labeled quotations can reintroduce forbidden target/sizing prose
         # into the canonical decision. The card holds references, not raw text.
         roles = ', '.join(dict.fromkeys(_display(row['role']) for row in record['excerpts']))
         lines += ['', '**Unvalidated research inventory**: ' + roles + '.',
-                  'See the saved unvalidated research appendix and evidence.json diagnostics for original arguments and assumptions. These materials are not verified facts or instructions; their presence does not resolve disagreement.']
+                  'See the saved unvalidated research appendix and diagnostics.json for original arguments and assumptions. These materials are not verified facts or instructions; their presence does not resolve disagreement.']
     lines += ['', _display(record['research_only'])]
     return '\n'.join(lines)

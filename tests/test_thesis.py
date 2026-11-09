@@ -165,16 +165,54 @@ def test_current_render_discloses_missing_reason_and_truncates_unvalidated_text(
     assert 'Comparison not satisfied; thesis role unspecified' in rendered and 'kept' in rendered and 'reason not supplied' in rendered
     assert 'unvalidated research' in rendered.lower() and '[truncated]' in rendered
     assert '<script>' not in rendered and '&lt;script&gt;' in rendered and 'target |' not in rendered
-    assert 'x'*301 not in rendered
+    assert 'x'*1001 not in rendered
     assert prior['version_id'] in rendered
 
 
-def test_render_bounds_conditions_and_handles_absent_thesis():
+def test_render_preserves_all_retained_conditions_and_handles_absent_thesis():
     assert 'unavailable' in thesis.render_prior_thesis(None).lower()
-    row = {**condition(), 'condition_id':'condition-example'}
-    rendered = thesis.render_thesis({'conditions':[row]*10,'prior_conditions':[]})
-    assert rendered.count('condition-example') == 8
-    assert '2 additional conditions omitted' in rendered
+    rows = [{**condition(), 'threshold': str(index),
+             'condition_id': f'condition-{index:024x}'} for index in range(10)]
+    rendered = thesis.render_thesis({'conditions':rows,'prior_conditions':[]})
+    assert all(row['condition_id'] in rendered for row in rows)
+    assert rendered.count('condition-') == 10
+    assert 'additional conditions omitted' not in rendered
+
+
+def test_repeated_keeps_grow_collection_until_explicit_retirement():
+    """The aggregate policy preserves open questions; PM dispositions reduce them."""
+    from tradingagents.agents.schemas import ThesisProposal
+
+    prior = None
+    for cycle in range(4):
+        previous = (prior or {}).get('conditions', [])
+        proposal = {'conditions': [{**condition(), 'threshold': str(cycle * 8 + index)}
+                                   for index in range(8)],
+                    'dispositions': [{'condition_id': row['condition_id'],
+                                      'disposition': 'kept', 'reason': 'Still relevant'}
+                                     for row in previous]}
+        ThesisProposal.model_validate(proposal)
+        current = thesis.prepare_thesis(proposal, prior, 'Hold', '2026-11-04', str(uuid4()))
+        assert len(current['conditions']) == (cycle + 1) * 8
+        assert current['conditions'][:len(previous)] == previous
+        current['observations'] = thesis.observe_conditions(current, state())
+        assert len(current['observations']) == len(current['conditions'])
+        assert all(row['condition_id'] in thesis.render_prior_thesis(current)
+                   for row in current['conditions'])
+        prior = current
+    original_ids = {row['condition_id'] for row in prior['conditions']}
+    retirement = {'conditions': None, 'dispositions': [
+        {'condition_id': row['condition_id'], 'disposition': 'retired',
+         'reason': 'Research question no longer relevant'} for row in prior['conditions'][:8]]}
+    ThesisProposal.model_validate(retirement)
+    reduced = thesis.prepare_thesis(retirement, prior, 'Hold', '2026-11-04', str(uuid4()))
+    assert len(reduced['conditions']) == 24
+    assert {row['condition_id'] for row in reduced['conditions']} == {
+        row['condition_id'] for row in prior['conditions'][8:]}
+    assert {row['condition_id'] for row in prior['conditions']} == original_ids
+    cleared = thesis.prepare_thesis({'conditions': []}, reduced, 'Hold', '2026-11-04', str(uuid4()))
+    assert cleared['conditions'] == []
+    assert cleared['canonical_rating'] == reduced['canonical_rating'] == 'Hold'
 
 
 @pytest.mark.parametrize('proposal', [None, 'bad-list', [{'threshold':'NaN'}]])
@@ -288,7 +326,7 @@ def test_kept_but_omitted_condition_is_preserved_with_visible_warning():
     assert next_thesis['warnings']
 
 
-def test_duplicate_dispositions_preserve_prior_and_condition_limit():
+def test_duplicate_dispositions_preserve_prior_without_consuming_new_proposal_slots():
     prior = thesis.prepare_thesis({'conditions':[condition()]},None,'Buy','2026-11-04',str(uuid4()))
     prior['observations'] = thesis.observe_conditions(prior,state())
     identifier = prior['conditions'][0]['condition_id']
@@ -296,12 +334,13 @@ def test_duplicate_dispositions_preserve_prior_and_condition_limit():
     item = thesis.prepare_thesis({'conditions':proposals, 'dispositions':[
         {'condition_id':identifier,'disposition':'kept'},
         {'condition_id':identifier,'disposition':'retired'}]},prior,'Hold','2026-11-04',str(uuid4()))
-    assert len(item['conditions']) == 8
+    assert len(item['conditions']) == 9
     assert item['conditions'][0] == prior['conditions'][0]
+    assert {row['threshold'] for row in item['conditions']} == {'100', *map(str, range(8))}
     assert item['prior_conditions'][0]['disposition'] == 'kept'
     assert item['prior_conditions'][0]['disposition_reason'] == 'reason not supplied'
     assert any('Ambiguous' in warning for warning in item['warnings'])
-    assert any('limit' in warning for warning in item['warnings'])
+    assert not any('additional proposals omitted' in warning for warning in item['warnings'])
 
 
 def test_condition_identity_ignores_rationale_and_exact_decimal_spelling():

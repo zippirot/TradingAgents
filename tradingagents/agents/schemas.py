@@ -108,6 +108,15 @@ class TraderAction(StrEnum):
 # ---------------------------------------------------------------------------
 
 
+class DocumentFollowupJudgment(BaseModel):
+    """Unvalidated RM interpretation; never a deterministic retrieval result."""
+
+    question_id: str = Field(min_length=1, max_length=32)
+    classification: Literal['answered', 'partially_answered', 'unanswered']
+    explanation: str = Field(min_length=1, max_length=2000,
+        description='For answered/partial: what the passage establishes, figure and source reference, and effect on the bull/bear point. For unanswered: what remains unknown. Unvalidated research judgment.')
+
+
 class ResearchPlan(BaseModel):
     """Structured investment plan produced by the Research Manager.
 
@@ -117,6 +126,8 @@ class ResearchPlan(BaseModel):
     instructions the trader can execute against.
     """
 
+    followup_judgments: list[DocumentFollowupJudgment] = Field(default_factory=list, max_length=4,
+        description='One unvalidated interpretation per actual document follow-up question_id; keep retrieval status separate from the answer judgment.')
     revised_cases: Annotated[Any, WithJsonSchema({"anyOf": [
         {"type": "array", "maxItems": 3, "items": {"type": "object", "properties": {
             "name": {"type": "string"}, "request": {"type": "object"}},
@@ -149,13 +160,18 @@ class ResearchPlan(BaseModel):
 
 def render_research_plan(plan: ResearchPlan) -> str:
     """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
-    return "\n".join([
+    lines = [
         f"**Recommendation**: {plan.recommendation.value}",
         "",
         f"**Rationale**: {plan.rationale}",
         "",
         f"**Strategic Actions**: {plan.strategic_actions}",
-    ])
+    ]
+    if plan.followup_judgments:
+        lines.extend(['', '**Document follow-up judgments (unvalidated)**'])
+        lines.extend(f'- {row.question_id}: {row.classification.replace("_", " ")} — {row.explanation}'
+                     for row in plan.followup_judgments)
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -319,8 +335,8 @@ class ThesisProposal(BaseModel):
     assumptions: list[str] = Field(default_factory=list, max_length=8)
     evidence_refs: list[str] = Field(default_factory=list, max_length=16)
     conditions: list[ThesisCondition] | None = Field(default=None, max_length=8,
-        description="Advisory conditions only. Use exact canonical metric labels for metric and metric_definition, exact period/unit/basis, threshold, expiry and thesis_role (supports_thesis, reconsideration_trigger, or unspecified). The role is unvalidated intent, not enforcement. None retains prior conditions; [] explicitly retires them. No hard rules.")
-    dispositions: list[AdvisoryDisposition] = Field(default_factory=list, max_length=8,
+        description="Advisory conditions of kind metric (default legacy shape: canonical metric/definition, period, comparison, threshold, unit, basis), price_level (positive completed-close threshold, comparator, instrument quote currency, expiry), or event (observable description, confirming evidence, expiry; no threshold/comparator). Every kind needs rationale and thesis_role. None retains prior conditions; [] explicitly retires them. These are research questions, never trading rules.")
+    dispositions: list[AdvisoryDisposition] = Field(default_factory=list,
         description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
 
 
@@ -361,6 +377,7 @@ class PortfolioDecision(BaseModel):
         description="Legacy input retained for compatibility only; never an authoritative target. Use valuation_request with canonical fact IDs, or omit the target.",
     )
     no_case_reason: str | None = Field(default=None, max_length=1200, description="Brief reason when no supported case is adopted.")
+    horizon_reason: str | None = Field(default=None, max_length=1200, description="Required nonblank reason for overriding the configured decision horizon; not a forecast period.")
     valuation_request: ValuationRequest | None = Field(
         default=None,
         description=(
@@ -371,7 +388,7 @@ class PortfolioDecision(BaseModel):
         ),
     )
     thesis_candidate: ThesisProposal | None = Field(default=None,
-        description="Persistent advisory thesis: material assumptions, exact evidence references, measurable future conditions and reason for each prior condition disposition. Research proposals are not verified facts or automatic trading rules.")
+        description="Persistent advisory thesis: material assumptions, exact evidence references, metric, completed-close price and observable event conditions, and reason for each prior disposition. Research proposals are not verified facts or automatic trading rules.")
     _unvalidated_thesis_candidate: object = PrivateAttr(default=None)
     _unvalidated_valuation_request: object = PrivateAttr(default=None)
 
@@ -443,7 +460,7 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
     )
 
     time_horizon: str | None = Field(
-        description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Separate from the forecast period; never assume 3-6 months. If unknown, return null and the decision is incomplete.",
+        description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Use the configured default supplied in the prompt unless overriding with a nonblank horizon_reason. Separate from the forecast period. If unknown, return null and the decision is incomplete.",
     )
 
     @model_validator(mode="before")

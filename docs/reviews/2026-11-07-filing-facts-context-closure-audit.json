@@ -1,0 +1,78 @@
+{
+  "run_id": "48ab818d-3e9f-4d5a-8852-d38be0287b66",
+  "status": "completed",
+  "started_at": "2026-11-07T21:04:04.622Z",
+  "deadline_at": "2026-11-07T22:04:04.622Z",
+  "completed_at": "2026-11-07T21:19:45.428Z",
+  "report": {
+    "base_commit": "57e954fe24eef0720d0ddb7829682a82fc7de536",
+    "head_commit": "910281a4f6875d63fadd2e427b5fa2264d0a6ba1",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 36,
+    "reviewed_files": [
+      "docs/reviews/2026-11-07-filing-facts-acceptance.md",
+      "docs/reviews/2026-11-07-filing-facts-findings.md",
+      "docs/reviews/2026-11-07-filing-facts-initial-audit.json",
+      "docs/reviews/2026-11-07-filing-facts-runtime-final.json",
+      "docs/reviews/filing-facts-proof.py",
+      "tests/test_filing_terms_delivery.py",
+      "tests/test_instrument_terms.py"
+    ],
+    "summary": "Focused source-context closure audit of frozen range 57e954fe\u2192910281a4 (7 files: docs/reviews acceptance/findings/initial-audit/runtime receipts, proof script, and two test files). The range contains no production-source changes, consistent with the acceptance claim that only tests and evidence are new since 3294b05a. I explicitly inspected the attributed source bodies the initial audit could not: (1) _same includes period_start in its (unit, period_start, period_end) comparison while cash is pre-filtered to instant facts, so a duration 'Current Marketable Securities' fact necessarily returns unavailable/incompatible_inputs \u2014 initial Low finding 1 is correctly disproved and the new test exercises that exact path; (2) _PRICE compiles with re.I, making the tempered lookahead's [A-Z] sentence guard case-insensitive, so lowercase sentence continuations cannot supply the optional conversion price \u2014 initial Low finding 2 is correctly disproved and the new parametrized test covers both cases; (3) the _Sections table producer emits ' ; ' row and ' | ' cell delimiters, and the committed fixture block-41 excerpt matches that serialization exactly; I traced _displayed_current_balance's regex successfully against the fixture's cash (666,096) and securities (178,645) rows inside the Current assets window, confirming the semicolon-serialization disposition and that newline variants fail closed; (4) arithmetic verifies: 666,096+178,645=844,741 thousands=844,741,000 USD, the fixture balance sheet cross-foots to 1,070,786 total current assets, and the lease rounding interval [2,955,150, 2,955,250) contains 2,955,158; (5) the presentation gate, corpus identity/cutoff/hash validation (document_access), pre-analyst acquisition ordering (create_source_acquisition calls prepare_document_sources before fan-out), maturity-before-as_of rejection (Review Focus 3), bounded shared brief, and EvidencePackage lineage validators all match the claimed fail-closed behaviors. The remaining initial Low dispositions (narrow DOCN 10-Q heading triple, historical Build2 fixture patch, cosmetic rendering) are accurately characterized, disclosed, and fail-closed. The disclosed summary-count discrepancy (six Low findings vs 'five' in the initial audit summary) is accurately recorded by the builder. Verdict: the focused independent source-context follow-up requirement is satisfied by this inspection; no Critical, High, or Medium findings in the audited range; two Low evidence-hygiene observations noted. This audit grants no integration or release authority.",
+    "limitations": [
+      "Read-only audit of the frozen request.json only: no tests, ruff, or proof scripts were executed; the reported follow-up results (3239 passed/10 skipped full suite, 23 focused probes passed, stdout SHA 6d2ee1f9\u2026) are builder-run evidence checked for internal consistency only.",
+      "The supplied source bodies carry asserted module SHA-256 hashes binding them to application commit 3294b05a; those hashes cannot be independently recomputed from frozen evidence, so verbatim-at-HEAD status rests on the asserted hashes plus strong internal consistency (fixture serialization, cross-footing arithmetic, matching producer/consumer formats).",
+      "tests/test_valuation.py's evidence() fixture (used by the new duration-security probe via facts[2]/facts[0]) is not in the frozen packet, so the probe's premise that the copied fact becomes a duration fact with a matching period_end was inferred from the asserted reason_code/message path rather than inspected.",
+      "Private proof inputs (saved November 7 DOCN state, cached SEC bytes, raw prompts, /tmp logs) are by design not audit inputs; only hashes and receipts quoted in the frozen evidence were checked.",
+      "The supplied source context is bounded to named bodies; omitted unrelated functions in the same modules (e.g., full sec_edgar.py tag-candidate logic, full context.py) were not inspected and are covered only by the first audit's review of changed B logic.",
+      "Remote exact-commit CI execution and any Machine 1 installation remain unverified, as the acceptance record itself discloses."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Previously frozen runtime receipt and committed proof script were amended post-hoc (reopened_shared_brief_equal field and new shared_source_brief equality assertion) based on re-reading prior disposable outputs rather than a fresh recorded execution of the amended script; disclosed as 'reuse of valid output, not a new product run', but the referenced replay log predates the added assertion",
+        "path": "docs/reviews/filing-facts-proof.py"
+      },
+      {
+        "severity": "low",
+        "title": "New duration-security rejection probe depends on tests/test_valuation.evidence() internals (facts indices and period fields) not included in the frozen packet, so independent reviewers cannot confirm from frozen evidence alone that the constructed input is a genuine duration fact rather than a vacuous case; the asserted 'period mismatch' message makes the intended path plausible but uninspectable",
+        "path": "tests/test_filing_terms_delivery.py"
+      },
+      {
+        "severity": "low",
+        "title": "Findings review and acceptance text contain run-together numerals/SHAs (e.g., 'matched77ebc8ab', 'completed27turns', '3239 passed,10 skipped') and carry forward the initial audit's five-vs-six Low count discrepancy; all are disclosed and do not alter substance, but they reduce the evidence record's machine- and human-readability",
+        "path": "docs/reviews/2026-11-07-filing-facts-findings.md"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "extra medium",
+      "escalation_reasons": [
+        "Frozen scope changes more than 10 files or more than 500 lines."
+      ]
+    },
+    "progress": {
+      "observed_events": 2659,
+      "last_activity_at": "2026-11-07T21:19:45.042Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 5,
+      "hard_budget_usd": 10,
+      "soft_turn_limit": 20,
+      "turn_limit": 35,
+      "wall_clock_limit_minutes": 60,
+      "actual_cost_usd": 2.4003022499999993,
+      "actual_elapsed_ms": 940636,
+      "soft_limit_reached": true
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

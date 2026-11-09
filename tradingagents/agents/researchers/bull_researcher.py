@@ -34,6 +34,10 @@ def create_bull_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
+        engagement = ("List the opponent's numbered points from their last turn; answer or concede each. "
+                      "Do not change your own stated triggers without saying so."
+                      if investment_debate_state.get('count', 0) >= 2 else '')
+
         prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 If shared valuation scenarios are available, identify the specific forecast or multiple you accept or dispute and support your challenge with evidence. The table is conditional and fixed for this debate, not a mandated base case. State what would change your view. Any numerical alternative you propose remains unvalidated until the final calculator evaluates it.
@@ -44,6 +48,8 @@ Key points to focus on:
 - Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+
+{engagement}
 
 Resources available:
 {instrument_context}
@@ -58,7 +64,8 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 
         response = llm.invoke(prompt)
 
-        argument = f"Bull Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Bull Analyst: {delivered_narrative(response.content, response)}"
 
         new_investment_debate_state = {
             **investment_debate_state,
@@ -66,6 +73,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "bull_history": bull_history + "\n" + argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
+            "current_bull_response": argument,
             "count": investment_debate_state["count"] + 1,
         }
 

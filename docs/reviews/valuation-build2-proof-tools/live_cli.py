@@ -273,6 +273,7 @@ def assess(state, work):
     from tradingagents.agents.audit_pass import prepare_audit_dispositions
     from tradingagents.agents.decision_context import (
         prepare_decision_context,
+        render_case_summary,
         render_condition_summary,
     )
     from tradingagents.agents.shared_valuation import prepare_shared_valuation, replay_cases
@@ -298,7 +299,8 @@ def assess(state, work):
                                   ("basis", "horizon", "case_groups", "adopted_case", "no_case_reason")),
               "explicit_horizon": card["horizon"]["status"] == "explicit",
               "rendered_cases": bool(card["case_groups"]) and
-                                render_condition_summary(card, include_mechanical=False) in decision}
+                                render_condition_summary(card, include_mechanical=False, include_cases=False) in decision
+                                and render_case_summary(card, include_mechanical=False) in decision}
     price = state.get("price_observation") or {}
     verified = []
     mismatched = []

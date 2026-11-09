@@ -3,8 +3,10 @@
 from copy import deepcopy
 
 from tradingagents.agents.decision_context import (
+    _display,
     final_request,
     prepare_decision_context,
+    render_case_summary,
     render_decision_context,
     validate_final_case,
 )
@@ -12,7 +14,11 @@ from tradingagents.agents.evidence_presentation import readable_evidence
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
-from tradingagents.agents.shared_valuation import prepare_shared_valuation, replay_cases
+from tradingagents.agents.shared_valuation import (
+    annotate_disputed_cases,
+    prepare_shared_valuation,
+    replay_cases,
+)
 from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_comparison import (
     compare_valuation,
@@ -77,13 +83,15 @@ def _thesis_update(state):
              "reason": row["disposition_reason"]} for row in saved.get("prior_conditions", [])
         ]}
     item = prepare_thesis(candidate, prior, run_rating(state), str(state["trade_date"]), state["run_id"],
-                          financial_evidence=state.get("financial_evidence"))
+                          financial_evidence=state.get("financial_evidence"),
+                          price_observation=state.get("price_observation"),
+                          ticker=state.get("company_of_interest"))
     return {"thesis": item, "thesis_version_id": item["version_id"]}
 
 
 def _decision_card(state, publication_config):
     card = prepare_decision_context(state)
-    if publication_config is not None and not card.get('assumption_changes'):
+    if publication_config is not None and card.get('assumption_changes', {}).get('comparison_version') != 2:
         from tradingagents.agents.assumption_history import assumption_changes
 
         card['assumption_changes'] = assumption_changes(
@@ -122,7 +130,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     originals = dict(state.get("unvalidated_outputs") or {})
     updates = {}
     if "shared_valuation_scenarios" in state:
-        updates["shared_valuation_scenarios"] = replay_cases(state)
+        updates["shared_valuation_scenarios"] = annotate_disputed_cases(state, replay_cases(state))
     for field in (
         "investment_plan", "trader_investment_plan", "final_trade_decision",
         "investment_debate_state", "risk_debate_state",
@@ -145,7 +153,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
                 )
     updates["investment_plan"] = (
         "Research evidence summary\n\n" + context
-        + "\n\nUnvalidated model reasoning is retained in evidence.json diagnostics."
+        + "\n\nUnvalidated model reasoning is retained in diagnostics.json."
     )
     updates["trader_investment_plan"] = (
         "Position sizing: qualitative guidance only. A numerical allocation is "
@@ -158,7 +166,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         if isinstance(debate, dict):
             updates[field] = {
                 key: (
-                    "Unvalidated debate narrative retained in evidence.json diagnostics."
+                    "Unvalidated debate narrative retained in diagnostics.json."
                     if isinstance(value, str) and value else value
                 )
                 for key, value in debate.items()
@@ -207,25 +215,40 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         target_text += "\n\n" + render_event_comparison(event)
     if target.status != "supported" or not target.decision_use.final_target_eligible:
         target_text = "Fundamental price target: unavailable.\n\n" + target_text
-    updates["final_trade_decision"] = (
-        f"**Rating**: {run_rating(state)}\n\n"
-        "**Executive Summary**: Model recommendation; financial evidence and "
-        "valuation coverage are shown below. This does not validate all model reasoning.\n\n"
-        f"{target_text}\n\n"
-        f"**Investment Thesis — canonical evidence**:\n\n{context}\n\n"
-        "Position sizing: qualitative only; no validated numerical allocation.\n\n"
-        "Original model narrative is retained separately in evidence.json diagnostics."
-    )
     continuity = _thesis_update({**state, **updates})
     if continuity:
-        from tradingagents.memory.thesis import render_thesis
         updates.update(continuity)
-        updates["final_trade_decision"] = updates["final_trade_decision"].replace(
-            "**Investment Thesis — canonical evidence**:",
-            render_thesis(continuity["thesis"]) + "\n\n**Investment Thesis — canonical evidence**:", 1)
     updates["unvalidated_outputs"] = originals
     card = _decision_card({**state, **updates}, publication_config)
     updates["decision_context"] = card
-    updates["final_trade_decision"] = updates["final_trade_decision"].replace(
-        "**Executive Summary**:", render_decision_context(card, include_mechanical=False) + "\n\n**Executive Summary**:", 1)
+    disputed = (card.get('adopted_case') or {}).get('disputed_by')
+    if disputed:
+        target_result_text = render_target_result(target)
+        notice = ('**Disputed PM-adopted calculation**: accepted audit finding '
+                  + ', '.join(disputed) + '; excluded from conditional range. '
+                  'Calculation retained unchanged; this is not validated fair value.\n\n')
+        target_text = target_text.replace(target_result_text, notice + target_result_text, 1)
+    pm = originals.get('portfolio_manager') or {}
+    structured = pm.get('structured') or {}
+    def pm_text(key):
+        value = structured.get(key)
+        return _display(value[:20000]) + (' [truncated at 20,000 characters]' if len(value) > 20000 else '') if isinstance(value, str) and value.strip() else 'Unavailable in the retained structured PM output; see diagnostics.'
+    from tradingagents.agents.audit_pass import prepare_audit_dispositions
+    from tradingagents.agents.citation_check import check_pm_citations, render_pm_citation_check
+    responses = prepare_audit_dispositions({**state, **updates})
+    audit = state.get('advisory_audit') or {}
+    audit_line = (f"{len(responses['findings'])} findings; PM responded to {responses['answered_count']}."
+                  if audit.get('status') == 'completed with findings' else str(audit.get('status') or 'not run; no clearance implied'))
+    updates['final_trade_decision'] = (
+        f"**Rating**: {run_rating(state)}\n\n**Horizon**: {_display(card['horizon']['text'])}\n\n"
+        f"**Executive Summary — unvalidated PM reasoning**:\n\n{pm_text('executive_summary')}\n\n"
+        f"**Investment Thesis — unvalidated PM reasoning**:\n\n{pm_text('investment_thesis')}\n\n"
+        f"**Advisory audit**: {_display(audit_line)}\n\n"
+        + _display(render_pm_citation_check(check_pm_citations(state))) + '\n\n'
+        + render_decision_context(card, include_mechanical=False, include_cases=False) + '\n\n' + target_text
+        + '\n\n' + render_case_summary(card, include_mechanical=False)
+        + f"\n\n**Canonical evidence**:\n\n{context}\n\n"
+        'Position sizing: qualitative only; no validated numerical allocation.\n\n'
+        'Original model narrative is retained separately in diagnostics.json.'
+    )
     return updates

@@ -1,7 +1,10 @@
 
+import logging
 from typing import Any
 
 from .base_client import BaseLLMClient
+
+logger = logging.getLogger(__name__)
 
 
 def create_llm_client(
@@ -87,8 +90,8 @@ def _coerce_max_tokens(value):
     return n
 
 
-# Providers that take OpenAI's ``openai_reasoning_effort``.
-REASONING_EFFORT_PROVIDERS = ("openai", "chatgpt")
+# Providers that take ``openai_reasoning_effort`` from the shared configuration.
+REASONING_EFFORT_PROVIDERS = ("openai", "chatgpt", "openrouter")
 
 
 def build_llm_kwargs(config: dict) -> dict[str, Any]:
@@ -110,6 +113,10 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         effort = config.get("anthropic_effort")
         if effort:
             kwargs["effort"] = effort
+
+    dropped_effort = config.get("openai_reasoning_effort")
+    if dropped_effort and provider not in REASONING_EFFORT_PROVIDERS:
+        logger.warning("reasoning effort %r not forwarded to provider %r", dropped_effort, provider)
 
     # Sampling temperature is cross-provider: forward it whenever set.
     # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env

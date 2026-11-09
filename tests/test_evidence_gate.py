@@ -40,6 +40,53 @@ def test_unavailable_sec_lookup_is_readable_review(monkeypatch):
     assert "fundamentals_report" not in result
 
 
+@pytest.mark.parametrize("stage", ["issuer_map", "filing"])
+def test_source_acquisition_keeps_vendor_diagnostic_out_of_retained_brief(monkeypatch, stage):
+    from tradingagents.agents.evidence_validation import create_source_acquisition
+    from tradingagents.dataflows.config import run_config
+    from tradingagents.dataflows.errors import VendorUnavailableError
+    from tradingagents.dataflows.vendors import sec_documents, sec_edgar
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    from tradingagents.default_config import DEFAULT_CONFIG
+
+    secret = "dummy-secret-987"
+    facts, _ = complete_evidence()
+    def failed(*args, **kwargs):
+        raise VendorUnavailableError(secret)
+    if stage == "issuer_map":
+        monkeypatch.setattr(sec_edgar, "cik_for", failed)
+    else:
+        monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: facts.cik)
+        monkeypatch.setattr(sec_edgar, "get_financial_evidence", lambda *args: facts)
+        monkeypatch.setattr(sec_documents, "get_filing_evidence", failed)
+    monkeypatch.setattr(price_observation, "get_price_observation", lambda *args: {"status": "unavailable", "reason": "No price"})
+    state = {"asset_type": "stock", "company_of_interest": "DOCN", "trade_date": "2026-10-19"}
+    with run_config(DEFAULT_CONFIG):
+        acquired = create_source_acquisition(["fundamentals"])(state)
+    assert secret not in str(acquired)
+    expected = "SEC unavailable" if stage == "issuer_map" else "SEC filing unavailable"
+    assert expected in str(acquired["evidence_acquisition"])
+
+
+def test_source_acquisition_retains_locally_generated_no_data_reason(monkeypatch):
+    from tradingagents.agents.evidence_validation import create_source_acquisition
+    from tradingagents.dataflows.config import run_config
+    from tradingagents.dataflows.errors import NoMarketDataError
+    from tradingagents.dataflows.vendors import sec_edgar
+    from tradingagents.dataflows.vendors.yahoo import price_observation
+    from tradingagents.default_config import DEFAULT_CONFIG
+
+    monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: "0001582961")
+    def no_facts(*args):
+        raise NoMarketDataError("DOCN", detail="US filer with no us-gaap facts")
+    monkeypatch.setattr(sec_edgar, "get_financial_evidence", no_facts)
+    monkeypatch.setattr(price_observation, "get_price_observation", lambda *args: {"status": "unavailable", "reason": "No price"})
+    state = {"asset_type": "stock", "company_of_interest": "DOCN", "trade_date": "2026-10-19"}
+    with run_config(DEFAULT_CONFIG):
+        acquired = create_source_acquisition(["fundamentals"])(state)
+    assert "no us-gaap facts" in acquired["evidence_acquisition"]["reason"]
+
+
 @pytest.mark.parametrize("price_reason", ["No completed price", "Foreign listing; country=Canada; exchange=TSX"])
 def test_unmapped_stock_is_reviewed_through_acquisition_gate_and_publication(monkeypatch, price_reason):
     from tradingagents.agents.evidence_validation import create_source_acquisition

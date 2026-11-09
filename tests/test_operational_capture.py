@@ -174,6 +174,145 @@ def test_provider_truncation_is_observed_from_actual_model_callback():
 
 
 @pytest.mark.unit
+def test_delivered_analyst_text_marks_only_truncated_response():
+    from unittest.mock import MagicMock
+
+    from langchain_core.messages import AIMessage
+
+    from tradingagents.agents.analysts.turn import take_turn
+
+    prompt = MagicMock()
+    model = MagicMock()
+    prompt.__or__.return_value = model
+    model.bind_tools.return_value = model
+    model.invoke.side_effect = [
+        AIMessage(content='partial', response_metadata={'finish_reason': 'length'}),
+        AIMessage(content='complete', response_metadata={'finish_reason': 'stop'}),
+    ]
+    _, first = take_turn(prompt, model, [], [])
+    _, second = take_turn(prompt, model, [], [])
+    assert 'truncated' in first.lower()
+    assert 'truncated' not in second.lower()
+
+
+@pytest.mark.unit
+def test_wrap_up_and_generation_metadata_mark_delivered_report():
+    from unittest.mock import MagicMock
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from tradingagents.agents.analysts.turn import WRAP_UP, take_turn
+
+    prompt = MagicMock()
+    model = MagicMock()
+    prompt.partial.return_value = prompt
+    prompt.__or__.return_value = model
+    raw = AIMessage(content='partial')
+    raw.response_metadata = {'stop_reason': 'max_tokens'}
+    model.invoke.return_value = raw
+    _, report = take_turn(prompt, model, [], [HumanMessage(WRAP_UP)])
+    assert 'truncated' in report.lower()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('fallback_stop,expected', [('stop', False), ('length', True)])
+def test_structured_failed_attempt_labels_only_delivered_fallback(fallback_stop, expected):
+    from unittest.mock import MagicMock
+
+    from langchain_core.messages import AIMessage
+
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.return_value = {
+        'raw': AIMessage(content='bad json', response_metadata={'finish_reason': 'length'}),
+        'parsed': None, 'parsing_error': ValueError('bad json'),
+    }
+    plain = MagicMock()
+    plain.invoke.return_value = AIMessage(content='fallback', response_metadata={'finish_reason': fallback_stop})
+    report = invoke_structured_or_freetext(structured, plain, 'prompt', str, 'Trader')
+    assert ('truncated' in report.lower()) is expected
+
+
+@pytest.mark.unit
+def test_structured_raw_finish_marks_rendered_narrative_without_changing_parsed_model():
+    from unittest.mock import MagicMock
+
+    from langchain_core.messages import AIMessage
+
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    parsed = object()
+    structured = MagicMock()
+    structured.invoke.return_value = {
+        'raw': AIMessage(content='json', response_metadata={'finish_reason': 'length'}),
+        'parsed': parsed, 'parsing_error': None,
+    }
+    plain = MagicMock()
+    report = invoke_structured_or_freetext(structured, plain, 'prompt', lambda value: 'rendered' if value is parsed else 'wrong', 'Trader')
+    assert report.startswith('rendered') and 'truncated' in report.lower()
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
+def test_generation_info_finish_status_is_recognized_without_duplicate_observation():
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, LLMResult
+
+    from tradingagents.operational_capture import (
+        _Outcomes,
+        delivered_narrative,
+        observed_node,
+        output_was_truncated,
+    )
+
+    generation = ChatGeneration(message=AIMessage(content='partial'), generation_info={'finish_reason': 'length'})
+    assert output_was_truncated(generation)
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    def node(_state):
+        _Outcomes().on_llm_end(LLMResult(generations=[[generation]]))
+        return {'report': delivered_narrative(generation.message.content, generation.message)}
+    result = observed_node(node, 'Market Analyst')(state, {})
+    assert 'Model output truncated by provider' in result['report']
+    rows = [row for row in result['operational_observations'].values() if row['code'] == 'model_output_truncated']
+    assert len(rows) == 1 and rows[0].get('count', 1) == 1
+
+
+@pytest.mark.unit
+def test_generation_info_only_truncation_reaches_next_prompt_from_model_callback():
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+
+    from tradingagents.operational_capture import delivered_narrative, observed_node
+
+    class GenerationOnlyModel(BaseChatModel):
+        @property
+        def _llm_type(self):
+            return 'generation-only-fixture'
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            return ChatResult(generations=[ChatGeneration(
+                message=AIMessage(content='partial research'),
+                generation_info={'finish_reason': 'length'},
+            )])
+
+    model = GenerationOnlyModel()
+    state = {'run_id': 'run-one', 'company_of_interest': 'NVDA', 'trade_date': TRADE_DATE,
+             'run_settings': {}}
+    def analyst(_state):
+        raw = model.invoke('research prompt')
+        return {'report': delivered_narrative(raw.content, raw)}
+    result = observed_node(analyst, 'Market Analyst')(state, {})
+    next_prompt = f"Review the analyst report:\n{result['report']}"
+    assert 'Model output truncated by provider' in next_prompt
+    truncated = [row for row in result['operational_observations'].values()
+                 if row['code'] == 'model_output_truncated']
+    assert len(truncated) == 1 and truncated[0].get('count', 1) == 1
+
+
+@pytest.mark.unit
 def test_checkpoint_resume_and_second_run_keep_separate_observations(tmp_path, monkeypatch, offline):  # noqa: F811
     import json
 

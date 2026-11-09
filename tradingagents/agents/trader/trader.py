@@ -62,6 +62,9 @@ def create_trader(llm):
                     "Never put a purchase entry on Sell or Hold. A sale reference is not an order, executable quote, "
                     "share quantity or instruction concerning unknown holdings. State price levels in quote currency "
                     "as absolute numbers, never percentages or ranges; omit unsupported levels. "
+                    "Keep technical levels exactly as the market report states them; do not merge separate levels into bands. "
+                    "Any claim about where prior trading did or did not occur must cite the Prior closes by price band table; "
+                    "if that table is unavailable, say the historical claim is not checkable with these inputs. "
                     + NO_EXTERNAL_TOOLS
                     + get_language_instruction()
                 ),

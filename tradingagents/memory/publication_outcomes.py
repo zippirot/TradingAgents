@@ -9,17 +9,140 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from uuid import UUID, uuid4
 
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.files import locked, replace_file
-from tradingagents.memory.publication import list_records, load_evidence, load_record, record_root
+from tradingagents.memory.publication import load_evidence, load_record, record_root, scan_records
 from tradingagents.memory.settlement import (
+    PricePass,
     SettlementCoverageError,
+    _by_day,
     calendar_exit_date,
     fetch_outcome,
 )
+
+ZERO_REASON = 'No eligible instrument sessions on three post-horizon checks'
+# Bounded, dated proof, not a perpetual exchange-calendar approximation.
+# SPY listing: https://www.ssga.com/us/en/institutional/etfs/state-street-spdr-sp-500-etf-trust-spy
+# Closures: https://www.nyse.com/trade/hours-calendars (2026 column, checked 2026-11-07).
+_SPY_CLOSED_2026 = {'2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03',
+                    '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07',
+                    '2026-11-26', '2026-12-25'}
+
+
+def _now():
+    from tradingagents.source_replay import current_session, source_now
+
+    return source_now(UTC) if current_session() else datetime.now(UTC)
+
+
+def _aware(value):
+    stamp = datetime.fromisoformat(value)
+    if stamp.utcoffset() is None:
+        raise ValueError('Known-at time requires timezone')
+    return stamp.astimezone(UTC)
+
+
+def _entry_cutoff(record, zone=None):
+    cutoff = date.fromisoformat(record['requested_as_of'])
+    if record['evaluation_mode'] == 'prospective':
+        from zoneinfo import ZoneInfo
+        if not zone:
+            raise ValueError('Instrument timezone unavailable for publication-session cutoff')
+        cutoff = max(cutoff, _aware(record['published_at']).astimezone(ZoneInfo(zone)).date())
+    return cutoff
+
+
+def _validate_retry_endpoint(endpoint, original, record):
+    status = endpoint['status']
+    if status not in {original['status'], 'resolved', 'unresolvable'}:
+        raise ValueError('endpoint status')
+    if original['status'] == 'ineligible' and status != 'ineligible':
+        raise ValueError('ineligible endpoint')
+    checks = endpoint.get('zero_checks', [])
+    if not isinstance(checks, list) or len(checks) > 3:
+        raise ValueError('zero-coverage checks')
+    if len(checks) == 3 and status != 'unresolvable':
+        raise ValueError('Third zero check must establish terminal status')
+    if status == 'resolved' and checks:
+        raise ValueError('Resolved endpoint retains active zero checks')
+    if status != 'resolved' and any(key in endpoint for key in ('outcome', 'resolved_at', 'coincident_with')):
+        raise ValueError('Nonpriced endpoint carries a priced outcome')
+    recorded = record.get('published_at') or record.get('imported_at')
+    knowledge_floor = _aware(recorded) if recorded else datetime.combine(
+        date.fromisoformat(record['requested_as_of']), datetime.min.time(), UTC)
+    seen, previous = set(), None
+    for check in checks:
+        if check.get('zero_source', 'well_formed_empty_history') not in {
+                'well_formed_empty_history', 'yahoo_explicit_window_no_data'}:
+            raise ValueError('Unknown zero-coverage source')
+        identity = str(UUID(check['pass_id']))
+        stamp = _aware(check['checked_at'])
+        cutoff = _entry_cutoff(record, check['instrument_timezone'])
+        first = date.fromisoformat(check['reference_entry_date'])
+        last = date.fromisoformat(check['reference_exit_date'])
+        if (stamp < knowledge_floor or identity in seen
+                or (previous is not None and (stamp.date() - previous.date()).days < 14)
+                or first <= cutoff or last < first
+                or date.fromisoformat(check['window_start']) > cutoff
+                or date.fromisoformat(check['window_end_exclusive']) <= last
+                or date.fromisoformat(check['window_end_exclusive']) > stamp.date()):
+            raise ValueError('zero-coverage check identity or dates')
+        kind, count = endpoint_group_key(original)
+        if kind == 'calendar_months':
+            if last < calendar_exit_date(first, count):
+                raise ValueError('nominal calendar horizon')
+        elif type(check['reference_sessions']) is not int or check['reference_sessions'] < count + 1:
+            raise ValueError('nominal session horizon')
+        seen.add(identity)
+        previous = stamp
+    terminal = endpoint.get('terminal')
+    if status == 'unresolvable':
+        if original['status'] != 'pending' or not isinstance(terminal, dict):
+            raise ValueError('terminal endpoint')
+        known = _aware(terminal['known_at'])
+        if known < knowledge_floor:
+            raise ValueError('Terminal knowledge precedes publication')
+        reason = terminal['reason']
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 240:
+            raise ValueError('terminal reason')
+        if terminal['kind'] == 'zero_coverage':
+            if len(checks) != 3 or reason != ZERO_REASON or known < previous:
+                raise ValueError('terminal zero-coverage evidence')
+        elif terminal['kind'] == 'calendar_mismatch':
+            proof = terminal['proof']
+            first, last = (date.fromisoformat(proof[k]) for k in ('entry_date', 'exit_date'))
+            if (original.get('benchmark_alignment') != 'exact_sessions'
+                    or original['benchmark'] != 'SPY' or proof['calendar_id'] != 'nyse-arca-spy-2026'
+                    or proof['closed_date'] not in _SPY_CLOSED_2026
+                    or proof['closed_date'] not in {str(first), str(last)}
+                    or first <= _entry_cutoff(record, proof['instrument_timezone'])
+                    or last <= first or last >= known.date()):
+                raise ValueError('terminal calendar evidence')
+        else:
+            raise ValueError('terminal classification')
+    elif terminal is not None:
+        raise ValueError('nonterminal endpoint has terminal assertion')
+    history = endpoint.get('terminal_history', [])
+    if not isinstance(history, list):
+        raise ValueError('terminal history')
+    last_reopened = None
+    for item in history:
+        known, reopened = _aware(item['known_at']), _aware(item['reopened_at'])
+        if (item['kind'] != 'zero_coverage' or item['reason'] != ZERO_REASON
+                or known < knowledge_floor or reopened < known
+                or (last_reopened is not None and known < last_reopened)):
+            raise ValueError('terminal reopen history')
+        last_reopened = reopened
+    if last_reopened is not None and (
+            (terminal and _aware(terminal['known_at']) < last_reopened)
+            or any(_aware(check['checked_at']) < last_reopened for check in checks)):
+        raise ValueError('Retry evidence predates manual reopen')
+    if original['status'] == 'ineligible' and (checks or history or terminal):
+        raise ValueError('ineligible retry metadata')
 
 
 def _json(value) -> str:
@@ -135,8 +258,7 @@ def load_outcomes(config: dict, record: dict) -> dict:
             original = initial['endpoints'][name]
             if any(endpoint[key] != value for key, value in original.items() if key != 'status'):
                 raise ValueError('endpoint policy')
-            if endpoint['status'] not in {original['status'], 'resolved'}:
-                raise ValueError('endpoint status')
+            _validate_retry_endpoint(endpoint, original, record)
             if endpoint['status'] == 'resolved':
                 if original['status'] == 'ineligible':
                     raise ValueError('ineligible endpoint')
@@ -157,23 +279,144 @@ def load_outcomes(config: dict, record: dict) -> dict:
 
 
 def _write(path: Path, companion: dict) -> None:
+    record = load_record({'results_dir': str(path.parent.parent.parent)}, companion['decision_id'])
+    initial = _initial(record)
+    if any(companion[key] != value for key, value in initial.items() if key != 'endpoints'):
+        raise ValueError('Outcome publication identity mismatch')
+    if companion['endpoints'].keys() != initial['endpoints'].keys():
+        raise ValueError('Outcome endpoint identity mismatch')
+    for name, endpoint in companion['endpoints'].items():
+        original = initial['endpoints'][name]
+        if any(endpoint[key] != value for key, value in original.items() if key != 'status'):
+            raise ValueError('Outcome endpoint policy mismatch')
+        _validate_retry_endpoint(endpoint, original, record)
     payload = {k: v for k, v in companion.items() if k != 'outcomes_sha256'}
     payload['outcomes_sha256'] = _digest(payload)
     replace_file(path, lambda temp: Path(temp).write_text(_json(payload) + '\n', encoding='utf-8'), strict=True)
 
 
-def settle_publications(config: dict, ticker: str | None = None, wait: bool = True) -> dict:
-    """Settle each due endpoint once; return settled IDs and visible failures.
+class _OutcomeWriteError(Exception):
+    def __init__(self, error_type):
+        self.error_type = error_type
+        super().__init__(error_type)
 
-    A stock/benchmark's current daily bar may be provisional. Exclude today's
-    bars conservatively via prices_before; a later pass can resolve the window.
-    Historical simulations use their as-of cutoff, explicitly separate from
-    prospective records which also respect actual publication time.
-    """
-    result = {'settled': [], 'failed': []}
-    for record in list_records(config, ticker):
-        if not record['eligibility']['directional']:
-            continue
+
+def _persist(path, companion):
+    try:
+        _write(path, companion)
+    except Exception as exc:
+        # Do not let another sibling write commit this failed in-memory update.
+        raise _OutcomeWriteError(type(exc).__name__) from exc
+
+
+def _due(endpoint, now, pass_id):
+    checks = endpoint.get('zero_checks', [])
+    return not checks or (pass_id not in {c['pass_id'] for c in checks}
+                          and (now.date() - _aware(checks[-1]['checked_at']).date()).days >= 14)
+
+
+def _pending_status(record, endpoint, prices, now):
+    """Classify observed facts; None and elapsed time establish no terminal state."""
+    ticker = record['ticker']
+    kind, count = endpoint_group_key(endpoint)
+    earliest_cutoff = date.fromisoformat(record['requested_as_of'])
+    if record['evaluation_mode'] == 'prospective':
+        # Earliest possible publication-local date across supported timezones.
+        # This proves only impossibility of maturity, never an entry or return.
+        earliest_cutoff = max(earliest_cutoff, (_aware(record['published_at']) - timedelta(hours=12)).date())
+    earliest_entry = earliest_cutoff + timedelta(days=1)
+    earliest_exit = (calendar_exit_date(earliest_entry, count) if kind == 'calendar_months'
+                     else earliest_entry + timedelta(days=count))
+    if earliest_exit >= date.fromisoformat(prices.before):
+        return 'immature', 'Await maturity', None
+    if ticker not in prices.prices:
+        return 'retryable', 'Price window was not established', None
+    stock, cutoff, before = prices.instrument(record)
+    if not stock.empty:
+        nominal = (calendar_exit_date(stock.index[0], count) if kind == 'calendar_months'
+                   else stock.index[0] + timedelta(days=count))
+        if nominal >= before:
+            return 'immature', 'Await maturity', None
+        complete = ((stock.index >= nominal).any() if kind == 'calendar_months' else len(stock) > count)
+        if not complete:
+            return 'retryable', 'Insufficient completed instrument sessions; coverage remains unresolved', None
+        exit_day = stock[stock.index >= nominal].index[0] if kind == 'calendar_months' else stock.index[count]
+        benchmark = _by_day(prices.get(endpoint['benchmark']))
+        benchmark = benchmark[benchmark.index < before]
+        if (endpoint.get('benchmark_alignment') == 'exact_sessions' and not benchmark.empty
+                and benchmark.index[0] <= stock.index[0] and benchmark.index[-1] >= exit_day):
+            missing = [day.strftime('%Y-%m-%d') for day in (stock.index[0], exit_day)
+                       if day not in benchmark.index]
+            known_closed = next((day for day in missing if endpoint['benchmark'] == 'SPY'
+                                 and day in _SPY_CLOSED_2026), None)
+            if known_closed:
+                return 'terminal', f'Exact benchmark sessions unavailable: SPY exchange closed on {known_closed}', {
+                    'kind': 'calendar_mismatch', 'known_at': now.isoformat(),
+                    'proof': {'entry_date': stock.index[0].strftime('%Y-%m-%d'),
+                              'exit_date': exit_day.strftime('%Y-%m-%d'),
+                              'closed_date': known_closed, 'calendar_id': 'nyse-arca-spy-2026',
+                              'instrument_timezone': str(prices.get(ticker).index.tz)},
+                }
+        return 'retryable', 'Exact benchmark price window unavailable; original alignment retained', None
+    raw = prices.get(ticker)
+    if (not raw.empty or raw.attrs.get('settlement_verified_empty') is not True
+            or raw.attrs.get('settlement_request_start') != prices.starts[ticker].strftime('%Y-%m-%d')
+            or raw.attrs.get('settlement_request_end') != prices.before):
+        return 'retryable', 'Instrument zero coverage was not verified', None
+    benchmark = _by_day(prices.get(endpoint['benchmark']))
+    benchmark = benchmark[(benchmark.index > cutoff) & (benchmark.index < before)]
+    if benchmark.empty:
+        return 'retryable', 'Benchmark nominal horizon unavailable', None
+    first = benchmark.index[0]
+    if kind == 'calendar_months':
+        target = calendar_exit_date(first, count)
+        eligible = benchmark[benchmark.index >= target]
+        if eligible.empty:
+            return ('immature' if target >= before else 'retryable'), 'Benchmark nominal horizon not complete', None
+        last, sessions = eligible.index[0], len(benchmark)
+    else:
+        if len(benchmark) <= count:
+            earliest = first + timedelta(days=count)
+            return ('immature' if earliest >= before else 'retryable'), 'Benchmark nominal horizon not complete', None
+        last, sessions = benchmark.index[count], len(benchmark)
+    return 'zero', 'Verified zero eligible instrument sessions after nominal horizon', {
+        'checked_at': now.isoformat(), 'window_start': raw.attrs['settlement_request_start'],
+        'window_end_exclusive': prices.before, 'reference_entry_date': first.strftime('%Y-%m-%d'),
+        'reference_exit_date': last.strftime('%Y-%m-%d'), 'reference_sessions': sessions,
+        'instrument_timezone': str(raw.index.tz) if raw.index.tz is not None else None,
+        'zero_source': raw.attrs.get('settlement_zero_source', 'well_formed_empty_history'),
+    }
+
+
+def _clear_observed_zero_checks(record, endpoint, prices, path, companion):
+    cached = prices.prices.get(record['ticker'])
+    if (endpoint.get('zero_checks') and cached is not None and not isinstance(cached, Exception)
+            and not prices.instrument(record)[0].empty):
+        endpoint['zero_checks'] = []
+        _persist(path, companion)
+
+
+def settle_publications(config: dict, ticker: str | None = None, wait: bool = True, *, pass_id=None) -> dict:
+    """One pass shares full bounded prices and persists each verified transition."""
+    pass_id = str(UUID(pass_id)) if pass_id else str(uuid4())
+    now = _now()
+    before = min(get_current_date(), now.date().isoformat())
+    scan = scan_records(config, ticker)
+    result = {'settled': [], 'failed': [], 'immature': [], 'terminal': [],
+              'deferred': [], 'skipped': scan['skipped']}
+    records = [r for r in scan['records'] if r['eligibility']['directional']]
+    # Independently validate companions before a symbol can enter the shared plan.
+    prepared = []
+    for record in records:
+        try:
+            saved = load_outcomes(config, record)
+            prepared.append((record, saved))
+        except Exception as exc:
+            result['failed'].append((record['decision_id'], f'Outcome persistence unavailable ({type(exc).__name__})'))
+    prices = PricePass([r for r, c in prepared if any(e['status'] == 'pending' for e in c['endpoints'].values())], before)
+    prepared.sort(key=lambda pair: not any(e['status'] == 'pending' and _due(e, now, pass_id)
+                                           for e in pair[1]['endpoints'].values()))
+    for record, _ in prepared:
         decision_id = record['decision_id']
         root = record_root(config) / 'outcomes'
         root.mkdir(parents=True, exist_ok=True)
@@ -183,46 +426,109 @@ def settle_publications(config: dict, ticker: str | None = None, wait: bool = Tr
                 if not acquired:
                     continue
                 companion = load_outcomes(config, record)
-                load_evidence(config, record)
-                for name, endpoint in sorted(companion['endpoints'].items(), key=lambda item: endpoint_sort_key(item[1])):
+                evidence_checked, evidence_error = False, None
+                ordered = sorted(companion['endpoints'].items(),
+                                 key=lambda item: (not _due(item[1], now, pass_id), endpoint_sort_key(item[1])))
+                for name, endpoint in ordered:
+                    if endpoint['status'] == 'unresolvable':
+                        result['terminal'].append((decision_id, name))
+                        continue
                     if endpoint['status'] != 'pending':
                         continue
+                    if not _due(endpoint, now, pass_id):
+                        cached = prices.prices.get(record['ticker'])
+                        if cached is None or isinstance(cached, Exception) or prices.instrument(record)[0].empty:
+                            result['deferred'].append((decision_id, name))
+                            continue
                     try:
-                        before = get_current_date()
                         policy = {'benchmark_alignment': endpoint['benchmark_alignment']} if 'benchmark_alignment' in endpoint else {}
                         if endpoint.get('calendar_months'):
                             policy['calendar_months'] = endpoint['calendar_months']
                         outcome = fetch_outcome(
-                            record['ticker'], record['requested_as_of'], endpoint['holding_days'],
-                            endpoint['benchmark'],
+                            record['ticker'], record['requested_as_of'], endpoint['holding_days'], endpoint['benchmark'],
                             published_at=record['published_at'] if record['evaluation_mode'] == 'prospective' else None,
-                            prices_before=before, **policy,
-                        )
+                            prices_before=before, price_fetcher=prices.window, **policy)
+                    except SettlementCoverageError:
+                        outcome = None
+                    except Exception as exc:
+                        _clear_observed_zero_checks(record, endpoint, prices, path, companion)
+                        result['failed'].append((decision_id, f'{name}: prices unavailable ({type(exc).__name__})'))
+                        continue
+                    try:
+                        _clear_observed_zero_checks(record, endpoint, prices, path, companion)
                         if outcome is None:
+                            status, reason, proof = _pending_status(record, endpoint, prices, now)
+                            if status == 'zero':
+                                if _due(endpoint, now, pass_id):
+                                    endpoint['zero_checks'] = [*endpoint.get('zero_checks', []), {**proof, 'pass_id': pass_id}]
+                                    if len(endpoint['zero_checks']) == 3:
+                                        endpoint.update(status='unresolvable', terminal={
+                                            'kind': 'zero_coverage', 'reason': ZERO_REASON, 'known_at': now.isoformat()})
+                                    _persist(path, companion)
+                                if endpoint['status'] == 'unresolvable':
+                                    result['terminal'].append((decision_id, name))
+                                else:
+                                    result['failed'].append((decision_id, f'{name}: {reason}; retry scheduled'))
+                            elif status == 'terminal':
+                                endpoint.update(status='unresolvable', terminal={**proof, 'reason': reason})
+                                _persist(path, companion)
+                                result['terminal'].append((decision_id, name))
+                            elif status == 'immature':
+                                result['immature'].append((decision_id, name))
+                            else:
+                                result['failed'].append((decision_id, f'{name}: {reason}'))
                             continue
                         _validate_price_outcome(outcome, record, endpoint)
                         if outcome['resolution_date'] >= before:
+                            result['immature'].append((decision_id, name))
                             continue
-                    except SettlementCoverageError as exc:
-                        result['failed'].append((decision_id, f'{name}: {exc}'))
-                        continue
+                        if not evidence_checked:
+                            evidence_checked = True
+                            try:
+                                load_evidence(config, record)
+                            except Exception as exc:
+                                evidence_error = exc
+                        if evidence_error is not None:
+                            raise ValueError('Retained publication evidence unavailable') from evidence_error
+                        if endpoint.get('zero_checks'):
+                            endpoint['zero_checks'] = []
+                        outcome = {**outcome, 'observation_window_id': _window_id(outcome)}
+                        coincident = [other for other, saved in companion['endpoints'].items()
+                                      if saved['status'] == 'resolved' and _window_id(saved['outcome']) == outcome['observation_window_id']]
+                        companion['endpoints'][name] = {**endpoint, 'status': 'resolved', 'outcome': outcome,
+                                                       'resolved_at': now.isoformat(), 'coincident_with': coincident}
+                        _persist(path, companion)
+                        result['settled'].append((decision_id, name))
+                    except _OutcomeWriteError:
+                        raise
                     except Exception as exc:
-                        result['failed'].append((decision_id, f'{name}: prices unavailable ({type(exc).__name__})'))
-                        continue
-                    outcome = {**outcome, 'observation_window_id': _window_id(outcome)}
-                    coincident = [other for other, saved in companion['endpoints'].items()
-                                  if saved['status'] == 'resolved' and
-                                  _window_id(saved['outcome']) == outcome['observation_window_id']]
-                    companion['endpoints'][name] = {
-                        **endpoint, 'status': 'resolved', 'outcome': outcome,
-                        'resolved_at': datetime.now(UTC).isoformat(),
-                        'coincident_with': coincident,
-                    }
-                    _write(path, companion)
-                    result['settled'].append((decision_id, name))
+                        result['failed'].append((decision_id, f'{name}: outcome unavailable ({type(exc).__name__})'))
+        except _OutcomeWriteError as exc:
+            result['failed'].append((decision_id, f'Outcome persistence unavailable ({exc.error_type})'))
         except Exception as exc:
             result['failed'].append((decision_id, f'Outcome persistence unavailable ({type(exc).__name__})'))
     return result
+
+
+def reopen_endpoint(config, decision_id, endpoint_name):
+    """Explicit local maintenance: reopen only a verified zero-coverage terminal."""
+    record = load_record(config, decision_id)
+    path = record_root(config) / 'outcomes' / f'{decision_id}.json'
+    with locked(path):
+        companion = load_outcomes(config, record)
+        endpoint = companion['endpoints'][endpoint_name]
+        terminal = endpoint.get('terminal') or {}
+        if endpoint['status'] != 'unresolvable' or terminal.get('kind') != 'zero_coverage':
+            raise ValueError('Only zero-coverage terminal endpoints can be manually reopened')
+        now = _now()
+        if now < _aware(terminal['known_at']):
+            raise ValueError('Reopen time precedes terminal knowledge')
+        endpoint['terminal_history'] = [*endpoint.get('terminal_history', []),
+                                        {**terminal, 'reopened_at': now.isoformat()}]
+        endpoint.pop('terminal')
+        endpoint.update(status='pending', zero_checks=[])
+        _write(path, companion)
+        return companion
 
 
 def _summary_cutoff(as_of: str | None, timezone_name: str = 'America/Denver') -> datetime | None:
@@ -250,6 +556,18 @@ def _known_by(timestamp: str | None, cutoff: datetime | None) -> bool:
 
 def _summary_cell(value) -> str:
     return str(value).replace('|', '\\|').replace('\n', ' ').replace('\r', ' ')
+
+
+def terminal_at(endpoint, cutoff=None):
+    """The one terminal assertion visible before an explicit manual reopen."""
+    terminal = endpoint.get('terminal')
+    if terminal and _known_by(terminal['known_at'], cutoff):
+        return terminal
+    if cutoff is not None:
+        for saved in reversed(endpoint.get('terminal_history', [])):
+            if _known_by(saved['known_at'], cutoff) and cutoff < _aware(saved['reopened_at']):
+                return saved
+    return None
 
 
 def render_outcome_summary(
@@ -282,7 +600,8 @@ def render_outcome_summary(
             except (ZoneInfoNotFoundError, ValueError):
                 zone = UTC
             analysis_day = cutoff.astimezone(zone).date()
-    records = [record for record in list_records(config, ticker)
+    scan = scan_records(config, ticker)
+    records = [record for record in scan['records']
                if _known_by(record.get('published_at') or record.get('imported_at'), cutoff)]
     primary = [record for record in records if record['eligibility']['primary']]
     ineligible = [record for record in records if not record['eligibility']['directional']]
@@ -302,6 +621,8 @@ def render_outcome_summary(
     if as_of is not None:
         lines.append(f'Known-at cutoff: {_summary_cell(cutoff.isoformat())}. '
                      'Outcomes recorded after this cutoff remain pending in this view.')
+    if scan['skipped']:
+        lines.append(f"Integrity omissions: {len(scan['skipped'])} unreadable publication file(s) skipped in this scan.")
     if limit is not None and len(tabled) > limit:
         lines.append(f'Showing latest {limit} of {len(tabled)} tabled publications; '
                      'earlier records remain in coverage above.')
@@ -326,14 +647,25 @@ def render_outcome_summary(
     lines.extend(['', 'Decision | Horizon | Status | Gross security return | Gross benchmark return | Excess return | Price window',
                   '--- | --- | --- | --- | --- | --- | ---'])
     for index, record in enumerate(tabled, 1):
-        companion = load_outcomes(config, record)
+        try:
+            companion = load_outcomes(config, record)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            lines.append(f'D{index} | — | outcome integrity unavailable ({type(exc).__name__}) | — | — | — | —')
+            continue
         for endpoint in sorted(companion['endpoints'].values(), key=endpoint_sort_key):
             status = endpoint['status']
             outcome = endpoint.get('outcome')
+            terminal = terminal_at(endpoint, cutoff)
+            if terminal:
+                status = 'unresolvable'
+            elif status == 'unresolvable':
+                status = 'pending'
             if status == 'resolved' and (not _known_by(endpoint['resolved_at'], cutoff)
                     or (cutoff is not None and outcome['resolution_date'] > analysis_day.isoformat())):
                 status = 'pending'
-            if status == 'resolved':
+            if status == 'unresolvable':
+                values = ['—', '—', '—', f"{_summary_cell(terminal['reason'])}; known at {_summary_cell(terminal['known_at'])}"]
+            elif status == 'resolved':
                 values = [f"{outcome['raw_return']:+.2%}",
                           f"{_summary_cell(endpoint['benchmark'])} {outcome['benchmark_return']:+.2%}",
                           f"{outcome['alpha_return']:+.2%}",
@@ -346,3 +678,25 @@ def render_outcome_summary(
                 values = ['—'] * 4
             lines.append(f"D{index} | {endpoint_label(endpoint)} | {status} | " + ' | '.join(values))
     return '\n'.join(lines)
+
+
+def _maintenance(argv=None):
+    """Explicit maintenance invocation; never defaults to a live results tree."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Maintain a verified local outcome companion')
+    commands = parser.add_subparsers(dest='command', required=True)
+    reopen = commands.add_parser('reopen', help='Reopen one zero-coverage terminal endpoint')
+    reopen.add_argument('--results-dir', required=True)
+    reopen.add_argument('--decision-id', required=True)
+    reopen.add_argument('--endpoint', required=True)
+    args = parser.parse_args(argv)
+    companion = reopen_endpoint({'results_dir': args.results_dir}, args.decision_id, args.endpoint)
+    endpoint = companion['endpoints'][args.endpoint]
+    print(json.dumps({'decision_id': args.decision_id, 'endpoint': args.endpoint,
+                      'status': endpoint['status'],
+                      'reopened_at': endpoint['terminal_history'][-1]['reopened_at']}))
+
+
+if __name__ == '__main__':
+    _maintenance()

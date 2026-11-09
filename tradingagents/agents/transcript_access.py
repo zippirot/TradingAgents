@@ -66,10 +66,7 @@ def prepare_transcript_sources(state, selected_analysts) -> dict:
     except (VendorError, requests.RequestException, TimeoutError, ValueError):
         record = None
     if not isinstance(record, dict) or record.get("status") != "ready":
-        reason = (
-            record.get("reason") if isinstance(record, dict) and isinstance(record.get("reason"), str)
-            else "Transcript provider or cache unavailable"
-        )
+        reason = "Transcript provider or cache unavailable"
         return {"transcript_sources": _wrapper(
             scope, corpus, status="unavailable", reason=reason,
         )}

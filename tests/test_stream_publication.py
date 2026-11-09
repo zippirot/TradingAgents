@@ -81,3 +81,18 @@ def test_ai_content_blocks_are_qualified_without_changing_nontext_blocks():
     assert content[0] == {"type": "reasoning", "id": "r"}
     assert content[1]["text"].startswith("[Provisional")
     assert ai.content[1]["text"] == "Target $96"
+
+
+def test_tool_round_with_search_documents_logs_every_return():
+    from langgraph.pregel.debug import map_task_result_writes
+
+    tools = [ToolMessage(content=f"passage {i}", tool_call_id=f"call-{i}",
+                         name="search_documents") for i in range(3)]
+    result = map_task_result_writes([
+        ("messages", [message]) for message in tools
+    ] + [("document_search_trace", {"calls": 3})])
+    original = deepcopy(result)
+    emitted = stream([(("news", "tools"), "tasks", {"result": result})])
+    assert emitted[0][0] == tools
+    assert emitted[0][1]["document_search_trace"] == {"calls": 3}
+    assert result == original

@@ -236,7 +236,7 @@ def evidence_quality(checks: list[dict]) -> dict:
         "scope": "Selected US SEC-filer fundamentals",
         "status": "insufficient" if insufficient else ("limited" if warnings else "sufficient"),
         "checks": list(by_code.values()),
-        "warnings": [check["message"] for check in warnings],
+        "warnings": list(dict.fromkeys(check["message"] for check in warnings)),
     }
 
 
@@ -303,6 +303,7 @@ def _acquisition_scope(state, selected_analysts):
 def create_source_acquisition(selected_analysts):
     """Acquire one source vintage before analyst fan-out; never authorize publication."""
     from tradingagents.dataflows.errors import NoMarketDataError, VendorError
+    from tradingagents.dataflows.router import no_data_available
     from tradingagents.dataflows.vendors import sec_documents, sec_edgar
     from tradingagents.operational_capture import record_operation
 
@@ -345,14 +346,21 @@ def create_source_acquisition(selected_analysts):
                             raise ValueError("SEC filing package issuer or cutoff differs from requested instrument")
                     except (VendorError, ValidationError, ValueError) as exc:
                         record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC filings")
-                        record["disclosure_error"] = str(exc)
+                        record["disclosure_error"] = (
+                            f"SEC filing unavailable: {no_data_available(exc)}" if isinstance(exc, NoMarketDataError)
+                            else f"SEC filing unavailable ({type(exc).__name__})")
                         disclosures = None
                     if disclosures is not None:
                         from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
 
                         record["rpo_comparison"] = retrieve_rpo_comparison(scope["ticker"], disclosures)
+                    from tradingagents.agents.document_access import prepare_document_sources
+
+                    if disclosures is not None:
+                        update["filing_evidence"] = disclosures.model_dump(mode="json")
+                    update.update(prepare_document_sources({**state, **update}, selected_analysts))
                     prepared = assess_financial_package(
-                        state, package, disclosures, record["disclosure_error"],
+                        {**state, **update}, package, disclosures, record["disclosure_error"],
                         rpo_comparison=record["rpo_comparison"], source_only=True,
                     )
                     record["source_checks"] = prepared.pop("source_checks")
@@ -360,7 +368,9 @@ def create_source_acquisition(selected_analysts):
             except (VendorError, ValidationError, ValueError) as exc:
                 record_operation("vendor_no_data" if isinstance(exc, NoMarketDataError) else "vendor_unavailable", scope="SEC financial acquisition")
                 record["status"] = "unavailable"
-                record["reason"] = str(exc)
+                record["reason"] = (
+                    f"SEC unavailable: {no_data_available(exc)}" if isinstance(exc, NoMarketDataError)
+                    else f"SEC unavailable ({type(exc).__name__})")
         # Price is independent of financial scope and critical-accounting status.
         from tradingagents.dataflows.config import get_config
         from tradingagents.dataflows.vendors.yahoo.price_observation import (
@@ -385,6 +395,9 @@ def create_source_acquisition(selected_analysts):
         from tradingagents.agents.document_access import prepare_document_sources
 
         update.update(prepare_document_sources({**state, **update}, selected_analysts))
+        from tradingagents.agents.filing_terms import prepare_filing_terms
+
+        update.update(prepare_filing_terms({**state, **update}))
         from tradingagents.agents.transcript_access import prepare_transcript_sources
 
         update.update(prepare_transcript_sources({**state, **update}, selected_analysts))
@@ -446,6 +459,11 @@ def assess_financial_package(
     state: dict, package: EvidencePackage, disclosures=None, disclosure_error=None, *, rpo_comparison=None, source_only=False
 ) -> dict:
     """Assess available canonical evidence; unfinished critical bridges remain unavailable."""
+    from tradingagents.agents.document_access import validated_document_corpus
+    from tradingagents.dataflows.vendors.sec_edgar import confirm_current_marketable_securities
+
+    corpus = validated_document_corpus(state)
+    package = confirm_current_marketable_securities(package, corpus)
     if rpo_comparison is not None:
         from tradingagents.agents.kpi_comparisons import replay_rpo_comparison
 
@@ -461,7 +479,16 @@ def assess_financial_package(
             search_packages = retained_search_packages(state)
         except ValueError as exc:
             source_errors.append(f"Retained document search integrity: {exc}")
-    quote_packages = tuple(([disclosures] if disclosures is not None else []) + search_packages)
+    quote_packages = tuple(([disclosures] if disclosures is not None else [])
+                           + ([corpus] if corpus is not None else []) + search_packages)
+    if quote_packages:
+        from tradingagents.dataflows.disclosure_context import collapse_quote_packages
+
+        try:
+            quote_packages = collapse_quote_packages(quote_packages)
+        except (ValueError, ValidationError) as exc:
+            source_errors.append(str(exc))
+            quote_packages = ()  # Conflicting source views cannot ground a claim.
     if quote_packages:
         try:
             if disclosures is not None:
@@ -602,6 +629,12 @@ def assess_financial_package(
     calculations.extend(operating)
     checks.extend({"code": "optional_operating_" + c.method, "status": c.status,
                    "message": c.message} for c in operating)
+    from tradingagents.agents.accounting_checks import check_cash_plus_marketable_securities
+
+    calculations.append(check_cash_plus_marketable_securities(package))
+    from tradingagents.dataflows.disclosure_evidence import DisclosureResult
+
+    grounded = DisclosureResult()
     disclosure_summary = ""
     disclosure_references = []
     if quote_packages:
@@ -614,7 +647,7 @@ def assess_financial_package(
             for doc in quote_package.documents
             for block in doc.blocks
         }
-        discovered = discover_disclosures((disclosures,) if disclosures is not None else ())
+        discovered = discover_disclosures(quote_packages)
         grounded = discovered if source_only else parse_disclosure_report(
             state.get("fundamentals_report", ""), blocks, packages=quote_packages)
         model_grounded = None if source_only else grounded
@@ -674,12 +707,16 @@ def assess_financial_package(
             # flooding decision/report coverage with per-record diagnostics.
             # Full rejects and warnings remain in the extraction evidence.
             checks.append({"code": "optional_disclosure_summary", "status": "unavailable",
-                "message": f"Disclosure extraction: {len(grounded.rejected)} validation rejection(s), "
-                           f"{len(grounded.warnings)} warning(s); raw details retained in disclosure evidence."
-                           + (" No supported operating KPI or guidance record extracted." if not grounded.claims else "")})
+                "message": ((f"Model submission rejected: {len(model_grounded.rejected)} record(s); "
+                             if model_grounded is not None else "Model submissions not yet assessed; ")
+                            + f"source extraction rejected: {len(discovered.rejected)} record(s). "
+                            "raw details retained in disclosure evidence. "
+                            + ("Missing optional disclosure detail: " + "; ".join(dict.fromkeys(grounded.warnings))
+                               if grounded.warnings else "")
+                            + (" No supported operating KPI or guidance record extracted." if not grounded.claims else ""))})
     if disclosures is not None:
         checks.extend(
-            {"code": f"optional_source_scope_{i}", "status": "unavailable", "message": gap}
+            {"code": f"optional_source_scope_{i}", "status": "unavailable", "message": "Source coverage gap: " + gap}
             for i, gap in enumerate(disclosures.gaps)
             if "Document text limit reached" in gap
             or "Older submissions archive not retrieved" in gap
@@ -765,6 +802,19 @@ def assess_financial_package(
         update["canonical_financial_context"] += "\n\n" + supplement["financing_text"]
     if supplement["text"]:
         update["canonical_financial_context"] += "\n\n" + supplement["text"]
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(state)
+    if terms:
+        update["canonical_financial_context"] += "\n\n" + terms
+    from tradingagents.agents.retained_kpi_context import (
+        render_lease_maturities,
+        render_retained_kpi_history,
+    )
+
+    for retained_context in (render_retained_kpi_history(state), render_lease_maturities(state)):
+        if retained_context:
+            update["canonical_financial_context"] += "\n\n" + retained_context
     if source_only:
         if extraction is not None:
             update["filing_fact_extraction"] = extraction.model_dump(mode="json")
@@ -772,6 +822,27 @@ def assess_financial_package(
         update.pop("evidence_quality")
         update.pop("financial_claim_validation")
         return update
+    from tradingagents.agents.evidence_presentation import prompt_reference_map
+
+    retained_source_ids = {source.source_id for source in package.sources}
+    if disclosures is not None:
+        retained_source_ids.update(document.source_id for document in disclosures.documents)
+    if state.get("price_observation"):
+        from tradingagents.dataflows.vendors.yahoo.price_observation import (
+            validate_price_observation,
+        )
+
+        try:
+            price = validate_price_observation(
+                state["price_observation"], state["company_of_interest"], package.as_of,
+            )
+            retained_source_ids.add(price["source_id"])
+        except (KeyError, TypeError, ValueError):
+            pass
+    update["prompt_evidence_references"] = prompt_reference_map(
+        update["canonical_financial_context"], state.get("shared_source_brief") or "",
+        fact_ids=(fact.fact_id for fact in package.facts), source_ids=retained_source_ids,
+    )
     if extraction is not None:
         update["filing_fact_extraction"] = extraction.model_dump(mode="json")
     if quality["status"] == "insufficient":

@@ -19,12 +19,15 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
+    "TRADINGAGENTS_DECISION_HORIZON_MONTHS": "decision_horizon_months",
     "TRADINGAGENTS_MAX_TOOL_ROUNDS":      "max_tool_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_INPUT_COST_PER_MILLION": "input_cost_per_million",
+    "TRADINGAGENTS_OUTPUT_COST_PER_MILLION": "output_cost_per_million",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -95,6 +98,7 @@ def build_default_config() -> dict:
         # price sessions retain their own exchange/session clock.
         "analysis_timezone": "America/Denver",
         "analysis_cutoff_utc": None,
+        "decision_horizon_months": 6,
         # LLM settings
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",
@@ -116,6 +120,9 @@ def build_default_config() -> dict:
         "google_thinking_level": None,      # "high", "minimal", etc.
         "openai_reasoning_effort": None,    # "medium", "high", "low"
         "anthropic_effort": None,           # "high", "medium", "low"
+        # Optional prices for a local observed-token estimate, never a bill.
+        "input_cost_per_million": "",
+        "output_cost_per_million": "",
         # Sampling temperature, forwarded to every provider when set. None leaves
         # each provider at its own default. Lower values reduce run-to-run
         # variation on models that honor it; reasoning models largely ignore it

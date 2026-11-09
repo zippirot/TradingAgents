@@ -100,5 +100,9 @@ def test_pending_thesis_roles_cross_real_graph_and_restart(tmp_path, monkeypatch
     assert restored['prior_thesis']['version_id'] == current['version_id']
     assert restored['prior_thesis']['conditions'][0]['thesis_role'] == role
     assert restored['prior_thesis']['conditions'][0]['condition_id'] == identifier
-    assert restarted.memory_log.load_entries()[0]['decision_id'] == original['decision_id']
+    entries = restarted.memory_log.load_entries()
+    assert len(entries) == 1 and entries[0]['pending']
+    assert entries[0]['decision_id'] == record['decision_id']
+    assert record['thesis_version_id'] == restored['prior_thesis']['version_id']
+    assert original['eligibility']['primary'] and not record['eligibility']['primary']
     assert thesis.load_latest_thesis(graph.config, 'NVDA', '2026-11-04T21:59:59Z') is None

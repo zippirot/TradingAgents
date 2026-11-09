@@ -11,22 +11,34 @@ from tradingagents.dataflows.vendors import sec_edgar
 from tradingagents.dataflows.vendors.yahoo.price_observation import get_price_observation
 
 
-def companyfacts(monkeypatch, tmp_path, *, conflicting_end="2015-12-31"):
+def companyfacts(monkeypatch, tmp_path, *, conflicting_end="2015-12-31", conflicting_tag="Assets"):
     quarters = [("2025-10-01", "2025-12-31"), ("2026-01-01", "2026-03-31"),
                 ("2026-04-01", "2026-06-30"), ("2026-07-01", "2026-09-30")]
     revenue = [{"start": start, "end": end, "val": 100, "filed": "2026-11-06",
                 "form": "10-Q", "accn": f"revenue-{end}"} for start, end in quarters]
     assets = [{"end": "2015-12-31", "val": 50, "filed": "2016-02-01", "form": "10-K"},
               {"end": "2026-09-30", "val": 500, "filed": "2026-11-06", "form": "10-Q"}]
+    filed = "2016-02-01" if conflicting_end.startswith("2015") else "2026-11-06"
     conflict = {"end": conflicting_end, "val": 99,
-                "filed": "2016-02-01" if conflicting_end.startswith("2015") else "2026-11-06",
+                "filed": filed,
                 "form": "10-K" if conflicting_end.startswith("2015") else "10-Q"}
+    if conflicting_tag == "Assets" and conflicting_end not in {row["end"] for row in assets}:
+        assets.append({"end": conflicting_end, "val": 50, "filed": filed, "form": conflict["form"]})
+    if conflicting_tag == "Revenues":
+        conflict["start"] = "2026-07-01"
     gaap = {
-        "Assets": {"units": {"USD": assets, "EUR": [conflict]}},
-        "Revenues": {"units": {"USD": revenue}},
+        "Assets": {"units": {"USD": assets, **({"EUR": [conflict]} if conflicting_tag == "Assets" else {})}},
+        "Revenues": {"units": {"USD": revenue, **({"EUR": [conflict]} if conflicting_tag == "Revenues" else {})}},
         "CommonStockSharesOutstanding": {"units": {"shares": [{"end": "2026-09-30", "val": 10,
             "filed": "2026-11-06", "form": "10-Q"}]}},
     }
+    if conflicting_tag == "GrossProfit":
+        gaap["GrossProfit"] = {"units": {
+            "USD": [{**conflict, "start": "2026-07-01", "val": 50}],
+            "EUR": [{**conflict, "start": "2026-07-01"}],
+        }}
+    if conflicting_tag == "CommonStockSharesOutstanding":
+        gaap["CommonStockSharesOutstanding"]["units"]["EUR"] = [conflict]
     monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: "0000000001")
     monkeypatch.setattr(sec_edgar, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
     monkeypatch.setattr(sec_edgar, "_cached_json", lambda *args: {"cik": 1, "facts": {"us-gaap": gaap}})
@@ -49,11 +61,65 @@ def test_ambiguity_in_an_old_period_does_not_exclude_the_peer(monkeypatch, tmp_p
         sec_edgar.get_financial_evidence("PEER", "2026-11-07")
 
 
-def test_ambiguity_inside_the_window_still_excludes(monkeypatch, tmp_path):
-    companyfacts(monkeypatch, tmp_path, conflicting_end="2026-09-30")
-    with pytest.raises(VendorUnavailableError, match="ambiguous"):
+def test_peer_ambiguity_in_unused_metric_keeps_peer(monkeypatch, tmp_path):
+    from tradingagents.agents.valuation_reference_flow import _fetch_peer
+
+    companyfacts(monkeypatch, tmp_path, conflicting_end="2023-12-31")
+    install_price(monkeypatch, now="2026-11-07T22:00:00+00:00",
+                  dates=("2026-09-30", "2026-11-05", "2026-11-06"), closes=(80, 84, 85),
+                  metadata={"symbol": "SUBJECT"})
+    subject_quote = get_price_observation("SUBJECT", "2026-11-07", date(2026, 9, 30))
+    install_price(monkeypatch, now="2026-11-07T22:00:00+00:00",
+                  dates=("2026-09-30", "2026-11-05", "2026-11-06"), closes=(80, 84, 85),
+                  metadata={"symbol": "PEER"})
+    state = {"company_of_interest": "SUBJECT", "trade_date": "2026-11-07", "asset_type": "stock",
+             "price_observation": subject_quote, "issuer_identity": {"cik": "0000000002"}}
+    peer = _fetch_peer("PEER", state)
+    assert peer["status"] == "available", peer
+    assert all(f["metric"] != "Total Assets" for f in peer["package"]["facts"])
+    gap = "Total Assets ambiguous at 2023-12-31; not used for peer statistics"
+    assert gap in peer["package"]["warnings"]
+    result = calculate_peer_statistics(peer["package"], peer["issuer_identity"], peer["price_observation"],
+                                       ticker="PEER", completed_cutoff=date(2026, 11, 6))
+    assert result["status"] == "available", result
+    assert gap in result["evidence_gaps"]
+
+
+def test_peer_ambiguity_in_revenue_still_excludes(monkeypatch, tmp_path):
+    companyfacts(monkeypatch, tmp_path, conflicting_end="2026-09-30", conflicting_tag="Revenues")
+    with pytest.raises(VendorUnavailableError, match="Revenues at 2026-09-30"):
         sec_edgar.get_financial_evidence("PEER", "2026-11-07",
             peer_revenue_definitions=True, period_floor=date(2023, 11, 7))
+
+
+@pytest.mark.parametrize("tag", ["GrossProfit", "CommonStockSharesOutstanding"])
+def test_peer_ambiguity_in_other_consumed_metrics_still_excludes(monkeypatch, tmp_path, tag):
+    companyfacts(monkeypatch, tmp_path, conflicting_end="2026-09-30", conflicting_tag=tag)
+    with pytest.raises(VendorUnavailableError, match=f"{tag} at 2026-09-30"):
+        sec_edgar.get_financial_evidence("PEER", "2026-11-07",
+            peer_revenue_definitions=True, period_floor=date(2023, 11, 7))
+
+
+def test_subject_ambiguity_still_raises(monkeypatch, tmp_path):
+    companyfacts(monkeypatch, tmp_path, conflicting_end="2023-12-31")
+    with pytest.raises(VendorUnavailableError, match="Assets at 2023-12-31"):
+        sec_edgar.get_financial_evidence("PEER", "2026-11-07")
+
+
+def test_peer_gap_is_visible_in_reference_brief(monkeypatch):
+    from tests.test_valuation_reference_flow import flow_fixture
+    from tradingagents.agents import valuation_reference_flow as flow
+
+    state, config, _, _ = flow_fixture(monkeypatch)
+    monkeypatch.setattr(flow, "default_peer_selection", lambda *args: {
+        "kind": "previous", "status": "available", "reason": None,
+        "peers": [{"ticker": "AKAM", "reason": "Prior cloud comparison"}],
+    })
+    record = flow.acquire_reference_inputs(state, config)["valuation_reference"]
+    gap = "Total Assets ambiguous at 2023-12-31; not used for peer statistics"
+    assert record["peers"]["accepted"]
+    record["peers"]["accepted"][0]["statistics"]["evidence_gaps"] = [gap]
+    assert f"Evidence gap: {gap}." in flow.render_valuation_reference(record)
 
 
 def test_peer_fetch_passes_three_calendar_year_floor(monkeypatch):
@@ -80,3 +146,16 @@ def test_peer_fetch_passes_three_calendar_year_floor(monkeypatch):
     assert result["status"] == "available", result
     assert calls == [(("PEER", "2026-10-19"),
                       {"peer_revenue_definitions": True, "period_floor": date(2023, 10, 19)})]
+
+
+def test_recorded_nbis_exclusion_names_consumed_revenue_metric(monkeypatch, tmp_path):
+    from tests.docn_workflow_fixture import source_json
+
+    mapping = source_json('issuer-map.json.gz')
+    raw = source_json('raw-companyfacts-nbis.json.gz')
+    monkeypatch.setattr(sec_edgar, 'get_config', lambda: {'data_cache_dir': str(tmp_path)})
+    monkeypatch.setattr(sec_edgar, '_cached_json',
+                        lambda url, name: mapping if name == 'company_tickers.json' else raw)
+    with pytest.raises(VendorUnavailableError, match='Revenues at 2023-12-31'):
+        sec_edgar.get_financial_evidence('NBIS', '2026-11-07', peer_revenue_definitions=True,
+                                         period_floor=date(2023, 11, 7))

@@ -40,7 +40,7 @@ def test_corrected_same_date_can_append_without_rewriting_legacy_review(tmp_path
     log.store_decision("DOCN", "2026-01-05", "Rating: Buy")
     log.store_decision("DOCN", "2026-01-05", "Rating: Sell")
     entries = log.load_entries()
-    assert len(entries) == 3 and entries[-1]["rating"] == "Buy"
+    assert len(entries) == 3 and entries[-1]["rating"] == "Sell"
     assert path.read_bytes().startswith(before)
 
 

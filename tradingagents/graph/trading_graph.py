@@ -27,6 +27,7 @@ from tradingagents.reporting import (
     verified_publication,
     write_report_tree,
 )
+from tradingagents.source_replay import current_session, source_now
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -36,13 +37,23 @@ from .setup import GraphSetup
 logger = logging.getLogger(__name__)
 
 
-def _state_log_path(config, ticker, trade_date):
+def _task_messages(value):
+    """Unwrap LangGraph's multi-write channel envelope without changing messages."""
+    if isinstance(value, dict) and isinstance(value.get("$writes"), list):
+        return [message for write in value["$writes"] for message in _task_messages(write)]
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _state_log_path(config, ticker, trade_date, run_id=None):
     directory = Path(config["results_dir"]) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
-    return directory / f"full_states_log_{trade_date}.json"
+    suffix = "_" + safe_ticker_component(str(run_id)[:8]) if run_id else ""
+    return directory / f"full_states_log_{trade_date}{suffix}.json"
 
 
 def _recover_logged_summary(config, ticker, trade_date, record):
-    path = _state_log_path(config, ticker, _validate_trade_date(trade_date))
+    path = _state_log_path(config, ticker, _validate_trade_date(trade_date), record.get("run_id"))
+    if not path.exists():
+        path = _state_log_path(config, ticker, trade_date)
     try:
         with path.open(encoding="utf-8") as saved:
             state = json.load(saved)
@@ -58,8 +69,11 @@ def _recover_logged_summary(config, ticker, trade_date, record):
 
 def _recover_logged_ground_truth(config, ticker, trade_date, record):
     """Recover only this exact publication's audit without running inference."""
+    path = _state_log_path(config, ticker, _validate_trade_date(trade_date), record.get("run_id"))
+    if not path.exists():
+        path = _state_log_path(config, ticker, trade_date)
     try:
-        saved = json.loads(_state_log_path(config, ticker, _validate_trade_date(trade_date)).read_text())
+        saved = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, UnicodeError):
         return {}
     if not isinstance(saved, dict) or saved.get("run_id") != record["run_id"]:
@@ -107,6 +121,7 @@ def _validate_trade_date(trade_date) -> str:
 # whether it checkpoints, and how often it retries a provider.
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "input_cost_per_million", "output_cost_per_million",
 })
 
 
@@ -249,6 +264,7 @@ class TradingAgentsGraph:
         self._metrics_start = self._callback_calls()
         self._tokens_start = self._token_snapshot()
         return {
+            "call_boundary": "graph_only",
             "model_calls": 0 if self._metrics_start is not None else None,
             "model_call_scope": "complete_observed" if self._metrics_start is not None else "unavailable",
             "observer_id": self._metrics_observer_id,
@@ -286,6 +302,7 @@ class TradingAgentsGraph:
         risk_turns = max(0, risk.get("count", 0)) if type(risk.get("count")) is int else 0
         result = {
             **previous,
+            "call_boundary": "graph_only",
             "research_turns": research_turns, "risk_turns": risk_turns,
             "research_rounds_completed": research_turns // 2,
             "risk_rounds_completed": risk_turns // 3,
@@ -367,7 +384,7 @@ class TradingAgentsGraph:
             "source_acquisition=1",
             "publication=1",
             "shared_valuation=7",
-            "advisory_thesis=2",
+            "advisory_thesis=3",
             "price_observation=3",
             "completed_market_inputs=2",
             "event_comparison=2",
@@ -376,16 +393,18 @@ class TradingAgentsGraph:
             "mechanical_shared_context=1",
             f"peer_pins={peer_selection_fingerprint(self.config)}",
             "decision_context=4",
+            "decision_page=1",
             "evidence_presentation=1",
             "publication_record=3",
             "analysis_cutoff=2",
             "advisory_audit=5",
             "run_metrics=2",
             "financing_evidence=2",
-            "shared_source_brief=3",
+            "shared_source_brief=5",
+            "operational_delivery=1",
             "financial_claim_prompt=1",
-            "document_search=2",
-            "document_followup=2",
+            "document_search=3",
+            "document_followup=3",
             "vendor_transcript=1",
             "audit_dispositions=1",
             f"settings={digest}",
@@ -498,6 +517,8 @@ class TradingAgentsGraph:
         cfg = self.config
         return {
             "version": tradingagents.__version__,
+            "source_hash": publication.runtime_versions()["code"],
+            **{key: cfg.get(key) for key in ("openai_reasoning_effort", "anthropic_effort", "google_thinking_level")},
             "llm_provider": cfg.get("llm_provider"),
             "deep_think_provider": tier_provider(cfg, "deep") if cfg.get("llm_provider") else None,
             "deep_think_llm": cfg.get("deep_think_llm"),
@@ -506,6 +527,7 @@ class TradingAgentsGraph:
             "analysts": list(self.selected_analysts),
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
+            "decision_horizon_months": cfg.get("decision_horizon_months", 6),
             "output_language": cfg.get("output_language"),
             "ground_truth_audit": cfg.get("ground_truth_audit") is True,
             "data_vendors": dict(cfg.get("data_vendors") or {}),
@@ -547,9 +569,11 @@ class TradingAgentsGraph:
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
         state["publication_versions"] = publication.runtime_versions()
+        state["run_settings"]["source_hash"] = state["publication_versions"]["code"]
         state["analysis_clock"] = self._analysis_cutoff(trade_date)
         state["market_observation_cutoff"] = min(
-            datetime.now(UTC), datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
+            source_now(UTC) if current_session() else datetime.now(UTC),
+            datetime.fromisoformat(state["analysis_clock"]["cutoff_utc"])
         ).isoformat()
         return state
 
@@ -571,16 +595,25 @@ class TradingAgentsGraph:
         # Existing unstamped memory is demonstrably available at this read only
         # on the current analysis day, before its explicit cutoff. Historical
         # replays cannot infer when an old entry was first published or settled.
-        read_at = datetime.now(UTC)
+        read_at = source_now(UTC) if current_session() else datetime.now(UTC)
         current_read = (read_at.astimezone(analysis_zone).date().isoformat()
                         == str(state["trade_date"])
                         and read_at <= cutoff_instant)
         try:
             # Another run settling the same log does the work; this one goes on.
             done = self.settle_all_pending(wait=False)
+            notes = []
             if done.failed:
-                note = (f"{len(done.failed)} past decision(s) could not be settled this run "
-                        "and stay pending.")
+                notes.append(f"{len(done.failed)} settlement(s) could not be settled this run and stay pending.")
+            if done.endpoint_immature:
+                notes.append(f"{len(done.endpoint_immature)} outcome(s) await maturity.")
+            if done.endpoint_terminal:
+                notes.append(f"{len(done.endpoint_terminal)} outcome(s) are unresolvable; reasons are retained in outcome history.")
+            if done.endpoint_deferred:
+                notes.append(f"{len(done.endpoint_deferred)} zero-coverage recheck(s) are not yet due.")
+            if done.skipped_publications:
+                notes.append(f"{len(done.skipped_publications)} unreadable publication file(s) skipped in this settlement scan.")
+            note = ' '.join(notes)
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
@@ -731,9 +764,27 @@ class TradingAgentsGraph:
                 context = summary_input_for_report(prepare_report_state(final_state))
                 saved = final_state.get("executive_summary")
                 if not saved or resolve_summary(context, saved)["status"] != "completed":
-                    final_state["executive_summary"] = generate_summary(
-                        context, getattr(self, "deep_thinking_llm", None)
+                    from tradingagents.attempt_trace import (
+                        merge_call_metadata,
+                        recorder_from_config,
                     )
+                    from tradingagents.operational_audit import merge_observations
+                    from tradingagents.operational_capture import observed_node
+
+                    callbacks = getattr(self, "callbacks", [])
+                    if recorder_from_config({"callbacks": callbacks}):
+                        summary = observed_node(
+                            lambda _: {"executive_summary": generate_summary(
+                                context, getattr(self, "deep_thinking_llm", None))},
+                            "Executive Summary")(final_state, {"callbacks": callbacks})
+                        final_state["executive_summary"] = summary["executive_summary"]
+                        final_state["operational_observations"] = merge_observations(
+                            final_state.get("operational_observations"), summary.get("operational_observations"))
+                        final_state["model_call_metadata"] = merge_call_metadata(
+                            final_state.get("model_call_metadata"), summary.get("model_call_metadata"))
+                    else:
+                        final_state["executive_summary"] = generate_summary(
+                            context, getattr(self, "deep_thinking_llm", None))
             except Exception as exc:
                 # An editorial adapter failure cannot cancel a published decision.
                 # Provider exceptions can include private prompt text or endpoints.
@@ -763,25 +814,30 @@ class TradingAgentsGraph:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
                            company_name, trade_date)
             return
-        # Publication order, not projection scheduling, chooses the daily
-        # observation. A later revision may repair a missing primary projection.
-        primary = next((r for r in publication.list_records(self.config, company_name)
-                        if r["requested_as_of"] == str(trade_date) and r["eligibility"]["primary"]), None)
-        if primary is not None:
-            memory_decision = decision if primary["decision_id"] == record["decision_id"] else primary["canonical_decision"]
-            if primary["decision_truncated"] and primary["decision_id"] != record["decision_id"]:
-                memory_decision += "\n[Bounded publication excerpt; full decision hash retained in publication.]"
-            self.memory_log.store_decision(
-                ticker=company_name, trade_date=trade_date, final_trade_decision=memory_decision,
-                rating=primary["canonical_rating"], decision_id=primary["decision_id"],
-            )
-        elif not final_state.get("evidence_quality"):
-            # Existing unvalidated programmatic callers retain legacy behavior;
-            # do not link their memory to an ineligible measurement record.
-            self.memory_log.store_decision(
-                ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
-                rating=run_rating(final_state),
-            )
+        # Keep selection and projection ordered with publication writes. An old
+        # delayed projection must not replace a newer pending decision. Daily
+        # evaluation eligibility remains immutable and independent of this view.
+        from tradingagents.dataflows.files import locked
+
+        with locked(publication.record_root(self.config) / 'publication'):
+            latest = max((r for r in publication.list_records(self.config, company_name)
+                          if r['requested_as_of'] == str(trade_date)
+                          and r['eligibility']['directional'] and r['published_at']),
+                         key=lambda r: r['sequence'], default=None)
+            if latest is not None:
+                memory_decision = decision if latest['decision_id'] == record['decision_id'] else latest['canonical_decision']
+                if latest['decision_truncated'] and latest['decision_id'] != record['decision_id']:
+                    memory_decision += "\n[Bounded publication excerpt; full decision hash retained in publication.]"
+                self.memory_log.store_decision(
+                    ticker=company_name, trade_date=trade_date, final_trade_decision=memory_decision,
+                    rating=latest['canonical_rating'], decision_id=latest['decision_id'],
+                )
+            elif not final_state.get('evidence_quality'):
+                # Existing unvalidated programmatic callers retain legacy behavior.
+                self.memory_log.store_decision(
+                    ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
+                    rating=run_rating(final_state),
+                )
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):
@@ -844,9 +900,9 @@ class TradingAgentsGraph:
                     if isinstance(result, dict):
                         report = {k: v for k, v in result.items() if k != "messages" and v}
                         if result.get("messages") or report:
-                            yield provisional_messages(result.get("messages", [])), provisional_state(report or None)
+                            yield provisional_messages(_task_messages(result.get("messages", []))), provisional_state(report or None)
                 elif mode == "values":
-                    yield provisional_messages(chunk.get("messages", [])), provisional_state(chunk)
+                    yield provisional_messages(_task_messages(chunk.get("messages", []))), provisional_state(chunk)
         finally:
             context.run(stream.close)
 
@@ -884,7 +940,11 @@ class TradingAgentsGraph:
             "run_settings": final_state.get("run_settings", self.run_settings()),
         }
 
-        for field in ("ground_truth_source_documents", "ground_truth_source_acquisition", "ground_truth_audit", "ground_truth_prepublication", "ground_truth_reassessment", "ground_truth_execution", "operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("past_context", "memory_note", "model_call_metadata", "replay_context"):
+            if field in final_state:
+                entry[field] = final_state[field]
+
+        for field in ("ground_truth_source_documents", "ground_truth_source_acquisition", "ground_truth_audit", "ground_truth_prepublication", "ground_truth_reassessment", "ground_truth_execution", "operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "document_followup_judgments", "prompt_evidence_references", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "filing_terms_evidence", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 
@@ -898,4 +958,7 @@ class TradingAgentsGraph:
                 # Reports can be in any language and this file is read by a person.
                 json.dump(entry, f, indent=4, ensure_ascii=False)
 
+        if final_state.get("run_id"):
+            archive = _state_log_path(self.config, final_state["company_of_interest"], trade_date, final_state["run_id"])
+            replace_file(archive, write_snapshot, strict=True)
         replace_file(log_path, write_snapshot, strict=True)

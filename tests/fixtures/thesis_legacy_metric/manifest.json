@@ -1,0 +1,46 @@
+{
+  "base_commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+  "files": {
+    "evidence/9bb1183fc4174d59f12ec1df9db6098436833602f07821a63011cf026e193800.json": "e57e48397e781f7ec15845c12131884d6bd3e1ab3e5b0881380b5ef25cae8566",
+    "evidence/eebbe78a6ca97cba2e6f331a8fbc3993c11b8c6c6620e03d1fdaab840a89a044.json": "89bb9f68d3f18cb56849a8d3e564978c232174da5676e6ad8fe5e19aaaf53059",
+    "records/11111111-1111-4111-8111-111111111111.json": "96a320f104047940e87d8dcfe7ed9cd8260403d9430c9b9acb7a911bd6dae47f",
+    "records/22222222-2222-4222-8222-222222222222.json": "1c97f262e214e1c4e9f7b1f05915216835f506050006629138c50ea813157fa5"
+  },
+  "generator": "Unmodified BASE 78e3611ffb3fd6d8672acc2c15f54489cc258ae6 tradingagents.memory.thesis.prepare_thesis and tradingagents.memory.publication.publish; synthetic tests.test_thesis.margin_condition/margin_state and tests.test_thesis_aliases.variant; fixed UTC publication times and UUIDs; no private records, network or model calls",
+  "records": [
+    {
+      "condition_aliases": [
+        "condition-bbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "condition_id": "condition-aaaaaaaaaaaaaaaaaaaaaaaa",
+      "decision_id": "11111111-1111-4111-8111-111111111111",
+      "evidence_sha256": "eebbe78a6ca97cba2e6f331a8fbc3993c11b8c6c6620e03d1fdaab840a89a044",
+      "legacy_measurement_id": "condition-5ced60576c2647021567b468",
+      "metric_dump_sha256": "c4155eef96862612f73e0667acfb5964b4e99bfe1282ced7257b3fcf9e345157",
+      "parent_version_id": "legacy-source-version",
+      "prior_dispositions": [],
+      "record_sha256": "e5068a771071a9b9c8cef8cb1fec6cb085ffc81869c02ea4e5952c7aea9f5520",
+      "thesis_version_id": "f15dc6b2-c8da-5900-8458-c2488bda0978"
+    },
+    {
+      "condition_aliases": [
+        "condition-bbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "condition_id": "condition-aaaaaaaaaaaaaaaaaaaaaaaa",
+      "decision_id": "22222222-2222-4222-8222-222222222222",
+      "evidence_sha256": "9bb1183fc4174d59f12ec1df9db6098436833602f07821a63011cf026e193800",
+      "legacy_measurement_id": "condition-5ced60576c2647021567b468",
+      "metric_dump_sha256": "c4155eef96862612f73e0667acfb5964b4e99bfe1282ced7257b3fcf9e345157",
+      "parent_version_id": "f15dc6b2-c8da-5900-8458-c2488bda0978",
+      "prior_dispositions": [
+        [
+          "condition-aaaaaaaaaaaaaaaaaaaaaaaa",
+          "kept",
+          "Keep monitoring the same canonical measure"
+        ]
+      ],
+      "record_sha256": "0b98a7d70e8fedd434550b87181e5f9a36bf60ac3109923050a7a767d1592b50",
+      "thesis_version_id": "7315d228-df8b-5738-8ccd-a6c4874426fa"
+    }
+  ]
+}

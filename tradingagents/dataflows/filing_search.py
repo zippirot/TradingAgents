@@ -12,7 +12,22 @@ MAX_PASSAGES = 3
 MAX_CHARS = 12_000
 MAX_QUERY_CHARS = 200
 _WORD = re.compile(r"[a-z0-9]+")
-_STOP = {"a", "an", "and", "for", "in", "of", "the", "to", "what", "which"}
+_STOP = {
+    "a", "about", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for",
+    "from", "give", "how", "in", "is", "of", "on", "say", "says", "the", "to",
+    "was", "what", "which", "within",
+}
+_LEGACY_STOP = {"a", "an", "and", "for", "in", "of", "the", "to", "what", "which"}
+_MONTHS = {
+    "january", "february", "march", "april", "may", "june", "july", "august",
+    "september", "october", "november", "december",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+}
+_DATE_SPAN = re.compile(
+    r"\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b|"
+    r"\b(?:[12]?\d|3[01])\s+(?:" + "|".join(sorted(_MONTHS, key=len, reverse=True)) + r")(?:\s+20\d{2})?\b",
+    re.IGNORECASE,
+)
 _ALIASES = {
     "rpo": "remaining performance obligations",
     "backlog": "remaining performance obligations",
@@ -28,16 +43,67 @@ def corpus_hash(corpus: DisclosurePackage) -> str:
 
 
 def _terms(query: str) -> tuple[str, list[str]]:
+    original = " ".join(_WORD.findall(query.lower()))
+    normalized = " ".join(_WORD.findall(_DATE_SPAN.sub(" ", query.lower())))
+    for short, expanded in _ALIASES.items():
+        original = re.sub(r"\b" + short + r"\b", expanded, original)
+        normalized = re.sub(r"\b" + short + r"\b", expanded, normalized)
+    words = normalized.split()
+    named_years = _note_years(query)
+    content = []
+    for index, word in enumerate(words):
+        if word in _STOP or word in _MONTHS:
+            continue
+        if word == "10" and index + 1 < len(words) and words[index + 1] in {"q", "k"}:
+            continue
+        if word in {"q", "k"} and index and words[index - 1] == "10":
+            continue
+        if word.isdigit() and index and words[index - 1] in _MONTHS and 1 <= int(word) <= 31:
+            continue
+        if re.fullmatch(r"20\d{2}", word) and word not in named_years:
+            continue
+        content.append(word)
+    if not content:
+        content = [word for word in original.split() if word not in _STOP]
+    return " ".join(content), content
+
+
+def _legacy_terms(query: str) -> tuple[str, list[str]]:
     normalized = " ".join(_WORD.findall(query.lower()))
     for short, expanded in _ALIASES.items():
         normalized = re.sub(r"\b" + short + r"\b", expanded, normalized)
-    words = [word for word in normalized.split() if word not in _STOP]
-    return normalized, words
+    return normalized, [word for word in normalized.split() if word not in _LEGACY_STOP]
+
+
+def query_content_terms(query: str) -> tuple[str, ...]:
+    """Return the conservative content terms used by filing search."""
+    return tuple(_terms(query)[1])
 
 
 def _contains(text: str, term: str) -> bool:
+    root = term[:-1] if len(term) >= 4 and term.endswith("s") and not term.endswith(("ss", "us", "is")) else term
+    suffix = "s?" if len(root) >= 4 else ""
+    return re.search(r"\b" + re.escape(root) + suffix + r"\b", text) is not None
+
+
+def _legacy_contains(text: str, term: str) -> bool:
     suffix = "s?" if len(term) >= 4 and not term.endswith("s") else ""
     return re.search(r"\b" + re.escape(term) + suffix + r"\b", text) is not None
+
+
+def passage_matches_query(query: str, text: str) -> bool:
+    """Require every query content term in a passage body, without judging an answer."""
+    terms = query_content_terms(query)
+    return bool(terms) and all(_contains(text.lower(), term) for term in terms)
+
+
+def _bigrams(text: str, terms: list[str]) -> int:
+    words = _WORD.findall(text)
+    return sum(
+        min(2, sum(_contains(word, first) and _contains(next_word, second)
+                   for word, next_word in zip(words, words[1:], strict=False)))
+        for first, second in zip(terms, terms[1:], strict=False)
+    )
 
 
 def _note_years(text: str) -> set[str]:
@@ -58,14 +124,36 @@ def search_filing_evidence(
     Callers retain this response alongside the corpus. Returned text is unvalidated
     source material; claims still require the disclosure evidence validator.
     """
+    return _search_filing_evidence(corpus, query, max_passages=max_passages, max_chars=max_chars)
+
+
+def replay_legacy_filing_evidence(
+    corpus: DisclosurePackage, query: str, *, max_passages: int = MAX_PASSAGES,
+    max_chars: int = MAX_CHARS,
+) -> dict:
+    """Replay the pre-R2 ranking for previously sealed document-search traces."""
+    return _search_filing_evidence(
+        corpus, query, max_passages=max_passages, max_chars=max_chars, legacy=True,
+    )
+
+
+def _search_filing_evidence(
+    corpus: DisclosurePackage, query: str, *, max_passages: int,
+    max_chars: int, legacy: bool = False,
+) -> dict:
     if not 1 <= max_passages <= MAX_PASSAGES or not 1 <= max_chars <= MAX_CHARS:
         raise ValueError(f"Search limit exceeded: at most {MAX_PASSAGES} passages and {MAX_CHARS} characters")
     if not isinstance(query, str) or not query.strip() or len(query) > MAX_QUERY_CHARS:
         raise ValueError(f"Search query must contain 1-{MAX_QUERY_CHARS} characters")
-    phrase, terms = _terms(query)
+    phrase, terms = _legacy_terms(query) if legacy else _terms(query)
     if not terms:
         raise ValueError("Search query has no searchable terms")
+    contains = _legacy_contains if legacy else _contains
     requested_notes = _note_years(query)
+    requested_form = None if legacy else next((
+        form for form in ("10-Q", "10-K", "8-K")
+        if re.search(r"\b" + form + r"\b", query, re.IGNORECASE)
+    ), None)
     section_window = {}
     if len(terms) <= 2:
         ordered = sorted(
@@ -83,7 +171,7 @@ def search_filing_evidence(
                 if (
                     len(heading) > 120 or "|" in heading
                     or not (re.match(r"^(?:Note|Item) \d+[. ]", heading) or heading.istitle())
-                    or not all(_contains(heading.lower(), term) for term in terms)
+                    or not all(contains(heading.lower(), term) for term in terms)
                 ):
                     continue
                 for offset, nearby in enumerate(document.blocks[index:index + max_passages]):
@@ -121,15 +209,22 @@ def search_filing_evidence(
             eligible_notes.update(block_notes)
             heading = block.section.lower()
             body = block.text.lower()
-            heading_hits = sum(_contains(heading, term) for term in terms)
-            body_hits = sum(_contains(body, term) for term in terms)
+            heading_hits = sum(contains(heading, term) for term in terms)
+            body_hits = sum(contains(body, term) for term in terms)
             if not heading_hits and not body_hits and (document.source_id, block.locator) not in section_window:
                 continue
-            score = (
-                section_window.get((document.source_id, block.locator), 0)
-                + 8 * (phrase in heading) + 10 * (phrase in body)
-                + 2 * heading_hits + body_hits + 4 * (body_hits == len(terms))
-            )
+            window_score = section_window.get((document.source_id, block.locator), 0)
+            if legacy:
+                score = (
+                    window_score + 8 * (phrase in heading) + 10 * (phrase in body)
+                    + 2 * heading_hits + body_hits + 4 * (body_hits == len(terms))
+                )
+            else:
+                score = (
+                    window_score + 8 * (phrase in heading) + 12 * (phrase in body)
+                    + heading_hits + 3 * body_hits + 7 * _bigrams(body, terms)
+                    + 5 * (body_hits == len(terms)) + (filing.form == requested_form)
+                )
             candidates.append((score, document, block, block_notes))
     candidates.sort(key=lambda item: (
         -item[1].filing.filed_date.toordinal(), -item[0],

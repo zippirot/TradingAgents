@@ -66,6 +66,11 @@ def qualified_value_spans(quote, kind):
     n = _NUMBER
     if kind == 'historical':
         match = re.fullmatch(
+            r"(?P<amount>Revenue was \$" + n + r" (?:million|billion)), an (?:increase|decrease) of "
+            + n + r"%\.", quote, re.I)
+        if match:
+            return (match['amount'],)
+        match = re.fullmatch(
             r"(?P<amount>(?P<metric>Adjusted operating income|Adjusted EBITDA) was \$" + n
             + r" (?:million|billion)), an (?:increase|decrease) of " + n
             + r"%, and (?P<margin>(?P<margin_metric>adjusted operating income|adjusted EBITDA) margin was "
@@ -126,6 +131,68 @@ def _historical_period_error(claim, packages):
     return None
 
 
+def collapse_quote_packages(packages):
+    """Merge repeat retrievals of one immutable document, rejecting conflicts.
+
+    Block locators identify original source order. Bounded and full views may
+    contribute different locators, but may never disagree at a shared locator.
+    Issuer/cutoff checks remain at their existing validation boundaries.
+    """
+    parsed = tuple(DisclosurePackage.model_validate(p) for p in packages)
+    if not parsed:
+        return ()
+    scope = {(p.cik, p.as_of) for p in parsed}
+    if len(scope) != 1:
+        raise ValueError("conflicting document metadata: package issuer/cutoff")
+    documents, hashes, sources = {}, {}, {}
+    for package in parsed:
+        for doc in package.documents:
+            identity = (doc.filing.cik, doc.filing.accession, doc.filing.primary_document,
+                        doc.url, doc.source_id)
+            if ((doc.content_hash in hashes and hashes[doc.content_hash] != identity)
+                    or (doc.source_id in sources and sources[doc.source_id] != identity)):
+                raise ValueError("conflicting document metadata: identity/content hash")
+            hashes[doc.content_hash] = identity
+            sources[doc.source_id] = identity
+            previous = documents.get(identity)
+            if previous and (previous.content_hash != doc.content_hash or previous.filing != doc.filing):
+                raise ValueError("conflicting document metadata: filing/content hash")
+            views = (previous, doc) if previous else (doc,)
+            by_locator = {}
+            for view in views:
+                seen = set()
+                for block in view.blocks:
+                    if block.locator in seen:
+                        raise ValueError("conflicting document metadata: duplicate block locator")
+                    seen.add(block.locator)
+                    if block.locator in by_locator and by_locator[block.locator] != block:
+                        raise ValueError("conflicting document metadata: block text or attributes")
+                    by_locator[block.locator] = block
+            if all(re.fullmatch(r"block-\d+", loc) for loc in by_locator):
+                blocks = tuple(sorted(by_locator.values(), key=_number))
+            else:
+                full = max(views, key=lambda view: len(view.blocks))
+                if set(by_locator) != {b.locator for b in full.blocks}:
+                    raise ValueError("conflicting document metadata: source block order unavailable")
+                blocks = full.blocks
+            rpo = {}
+            for view in views:
+                for fact in view.rpo_facts:
+                    if fact.locator in rpo and rpo[fact.locator] != fact:
+                        raise ValueError("conflicting document metadata: inline fact")
+                    rpo[fact.locator] = fact
+            documents[identity] = (previous or doc).model_copy(update={
+                "blocks": blocks, "rpo_facts": tuple(rpo[k] for k in sorted(rpo)),
+                "gaps": tuple(sorted({g for v in views for g in v.gaps})),
+            })
+    package = parsed[0].model_copy(update={
+        "documents": tuple(documents[k] for k in sorted(documents)),
+        "gaps": tuple(sorted({g for p in parsed for g in p.gaps})),
+        "selected_accessions": tuple(sorted({a for p in parsed for a in p.selected_accessions})),
+    })
+    return (package,)
+
+
 def validate_context(claim, blocks, packages):
     """Return (period_is_external, definition_is_external, rejection_reason)."""
     historical_error = _historical_period_error(claim, packages)
@@ -177,7 +244,7 @@ def validate_context(claim, blocks, packages):
         value_block = source(claim.locator)
         if claim.comparator == "at_least":
             bound = lower_bound_clause(value_block.text.strip())
-            if bound is None or claim.quote != bound['quote']:
+            if bound is None or claim.quote not in (bound['quote'], value_block.text.strip()):
                 raise ValueError("lower-bound clause lacks its supported complete source headline")
         if not scoped:
             return False, False, None

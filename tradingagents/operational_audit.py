@@ -38,6 +38,7 @@ REASONS = {
     "model_output_truncated": (3, "A model response was truncated before the full output was available."),
     "tool_error": (3, "A tool failed, reducing support for the affected section."),
     "summary_unavailable": (3, "The executive summary is unavailable; the underlying research and decision remain available."),
+    "replay_miss": (3, "A comparison used a live external input absent from its baseline; input control is incomplete."),
     "stage_unusable": (2, "A required stage has no trustworthy usable completion."),
     "incomplete_history": (2, "Execution history is incomplete, so required work cannot be fully established."),
     "publication_mismatch": (1, "The saved report conflicts with the authoritative publication."),
@@ -207,7 +208,9 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
                          "locator": "executive_summary.status"})
     findings.sort(key=lambda item: (item["score"], item["stage"], item["code"]))
     score = min((item["score"] for item in findings), default=5)
-    return _assessment(score, state, rows, expected, missing, integrity, findings[0]["text"] if findings else
+    headline = [findings[0]['text']] if findings else []
+    headline.extend(f['text'] for f in findings[1:] if f['code'] in {'fallback_recovered', 'vendor_fallback_recovered', 'model_fallback_recovered'})
+    return _assessment(score, state, rows, expected, missing, integrity, ' '.join(dict.fromkeys(headline)) if findings else
                        "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
 
 

@@ -1,4 +1,5 @@
 import logging
+import re
 
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import (
@@ -176,9 +177,17 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def vendor_unavailable(method: str, error: Exception) -> str:
     """What a call returns when every vendor was throttled or unreachable."""
+    safe_reasons = {
+        "retained_scope_mismatch": "Requested issuer or cutoff differs from retained source evidence; no replacement vintage was fetched.",
+        "retained_source_unavailable": "Retained SEC unavailable; no replacement vintage was fetched.",
+        "retained_filing_unavailable": "Retained SEC filing evidence unavailable; no replacement vintage was fetched.",
+        "retained_integrity_unavailable": "Retained financial source integrity is unavailable; no replacement vintage was fetched.",
+        "retained_package_invalid": "Retained source package invalid or unavailable; no replacement vintage was fetched.",
+    }
+    reason = safe_reasons.get(getattr(error, "reason_code", None), "")
     return (
-        f"DATA_UNAVAILABLE: no configured vendor could serve {method} right now "
-        f"({error}). This says nothing about the instrument; report the "
+        f"DATA_UNAVAILABLE: configured vendor unreachable or unavailable for {method} right now "
+        f"({type(error).__name__}). {reason} This says nothing about the instrument; report the "
         f"data as unavailable and do not estimate or fabricate values."
     )
 
@@ -186,10 +195,37 @@ def vendor_unavailable(method: str, error: Exception) -> str:
 def no_data_available(error: NoMarketDataError) -> str:
     """What a call returns when every vendor that answered had no usable data."""
     resolved = "" if error.canonical == error.symbol else f" (resolved to '{error.canonical}')"
-    # Surface the typed error's detail (e.g. "latest row is 2025-06-11 ...
-    # stale") so the agent sees the specific reason — invalid symbol, no
-    # coverage, or stale data — not just a generic "unavailable".
-    reason = f" ({error.detail})" if error.detail else ""
+    # Only known, locally constructed no-data explanations reach the model.
+    # Arbitrary vendor detail can be an exception payload or credential.
+    fixed = {
+        "no rows", "not covered", "not a US SEC filer", "US filer with no us-gaap facts",
+        "Requested indicator is not supported by this vendor",
+        "Indicator calculation or retrieval unavailable",
+        "no price rows", "no fundamentals", "no fundamental fields",
+        "no Balance Sheet data", "no Cash Flow data", "no Income Statement data",
+        "invalid nonempty closing price in source data",
+        "no completed price rows at the observation cutoff",
+        "no bar in range has a closing price",
+        "Historical adjustment basis unavailable beyond 400-day verification bound",
+        "Historical adjustment basis is not compatible with the analysis cutoff",
+        "Historical adjustment basis verification unavailable",
+    }
+    dated = (
+        r"no price rows on or before \d{4}-\d{2}-\d{2}",
+        r"no completed rows between \d{4}-\d{2}-\d{2} and \d{4}-\d{2}-\d{2}",
+        r"no (?:annual|quarterly) (?:balance sheet|income statement|cash flow statement) filed by \d{4}-\d{2}-\d{2}",
+        r"no statement evidence filed by \d{4}-\d{2}-\d{2}",
+        r"latest row is \d{4}-\d{2}-\d{2}, \d+ days before the requested \d{4}-\d{2}-\d{2} "
+        r"\(stale\) — refusing to use it",
+    )
+    detail = error.detail
+    safe_detail = detail in fixed or (error.__cause__ is None and len(detail) <= 300
+                                      and any(re.fullmatch(pattern, detail) for pattern in dated))
+    if error.__cause__ is not None and detail not in {
+        "Historical adjustment basis verification unavailable", "Indicator calculation or retrieval unavailable"
+    }:
+        safe_detail = False
+    reason = f" ({detail})" if safe_detail else ""
     return (
         f"NO_DATA_AVAILABLE: No usable market data for '{error.symbol}'{resolved} from "
         f"any configured vendor{reason}. The symbol may be invalid, delisted, "
@@ -235,13 +271,22 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            value = impl_func(*args, **kwargs)
+            from tradingagents.source_replay import external_input
+
+            # Price and indicator calculations execute against recorded raw bars.
+            # Other routed outputs are untrusted vendor material supplied to agents.
+            if vendor == "yfinance" and method in {"get_stock_data", "get_indicators"}:
+                value = impl_func(*args, **kwargs)
+            else:
+                value = external_input(f"vendor:{vendor}:{method}",
+                                       {"args": args, "kwargs": kwargs},
+                                       lambda impl_func=impl_func: impl_func(*args, **kwargs))
             if failed_vendors:
                 record_operation('vendor_fallback_recovered', scope=f'{method} via {vendor} after {" ".join(failed_vendors)}')
             return value
         except VendorUnavailableError as e:
             failed_vendors.append(vendor)
-            logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, e)
+            logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, type(e).__name__)
             # Kept so an all-unavailable chain can say the vendor was the
             # problem, rather than reporting nothing about the symbol.
             last_unavailable = e
@@ -263,7 +308,7 @@ def route_to_vendor(method: str, *args, **kwargs):
             # Don't let one vendor's failure crash the call when another can
             # serve it, but never swallow silently: a broken primary must be
             # visible in the logs (#989), not hidden behind a fallback's verdict.
-            logger.warning("Vendor %r failed for %s: %s", vendor, method, e)
+            logger.warning("Vendor %r failed for %s: %s", vendor, method, type(e).__name__)
             if first_error is None:
                 first_error = e
             failed = e
@@ -295,7 +340,7 @@ def route_to_vendor(method: str, *args, **kwargs):
             # verdict can't hide a broken primary (network/auth/etc.).
             logger.warning(
                 "Returning NO_DATA for %s, but a vendor errored earlier: %s",
-                method, first_error,
+                method, type(first_error).__name__,
             )
         return no_data_available(last_no_data)
 
@@ -305,10 +350,10 @@ def route_to_vendor(method: str, *args, **kwargs):
     # abort the run.
     if first_error is not None:
         if category in OPTIONAL_CATEGORIES:
-            logger.warning("Optional %s unavailable for %s: %s", category, method, first_error)
+            logger.warning("Optional %s unavailable for %s: %s", category, method, type(first_error).__name__)
             return (
                 f"DATA_UNAVAILABLE: optional {category} could not be retrieved "
-                f"({first_error}). Proceed without it; do not fabricate values."
+                f"({type(first_error).__name__}). Proceed without it; do not fabricate values."
             )
         raise first_error
 

@@ -218,3 +218,106 @@ def test_the_snapshot_does_not_present_a_filled_price_as_reported(monkeypatch, t
     row = out.split("Latest verified OHLCV row")[1].split("###")[0]
     assert "104.50" not in row and "105.50" not in row  # the previous session's numbers
     assert "106.00" in row  # the close the vendor did report
+
+# --- historical split-adjustment basis --------------------------------------
+
+def _historical_market(monkeypatch, tmp_path, *, cache=False, cache_actions=True,
+                       cache_marker=True,
+                       splits=(0, 0, 0), download_fails=False,
+                       dates=("2026-10-30", "2026-11-03", "2026-11-06")):
+    from tradingagents.dataflows.vendors.yahoo.market import get_YFin_data_online
+
+    now = pd.Timestamp("2026-11-07 23:00")
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: now))
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: now.tz_localize("UTC").to_pydatetime())
+    frame = pd.DataFrame({"Date": pd.to_datetime(dates),
+                          "Close": [42.0, 84.0, 85.0][:len(dates)],
+                          "Stock Splits": list(splits)}).set_index("Date")
+    calls = []
+
+    def history(**kwargs):
+        calls.append(kwargs)
+        if download_fails:
+            raise RuntimeError("offline vendor failure")
+        return frame.copy()
+
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda symbol: SimpleNamespace(
+        history=history,
+        get_history_metadata=lambda: {"exchangeTimezoneName": "UTC", "currency": "USD"},
+    ))
+    cache_file = tmp_path / "AAPL-YFin-data.csv"
+    if cache:
+        source = {"ticker": "AAPL", "retrieved_at": now.tz_localize("UTC").isoformat(),
+                  "exchange_timezone": "UTC", "regular_end": None, "currency": "USD",
+                  "adjustment_basis": ohlcv.ADJUSTMENT, "source_id": "cached",
+                  **({"actions_requested": True} if cache_marker else {})}
+        cached = frame.reset_index()
+        if not cache_actions:
+            cached = cached.drop(columns=["Stock Splits"])
+        cache_file.write_text(cached.assign(__market_source=json.dumps(source)).to_csv(index=False))
+        _stamp(cache_file, now)
+    return get_YFin_data_online, calls, cache_file
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("cache", [False, True])
+def test_historical_market_rejects_later_split_before_cutoff_filter(monkeypatch, tmp_path, cache):
+    tool, calls, _ = _historical_market(monkeypatch, tmp_path, cache=cache, splits=(0, 2, 0))
+    with pytest.raises(NoMarketDataError, match="adjustment basis.*not compatible"):
+        tool("AAPL", "2026-10-29", "2026-10-30")
+    if not cache:
+        assert calls[0]["actions"] is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("splits,as_of", [
+    ((2, 0, 0), "2026-11-03"),  # split is before the requested cutoff
+    ((0, 0, 0), "2026-10-30"),  # absence verified through retrieval
+])
+@pytest.mark.parametrize("cache", [False, True])
+def test_historical_market_returns_only_cutoff_rows_when_basis_comparable(
+    monkeypatch, tmp_path, splits, as_of, cache
+):
+    tool, calls, _ = _historical_market(monkeypatch, tmp_path, splits=splits, cache=cache)
+    response = tool("AAPL", "2026-10-29", as_of)
+    assert "2026-10-30,42.0" in response
+    assert "2026-11-06" not in response
+    assert ("2026-11-03,84.0" in response) == (as_of == "2026-11-03")
+    assert "Stock Splits" not in response and "stock_splits" not in response
+    if cache:
+        assert not calls
+    else:
+        assert calls[0]["actions"] is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("dates,splits", [
+    (("2026-11-03", "2026-11-06"), (0, 0)),
+    (("2026-10-30", "2026-11-03", "2026-11-06"), (0, float("nan"), 0)),
+])
+def test_historical_market_requires_coverage_and_known_actions(
+    monkeypatch, tmp_path, dates, splits
+):
+    tool, _, _ = _historical_market(monkeypatch, tmp_path, dates=dates, splits=splits)
+    with pytest.raises(NoMarketDataError, match="adjustment basis verification unavailable"):
+        tool("AAPL", "2026-10-29", "2026-10-30")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("download_fails", [False, True])
+@pytest.mark.parametrize("cache_actions,cache_marker", [(True, False), (False, True)])
+def test_legacy_cache_refetches_for_historical_action_verification(
+    monkeypatch, tmp_path, download_fails, cache_actions, cache_marker
+):
+    tool, calls, _ = _historical_market(monkeypatch, tmp_path, cache=True,
+                                       cache_actions=cache_actions, cache_marker=cache_marker,
+                                       download_fails=download_fails)
+    if download_fails:
+        from tradingagents.dataflows.errors import VendorUnavailableError
+        with pytest.raises(VendorUnavailableError):
+            tool("AAPL", "2026-10-29", "2026-10-30")
+    else:
+        response = tool("AAPL", "2026-10-29", "2026-10-30")
+        assert "2026-10-30,42.0" in response and "2026-11-03" not in response
+    assert len(calls) == 1 and calls[0]["actions"] is True

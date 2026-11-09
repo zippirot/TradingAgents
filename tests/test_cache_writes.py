@@ -42,9 +42,15 @@ def test_sec_edgar_writers_never_share_a_temp_file(monkeypatch, tmp_path):
 @pytest.mark.unit
 def test_the_price_cache_is_replaced_whole(monkeypatch, tmp_path):
     frame = pd.DataFrame({"Date": pd.bdate_range("2026-01-02", periods=3), "Open": 1.0, "High": 1.0,
-                          "Low": 1.0, "Close": 1.0, "Volume": 1})
+                          "Low": 1.0, "Close": 1.0, "Volume": 1, "Stock Splits": 0})
     monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda s: type("T", (), {"history": lambda self, **k: frame.set_index("Date")})())
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2026-01-07 23:00")))
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: pd.Timestamp("2026-01-07 23:00+00:00"))
+    monkeypatch.setattr(ohlcv.yf, "Ticker", lambda s: type("T", (), {
+        "history": lambda self, **k: frame.set_index("Date"),
+        "get_history_metadata": lambda self: {"symbol": "AAPL", "currency": "USD",
+                                              "exchangeTimezoneName": "America/New_York"},
+    })())
     moves = _recording_replace(monkeypatch)
 
     ohlcv.load_ohlcv("AAPL", "2026-01-06")

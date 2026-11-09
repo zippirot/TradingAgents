@@ -19,13 +19,15 @@ import yfinance as yf
 from pandas import isna
 
 from tradingagents.dataflows.symbols import normalize_symbol
-from tradingagents.dataflows.vendors.yahoo.common import yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import recorded_history, yf_retry
 
 ADJUSTMENT = "Yahoo Close with auto_adjust=False: historical split-adjusted, not dividend-adjusted"
 
 
 def _now():
-    return datetime.now(UTC)
+    from tradingagents.source_replay import current_session, source_now
+
+    return source_now(UTC) if current_session() else datetime.now(UTC)
 
 
 def _number(value, *, positive=False):
@@ -113,15 +115,9 @@ def _verify_adjustment_basis(raw):
     start = max(cutoff - timedelta(days=7), today - timedelta(days=400))
 
     def fetch():
-        source = yf.Ticker(raw["ticker"])
-        history = source.history(
-            start=str(start),
-            end=str(today + timedelta(days=1)),
-            interval="1d",
-            auto_adjust=False,
-            actions=True,
-        )
-        return history, source.get_history_metadata()
+        return recorded_history(raw["ticker"], source_factory=yf.Ticker, start=str(start),
+                                end=str(today + timedelta(days=1)), interval="1d",
+                                auto_adjust=False, actions=True)
 
     response = yf_retry(fetch)
     if response is None:
@@ -284,6 +280,9 @@ def _project(raw):
         "content_hash": _hash(raw),
         "raw_source": raw,
     }
+    precision = _price_precision(metadata.get("priceHint"))
+    if precision is not None:
+        result["price_precision"] = precision
     missing_later = sorted(day for day in missing_completed if day > session)
     if missing_later:
         result["price_fallback"] = {
@@ -293,6 +292,11 @@ def _project(raw):
             "missing_completed_session_dates": [str(day) for day in missing_later],
         }
     return result
+
+
+def _price_precision(value):
+    """Provider display precision only; never changes the retained numeric close."""
+    return value if type(value) is int and 0 <= value <= 10 else None
 
 
 def _source_close(value):
@@ -331,15 +335,9 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
         start = max(fetch_start, cutoff - timedelta(days=400))
 
         def fetch():
-            source = yf.Ticker(canonical)
-            history = source.history(
-                start=str(start),
-                end=str(cutoff + timedelta(days=1)),
-                interval="1d",
-                auto_adjust=False,
-                actions=True,
-            )
-            return history, source.get_history_metadata()
+            return recorded_history(canonical, source_factory=yf.Ticker, start=str(start),
+                                    end=str(cutoff + timedelta(days=1)), interval="1d",
+                                    auto_adjust=False, actions=True)
 
         response = yf_retry(fetch)
         if response is None:
@@ -350,7 +348,7 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
             "ticker": canonical,
             "as_of": str(cutoff),
             "capital_snapshot_date": str(capital) if capital else None,
-            "retrieved_at": _now().isoformat(),
+            "retrieved_at": metadata.get("_trace_retrieved_at") or _now().isoformat(),
             "history_start": str(start),
             "history_end_exclusive": str(cutoff + timedelta(days=1)),
             "auto_adjust": False,
@@ -371,6 +369,9 @@ def get_price_observation(ticker, as_of, capital_snapshot_date=None):
                 for index, row in history.iterrows()
             ],
         }
+        precision = _price_precision(metadata.get("priceHint"))
+        if precision is not None:
+            raw["metadata"]["priceHint"] = precision
         from tradingagents.dataflows.config import get_config
         observation_cutoff = get_config().get("_market_observation_cutoff")
         if observation_cutoff:

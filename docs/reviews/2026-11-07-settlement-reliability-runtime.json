@@ -1,0 +1,40 @@
+{
+  "proof_clock": "2026-11-07T17:00:00+00:00",
+  "disposable_root": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/settlement-docn-proof-jncv7vuu",
+  "source_record_count": 7,
+  "directional_count": 7,
+  "expected_immature_endpoints": 35,
+  "memory_note": "35 outcome(s) await maturity.",
+  "first_pass_requests": [
+    [
+      "DOCN",
+      "2026-11-05",
+      "2026-11-07"
+    ]
+  ],
+  "second_pass_requests": [
+    [
+      "DOCN",
+      "2026-11-05",
+      "2026-11-07"
+    ]
+  ],
+  "settlement_evidence_reads": 0,
+  "reflector_calls": 0,
+  "source_unchanged": true,
+  "cache_sha256": "1a0d35d1b6644f44041aa7e2241b4d4011a2ba414eaa8575fc12aeea3f7a5868",
+  "source_basis": "Retained Yahoo Adj Close renamed to Close, matching installed yfinance.auto_adjust",
+  "benchmark_limitation": "No benchmark series is needed or supplied for these provably immature DOCN windows",
+  "source_ids": [
+    "yahoo-ohlcv-c67eaea2288639f8461f51e3f654ebc3c40864e747be66dc736bdafb44386897"
+  ],
+  "record_ids": [
+    "8b1933a8-8a3f-438b-b412-45c03fb88c89",
+    "16395c17-2516-4d44-98b5-8d476e9227d9",
+    "77b74b6b-68ac-4f26-878c-76f39889ecf0",
+    "34aa608d-b369-40ad-94f2-f3ffa65576fc",
+    "692deafa-f3ea-4230-bd1f-513bb27fb5a5",
+    "ddb3c455-244c-4332-a607-b6e0bc5e7917",
+    "913554d4-32c0-409f-85de-6630f5e114bb"
+  ]
+}

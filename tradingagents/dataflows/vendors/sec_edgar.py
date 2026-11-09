@@ -21,6 +21,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from copy import deepcopy
 from datetime import UTC, date, datetime
@@ -100,6 +101,16 @@ _STATEMENTS["balance_sheet"] += [
     ("Treasury Stock at Cost", ("TreasuryStockValue",)),
     ("Common Shares Outstanding", ("CommonStockSharesOutstanding",)),
 ]
+
+# Retain these as candidates, not current balances. Unqualified tags need the
+# matching filed balance-sheet presentation before they can support liquidity.
+_SECURITY_CANDIDATES = (
+    "AvailableForSaleSecuritiesDebtSecurities",
+    "MarketableSecurities",
+    "MarketableSecuritiesCurrent",
+    "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+    "ShortTermInvestments",
+)
 _STATEMENTS["income_statement"] += [
     ("Basic EPS", ("EarningsPerShareBasic",)),
     ("Basic Earnings Numerator", ("NetIncomeLossAvailableToCommonStockholdersBasic",)),
@@ -179,6 +190,27 @@ def _fetch_json(url: str) -> dict:
 
 
 def _cached_json(url: str, name: str) -> dict:
+    from tradingagents.source_replay import current_session, external_input
+
+    if current_session() is None:
+        return _cached_json_live(url, name)
+    path = Path(get_config()["data_cache_dir"]) / "sec_edgar" / name
+
+    def acquire():
+        data = _cached_json_live(url, name)
+        return {"data": data, "mtime": path.stat().st_mtime}
+
+    retained = external_input("sec_json", {"url": url, "name": name}, acquire)
+    if current_session().baseline is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        replace_file(path, lambda temp: Path(temp).write_text(json.dumps(retained["data"]), encoding="utf-8"))
+        import os
+
+        os.utime(path, (retained["mtime"], retained["mtime"]))
+    return retained["data"]
+
+
+def _cached_json_live(url: str, name: str) -> dict:
     path = Path(get_config()["data_cache_dir"]) / "sec_edgar" / name
     if path.exists() and time.time() - path.stat().st_mtime < _CACHE_TTL_SECONDS:
         try:
@@ -387,12 +419,18 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     # The broader reported-revenue definition is permitted only for peer
     # diagnostics, where its tag and comparability limitation are displayed.
     # Subject/history/target callers keep their existing definition contract.
-    statements = _STATEMENTS
+    statements = {
+        **_STATEMENTS,
+        "securities_candidates": [
+            (f"Unclassified Marketable Securities [{tag}]", (tag,))
+            for tag in _SECURITY_CANDIDATES
+        ],
+    }
     if peer_revenue_definitions:
         statements = {
             kind: [(metric, tags + ("RevenueFromContractWithCustomerIncludingAssessedTax",)
                     if metric == "Revenue" else tags) for metric, tags in rows]
-            for kind, rows in _STATEMENTS.items()
+            for kind, rows in statements.items()
         }
     cutoff = date.fromisoformat(as_of_date)
     cik = cik_for(ticker)
@@ -422,22 +460,42 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     allowed_quarters = set(sorted(quarterly_ends)[-12:])
     allowed_annual = set(sorted(annual_ends)[-5:])
     selected = {}
+    peer_gaps = []
+    ambiguous_security_metrics = set()
     for rows in statements.values():
         for metric, tags in rows:
-            quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
-                                     allowed_ends=allowed_quarters, period_floor=period_floor)
-            annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
-                                    allowed_ends=allowed_annual, period_floor=period_floor)
+            try:
+                quarter = _as_of_records(facts, tags, as_of_date, quarterly_spans,
+                                         allowed_ends=allowed_quarters, period_floor=period_floor)
+                annual = _as_of_records(facts, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS,
+                                        allowed_ends=allowed_annual, period_floor=period_floor)
+            except VendorUnavailableError as exc:
+                ambiguity = re.fullmatch(
+                    r"SEC (?:period or unit|fact) ambiguous for .+ at (\d{4}-\d{2}-\d{2})",
+                    str(exc),
+                )
+                if (peer_revenue_definitions and ambiguity
+                        and metric not in {"Revenue", "Gross Profit", "Common Shares Outstanding"}):
+                    peer_gaps.append(f"{metric} ambiguous at {ambiguity.group(1)}; not used for peer statistics")
+                    continue
+                if not metric.startswith("Unclassified Marketable Securities ["):
+                    raise
+                quarter, annual = {}, {}
+                ambiguous_security_metrics.add(metric)
             selected[metric] = (quarter, annual)
     sources, records = {}, {}
     for metric, (quarter, annual) in selected.items():
         picked = [v for (end, _), v in quarter.items() if end in allowed_quarters]
         picked += [v for (end, _), v in annual.items() if end in allowed_annual]
+        if not picked and metric.startswith("Unclassified Marketable Securities [") and metric not in ambiguous_security_metrics:
+            continue  # Absence is unavailable, not five extra empty candidate metrics.
         if not picked:
             identity = hashlib.sha256(f"{cik}:{as_of_date}:{metric}:missing".encode()).hexdigest()
             records[identity] = FinancialFact(fact_id=identity, metric=metric, value=None, unit="unknown",
                 cik=cik, period_end=cutoff, as_of=cutoff, locator="Selected US-GAAP tags",
-                missing_reason="No usable consolidated fact in the selected tags and periods")
+                missing_reason=("Ambiguous securities candidate in selected periods"
+                                if metric in ambiguous_security_metrics else
+                                "No usable consolidated fact in the selected tags and periods"))
         for record in picked:
             identity = hashlib.sha256(json.dumps([cik, metric, record], sort_keys=True).encode()).hexdigest()
             locator = f"us-gaap/{record['tag']}/{record['unit']}/{record.get('start', 'instant')}/{record['end']}/{record['filed']}"
@@ -485,4 +543,123 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     if not sources:
         raise NoMarketDataError(ticker, ticker, f"no statement evidence filed by {as_of_date}")
     return add_period_calculations(EvidencePackage(cik=cik, as_of=cutoff, facts=tuple(records.values()), sources=tuple(sources.values()),
-        warnings=("Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.",)))
+        warnings=("Companyfacts coverage excludes issuer-specific narrative and untagged disclosures; this is not a complete financial validation.",
+                  *peer_gaps)))
+
+
+def _displayed_current_balance(block: str, label: str) -> Decimal | None:
+    """Read the first balance-sheet column only, inside current assets."""
+    area = re.search(r"\bCurrent assets:\s*(.*?)\bTotal current assets\b", block, re.I | re.S)
+    if area is None:
+        return None
+    match = re.search(
+        rf"(?:^|;)\s*{re.escape(label)}\s*\|\s*(?:\$\s*\|\s*)?([\d,]+)\b",
+        area.group(1), re.I,
+    )
+    return Decimal(match.group(1).replace(",", "")) if match else None
+
+
+def confirm_current_marketable_securities(package, corpus):
+    """Classify one sourced balance only when companyfacts and the retained
+    primary balance sheet agree. No fetch occurs here; ambiguity stays absent.
+    """
+    from tradingagents.dataflows.financial_evidence import (
+        EvidencePackage,
+        FinancialFact,
+        SourceRecord,
+    )
+
+    if not any(f.metric == "Current Marketable Securities" or
+               f.metric.startswith("Unclassified Marketable Securities [") for f in package.facts):
+        return package  # Unrelated packages retain their existing validation path.
+    # A replay may carry an old classification. Always derive it again from the
+    # retained raw aliases and currently validated corpus.
+    stale = tuple(f for f in package.facts if f.metric == "Current Marketable Securities")
+    original = tuple(f for f in package.facts if f.metric != "Current Marketable Securities")
+    used_sources = {sid for fact in original for sid in fact.source_ids}
+    stale_source_ids = {sid for fact in stale for sid in fact.source_ids}
+    package = EvidencePackage.model_validate(package.model_dump() | {
+        "facts": original,
+        "sources": tuple(s for s in package.sources
+                         if s.source_id not in stale_source_ids or s.source_id in used_sources),
+    })
+    if corpus is None or corpus.cik != package.cik or corpus.as_of != package.as_of:
+        return package
+    cashes = [f for f in package.facts if f.metric == "Cash and Equivalents"
+              and f.value is not None and f.period_start is None and f.unit == "USD"]
+    if not cashes:
+        return package
+    end = max(f.period_end for f in cashes)
+    cashes = [f for f in cashes if f.period_end == end]
+    candidates = [f for f in package.facts if f.metric.startswith("Unclassified Marketable Securities [")
+                  and f.value is not None and f.period_start is None and f.period_end == end]
+    if any(f.missing_reason and f.missing_reason.startswith("Ambiguous securities candidate")
+           for f in package.facts):
+        return package
+    if len(cashes) != 1 or not candidates or len({f.value for f in candidates}) != 1:
+        return package
+    cash = cashes[0]
+    sources = {s.source_id: s for s in package.sources}
+    if any(f.unit != "USD" or f.basis != cash.basis or len(f.source_ids) != 1
+           for f in candidates) or len(cash.source_ids) != 1:
+        return package
+    cash_source = sources[cash.source_ids[0]]
+    candidate_sources = [sources[f.source_ids[0]] for f in candidates]
+    def vintage(s):
+        return (s.cik, s.filed_date, s.accession, s.form, s.content_hash)
+    if not cash_source.accession or any(vintage(s) != vintage(cash_source)
+                                        for s in candidate_sources):
+        return package
+    matching_docs = [d for d in corpus.documents
+                     if d.filing.cik == package.cik and d.filing.report_date == end
+                     and d.filing.accession == cash_source.accession
+                     and d.filing.filed_date == cash_source.filed_date
+                     and d.filing.form in {"10-Q", "10-K"}
+                     and d.filing.url == d.url and d.content_hash]
+    if len(matching_docs) != 1:
+        return package
+    doc = matching_docs[0]
+    presentations = []
+    for index, block in enumerate(doc.blocks):
+        preceding = doc.blocks[max(0, index - 3):index]
+        if len(preceding) != 3 or (
+            preceding[0].text.strip().upper() != "CONDENSED CONSOLIDATED BALANCE SHEETS"
+            or preceding[1].text.strip().lower() != "(in thousands, except share amounts)"
+            or preceding[2].text.strip().lower() != "(unaudited)"
+        ):
+            continue
+        displayed_date = f"{end.strftime('%B')} {end.day}, {end.year}"
+        first_column = re.search(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b", block.text)
+        if (block.truncated or block.currency != "USD" or first_column is None
+                or first_column.group(0) != displayed_date):
+            continue
+        displayed_cash = _displayed_current_balance(block.text, "Cash and cash equivalents")
+        displayed_security = _displayed_current_balance(block.text, "Marketable securities")
+        if displayed_cash and displayed_security and displayed_cash * 1000 == cash.value:
+            presentations.append((block, preceding, displayed_security * 1000))
+    if len(presentations) != 1 or presentations[0][2] != candidates[0].value:
+        return package
+    block, heading, _ = presentations[0]
+    table_locator = f"{heading[0].locator}; {heading[1].locator}; {block.locator}"
+    selected = next(f for tag in _SECURITY_CANDIDATES for f in candidates
+                    if f.metric == f"Unclassified Marketable Securities [{tag}]")
+    doc_source = SourceRecord(
+        source_id=doc.source_id, cik=package.cik, url=doc.url,
+        filed_date=doc.filing.filed_date, retrieved_at=doc.retrieved_at,
+        content_hash=doc.content_hash, locator="document",
+        accession=doc.filing.accession, form=doc.filing.form,
+    )
+    identity = hashlib.sha256(f"current-marketable:{selected.fact_id}:{doc.source_id}:{block.locator}".encode()).hexdigest()
+    confirmed = FinancialFact(
+        fact_id=identity, metric="Current Marketable Securities", value=selected.value,
+        unit="USD", cik=package.cik, period_end=end, as_of=package.as_of,
+        source_ids=(selected.source_ids[0], doc.source_id),
+        locator=f"{selected.locator}; {table_locator}",
+    )
+    prior = next((s for s in package.sources if s.source_id == doc_source.source_id), None)
+    if prior is not None and prior != doc_source:
+        return package
+    return EvidencePackage.model_validate(package.model_dump() | {
+        "sources": (*package.sources, *((doc_source,) if prior is None else ())),
+        "facts": (*package.facts, confirmed),
+    })

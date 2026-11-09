@@ -1,0 +1,77 @@
+{
+  "case_source_commit": "28ad8f393b3b06746a378ee7e8e365da0d221eb1",
+  "source_manifest": {
+    "source_html": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/ta-operations-proof-i7xvngze/results/DOCN/2026-11-06/145509-18157a1e/reports/complete_report.html",
+    "source_html_sha256": "1e1e4b3e9c9ef2e2873e1c46a02c868c451ff0a8901dce29a5817bd2c7318691",
+    "copy_script_sha256": "00e95af7122712466e33cf352e4c461848457b4d6fa223397cf0590ca858eee5",
+    "cases": {
+      "normal": {
+        "path": "/Users/zipp/Documents/ChatGPT/Tauric/output/operations-and-page-browser-proof/normal.html",
+        "html_sha256": "1e1e4b3e9c9ef2e2873e1c46a02c868c451ff0a8901dce29a5817bd2c7318691",
+        "product_script_unchanged": true
+      },
+      "denied": {
+        "path": "/Users/zipp/Documents/ChatGPT/Tauric/output/operations-and-page-browser-proof/denied.html",
+        "html_sha256": "92804bd53fdd36bc19324674f77c82afad199ff5dce8489ec8a9d55b1b995223",
+        "product_script_unchanged": true
+      }
+    }
+  },
+  "inspection": "Native CUA click and clipboard paste into local inspector; no remote submission",
+  "cases": [
+    {
+      "browser": "Safari",
+      "case": "normal",
+      "characters": 13979,
+      "sha256": "3e54eaf549d7034a5ada56ebe61a81ab9faaa6f78e32aef2fb383faf042628bd",
+      "types": [
+        "text/plain"
+      ],
+      "source_hash_present": true,
+      "operational_assessment_present": true,
+      "controls_excluded": true,
+      "last": " sufficient.\n\nFull operational audit: ./operational_audit.md"
+    },
+    {
+      "browser": "Safari",
+      "case": "denied",
+      "characters": 13979,
+      "sha256": "3e54eaf549d7034a5ada56ebe61a81ab9faaa6f78e32aef2fb383faf042628bd",
+      "types": [
+        "text/plain"
+      ],
+      "source_hash_present": true,
+      "operational_assessment_present": true,
+      "controls_excluded": true,
+      "last": " sufficient.\n\nFull operational audit: ./operational_audit.md"
+    },
+    {
+      "browser": "Chrome",
+      "case": "normal",
+      "characters": 13971,
+      "sha256": "4bc5837fef8a1d3d792e599c6d051d50de13b204489e50fd6f18a27c2eee033b",
+      "types": [
+        "text/plain"
+      ],
+      "source_hash_present": true,
+      "operational_assessment_present": true,
+      "controls_excluded": true,
+      "last": " sufficient.\n\nFull operational audit: ./operational_audit.md"
+    },
+    {
+      "browser": "Chrome",
+      "case": "denied",
+      "characters": 13971,
+      "sha256": "4bc5837fef8a1d3d792e599c6d051d50de13b204489e50fd6f18a27c2eee033b",
+      "types": [
+        "text/plain"
+      ],
+      "source_hash_present": true,
+      "operational_assessment_present": true,
+      "controls_excluded": true,
+      "last": " sufficient.\n\nFull operational audit: ./operational_audit.md"
+    }
+  ],
+  "unchanged_evidence": "HTML renderer and copy script unchanged after 28ad8f; later D7 source fixes do not alter the supplied report DOM or rendering/copy logic. Reused valid browser evidence; current CLI replay separately verifies final output.",
+  "limitation": "Browser innerText whitespace differs across engines; equality is within each engine normal/fallback, as in D1. Denied cases inject only clipboard failure and rehash fixture CSP; product script unchanged. Clipboard was seeded before fallback checks and Chrome normal."
+}

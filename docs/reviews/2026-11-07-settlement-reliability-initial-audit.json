@@ -1,0 +1,110 @@
+{
+  "run_id": "40011f54-1367-4495-8501-0fde9e5fceb4",
+  "status": "completed",
+  "started_at": "2026-11-07T19:36:07.500Z",
+  "deadline_at": "2026-11-07T22:06:07.500Z",
+  "completed_at": "2026-11-07T20:13:52.264Z",
+  "report": {
+    "base_commit": "77ebc8abc30757f4bab0c106df9e3b56cd12aebf",
+    "head_commit": "c703fe509137e6cb37805e74dc09a3f7edb5fb32",
+    "requested_model": "~anthropic/claude-fable-latest",
+    "served_model": "~anthropic/claude-fable-latest",
+    "status": "completed",
+    "actual_turns": 46,
+    "reviewed_files": [
+      "docs/maintenance/publication-outcomes.md",
+      "docs/reviews/2026-11-07-settlement-reliability-acceptance.md",
+      "docs/reviews/2026-11-07-settlement-reliability-runtime.json",
+      "docs/reviews/settlement-reliability-proof.py",
+      "docs/superpowers/plans/2026-11-07-settlement-reliability.md",
+      "tests/test_calendar_outcomes.py",
+      "tests/test_crypto_publication_alignment.py",
+      "tests/test_horizon_summary.py",
+      "tests/test_mechanical_valuation_publication.py",
+      "tests/test_memory_log.py",
+      "tests/test_publication_outcomes.py",
+      "tests/test_publication_scan.py",
+      "tests/test_settlement_memory_note.py",
+      "tests/test_settlement_pass.py",
+      "tests/test_settlement_price_provider.py",
+      "tests/test_settlement_retry_boundaries.py",
+      "tradingagents/backtest.py",
+      "tradingagents/dataflows/vendors/yahoo/market.py",
+      "tradingagents/graph/trading_graph.py",
+      "tradingagents/memory/log.py",
+      "tradingagents/memory/publication.py",
+      "tradingagents/memory/publication_outcomes.py",
+      "tradingagents/memory/settlement.py"
+    ],
+    "summary": "Independent audit of frozen range 77ebc8ab \u2192 c703fe50 (Build C: settlement and publication reliability, 23 files). All five authorized tasks are implemented and proved within the frozen diff: C1's PricePass performs one bounded read per symbol per pass, reuses failures without cross-symbol blocking, and preserves the unchanged fetch_outcome entry/exit/timezone/benchmark policies (call-count, sparse-entry Mar 4\u2192Sep 4, and provenance tests present); C2 separates immature/retryable/deferred/terminal with verified-empty-only zero counting, the exact 0/13/14/27/28\u21920/14/28 timeline, duplicate/concurrent-pass protection under the existing lock, positive-row streak reset including failed-benchmark isolation (Review Focus 4), read-and-write terminal validation bound to the immutable publication hash, SPY-2026-only calendar-mismatch terminal (holiday set matches the published NYSE calendar), chronology-aware summaries via terminal_at, and the documented subprocess-tested manual reopen; C3 reads evidence at most once per record and only before committing the first resolving outcome; C4 adds a per-scan tolerant scan_records used only for listings/settlement while publish, exact reads, prior-thesis and assumption decisions remain strict (blocked-publication and restored 1/2/3-sequence tests present); C5 makes store_decision atomic with partial-tail quarantine and replacement-failure preservation. The failure-recovery correction (abort a record's pass on persistence failure) is covered by a dedicated regression. The acceptance report, plan, maintenance doc, replay script and sanitized receipt are mutually consistent, and authority boundaries (no integration/push/release) are respected. No in-scope Critical, High or Medium findings; six Low findings are documented, the most notable being that the zero-coverage terminal path is likely unreachable against the live yfinance vendor (a deliberate, conservative bias acknowledged by the builder) and that scan_records' extra field requirements could permanently omit unusual legacy records from tolerant settlement with only a generic skipped count. Builder test/replay executions were not independently rerun; this gate conclusion grants no integration or release authority.",
+    "limitations": [
+      "Audit is read-only against the single frozen request.json (base 77ebc8ab \u2192 head c703fe50); no tests, ruff, or the DOCN replay were executed by the auditor. Builder-reported results (3186 passed/10 skipped/1 deselected, ruff clean, replay receipt) are consistent with the diffed code and tests but are builder receipts, not independent execution.",
+      "Private inputs are not in the packet by design: the seven DOCN records, evidence snapshots, cached CSV, /tmp pytest and replay logs (only a SHA-256 of suite stdout is recorded), so the runtime receipt's figures (35 immature endpoints, hashes) are verified for internal consistency with docs/reviews/settlement-reliability-proof.py, not reproduced.",
+      "Exact-commit remote CI (Python 3.11\u20133.14 matrix, timezone variant, install smoke) and Machine 1 acceptance are unverified, as the acceptance report itself declares; this candidate is an unpushed local branch.",
+      "The _SPY_CLOSED_2026 holiday set was checked against the auditor's knowledge of the published 2026 NYSE calendar (all ten dates match); the cited NYSE/SSGA URLs were not fetched (no network permitted).",
+      "The frozen requirements blob supplies HEAD contents of listed paths only; behavior of unlisted modules (e.g., full backtest evaluation internals, legacy import writers) is inferred from the supplied excerpts and could not be fully re-read.",
+      "Build size escalated from declared medium to large (23 files, ~2,500 diff lines), as recorded in the request's escalation reasons; review depth prioritized the owning settlement/publication/log modules and their tests over doc prose."
+    ],
+    "findings": [
+      {
+        "severity": "low",
+        "title": "Live zero-coverage terminal path is likely unreachable: get_settlement_closes uses raise_errors=True, and yfinance 1.7.0 raises YFPricesMissingError for explicit no-data responses, which the code deliberately treats as retryable; a well-formed empty frame may rarely occur against the real vendor, so dead symbols can retry indefinitely instead of reaching the three-check terminal state. Conservative (never unsafe) and acknowledged in the acceptance table, but the C2 retry-stopping objective may not trigger in production without a future provider-signal review.",
+        "path": "tradingagents/dataflows/vendors/yahoo/market.py"
+      },
+      {
+        "severity": "low",
+        "title": "scan_records enforces top-level fields (benchmark, thesis_version_id, requested_as_of, eligibility booleans, endpoint horizon shape) beyond the strict hash check; any legacy record missing one is permanently omitted from tolerant settlement/listings with only a generic skipped entry (path + exception name). Visible, and one old-format shape is tested usable, but other legacy shapes would silently stop settling until manually repaired.",
+        "path": "tradingagents/memory/publication.py"
+      },
+      {
+        "severity": "low",
+        "title": "Settlement.failed reuses the documented (ticker, date, reason) tuple shape to carry ('publication'|ticker, decision_id, reason) for publication failures; note counting is correct, but positional consumers of failed would read a decision UUID where a date is expected.",
+        "path": "tradingagents/memory/settlement.py"
+      },
+      {
+        "severity": "low",
+        "title": "_validate_retry_endpoint accepts a resolved endpoint that still carries 1-2 stale zero_checks (the normal resolve path clears them, so this is reachable only by manual companion edits that preserve the checksum); checks are scheduling evidence only, so impact is limited to a cosmetic inconsistency surviving read validation.",
+        "path": "tradingagents/memory/publication_outcomes.py"
+      },
+      {
+        "severity": "low",
+        "title": "The C3 plan checklist names test_settlement_pass_does_not_read_evidence_when_nothing_resolves; the delivered coverage lives in test_no_evidence_read_when_nothing_resolves_then_once_for_multiple_resolutions (patched load_evidence counter asserted 0, then 1 across multiple resolutions). Substance satisfied; prescribed identifier absent.",
+        "path": "tests/test_settlement_pass.py"
+      },
+      {
+        "severity": "low",
+        "title": "In the fetch-failure handler, _clear_observed_zero_checks calls prices.instrument(record), which can itself raise (e.g., a prospective record whose cached series lost its timezone); the raise escapes the per-endpoint handler and aborts the whole record's pass as 'Outcome persistence unavailable'. Still visible and retryable, but siblings of that record are skipped for the pass in a contrived edge case.",
+        "path": "tradingagents/memory/publication_outcomes.py"
+      }
+    ],
+    "classification": {
+      "declared_build_size": "medium",
+      "effective_build_size": "large",
+      "escalation_reasons": [
+        "Frozen scope changes more than 10 files or more than 500 lines.",
+        "Frozen scope changes more than 30 files or more than 2,000 lines."
+      ]
+    },
+    "progress": {
+      "observed_events": 7146,
+      "last_activity_at": "2026-11-07T20:13:51.915Z",
+      "last_activity_kind": "stdout"
+    },
+    "ledger": {
+      "soft_budget_usd": 18,
+      "hard_budget_usd": 30,
+      "soft_turn_limit": 40,
+      "turn_limit": 70,
+      "wall_clock_limit_minutes": 150,
+      "actual_cost_usd": 5.47764525,
+      "actual_elapsed_ms": 2264626,
+      "soft_limit_reached": true
+    },
+    "stop_reason": "reviewer_completed"
+  },
+  "progress": {
+    "observed_events": 0,
+    "last_activity_at": null,
+    "last_activity_kind": null
+  }
+}

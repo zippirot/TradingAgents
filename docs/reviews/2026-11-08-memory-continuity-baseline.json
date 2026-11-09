@@ -1,0 +1,23 @@
+{
+  "base_commit": "78e3611ffb3fd6d8672acc2c15f54489cc258ae6",
+  "original_manifest_sha256": "39397b589fdf7d5590cd603e7492990b1e6877885fa2b5e33d8aeba7aadd8527",
+  "record_count": 9,
+  "condition_count": 32,
+  "original_unchanged": true,
+  "all_strict_records_and_evidence_loaded": true,
+  "private_copy_manifest": "/var/folders/rv/3s2_bd3x2md89xqqh628q0l80000gn/T/r4-publication-baseline-qgirxhse/baseline-manifest.json",
+  "private_copy_manifest_sha256": "43466450e2dc915d4535f68a515ec60f9e3caef5bb8adebeadca7e4b2f1919d4",
+  "baseline_tests": {
+    "result": "214 passed",
+    "elapsed_seconds": 3.25,
+    "log": "/tmp/r4-baseline-focused.log"
+  },
+  "parallel_basis": "Approved plan permits R2/R4 independent worktrees after accepted R1; base is exact confirmed staging containing R1; R2 frozen audit remains independent.",
+  "pending": [
+    "R4 decisive integrated proofs",
+    "Full pytest and Ruff on stable candidate",
+    "R2 integration then explicit merge before R4 combined candidate",
+    "Independent Claude Fable audit and closure",
+    "Staging integration and CI"
+  ]
+}

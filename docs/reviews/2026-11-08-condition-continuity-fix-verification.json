@@ -1,0 +1,432 @@
+{
+  "stage": "Local R4 feature accepted by actual Claude closure; integration/exact-published-SHA CI, Phase1 fresh same-source live acceptance and Na/Nb remain incomplete.",
+  "base_commit": "c4b70a3618016fd630bee3c4ddf5b671c4d919bc",
+  "branch": "codex/condition-continuity-fix",
+  "source_objects": {
+    "tradingagents/memory/thesis.py": "909636da7f6ce44e94c8a13fafe9fe3bef56bb68",
+    "tradingagents/agents/schemas.py": "4356d4d514869fe69d00bb4cdeab3633066bf1b0",
+    "tradingagents/agents/decision_context.py": "c1fc4a6f1d3e02b8591b04fbe6906d618c5a2218",
+    "tests/test_thesis.py": "877ac5060155758d4a91c992409ac79fb592588e",
+    "tests/test_thesis_integration.py": "65ed99b2ed8c0748e789a5f3d923c1346a229b85",
+    "docs/reviews/condition-continuity-proof.py": "d8c076e3dc829d730555893536f648d3dbef2b2a"
+  },
+  "source_objects_unchanged_during_full_suite": true,
+  "focused_pytest": {
+    "command": "python -m pytest -q tests/test_thesis.py tests/test_thesis_integration.py tests/test_thesis_condition_kinds.py tests/test_thesis_legacy_publications.py tests/test_price_observation.py",
+    "path": "/tmp/condition-continuity-closure-focused.log",
+    "sha256": "88e2479d00d699e7a18f9aa070cdaecc546403e5b61d6f5989fd91829d292585",
+    "exit_code": 0,
+    "verbatim_result_lines": [
+      "119 passed in 2.36s"
+    ],
+    "passed": 119,
+    "seconds": 2.36
+  },
+  "full_pytest": {
+    "command": "python -m pytest -q",
+    "path": "/tmp/condition-continuity-closure-full.log",
+    "sha256": "51566cb677f57ad129f05b5f5f9fbb5cc1d0196b1c688551ecc7c51d88840ef7",
+    "exit_code": 0,
+    "verbatim_result_lines": [
+      "3564 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 161.16s (0:02:41)"
+    ],
+    "passed": 3564,
+    "seconds": 161.16,
+    "skipped": 10,
+    "deselected": 1,
+    "warnings": 25,
+    "subtests_passed": 100
+  },
+  "ruff": {
+    "command": "ruff check .",
+    "path": "/tmp/condition-continuity-closure-ruff.log",
+    "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "exit_code": 0,
+    "verbatim_result_lines": [
+      "All checks passed!"
+    ]
+  },
+  "red": {
+    "result": "New prior4 + proposal8 publication/next-run regression failed with 8 retained rather than 12.",
+    "path": "/tmp/condition-continuity-red.log",
+    "sha256": "af5849fc6d192ac189bbf228f8e1157b3e7eb4b3f68085ed2221d78df52ac14e"
+  },
+  "native_proof": {
+    "receipt": {
+      "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/condition-continuity-corrected-170323/receipt.json",
+      "sha256": "199b78ec392ce31cb9246622f74639239be047759ed3a4736a8a65b38db351eb"
+    },
+    "observed": {
+      "proof": "offline current-code processing of a retained live PM response",
+      "input_state": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/phase1-DOCN-repeat2/run/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07.json",
+      "input_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+      "analysis_identity": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+      "original_retained_conditions": 8,
+      "new_proposal_conditions": 8,
+      "kept_prior_conditions": 4,
+      "corrected_retained_conditions": 12,
+      "price_conditions": 2,
+      "event_conditions": 2,
+      "all_prior_ids_preserved": true,
+      "next_run_observations": 12,
+      "next_prompt_contains_all_ids": true,
+      "memory_link_count": 1,
+      "rating": "Underweight",
+      "original_publication_files_unchanged": 30,
+      "new_record": {
+        "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+        "record_sha256": "9a600f3364a7de2b9939b7d64546f9e31a5ea896360f58902bdbb991596f539b",
+        "evidence_snapshot": {
+          "sha256": "11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa",
+          "path": "evidence/11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa.json"
+        }
+      },
+      "report_files": {
+        "evidence.json": "1b4f4a5f8528a6a2b9af54bdd66da3b2075901e883117382b2afd27acffe748e",
+        "complete_report.md": "287de0a7e2da92bc5d5c49d1f3ce3c687de0cdf46655acc0b5128bc6eb224099",
+        "quality.json": "2e1ca0ea7850c4ad81388e860471cdf0f342d0e94047b708072b0aacd9569acb",
+        "diagnostics.json": "e004bb969c22bb9f5871a269d921471148266c56a6bbe2a3515a7402644ae7bc",
+        "executive_summary.json": "6e7844cc0fef412bb14538eecede2b18cbfdc9ad013d1781ed872491bbe974e3",
+        ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete_report.html": "b7e156b4c6bd7e313e16a65811cbc7ddbb4683bc875f5cebf304ec96c5c3d4e7",
+        "operational_audit.md": "d88a072da2fbc800e5707a6fdb56d27d2aa44b06171838bac5b2efee96f599b5",
+        "5_portfolio/mechanical_grid.md": "18be12d50b88ea17a555fbeb82c82d91ba1bce12ae1977c28abedc1c29410113",
+        "5_portfolio/decision.md": "06f2977a2bedb5d26abbfa06067b3df92e43c99725180cd252fc013391a47294",
+        "6_evidence/summary.md": "9968407c477fb97b234b65a8dfd52e9cacea6a2b69a162c96adac997b98f38bb",
+        "3_trading/trader.md": "e2e30ab9825e30372692551037240c93cc7ba286e869295fe7e1f5d9932980f4",
+        "2_research/bull.md": "b02815b9e3e65d56add3e8e571f847c5f50e40751953daa008f32b3650a7e028",
+        "2_research/manager.md": "98ca12c9ae3d610389bb72819e9090c5534d6633e9ff5b4ab799bb7cda29be95",
+        "2_research/bear.md": "c5bdabdb926a19500402f8cf3017d509e5b7010c20bf8d65cfd4f532bf37364d",
+        "1_analysts/news.md": "94495e7aa992040fb8b0599d9287ed31dd4b6a2d880bf0e1b8bb72ba5cc8f24b",
+        "1_analysts/fundamentals.md": "a32174116c083235fd79ea3eb093e97ae1d09e79bf7a36e167c4019ac817b4aa",
+        "1_analysts/sentiment.md": "8520905968e0bd8e96a54767b94f6a32920f767d9ca94456e28aaf096ca40f34",
+        "1_analysts/market.md": "ee158d0aec9584ed1da64fc8fe26cff6bfc44c922f9fbb54b750c539f3f171a5",
+        "4_risk/aggressive.md": "f1305dffa24f2186a2ec91516953204b21d56a8d6ff0dbdb2b32a360c983e830",
+        "4_risk/neutral.md": "ca82c005baff219fa8a025ac98d80baa730fd1724f720dc61befa5ec830e722f",
+        "4_risk/conservative.md": "c5149d9281e5932e6d3b9e90c676686ed052352e44060214d16c4f085d142314",
+        "4_risk/debate.md": "011d27246811407be768666a5b6b7c22d076432bca72ea01da468750b0d7e1b7"
+      },
+      "network_connections_denied": true,
+      "limitations": [
+        "Provider response is retained, not a new live call.",
+        "The isolated variant reuses its recorded analysis ID so advisory response scopes stay intact.",
+        "It does not change any real original publication or establish a fresh same-SHA paid baseline."
+      ]
+    }
+  },
+  "setup_recovery": {
+    "first_probe_log": {
+      "path": "/tmp/condition-continuity-native-proof.log",
+      "sha256": "246e172f7c920382fa8aae38512abf1be2aca2cd24795f4de3c2f23fa69c9538"
+    },
+    "classification": "Proof receipt setup: the record uses evidence_snapshot.sha256, not evidence_sha256. Native checks had completed, but the receipt writer failed; no passing result was claimed. Fixed the key and repeated the whole bounded offline proof into a fresh destination.",
+    "corrected_log": {
+      "path": "/tmp/condition-continuity-native-corrected.log",
+      "sha256": "38113209f3e21aba5ea4fdd79694778feb097f494379dd7818d32a992bbd10b4"
+    }
+  },
+  "paid_calls_for_this_local_fix": 0,
+  "independent_audit": {
+    "initial_run_id": "73569352-3883-470e-8f7c-0e3c4c4f29e6",
+    "closure_run_id": "2615a9a9-c9df-4be4-8230-94c7cff64726",
+    "closure_head": "011523472c71d830d94f7186d067a64a3485e115",
+    "status": "completed_local_feature_accepted",
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 3,
+    "turns": 25,
+    "cost_usd": 1.01869075,
+    "elapsed_ms": 355745,
+    "stop_reason": "reviewer_completed",
+    "aggregate_audit_cost_usd": "3.36645950",
+    "validated_at_frozen_head": true,
+    "limitations": "Frozen executor inspected supplied source/evidence; did not execute runtime/tests or access private artifacts. No remote CI/new live baseline claim."
+  },
+  "integration": "pending after independent acceptance under unexpired user authority",
+  "live_baseline_limitation": "The original live provider/model run was source9c252791, tree-equivalent to stagingc4b70a36. This correction changes condition preparation and the PM disposition schema; retained-response offline proof is not a fresh same-SHA paid baseline. Phase2 has not started.",
+  "stable_source_commit": "d6e8e3b69e719aa827f4204fc6c44708696df5e4",
+  "source_objects_verified_at_commit": true,
+  "committed_reference": {
+    "receipt": {
+      "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/condition-continuity-committed-170906/receipt.json",
+      "sha256": "1e8429d5783ab9c7df72986394cb5570c6756319356af0136506c676d74ad5e7"
+    },
+    "observed": {
+      "proof": "offline current-code processing of a retained live PM response",
+      "input_state": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/phase1-DOCN-repeat2/run/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07.json",
+      "input_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+      "analysis_identity": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+      "original_retained_conditions": 8,
+      "new_proposal_conditions": 8,
+      "kept_prior_conditions": 4,
+      "corrected_retained_conditions": 12,
+      "price_conditions": 2,
+      "event_conditions": 2,
+      "all_prior_ids_preserved": true,
+      "next_run_observations": 12,
+      "next_prompt_contains_all_ids": true,
+      "memory_link_count": 1,
+      "rating": "Underweight",
+      "original_publication_files_unchanged": 30,
+      "new_record": {
+        "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+        "record_sha256": "619dde8c6fc6a0e8de30ab40720bf923a1bd639ebc07898b54ce4be2b1f1bddc",
+        "evidence_snapshot": {
+          "sha256": "11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa",
+          "path": "evidence/11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa.json"
+        }
+      },
+      "report_files": {
+        "evidence.json": "1b4f4a5f8528a6a2b9af54bdd66da3b2075901e883117382b2afd27acffe748e",
+        "complete_report.md": "42b250cad2b06aa066a94b69083c4f12c816d66c507e8a1c5c58c876a86c4dd2",
+        "quality.json": "2e1ca0ea7850c4ad81388e860471cdf0f342d0e94047b708072b0aacd9569acb",
+        "diagnostics.json": "e004bb969c22bb9f5871a269d921471148266c56a6bbe2a3515a7402644ae7bc",
+        "executive_summary.json": "6e7844cc0fef412bb14538eecede2b18cbfdc9ad013d1781ed872491bbe974e3",
+        ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "complete_report.html": "e6a9f760743144011476dc92aa1d39fe0aa876bdc2bb19eb9468297cba261e7d",
+        "operational_audit.md": "d88a072da2fbc800e5707a6fdb56d27d2aa44b06171838bac5b2efee96f599b5",
+        "5_portfolio/mechanical_grid.md": "18be12d50b88ea17a555fbeb82c82d91ba1bce12ae1977c28abedc1c29410113",
+        "5_portfolio/decision.md": "06f2977a2bedb5d26abbfa06067b3df92e43c99725180cd252fc013391a47294",
+        "6_evidence/summary.md": "9968407c477fb97b234b65a8dfd52e9cacea6a2b69a162c96adac997b98f38bb",
+        "3_trading/trader.md": "e2e30ab9825e30372692551037240c93cc7ba286e869295fe7e1f5d9932980f4",
+        "2_research/bull.md": "b02815b9e3e65d56add3e8e571f847c5f50e40751953daa008f32b3650a7e028",
+        "2_research/manager.md": "98ca12c9ae3d610389bb72819e9090c5534d6633e9ff5b4ab799bb7cda29be95",
+        "2_research/bear.md": "c5bdabdb926a19500402f8cf3017d509e5b7010c20bf8d65cfd4f532bf37364d",
+        "1_analysts/news.md": "94495e7aa992040fb8b0599d9287ed31dd4b6a2d880bf0e1b8bb72ba5cc8f24b",
+        "1_analysts/fundamentals.md": "a32174116c083235fd79ea3eb093e97ae1d09e79bf7a36e167c4019ac817b4aa",
+        "1_analysts/sentiment.md": "8520905968e0bd8e96a54767b94f6a32920f767d9ca94456e28aaf096ca40f34",
+        "1_analysts/market.md": "ee158d0aec9584ed1da64fc8fe26cff6bfc44c922f9fbb54b750c539f3f171a5",
+        "4_risk/aggressive.md": "f1305dffa24f2186a2ec91516953204b21d56a8d6ff0dbdb2b32a360c983e830",
+        "4_risk/neutral.md": "ca82c005baff219fa8a025ac98d80baa730fd1724f720dc61befa5ec830e722f",
+        "4_risk/conservative.md": "c5149d9281e5932e6d3b9e90c676686ed052352e44060214d16c4f085d142314",
+        "4_risk/debate.md": "011d27246811407be768666a5b6b7c22d076432bca72ea01da468750b0d7e1b7"
+      },
+      "network_connections_denied": true,
+      "limitations": [
+        "Provider response is retained, not a new live call.",
+        "The isolated variant reuses its recorded analysis ID so advisory response scopes stay intact.",
+        "It does not change any real original publication or establish a fresh same-SHA paid baseline."
+      ]
+    }
+  },
+  "initial_claude_audit": {
+    "run_id": "73569352-3883-470e-8f7c-0e3c4c4f29e6",
+    "head": "7385890c6b7d35c006a6b1dbfc584c9eab6d283f",
+    "status": "completed",
+    "turns": 38,
+    "cost_usd": 2.34776875,
+    "elapsed_ms": 698083,
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 3,
+    "finding_disposition": "Supported growth-policy gap clarified; repeated-keeps/retirement regression added. Duplicate explanation rows deferred Low; source results remain builder evidence; cosmetic spacing corrected. Actual closure pending."
+  },
+  "literal_log_excerpts": {
+    "focused_pytest": {
+      "log_sha256": "ec9695ec59ddb83c0f86121b202e4d4f1a3e046e5db88c3c689e27cf81cd923b",
+      "verbatim_result_lines": [
+        "89 passed in 1.30s"
+      ],
+      "authority": "Builder-run log excerpt, not independent execution. Full private logs remain outside frozen executor access."
+    },
+    "full_pytest": {
+      "log_sha256": "f2462eb24fcaba7120a556478504afd5d7fc0ce7971c6615cdb2ce461bf4c395",
+      "verbatim_result_lines": [
+        "3563 passed, 10 skipped, 1 deselected, 25 warnings, 100 subtests passed in 94.12s (0:01:34)"
+      ],
+      "authority": "Builder-run log excerpt, not independent execution. Full private logs remain outside frozen executor access."
+    },
+    "ruff": {
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "verbatim_result_lines": [
+        "All checks passed!"
+      ],
+      "authority": "Builder-run log excerpt, not independent execution. Full private logs remain outside frozen executor access."
+    },
+    "red": {
+      "log_sha256": "af5849fc6d192ac189bbf228f8e1157b3e7eb4b3f68085ed2221d78df52ac14e",
+      "verbatim_result_lines": [
+        "E       AssertionError: assert 8 == 12"
+      ],
+      "authority": "Builder-run log excerpt, not independent execution. Full private logs remain outside frozen executor access."
+    }
+  },
+  "initial_candidate_verification": {
+    "source_objects": {
+      "tradingagents/memory/thesis.py": "909636da7f6ce44e94c8a13fafe9fe3bef56bb68",
+      "tradingagents/agents/schemas.py": "4356d4d514869fe69d00bb4cdeab3633066bf1b0",
+      "tradingagents/agents/decision_context.py": "c1fc4a6f1d3e02b8591b04fbe6906d618c5a2218",
+      "tests/test_thesis.py": "993cf30258272e1f20ceab9fa800eef8113c60c2",
+      "tests/test_thesis_integration.py": "65ed99b2ed8c0748e789a5f3d923c1346a229b85",
+      "docs/reviews/condition-continuity-proof.py": "d8c076e3dc829d730555893536f648d3dbef2b2a"
+    },
+    "focused_pytest": {
+      "passed": 89,
+      "seconds": 1.3,
+      "exit_code": 0,
+      "path": "/tmp/condition-continuity-focused-green.log",
+      "sha256": "ec9695ec59ddb83c0f86121b202e4d4f1a3e046e5db88c3c689e27cf81cd923b"
+    },
+    "full_pytest": {
+      "command": "python -m pytest -q",
+      "passed": 3563,
+      "skipped": 10,
+      "deselected": 1,
+      "warnings": 25,
+      "subtests_passed": 100,
+      "seconds": 94.12,
+      "exit_code": 0,
+      "path": "/tmp/condition-continuity-full-pytest.log",
+      "sha256": "f2462eb24fcaba7120a556478504afd5d7fc0ce7971c6615cdb2ce461bf4c395"
+    },
+    "ruff": {
+      "command": "ruff check .",
+      "exit_code": 0,
+      "path": "/tmp/condition-continuity-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "red": {
+      "result": "New prior4 + proposal8 publication/next-run regression failed with 8 retained rather than 12.",
+      "path": "/tmp/condition-continuity-red.log",
+      "sha256": "af5849fc6d192ac189bbf228f8e1157b3e7eb4b3f68085ed2221d78df52ac14e"
+    },
+    "native_proof": {
+      "receipt": {
+        "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/condition-continuity-corrected-170323/receipt.json",
+        "sha256": "199b78ec392ce31cb9246622f74639239be047759ed3a4736a8a65b38db351eb"
+      },
+      "observed": {
+        "proof": "offline current-code processing of a retained live PM response",
+        "input_state": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/phase1-DOCN-repeat2/run/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07.json",
+        "input_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+        "analysis_identity": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+        "original_retained_conditions": 8,
+        "new_proposal_conditions": 8,
+        "kept_prior_conditions": 4,
+        "corrected_retained_conditions": 12,
+        "price_conditions": 2,
+        "event_conditions": 2,
+        "all_prior_ids_preserved": true,
+        "next_run_observations": 12,
+        "next_prompt_contains_all_ids": true,
+        "memory_link_count": 1,
+        "rating": "Underweight",
+        "original_publication_files_unchanged": 30,
+        "new_record": {
+          "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+          "record_sha256": "9a600f3364a7de2b9939b7d64546f9e31a5ea896360f58902bdbb991596f539b",
+          "evidence_snapshot": {
+            "sha256": "11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa",
+            "path": "evidence/11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa.json"
+          }
+        },
+        "report_files": {
+          "evidence.json": "1b4f4a5f8528a6a2b9af54bdd66da3b2075901e883117382b2afd27acffe748e",
+          "complete_report.md": "287de0a7e2da92bc5d5c49d1f3ce3c687de0cdf46655acc0b5128bc6eb224099",
+          "quality.json": "2e1ca0ea7850c4ad81388e860471cdf0f342d0e94047b708072b0aacd9569acb",
+          "diagnostics.json": "e004bb969c22bb9f5871a269d921471148266c56a6bbe2a3515a7402644ae7bc",
+          "executive_summary.json": "6e7844cc0fef412bb14538eecede2b18cbfdc9ad013d1781ed872491bbe974e3",
+          ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "complete_report.html": "b7e156b4c6bd7e313e16a65811cbc7ddbb4683bc875f5cebf304ec96c5c3d4e7",
+          "operational_audit.md": "d88a072da2fbc800e5707a6fdb56d27d2aa44b06171838bac5b2efee96f599b5",
+          "5_portfolio/mechanical_grid.md": "18be12d50b88ea17a555fbeb82c82d91ba1bce12ae1977c28abedc1c29410113",
+          "5_portfolio/decision.md": "06f2977a2bedb5d26abbfa06067b3df92e43c99725180cd252fc013391a47294",
+          "6_evidence/summary.md": "9968407c477fb97b234b65a8dfd52e9cacea6a2b69a162c96adac997b98f38bb",
+          "3_trading/trader.md": "e2e30ab9825e30372692551037240c93cc7ba286e869295fe7e1f5d9932980f4",
+          "2_research/bull.md": "b02815b9e3e65d56add3e8e571f847c5f50e40751953daa008f32b3650a7e028",
+          "2_research/manager.md": "98ca12c9ae3d610389bb72819e9090c5534d6633e9ff5b4ab799bb7cda29be95",
+          "2_research/bear.md": "c5bdabdb926a19500402f8cf3017d509e5b7010c20bf8d65cfd4f532bf37364d",
+          "1_analysts/news.md": "94495e7aa992040fb8b0599d9287ed31dd4b6a2d880bf0e1b8bb72ba5cc8f24b",
+          "1_analysts/fundamentals.md": "a32174116c083235fd79ea3eb093e97ae1d09e79bf7a36e167c4019ac817b4aa",
+          "1_analysts/sentiment.md": "8520905968e0bd8e96a54767b94f6a32920f767d9ca94456e28aaf096ca40f34",
+          "1_analysts/market.md": "ee158d0aec9584ed1da64fc8fe26cff6bfc44c922f9fbb54b750c539f3f171a5",
+          "4_risk/aggressive.md": "f1305dffa24f2186a2ec91516953204b21d56a8d6ff0dbdb2b32a360c983e830",
+          "4_risk/neutral.md": "ca82c005baff219fa8a025ac98d80baa730fd1724f720dc61befa5ec830e722f",
+          "4_risk/conservative.md": "c5149d9281e5932e6d3b9e90c676686ed052352e44060214d16c4f085d142314",
+          "4_risk/debate.md": "011d27246811407be768666a5b6b7c22d076432bca72ea01da468750b0d7e1b7"
+        },
+        "network_connections_denied": true,
+        "limitations": [
+          "Provider response is retained, not a new live call.",
+          "The isolated variant reuses its recorded analysis ID so advisory response scopes stay intact.",
+          "It does not change any real original publication or establish a fresh same-SHA paid baseline."
+        ]
+      }
+    },
+    "committed_reference": {
+      "receipt": {
+        "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/condition-continuity-committed-170906/receipt.json",
+        "sha256": "1e8429d5783ab9c7df72986394cb5570c6756319356af0136506c676d74ad5e7"
+      },
+      "observed": {
+        "proof": "offline current-code processing of a retained live PM response",
+        "input_state": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/phase1-DOCN-repeat2/run/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-07.json",
+        "input_sha256": "bbc507ddb95f8efb8f3a20e7c098bc1ee1a0a90d2d86a13279904c4430edb661",
+        "analysis_identity": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+        "original_retained_conditions": 8,
+        "new_proposal_conditions": 8,
+        "kept_prior_conditions": 4,
+        "corrected_retained_conditions": 12,
+        "price_conditions": 2,
+        "event_conditions": 2,
+        "all_prior_ids_preserved": true,
+        "next_run_observations": 12,
+        "next_prompt_contains_all_ids": true,
+        "memory_link_count": 1,
+        "rating": "Underweight",
+        "original_publication_files_unchanged": 30,
+        "new_record": {
+          "decision_id": "20be4f7b-40a7-4541-a6dc-d564d61ca4f7",
+          "record_sha256": "619dde8c6fc6a0e8de30ab40720bf923a1bd639ebc07898b54ce4be2b1f1bddc",
+          "evidence_snapshot": {
+            "sha256": "11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa",
+            "path": "evidence/11d325692d9994c5e918b6c23cae60fd9810ee303c9768f5f2772f2c1b8fafaa.json"
+          }
+        },
+        "report_files": {
+          "evidence.json": "1b4f4a5f8528a6a2b9af54bdd66da3b2075901e883117382b2afd27acffe748e",
+          "complete_report.md": "42b250cad2b06aa066a94b69083c4f12c816d66c507e8a1c5c58c876a86c4dd2",
+          "quality.json": "2e1ca0ea7850c4ad81388e860471cdf0f342d0e94047b708072b0aacd9569acb",
+          "diagnostics.json": "e004bb969c22bb9f5871a269d921471148266c56a6bbe2a3515a7402644ae7bc",
+          "executive_summary.json": "6e7844cc0fef412bb14538eecede2b18cbfdc9ad013d1781ed872491bbe974e3",
+          ".report-export.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "complete_report.html": "e6a9f760743144011476dc92aa1d39fe0aa876bdc2bb19eb9468297cba261e7d",
+          "operational_audit.md": "d88a072da2fbc800e5707a6fdb56d27d2aa44b06171838bac5b2efee96f599b5",
+          "5_portfolio/mechanical_grid.md": "18be12d50b88ea17a555fbeb82c82d91ba1bce12ae1977c28abedc1c29410113",
+          "5_portfolio/decision.md": "06f2977a2bedb5d26abbfa06067b3df92e43c99725180cd252fc013391a47294",
+          "6_evidence/summary.md": "9968407c477fb97b234b65a8dfd52e9cacea6a2b69a162c96adac997b98f38bb",
+          "3_trading/trader.md": "e2e30ab9825e30372692551037240c93cc7ba286e869295fe7e1f5d9932980f4",
+          "2_research/bull.md": "b02815b9e3e65d56add3e8e571f847c5f50e40751953daa008f32b3650a7e028",
+          "2_research/manager.md": "98ca12c9ae3d610389bb72819e9090c5534d6633e9ff5b4ab799bb7cda29be95",
+          "2_research/bear.md": "c5bdabdb926a19500402f8cf3017d509e5b7010c20bf8d65cfd4f532bf37364d",
+          "1_analysts/news.md": "94495e7aa992040fb8b0599d9287ed31dd4b6a2d880bf0e1b8bb72ba5cc8f24b",
+          "1_analysts/fundamentals.md": "a32174116c083235fd79ea3eb093e97ae1d09e79bf7a36e167c4019ac817b4aa",
+          "1_analysts/sentiment.md": "8520905968e0bd8e96a54767b94f6a32920f767d9ca94456e28aaf096ca40f34",
+          "1_analysts/market.md": "ee158d0aec9584ed1da64fc8fe26cff6bfc44c922f9fbb54b750c539f3f171a5",
+          "4_risk/aggressive.md": "f1305dffa24f2186a2ec91516953204b21d56a8d6ff0dbdb2b32a360c983e830",
+          "4_risk/neutral.md": "ca82c005baff219fa8a025ac98d80baa730fd1724f720dc61befa5ec830e722f",
+          "4_risk/conservative.md": "c5149d9281e5932e6d3b9e90c676686ed052352e44060214d16c4f085d142314",
+          "4_risk/debate.md": "011d27246811407be768666a5b6b7c22d076432bca72ea01da468750b0d7e1b7"
+        },
+        "network_connections_denied": true,
+        "limitations": [
+          "Provider response is retained, not a new live call.",
+          "The isolated variant reuses its recorded analysis ID so advisory response scopes stay intact.",
+          "It does not change any real original publication or establish a fresh same-SHA paid baseline."
+        ]
+      }
+    },
+    "stable_source_commit": "b13cfdbbe300c5d631c5ab5b7dacbb19f65b444e"
+  },
+  "source_capture_timing": "Captured at suite startup after command launch; all six implementation/test/proof objects remained unchanged through completion. Documentation-only evidence was updated during the suite.",
+  "source_commit_binding": "All six current source/test/proof objects verified at this committed closure revision; production/proof objects also remain identical to b13cfdbb. The following freeze changes only this evidence binding.",
+  "native_proof_reuse": "Production thesis/schema/card and proof-helper blobs are byte-identical to committed b13cfdbb proof. Closure changes only regression/docs; native defining path evidence reused without inventing a new provider run or duplicating expensive checks.",
+  "prepared_fresh_baseline_operator": {
+    "path": "/Users/zipp/Documents/ChatGPT/Tauric/audit-artifacts/workflow-gap-live-2026-11-08/fresh-baseline-qualification.json",
+    "sha256": "40d080d166c4d07228c2f03ce788b935e0c5e0f2becad0f1cf6bca6179895b79",
+    "paid_calls": 0,
+    "status": "49 offline checks/project Ruff pass; separate fresh baseline approval absent"
+  }
+}

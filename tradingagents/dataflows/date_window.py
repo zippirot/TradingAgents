@@ -47,6 +47,12 @@ def to_utc(dt: datetime) -> datetime:
     return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
+def _now():
+    from tradingagents.source_replay import current_session, source_now
+
+    return source_now(UTC) if current_session() else datetime.now(UTC)
+
+
 def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> bool:
     """Whether an item belongs in the half-open window ``[start, end + 1 day)``.
 
@@ -55,12 +61,14 @@ def in_window(pub_dt: datetime | None, start_dt: datetime, end_dt: datetime) -> 
     end = to_utc(end_dt)
     if pub_dt is not None:
         return to_utc(start_dt) <= to_utc(pub_dt) < end + timedelta(days=1)
-    return end >= datetime.now(UTC) - timedelta(days=1)
+    return end >= _now() - timedelta(days=1)
 
 
 def get_current_date() -> str:
     """Today's date, YYYY-MM-DD."""
-    return date.today().strftime("%Y-%m-%d")
+    from tradingagents.source_replay import current_session, source_today
+
+    return (source_today() if current_session() else date.today()).strftime("%Y-%m-%d")
 
 
 def is_historical(run_date) -> bool:
@@ -84,7 +92,7 @@ def coverage_gap(
     returned newest-first and unbroken in time; a merged or relevance-ranked
     result passes no dates, leaving only the present as the bound.
     """
-    now = datetime.now(UTC)
+    now = _now()
     oldest = min((to_utc(d) for d in dates if d is not None), default=now)
     if datetime.strptime(end_date, "%Y-%m-%d").date() > now.date():
         reason = "the window extends past today"

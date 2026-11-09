@@ -1,6 +1,7 @@
 """Display-only changes against a verified publication available at this run's cutoff."""
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -27,11 +28,17 @@ def _fields(record):
     requests = record.get("requests", [])
     if not isinstance(requests, list) or len(requests) > 3:
         raise ValueError("Invalid retained case list")
-    values = {}
+    values = []
+    names = set()
     for item in requests:
         name, raw = item["name"].strip(), item["request"]
-        if not name or len(name) > 80 or name in values:
+        if not name or len(name) > 80 or name in names:
             raise ValueError("Invalid retained case name")
+        names.add(name)
+        role = item.get("scenario_role")
+        if role is not None and (not isinstance(role, str) or not role.strip()):
+            raise ValueError("Invalid retained scenario role")
+        role = role.strip().casefold() if role is not None else None
         method = raw.get("method")
         if method == "revenue_case":
             request = RevenueCase.model_validate(raw)
@@ -52,16 +59,39 @@ def _fields(record):
                       "share_basis": request.shares_fact_id}
         else:
             raise ValueError("Unsupported retained case")
+        period = None
         if forecast is not None:
             fields.update(forecast=f"{_number(forecast.value)} {forecast.unit}; {forecast.basis}; {forecast.kind}",
                           period=f"{forecast.period_start} to {forecast.period_end}")
-        values[name] = fields
+            period = (str(forecast.period_start), str(forecast.period_end))
+        values.append({"name": name, "key": (method, period, role), "fields": fields})
     return values
 
 
-def _horizon(state):
-    horizon = state.get("horizon") or (state.get("decision_context") or {}).get("horizon") or {}
-    return horizon.get("text") if horizon.get("status") == "explicit" else "unavailable"
+def _case_changes(previous, effective):
+    old_groups, new_groups = defaultdict(list), defaultdict(list)
+    for item in previous:
+        old_groups[item["key"]].append(item)
+    for item in effective:
+        new_groups[item["key"]].append(item)
+    rows = []
+    for key in sorted(old_groups.keys() | new_groups.keys(), key=str):
+        old, new = old_groups[key], new_groups[key]
+        if len(old) == len(new) == 1:
+            for field in ("forecast", "multiple", "share_basis"):
+                before = old[0]["fields"].get(field, "not present")
+                after = new[0]["fields"].get(field, "not present")
+                if before != after:
+                    rows.append({"scenario": new[0]["name"], "field": field,
+                                 "previous": before, "current": after})
+            continue
+        for item in old:
+            rows.append({"scenario": item["name"], "field": "case",
+                         "previous": "present", "current": "dropped"})
+        for item in new:
+            rows.append({"scenario": item["name"], "field": "case",
+                         "previous": "not present", "current": "added"})
+    return rows
 
 
 def _filings(state):
@@ -80,7 +110,7 @@ def assumption_changes(config: dict, ticker: str, current: dict) -> dict:
     """
     from tradingagents.memory.publication import list_records, load_evidence
 
-    result = {"status": "unavailable", "prior_decision_id": None, "prior_as_of": None,
+    result = {"status": "unavailable", "comparison_version": 2, "prior_decision_id": None, "prior_as_of": None,
               "new_filings_between": None, "rows": []}
     try:
         clock = current.get("analysis_clock") or resolve_analysis_cutoff(
@@ -105,21 +135,21 @@ def assumption_changes(config: dict, ticker: str, current: dict) -> dict:
             return {**result, "status": "no_prior"}
         record = max(prior, key=lambda r: (_stamp(r["published_at"]), r["sequence"]))
         snapshot = load_evidence(config, record)
-        result.update(prior_decision_id=record["decision_id"], prior_as_of=record["requested_as_of"])
+        label = record["requested_as_of"]
+        if str(current.get("trade_date")) == label:
+            label = f"{_stamp(record['published_at']).astimezone(UTC):%Y-%m-%d %H:%M} UTC ({record['decision_id'][:8]})"
+        result.update(prior_decision_id=record["decision_id"], prior_as_of=record["requested_as_of"],
+                      prior_label=label)
         previous = _fields(snapshot.get("shared_valuation_scenarios") or {})
         effective = _fields(replay_cases(current))
-        rows = []
-        for name in sorted(previous.keys() | effective.keys()):
-            old, new = previous.get(name, {}), effective.get(name, {})
-            for field in ("multiple", "forecast", "period", "share_basis"):
-                a, b = old.get(field, "not present"), new.get(field, "not present")
-                if a != b:
-                    rows.append({"scenario": name, "field": field, "previous": a, "current": b})
-        if _horizon(snapshot) != _horizon(current):
-            rows.append({"scenario": "Decision", "field": "horizon",
-                         "previous": _horizon(snapshot), "current": _horizon(current)})
+        old_methods = {item["key"][0] for item in previous}
+        new_methods = {item["key"][0] for item in effective}
+        different_method = bool(old_methods and new_methods and old_methods != new_methods)
+        rows = [] if different_method else _case_changes(previous, effective)
         old_filings, new_filings = _filings(snapshot), _filings(current)
         return {**result, "status": "available", "rows": rows,
+                **({"summary_message": "Prior publication used a different valuation method; "
+                                     "field-level comparison not shown"} if different_method else {}),
                 "new_filings_between": (bool(new_filings - old_filings)
                                         if old_filings is not None and new_filings is not None else None)}
     except (ValueError, TypeError, KeyError, AttributeError, OSError, ArithmeticError) as exc:

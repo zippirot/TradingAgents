@@ -8,6 +8,7 @@ the wiring: a restructure that drops a node, a tool or an edge fails here.
 from __future__ import annotations
 
 import copy
+import json
 import time
 
 import pandas as pd
@@ -162,6 +163,31 @@ def test_a_full_run_reaches_a_logged_decision(tmp_path, monkeypatch, offline, st
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("finish_location", ["response_metadata", "generation_info"])
+def test_truncated_analyst_report_reaches_next_research_prompt(tmp_path, monkeypatch, offline, finish_location):
+    class TruncatedAnalystModel(ScriptedModel):
+        prompts: list = Field(default_factory=list)
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            self.prompts.append(str(messages))
+            result = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            if self.tools and isinstance(messages[-1], ToolMessage):
+                if finish_location == "generation_info":
+                    result.generations[0].generation_info = {"finish_reason": "length"}
+                else:
+                    result.generations[0].message.response_metadata["finish_reason"] = "length"
+            return result
+
+    model = TruncatedAnalystModel(structured=True)
+    state, _ = _graph(tmp_path, monkeypatch, model).propagate("NVDA", TRADE_DATE)
+    assert "Model output truncated by provider" in state["market_report"]
+    assert any("Model output truncated by provider" in prompt for prompt in model.prompts)
+    truncated = [row for row in state["operational_observations"].values()
+                 if row["code"] == "model_output_truncated"]
+    assert truncated and all(row.get("count", 1) == 1 for row in truncated)
+
+
+@pytest.mark.unit
 def test_an_interrupted_run_resumes_from_its_checkpoint(tmp_path, monkeypatch, offline):
     model = ScriptedModel(fail_at=10)            # past the analysts, before the decision
     graph = _graph(tmp_path, monkeypatch, model, checkpoint_enabled=True)
@@ -189,7 +215,13 @@ def test_a_graph_reused_across_runs_keeps_no_run_state(tmp_path, monkeypatch, of
 
     held = [v for v in vars(graph).values() if isinstance(v, dict) and TRADE_DATE in v]
     assert held == []
-    assert len(list(tmp_path.glob("results/NVDA/TradingAgentsStrategy_logs/*.json"))) == 2
+    logs = list(tmp_path.glob("results/NVDA/TradingAgentsStrategy_logs/*.json"))
+    assert len(logs) == 4  # One per-run archive and one latest file for each analysis date.
+    for trade_date in ("2026-01-08", TRADE_DATE):
+        latest = next(path for path in logs if path.name == f"full_states_log_{trade_date}.json")
+        saved = json.loads(latest.read_text())
+        archive = latest.with_name(f"full_states_log_{trade_date}_{saved['run_id'][:8]}.json")
+        assert json.loads(archive.read_text()) == saved
 
 
 @pytest.mark.unit
@@ -277,7 +309,11 @@ def test_an_analyst_that_keeps_calling_tools_writes_its_report_at_the_limit(tmp_
 
     assert len(model.tool_turns) == 2 * 3   # two tool-using analysts, three rounds each
     for key in ("market_report", "news_report"):
-        assert final_state["unvalidated_outputs"][key] == TEXT
+        assert final_state["unvalidated_outputs"][key].endswith(TEXT)
+        analyst = "market" if key == "market_report" else "news"
+        assert final_state["unvalidated_outputs"][key].startswith(
+            "Warning: requested tool calls supplied no support") is final_state[
+                f"audit_{analyst}_tool_evidence"]["all_tools_failed"]
         assert final_state[key].startswith("**Unvalidated model narrative")
     assert rating == "Overweight"
 
@@ -413,7 +449,7 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
     from tradingagents.dataflows.vendors import sec_edgar
 
     def unavailable(ticker):
-        raise VendorUnavailableError("SEC source unavailable in controlled proof")
+        raise VendorUnavailableError("SEC source unavailable in controlled proof dummy-secret-987")
 
     monkeypatch.setattr(sec_edgar, "cik_for", unavailable)
     graph = _graph(tmp_path, monkeypatch, ScriptedModel(),
@@ -421,9 +457,11 @@ def test_critical_source_failure_saves_readable_review_state(tmp_path, monkeypat
     state, signal = graph.propagate("NVDA", TRADE_DATE)
     assert signal == "REVIEW"
     assert state["investment_plan"] == state["trader_investment_plan"] == ""
-    assert "SEC source unavailable" in state["final_trade_decision"]
+    assert "SEC unavailable" in state["final_trade_decision"]
+    assert "dummy-secret-987" not in str(state)
     path = tmp_path / "results/NVDA/TradingAgentsStrategy_logs" / f"full_states_log_{TRADE_DATE}.json"
     saved = json.loads(path.read_text())
+    assert "dummy-secret-987" not in str(saved)
     assert saved["final_rating"] == "REVIEW"
     assert saved["fundamentals_report"]
     assert saved["investment_debate_state"]["history"] == ""
@@ -688,11 +726,15 @@ def test_public_entrypoints_finalize_optional_audit_without_extra_disabled_calls
         # Real run_analysis, config construction, stream, finalizer, engine,
         # publication/state writer, offer_reports and final display remain intact.
         cli_run.run_analysis(flags={'save': save, 'show': True, 'html': True, 'ground_truth_audit': enabled})
-        state = json.loads(next(tmp_path.rglob('full_states_log_*.json')).read_text())
+        state = json.loads(next(tmp_path.rglob(f'full_states_log_{TRADE_DATE}.json')).read_text())
         graph = None
     logs = list(tmp_path.rglob('full_states_log_*.json'))
-    assert len(logs) == 1
-    logged = json.loads(logs[0].read_text())
+    assert len(logs) == 2
+    dated = next(path for path in logs if path.name == f'full_states_log_{TRADE_DATE}.json')
+    archived = next(path for path in logs if path != dated)
+    assert archived.name == f'full_states_log_{TRADE_DATE}_{state["run_id"][:8]}.json'
+    assert archived.read_bytes() == dated.read_bytes()
+    logged = json.loads(archived.read_text())
     assert bool(state.get('ground_truth_audit')) is enabled
     assert bool(logged.get('ground_truth_audit')) is enabled
     audits = len(model.audit_prompts)

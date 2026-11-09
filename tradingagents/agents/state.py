@@ -4,6 +4,7 @@ from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
 
 from tradingagents.agents.document_access import merge_search_traces
+from tradingagents.attempt_trace import merge_call_metadata
 from tradingagents.operational_audit import merge_observations
 
 
@@ -19,6 +20,8 @@ class InvestDebateState(TypedDict):
     current_response: Annotated[str, "Latest response"]
     count: Annotated[int, "Length of the current conversation"]
     document_questions: NotRequired[dict]
+    current_bull_response: NotRequired[str]
+    current_bear_response: NotRequired[str]
 
 
 # Risk management team state
@@ -47,6 +50,7 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    model_call_metadata: Annotated[dict, merge_call_metadata]
     operational_observations: Annotated[dict, merge_observations]
     analysis_clock: Annotated[dict, "Resolved IANA analysis timezone and UTC known-at cutoff"]
     run_id: Annotated[str, "Invocation identity preserved across checkpoint resume"]
@@ -89,6 +93,9 @@ class AgentState(MessagesState):
     document_search_trace: Annotated[dict, merge_search_traces]
     document_search_role: Annotated[str, "Private analyst subgraph role, never model supplied"]
     document_followups: Annotated[dict, "Retained deterministic post-debate source lookups; unvalidated interpretation"]
+    document_followup_judgments: Annotated[list[dict], "Unvalidated RM answer judgments keyed to actual follow-up question IDs"]
+    prompt_evidence_references: Annotated[dict[str, str], "Exact evidence IDs to prompt-only short references; canonical evidence stays unchanged"]
+    filing_terms_evidence: Annotated[dict, "Pre-analyst typed note and lease records bound to full source corpus"]
     filing_fact_extraction: Annotated[dict, "Verified filing cells and table coverage"]
     evidence_acquisition: Annotated[dict, "Retained pre-analyst source vintage and scope; not final evidence authority"]
     shared_source_brief: Annotated[str, "Bounded common primary-source brief consumed by every analyst"]

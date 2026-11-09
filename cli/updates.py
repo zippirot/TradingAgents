@@ -25,7 +25,7 @@ import requests
 from packaging.version import InvalidVersion, Version
 
 from tradingagents.dataflows.files import replace_file
-from tradingagents.default_config import _TRADINGAGENTS_HOME
+from tradingagents.default_config import _TRADINGAGENTS_HOME, _coerce
 
 RELEASES_URL = "https://api.github.com/repos/TauricResearch/TradingAgents/releases/latest"
 NOTICES_URL = "https://api.tauric.ai/v1/announcements"
@@ -43,7 +43,11 @@ DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 def enabled() -> bool:
     """Whether a person is at the terminal and has not turned the check off."""
     at_a_terminal = bool(sys.stdin and sys.stdin.isatty() and sys.stdout and sys.stdout.isatty())
-    return at_a_terminal and not os.environ.get("CI") and not os.environ.get(OPT_OUT)
+    try:
+        opted_out = _coerce(os.environ.get(OPT_OUT, "0"), False)
+    except ValueError:
+        opted_out = True  # an invalid opt-out value never starts a network check
+    return at_a_terminal and not os.environ.get("CI") and not opted_out
 
 
 # --- the cache and the check -------------------------------------------------------

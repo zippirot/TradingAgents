@@ -9,12 +9,15 @@ own date.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest import mock
 
 import pytest
 
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.vendors import sec_edgar
+from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage, SourceBlock
 
 _REAL_FETCH = sec_edgar._fetch_json
 
@@ -26,6 +29,170 @@ def _fact(end, val, filed, form="10-K", fp="FY", start=None):
     if start:
         fact["start"] = start
     return fact
+
+
+def _current_securities_inputs(monkeypatch, *, aliases=(178_645_000, 178_645_000),
+                               accession="0001628280-26-069141", date="2026-09-30"):
+    raw = json.loads((Path(__file__).parent / "fixtures/docn_2026q3/live02_filing_package.json").read_text())
+    corpus = DisclosurePackage.model_validate(raw["disclosures"])
+    # The short recorded fixture omits the heading blocks present in the saved
+    # full 10-Q corpus. Add only that exact table context to exercise the gate.
+    docs = []
+    for doc in corpus.documents:
+        if str(doc.filing.report_date) != "2026-09-30":
+            docs.append(doc)
+            continue
+        blocks = list(doc.blocks)
+        index = next(i for i, block in enumerate(blocks) if block.locator == "block-41")
+        blocks[index:index] = [
+            SourceBlock(locator="block-38", section="Document", text="CONDENSED CONSOLIDATED BALANCE SHEETS"),
+            SourceBlock(locator="block-39", section="Document", text="(in thousands, except share amounts)"),
+            SourceBlock(locator="block-40", section="Document", text="(unaudited)"),
+        ]
+        docs.append(doc.model_copy(update={"blocks": tuple(blocks)}))
+    corpus = corpus.model_copy(update={"documents": tuple(docs)})
+    cash = _fact(date, 666_096_000, "2026-11-03", form="10-Q", fp="Q3")
+    cash["accn"] = accession
+    tags = {"CashAndCashEquivalentsAtCarryingValue": {"units": {"USD": [cash]}}}
+    for tag, value in zip(("AvailableForSaleSecuritiesDebtSecurities", "MarketableSecurities"),
+                          aliases, strict=False):
+        record = _fact(date, value, "2026-11-03", form="10-Q", fp="Q3")
+        record["accn"] = accession
+        tags[tag] = {"units": {"USD": [record]}}
+    monkeypatch.setattr(sec_edgar, "cik_for", lambda ticker: "0001582961")
+    monkeypatch.setattr(sec_edgar, "_cached_json", lambda *args: {"cik": 1582961, "facts": {"us-gaap": tags}})
+    return sec_edgar.get_financial_evidence("DOCN", "2026-11-04"), corpus
+
+
+def test_current_marketable_securities_requires_matching_filing_presentation(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, corpus)
+    current = [f for f in confirmed.facts if f.metric == "Current Marketable Securities" and f.value is not None]
+    assert len(current) == 1
+    assert current[0].value == 178_645_000 and current[0].unit == "USD"
+    source = next(s for s in confirmed.sources if s.source_id == current[0].source_ids[0])
+    assert source.accession == "0001628280-26-069141"
+    assert "AvailableForSaleSecuritiesDebtSecurities" in source.locator
+    document_source = next(s for s in confirmed.sources if s.source_id == current[0].source_ids[1])
+    assert document_source.source_id == next(d.source_id for d in corpus.documents
+                                             if str(d.filing.report_date) == "2026-09-30")
+    assert document_source.locator == "document"
+    assert "block-38; block-39; block-41" in current[0].locator
+
+
+@pytest.mark.parametrize("aliases,accession,date", [
+    ((178_645_000, 179_000_000), "0001628280-26-069141", "2026-09-30"),
+    ((178_645_000,), "0000000000-00-000000", "2026-09-30"),
+    ((178_645_000,), "0001628280-26-069141", "2026-06-30"),
+    ((), "0001628280-26-069141", "2026-09-30"),
+])
+def test_current_securities_rejects_ambiguous_wrong_vintage_date_or_missing(
+    monkeypatch, aliases, accession, date
+):
+    package, corpus = _current_securities_inputs(monkeypatch, aliases=aliases,
+                                                  accession=accession, date=date)
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, corpus)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
+
+
+def test_unqualified_securities_without_current_assets_row_stay_unclassified(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    doc = next(d for d in corpus.documents if str(d.filing.report_date) == "2026-09-30")
+    blocks = tuple(b.model_copy(update={"text": b.text.replace("Current assets:", "Noncurrent assets:")})
+                   for b in doc.blocks)
+    changed = corpus.model_copy(update={"documents": tuple(
+        d.model_copy(update={"blocks": blocks}) if d.source_id == doc.source_id else d
+        for d in corpus.documents)})
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, changed)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
+
+
+def test_securities_table_must_put_reporting_date_in_first_column(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    doc = next(d for d in corpus.documents if str(d.filing.report_date) == "2026-09-30")
+    blocks = tuple(b.model_copy(update={"text": b.text.replace(
+        "September 30, 2026 | | December 31, 2025",
+        "December 31, 2025 | | September 30, 2026")}) for b in doc.blocks)
+    changed = corpus.model_copy(update={"documents": tuple(
+        d.model_copy(update={"blocks": blocks}) if d.source_id == doc.source_id else d
+        for d in corpus.documents)})
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, changed)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
+
+
+@pytest.mark.parametrize("scale", ["", "(in millions, except share amounts)"])
+def test_current_securities_need_explicit_matching_table_scale(monkeypatch, scale):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    doc = next(d for d in corpus.documents if str(d.filing.report_date) == "2026-09-30")
+    blocks = tuple(b.model_copy(update={"text": scale}) if b.locator == "block-39" else b
+                   for b in doc.blocks)
+    changed = corpus.model_copy(update={"documents": tuple(
+        d.model_copy(update={"blocks": blocks}) if d.source_id == doc.source_id else d
+        for d in corpus.documents)})
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, changed)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
+
+
+def test_securities_rejects_wrong_document_issuer(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    wrong = corpus.model_copy(update={"cik": "0000000001"})
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, wrong)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
+
+
+def test_replayed_classification_is_rechecked_against_retained_corpus(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, corpus)
+    assert len([f for f in confirmed.facts if f.metric == "Current Marketable Securities"]) == 1
+    repeated = sec_edgar.confirm_current_marketable_securities(confirmed, corpus)
+    assert repeated == confirmed
+    replayed = sec_edgar.confirm_current_marketable_securities(confirmed, None)
+    assert not [f for f in replayed.facts if f.metric == "Current Marketable Securities"]
+    assert all(s.source_id != next(d for d in corpus.documents
+                                   if str(d.filing.report_date) == "2026-09-30").source_id
+               for s in replayed.sources)
+
+
+def test_existing_canonical_document_source_merges_only_when_identical(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    confirmed = sec_edgar.confirm_current_marketable_securities(package, corpus)
+    document_source = next(s for s in confirmed.sources
+                           if s.source_id == next(d.source_id for d in corpus.documents
+                                                  if str(d.filing.report_date) == "2026-09-30"))
+    preloaded = package.model_copy(update={"sources": (*package.sources, document_source)})
+    merged = sec_edgar.confirm_current_marketable_securities(preloaded, corpus)
+    assert len([s for s in merged.sources if s.source_id == document_source.source_id]) == 1
+    assert len([f for f in merged.facts if f.metric == "Current Marketable Securities"]) == 1
+    conflicting = package.model_copy(update={"sources": (
+        *package.sources, document_source.model_copy(update={"locator": "wrong"}))})
+    rejected = sec_edgar.confirm_current_marketable_securities(conflicting, corpus)
+    assert not [f for f in rejected.facts if f.metric == "Current Marketable Securities"]
+
+
+def test_conflicting_same_tag_facts_do_not_break_other_facts_or_classify(monkeypatch):
+    package, corpus = _current_securities_inputs(monkeypatch)
+    # Rebuild the SEC package with a conflicting same-day companyfacts value.
+    raw = {"cik": 1582961, "facts": {"us-gaap": {}}}
+    for fact in package.facts:
+        if fact.value is None or fact.metric not in {
+            "Cash and Equivalents",
+            "Unclassified Marketable Securities [AvailableForSaleSecuritiesDebtSecurities]",
+            "Unclassified Marketable Securities [MarketableSecurities]",
+        }:
+            continue
+        tag = fact.locator.split("/")[1]
+        record = _fact("2026-09-30", int(fact.value), "2026-11-03", form="10-Q", fp="Q3")
+        record["accn"] = "0001628280-26-069141"
+        values = [record]
+        if tag == "MarketableSecurities":
+            values.append({**record, "val": 179_000_000})
+        raw["facts"]["us-gaap"][tag] = {"units": {"USD": values}}
+    monkeypatch.setattr(sec_edgar, "_cached_json", lambda *args: raw)
+    conflicted = sec_edgar.get_financial_evidence("DOCN", "2026-11-04")
+    assert any(f.metric == "Cash and Equivalents" and f.value == 666_096_000
+               for f in conflicted.facts)
+    confirmed = sec_edgar.confirm_current_marketable_securities(conflicted, corpus)
+    assert not [f for f in confirmed.facts if f.metric == "Current Marketable Securities"]
 
 
 FACTS = {

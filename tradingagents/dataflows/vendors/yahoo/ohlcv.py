@@ -3,6 +3,9 @@ import json
 import logging
 import os
 from collections.abc import Mapping
+from datetime import datetime, timedelta
+from decimal import Decimal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 import yfinance as yf
@@ -11,9 +14,10 @@ from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.files import replace_file
 from tradingagents.dataflows.symbols import normalize_symbol, safe_ticker_component
-from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
+from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, recorded_history, yf_retry
 from tradingagents.dataflows.vendors.yahoo.price_observation import (
     ADJUSTMENT,
+    _number,
     _timestamp,
     session_is_complete,
 )
@@ -41,8 +45,10 @@ def _retrieval_time():
 
 def _source_metadata(source, downloaded, canonical, retrieved):
     method = getattr(source, "get_history_metadata", None)
-    metadata = method() if method is not None else {}
+    metadata = source if isinstance(source, Mapping) else method() if method is not None else {}
     metadata = metadata if isinstance(metadata, Mapping) else {}
+    if metadata.get("_trace_retrieved_at"):
+        retrieved = datetime.fromisoformat(metadata["_trace_retrieved_at"])
     zone = metadata.get("exchangeTimezoneName") or str(getattr(downloaded.index, "tz", "") or "")
     end = metadata.get("currentTradingPeriod", {}).get("regular", {}).get("end")
     return {
@@ -52,6 +58,7 @@ def _source_metadata(source, downloaded, canonical, retrieved):
         "currency": metadata.get("currency"),
         "regular_end": _timestamp(end).isoformat() if end is not None else None,
         "adjustment_basis": ADJUSTMENT,
+        "actions_requested": True,
         "source_id": "yahoo-ohlcv-" + hashlib.sha256(
             (canonical + retrieved.isoformat() + downloaded.to_csv()).encode()
         ).hexdigest(),
@@ -231,6 +238,47 @@ def _cache_is_fresh(data_file, as_of_dt, now) -> bool:
     return as_of_dt.date() < now.date() or (now - written).total_seconds() <= OHLCV_CACHE_TTL_SECONDS
 
 
+def _verify_historical_adjustment(data, metadata, as_of_dt, symbol, canonical):
+    """Inspect the full retrieved action window before historical rows are hidden."""
+    unavailable = "Historical adjustment basis verification unavailable"
+    try:
+        zone = ZoneInfo(metadata["exchange_timezone"])
+        today = _timestamp(metadata["retrieved_at"]).astimezone(zone).date()
+        cutoff = as_of_dt.date()
+        if cutoff >= today:
+            return
+        if (today - cutoff).days > 400:
+            raise NoMarketDataError(
+                symbol, canonical,
+                "Historical adjustment basis unavailable beyond 400-day verification bound",
+            )
+        if metadata.get("actions_requested") is not True or "Stock Splits" not in data:
+            raise ValueError("missing verified split actions")
+        start = max(cutoff - timedelta(days=7), today - timedelta(days=400))
+        sessions = set()
+        for _, row in _ensure_date_column(data).iterrows():
+            session = _local_midnight(row["Date"])
+            if pd.isna(session) or session.date() > today:
+                raise ValueError("invalid action verification window")
+            if session.date() < start:
+                continue
+            if session.date() in sessions:
+                raise ValueError("duplicate action verification session")
+            sessions.add(session.date())
+            ratio = _number(row["Stock Splits"])
+            if session.date() > cutoff and Decimal(ratio) != 0:
+                raise NoMarketDataError(
+                    symbol, canonical,
+                    "Historical adjustment basis is not compatible with the analysis cutoff",
+                )
+        if not sessions or min(sessions) > cutoff or (today - max(sessions)).days > 7:
+            raise ValueError("insufficient action verification coverage")
+    except NoMarketDataError:
+        raise
+    except (KeyError, TypeError, ValueError, OverflowError, ZoneInfoNotFoundError) as exc:
+        raise NoMarketDataError(symbol, canonical, unavailable) from exc
+
+
 def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -252,7 +300,9 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     as_of_dt = pd.to_datetime(as_of_date).normalize()
 
     # One cache file per symbol, holding the latest 5y-to-today download.
-    now = pd.Timestamp.today()
+    from tradingagents.source_replay import current_session, source_now
+
+    now = pd.Timestamp(source_now().astimezone().replace(tzinfo=None)) if current_session() else pd.Timestamp.today()
     start_date = now - pd.DateOffset(years=5)
     start_str = start_date.strftime("%Y-%m-%d")
     # End is exclusive. An exchange can already be on the next UTC date;
@@ -283,8 +333,11 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
                 retained = json.loads(cached[_SOURCE_COLUMN].iloc[0])
                 if retained["adjustment_basis"] == ADJUSTMENT and retained["ticker"] == canonical:
                     _timestamp(retained["retrieved_at"])
-                    source_metadata = retained
-                    data = cached.drop(columns=[_SOURCE_COLUMN])
+                    historical = as_of_dt.date() < _timestamp(retained["retrieved_at"]).date()
+                    if not historical or (retained.get("actions_requested") is True
+                                          and "Stock Splits" in cached):
+                        source_metadata = retained
+                        data = cached.drop(columns=[_SOURCE_COLUMN])
             except (KeyError, TypeError, ValueError):
                 pass  # Legacy/malformed provenance uses the existing fetch path.
 
@@ -292,13 +345,12 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         # yf.download catches every error, a rate limit included, and returns
         # an empty frame. Ticker.history raises the rate limit, so it is retried.
         def fetch():
-            source = yf.Ticker(canonical)
-            downloaded = source.history(
-                start=start_str, end=end_str, auto_adjust=False, actions=False,
+            downloaded, metadata = recorded_history(
+                canonical, source_factory=yf.Ticker, start=start_str, end=end_str, auto_adjust=False, actions=True,
             )
             if downloaded is None or downloaded.empty:
                 return None
-            return downloaded, _source_metadata(source, downloaded, canonical, _retrieval_time())
+            return downloaded, _source_metadata(metadata, downloaded, canonical, _retrieval_time())
 
         response = yf_retry(fetch)
         downloaded, source_metadata = response if response is not None else (None, None)
@@ -314,6 +366,9 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         data = downloaded
 
     _validate_close_values(data, symbol, canonical)
+    _verify_historical_adjustment(data, source_metadata, as_of_dt, symbol, canonical)
+    # Actions are only for private basis verification, never model input.
+    data = data.drop(columns=["Stock Splits", "Dividends", "Capital Gains"], errors="ignore")
     data = _clean_dataframe(data)
 
     # Filter to as_of_date to prevent look-ahead bias in backtesting.
@@ -330,6 +385,10 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     # Select actual completed sessions; never carry a prior close under an empty
     # latest session's date. Sorting also makes the retained explanation stable.
     data = data.sort_values("Date")
+    # Keep the session window separate from close observations: callers that
+    # summarize 252 sessions must not pull in an older close when one session
+    # in that window has no reported close.
+    completed_session_dates = [str(day.date()) for day in data["Date"].tail(252)]
     price_fallback = None
 
     # A closeless newest bar is an unsettled session, not a symbol without data.
@@ -370,6 +429,7 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         "session_status": "completed",
         **({"price_fallback": price_fallback} if price_fallback else {}),
     }
+    data.attrs["completed_session_dates"] = completed_session_dates
     return data
 
 

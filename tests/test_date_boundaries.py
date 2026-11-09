@@ -19,6 +19,9 @@ from tradingagents.dataflows.vendors.yahoo import ohlcv
 def test_get_yfin_requests_inclusive_end(monkeypatch, tmp_path):
     set_config({"data_cache_dir": str(tmp_path)})
     captured = {}
+    observed = datetime.fromisoformat("2025-05-10T23:00:00+00:00")
+    monkeypatch.setattr(ohlcv, "_retrieval_time", lambda: observed)
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2025-05-10 23:00")))
 
     class FakeTicker:
         def __init__(self, symbol):
@@ -30,9 +33,13 @@ def test_get_yfin_requests_inclusive_end(monkeypatch, tmp_path):
             idx = pd.to_datetime(["2025-05-08", "2025-05-09"])
             return pd.DataFrame(
                 {"Open": [1.0, 2.0], "High": [1.0, 2.0], "Low": [1.0, 2.0],
-                 "Close": [1.0, 2.0], "Volume": [1, 2]},
+                 "Close": [1.0, 2.0], "Volume": [1, 2], "Stock Splits": [0, 0]},
                 index=idx,
             )
+
+        def get_history_metadata(self):
+            return {"symbol": "AAPL", "currency": "USD",
+                    "exchangeTimezoneName": "America/New_York"}
 
     monkeypatch.setattr(yfin.yf, "Ticker", FakeTicker)
     out = yfin.get_YFin_data_online("AAPL", "2025-05-01", "2025-05-09")

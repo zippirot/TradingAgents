@@ -147,10 +147,11 @@ def test_disclosure_failure_keeps_facts_and_final_review_without_retry(sources, 
     from tradingagents.dataflows.vendors import sec_documents
 
     monkeypatch.setattr(sec_documents, "get_filing_evidence",
-                        lambda *a: (_ for _ in ()).throw(VendorUnavailableError("filing unavailable")))
+                        lambda *a: (_ for _ in ()).throw(VendorUnavailableError("filing unavailable dummy-secret-987")))
     prepared = acquire(initial())
     assert prepared["financial_evidence"]["facts"]
-    assert prepared["evidence_acquisition"]["disclosure_error"] == "filing unavailable"
+    assert prepared["evidence_acquisition"]["disclosure_error"] == "SEC filing unavailable (VendorUnavailableError)"
+    assert "dummy-secret-987" not in str(prepared)
     assert "filing_evidence" not in prepared
     checked = create_evidence_gate(["fundamentals"])({**initial(), **prepared})
     assert checked["final_rating"] == "REVIEW"
@@ -213,3 +214,26 @@ def test_reference_sources_are_acquired_before_shared_analyst_context(sources, m
     prepared = acquire(state)
     assert seen == ["reference"]
     assert "default peers before analysts" in get_instrument_context_from_state({**state, **prepared})
+
+
+def test_r1_context_starts_fresh_without_reusing_r5_checkpoint(sources):
+    from tradingagents.graph import setup
+    from tradingagents.graph.checkpointer import thread_id
+    from tradingagents.graph.conditional_logic import ConditionalLogic
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    owner = object.__new__(TradingAgentsGraph)
+    owner.selected_analysts = ['market']
+    owner.config = DEFAULT_CONFIG
+    signature = owner._run_signature('stock')
+    r5_signature = signature.replace('shared_source_brief=5', 'shared_source_brief=4')
+    old_config = {'configurable': {'thread_id': thread_id('DOCN', '2026-10-19', r5_signature)}}
+    current_config = {'configurable': {'thread_id': thread_id('DOCN', '2026-10-19', signature)}}
+    workflow = setup.GraphSetup(object(), object(), ConditionalLogic(), 1).setup_graph(['market'])
+    paused = workflow.compile(checkpointer=InMemorySaver(), interrupt_before=['Source Acquisition'])
+    paused.invoke(initial(), old_config)
+    old_snapshot = paused.get_state(old_config)
+    assert not paused.get_state(current_config).values
+    paused.invoke(initial(), current_config)
+    assert paused.get_state(old_config) == old_snapshot
+    assert not sources[2]

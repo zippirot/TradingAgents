@@ -84,6 +84,13 @@ def _format_articles(articles: list[dict]) -> str:
     out = ""
     for data in articles:
         out += f"### {data['title']} (source: {data['publisher']})\n"
+        published = data["pub_date"]
+        if published is None:
+            out += "Publication time unavailable.\n"
+        else:
+            if published.tzinfo is None:
+                published = published.replace(tzinfo=UTC)
+            out += f"Published (UTC): {published.astimezone(UTC).isoformat()}\n"
         if data["summary"]:
             out += f"{data['summary']}\n"
         if data["link"]:
@@ -135,7 +142,8 @@ def get_news_yfinance(
     # Keep only articles within the requested window (look-ahead safe).
     in_range = [a for a in articles if in_window(a["pub_date"], start_dt, end_dt)]
     if in_range:
-        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{_format_articles(in_range)}"
+        coverage = "Coverage: degraded: search_fallback, headlines_only\n\n" if not feed else ""
+        return f"## {ticker}{resolved} News, from {start_date} to {end_date}:\n\n{coverage}{_format_articles(in_range)}"
 
     if not feed:
         return (f"<Yahoo Finance news unavailable for {start_date}..{end_date}: Yahoo search "
@@ -212,4 +220,5 @@ def get_global_news_yfinance(
         gap = coverage_gap((), start_date, as_of_date, "Yahoo Finance global news", "market news")
         return gap or f"No global news found between {start_date} and {as_of_date}"
 
-    return f"## Global Market News, from {start_date} to {as_of_date}:\n\n{news_str}"
+    return (f"## Global Market News, from {start_date} to {as_of_date}:\n\n"
+            f"Coverage: degraded: search_fallback, headlines_only\n\n{news_str}")

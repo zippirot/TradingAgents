@@ -163,16 +163,14 @@ def test_mutated_source_context_is_rejected(locator, old, new):
     assert not validate(recorded_claim(package), changed).claims
 
 
-@pytest.mark.parametrize("mutation", ["after_cutoff", "wrong_issuer", "duplicate_document"])
+@pytest.mark.parametrize("mutation", ["after_cutoff", "wrong_issuer"])
 def test_document_identity_and_cutoff_must_hold(mutation):
     package = recorded_package()
     data = package.model_dump(mode="json")
     if mutation == "after_cutoff":
         data["as_of"] = "2026-11-02"
-    elif mutation == "wrong_issuer":
-        data["documents"][0]["filing"]["cik"] = "0001234567"
     else:
-        data["documents"].append(copy.deepcopy(data["documents"][0]))
+        data["documents"][0]["filing"]["cik"] = "0001234567"
     assert not validate(recorded_claim(package), DisclosurePackage.model_validate(data)).claims
 
 

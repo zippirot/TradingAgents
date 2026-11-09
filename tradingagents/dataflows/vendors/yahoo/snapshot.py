@@ -11,6 +11,7 @@ claim. Deterministic, no LLM involved.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
 import pandas as pd
 from stockstats import wrap
@@ -43,9 +44,14 @@ def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
     df = data.copy()
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df = df.dropna(subset=["Date"])
-    df = df[df["Date"] <= pd.to_datetime(as_of_date)].sort_values("Date")
+    cutoff = pd.to_datetime(as_of_date)
+    df = df[df["Date"] <= cutoff].sort_values("Date")
     if df.empty:
         raise NoMarketDataError(symbol, normalize_symbol(symbol), f"no price rows on or before {as_of_date}")
+    if "completed_session_dates" in data.attrs:
+        df.attrs["completed_session_dates"] = [
+            day for day in data.attrs["completed_session_dates"] if pd.Timestamp(day) <= cutoff
+        ]
     return df
 
 
@@ -59,8 +65,75 @@ def _fmt(value) -> str:
     if isinstance(value, (int,)):
         return str(value)
     if isinstance(value, float):
+        if value and abs(value) < 1:
+            return f"{value:.4g}"
         return f"{value:.2f}"
     return str(value)
+
+
+def _prior_close_band_lines(df: pd.DataFrame) -> list[str]:
+    """Summarize closes in the last 252 completed sessions in 5%-of-latest bands."""
+    session_dates = df.attrs.get("completed_session_dates")
+    history = (
+        df[df["Date"].dt.strftime("%Y-%m-%d").isin(session_dates)]
+        if session_dates is not None else df.tail(252)
+    )
+    session_count = len(session_dates) if session_dates is not None else len(history)
+    missing_count = session_count - len(history)
+    if history.empty:
+        return [
+            "", "### Prior closes by price band", "",
+            "No available closes in the completed-session window; price bands unavailable.",
+        ]
+    latest = Decimal(str(history["Close"].iloc[-1]))
+    width = latest * Decimal("0.05")
+    lowest = Decimal(str(history["Close"].min()))
+    band_count = max(1, int(((latest - lowest) / width).to_integral_value(rounding=ROUND_CEILING)))
+    bands: list[list[tuple[pd.Timestamp, Decimal]]] = [[] for _ in range(band_count)]
+    for _, row in history.iterrows():
+        close = Decimal(str(row["Close"]))
+        if close > latest:
+            continue
+        distance = (latest - close) / width
+        index = max(0, int(distance.to_integral_value(rounding=ROUND_CEILING)) - 1)
+        bands[index].append((row["Date"], close))
+
+    # Retain distinct bounds even when a 5% band is smaller than one tenth.
+    bound_decimals = max(1, -width.adjusted())
+
+    def label(value: Decimal) -> str:
+        quantum = Decimal(1).scaleb(-bound_decimals)
+        return str(value.quantize(quantum, rounding=ROUND_HALF_UP))
+
+    lines = [
+        "", "### Prior closes by price band", "",
+        f"Last {session_count} available completed sessions (up to 252); "
+        "bands are 5% of the latest completed close. Exact bounds determine membership; "
+        f"displayed bounds are rounded to {bound_decimals} decimal {'place' if bound_decimals == 1 else 'places'}.",
+        *([f"{missing_count} completed session{'s' if missing_count != 1 else ''} "
+           f"ha{'ve' if missing_count != 1 else 's'} no available close. "
+           "Counts include observed closes only; empty bands are uncertain."]
+          if missing_count else []),
+        "| Price band | Closes | Most recent date | Lowest close | Highest close |",
+        "|---|---:|---|---:|---:|",
+    ]
+    for index, closes in enumerate(bands):
+        upper = latest - width * index
+        lower = upper - width
+        band = f"{label(lower)}–{label(upper)}"
+        if closes:
+            lines.append(
+                f"| {band} | {len(closes)} | {_fmt(max(day for day, _ in closes))} | "
+                f"{_fmt(float(min(close for _, close in closes)))} | "
+                f"{_fmt(float(max(close for _, close in closes)))} |"
+            )
+        else:
+            empty = (
+                "no observed closes; missing close coverage" if missing_count
+                else "no closes in the last 252 sessions"
+            )
+            lines.append(f"| {band} | 0 | {empty} | — | — |")
+    return lines
 
 
 def build_verified_market_snapshot(
@@ -115,6 +188,8 @@ def build_verified_market_snapshot(
               "| Date | Close |", "|---|---:|"]
     for _, row in recent.iterrows():
         lines.append(f"| {_fmt(row['Date'])} | {_fmt(row.get('Close'))} |")
+
+    lines += _prior_close_band_lines(df)
 
     lines += [
         "",

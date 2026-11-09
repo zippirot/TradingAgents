@@ -32,6 +32,7 @@ from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, 
 from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_evidence_view
+from tradingagents.operational_capture import delivered_narrative
 
 
 def create_portfolio_manager(llm):
@@ -40,6 +41,9 @@ def create_portfolio_manager(llm):
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state, include_mechanical=True)
         portfolio_context = get_portfolio_context_from_state(state)
+        horizon_months = (state.get("run_settings") or {}).get("decision_horizon_months", 6)
+        if type(horizon_months) is not int or horizon_months <= 0:
+            raise ValueError("decision_horizon_months must be a positive integer")
 
         package = None
         canonical_facts = "Canonical financial evidence unavailable; omit valuation_request."
@@ -59,6 +63,11 @@ def create_portfolio_manager(llm):
         risk_debate_state = state["risk_debate_state"]
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
+        quality = state.get('evidence_quality') or {}
+        quality_checks = quality.get('checks') or []
+        evidence_line = (f"Evidence quality: {quality.get('status', 'unknown')} "
+                         f"({sum(row.get('status') == 'pass' for row in quality_checks)} pass / "
+                         f"{sum(row.get('status') == 'unavailable' for row in quality_checks)} unavailable)")
 
         audit_context = (render_advisory_audit(state["advisory_audit"], dispositions=prepare_audit_dispositions(state))
                          if "advisory_audit" in state else
@@ -84,6 +93,7 @@ def create_portfolio_manager(llm):
 ---
 
 **Rating Scale**:
+{evidence_line}
 - **Buy**: Strong conviction to enter/add
 - **Overweight**: Favorable, gradually increase exposure
 - **Hold**: Maintain position
@@ -115,13 +125,18 @@ Disclose divergence from these ranges; do not invent consensus.
 
 ---
 
-Ground conclusions in specific evidence. Weigh competing cases independently of speaking order. Choose Hold for balanced or insufficient evidence; conflict alone is not a reason to Hold. Do not force a direction to appear decisive.
+Ground conclusions in specific evidence. Attribute every price level and condition to the role that proposed it. Weigh competing cases independently of speaking order. Choose Hold for balanced or insufficient evidence; conflict alone is not a reason to Hold. Do not force a direction to appear decisive.
 
 ## Advisory thesis continuity
 
 Supply thesis_candidate in this call: rationale, assumptions, canonical references
-and measurable advisory conditions, never hard rules. Use exact canonical metric
-and metric_definition, unit/basis, period and expiry. Gross Margin uses Gross
+and every material advisory condition you state, never hard rules. Use kind metric
+for canonical measures with exact metric and metric_definition, unit/basis, period
+and expiry; kind price_level for a positive completed-close threshold, comparator,
+instrument quote currency and expiry; kind event for an observable description,
+the specific evidence that would confirm it (for example, an 8-K reporting note
+settlement), and expiry, without threshold or comparator. Do not derive structured
+conditions from unstated implications. Gross Margin uses Gross
 Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAAP.
 Set thesis_role: supports_thesis supports the current thesis; reconsideration_trigger
 means reconsider if met; unspecified means unknown intent. A trigger not met is
@@ -137,7 +152,7 @@ Write in order, rating first:
 - **Rating**: exactly one of Buy / Overweight / Hold / Underweight / Sell
 - **Executive Summary**: call and action
 - **Investment Thesis**: decisive evidence and reconsideration conditions
-- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Never infer from forecasts or default to 3–6 months; unknown means incomplete, rating unchanged.
+- **Time Horizon**: REQUIRED explicit days/weeks/months or YYYY-MM-DD. Use the configured default of {horizon_months} months unless a specific evidence-based reason for a different horizon is stated in horizon_reason. Never infer from forecasts; missing or invalid means incomplete, rating unchanged.
 
 {NO_EXTERNAL_TOOLS}{EVIDENCE_DISCIPLINE}{get_language_instruction()}"""
 
@@ -162,6 +177,7 @@ Write in order, rating first:
             request = json.loads(json.dumps(request, default=str), parse_constant=str)
             original["portfolio_manager"] = {
                 "contract_version": DECISION_HORIZON_CONTRACT,
+                "configured_horizon_months": horizon_months,
                 "case_contract": 1,
                 "structured": json.loads(
                     json.dumps(
@@ -174,13 +190,15 @@ Write in order, rating first:
                 "thesis_candidate": thesis_candidate,
             }
             target = validate_final_case({**state, "unvalidated_outputs": original}, request)
-            final_trade_decision = render_pm_decision(decision, target)
+            final_trade_decision = delivered_narrative(render_pm_decision(decision, target))
             final_rating = decision.rating.value
         else:
-            final_trade_decision = llm.invoke(prompt).content
+            raw = llm.invoke(prompt)
+            final_trade_decision = delivered_narrative(raw.content, raw)
             final_rating = parse_rating(final_trade_decision)
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
-            original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT}
+            original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT,
+                                             "configured_horizon_months": horizon_months}
             target = TargetResult(
                 status="unsupported",
                 reasons=(

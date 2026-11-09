@@ -19,6 +19,11 @@ from tradingagents.dataflows.symbols import crypto_base, normalize_symbol
 from tradingagents.reporting import evidence_snapshot
 
 _SCHEMA = 1
+_PM_TEXT_LIMIT = 20_000
+_PM_FIELDS = frozenset({
+    'pm_executive_summary', 'pm_investment_thesis', 'pm_stated_conditions',
+    'pm_reasoning_status',
+})
 
 EVALUATION_PROTOCOL = {'version': 1,
  'primary_selection': 'first eligible ticker/as-of publication',
@@ -40,7 +45,7 @@ EVALUATION_PROTOCOL = {'version': 1,
 _SETTINGS = (
     'version', 'llm_provider', 'deep_think_provider', 'deep_think_llm',
     'quick_think_provider', 'quick_think_llm', 'analysts', 'max_debate_rounds',
-    'max_risk_discuss_rounds', 'output_language', 'data_vendors', 'tool_vendors',
+    'max_risk_discuss_rounds', 'decision_horizon_months', 'output_language', 'data_vendors', 'tool_vendors',
 )
 
 
@@ -94,6 +99,61 @@ def list_records(config: dict, ticker: str | None = None) -> list[dict]:
     return sorted(records, key=lambda r: r['sequence'])
 
 
+def scan_records(config: dict, ticker: str | None = None) -> dict:
+    """Read verified records for a listing, reporting damaged files in this scan.
+
+    Never use this partial view to choose a publication sequence, primary, or
+    revision link. Canonical writes and exact reads use the strict readers.
+    """
+    selected_ticker = normalize_symbol(ticker) if ticker is not None else None
+    records, skipped = [], []
+    for path in (record_root(config) / 'records').glob('*.json'):
+        try:
+            record = _checked_record(path)
+            _scan_usable_record(record)
+            if selected_ticker is None or record['ticker'] == selected_ticker:
+                records.append(record)
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError, KeyError) as exc:
+            skipped.append({'path': path.name, 'reason': type(exc).__name__})
+    return {'records': sorted(records, key=lambda r: r['sequence']),
+            'skipped': sorted(skipped, key=lambda item: item['path'])}
+
+
+def _scan_usable_record(record: dict) -> None:
+    """Check fields needed to sort, list, and settle a scanned publication."""
+    if (type(record.get('sequence')) is not int or record['sequence'] < 1
+            or not isinstance(record.get('ticker'), str) or not record['ticker']
+            or not isinstance(record.get('benchmark'), str) or not record['benchmark']
+            or not isinstance(record.get('canonical_rating'), str)
+            or record.get('evaluation_mode') not in {'prospective', 'historical', 'legacy'}
+            or 'thesis_version_id' not in record):
+        raise ValueError('Unusable publication record')
+    normalize_symbol(record['ticker'])
+    date.fromisoformat(record['requested_as_of'])
+    if record['evaluation_mode'] == 'prospective':
+        published = datetime.fromisoformat(record['published_at'])
+        if published.utcoffset() is None:
+            raise ValueError('Unusable publication timestamp')
+    eligibility = record.get('eligibility')
+    if (not isinstance(eligibility, dict)
+            or type(eligibility.get('directional')) is not bool
+            or type(eligibility.get('primary')) is not bool):
+        raise ValueError('Unusable publication eligibility')
+    endpoints = record.get('endpoints')
+    if not isinstance(endpoints, dict) or not endpoints:
+        raise ValueError('Unusable publication endpoints')
+    for endpoint in endpoints.values():
+        if (not isinstance(endpoint, dict)
+                or endpoint.get('status') not in {'pending', 'ineligible'}
+                or not isinstance(endpoint.get('benchmark'), str) or not endpoint['benchmark']
+                or ('exit_policy' in endpoint and not isinstance(endpoint['exit_policy'], str))):
+            raise ValueError('Unusable publication endpoint')
+        kind = endpoint.get('horizon_type', 'trading_sessions')
+        count = endpoint.get('calendar_months') if kind == 'calendar_months' else endpoint.get('holding_days')
+        if kind not in {'trading_sessions', 'calendar_months'} or type(count) is not int or count < 1:
+            raise ValueError('Unusable publication horizon')
+
+
 def load_evidence(config: dict, record: dict) -> dict:
     """Read the content-addressed snapshot, verifying its recorded hash."""
     ref = record['evidence_snapshot']
@@ -123,6 +183,39 @@ def _sources(snapshot: dict) -> list[dict]:
                 visit(child)
     visit(snapshot)
     return [found[k] for k in sorted(found)]
+
+
+def _pm_reasoning(state: dict) -> dict:
+    """Retain bounded, unvalidated structured PM prose outside the decision cap."""
+    outputs = state.get('unvalidated_outputs')
+    output = outputs.get('portfolio_manager') if isinstance(outputs, dict) else None
+    if not isinstance(output, dict):
+        return {}
+    structured = output.get('structured')
+    if not isinstance(structured, dict):
+        structured = {}
+    summary = structured.get('executive_summary')
+    thesis = structured.get('investment_thesis')
+    candidate = output.get('thesis_candidate')
+    if not isinstance(candidate, dict):
+        candidate = structured.get('thesis_candidate')
+    if not isinstance(candidate, dict):
+        candidate = state.get('thesis_candidate')
+    conditions = candidate.get('conditions') if isinstance(candidate, dict) else None
+
+    def bounded(text):
+        return {'text': text[:_PM_TEXT_LIMIT], 'truncated': len(text) > _PM_TEXT_LIMIT}
+
+    retained = {}
+    if isinstance(summary, str):
+        retained['pm_executive_summary'] = bounded(summary)
+    if isinstance(thesis, str):
+        retained['pm_investment_thesis'] = bounded(thesis)
+    if isinstance(conditions, list):
+        retained['pm_stated_conditions'] = bounded(_json(conditions))
+    if retained:
+        retained['pm_reasoning_status'] = 'unvalidated structured PM output'
+    return retained
 
 
 def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
@@ -167,6 +260,7 @@ def publish(config: dict, state: dict, ticker: str, asof: str) -> dict:
         'benchmark': benchmark,
         'target_sha256': _digest(state['target_validation']) if state.get('target_validation') else None,
         'scenarios_sha256': _digest(state['shared_valuation_scenarios']) if state.get('shared_valuation_scenarios') else None,
+        **_pm_reasoning(state),
     }
     if state.get('analysis_clock'):
         payload['analysis_clock'] = state['analysis_clock']
@@ -188,7 +282,11 @@ def _store_payload(config: dict, payload: dict, snapshot: dict) -> dict:
         if path.exists():
             existing = _checked_record(path)
             if existing['payload_sha256'] != payload_hash:
-                raise ValueError('run_id already published with different canonical content')
+                # A record sealed before PM prose fields existed stays byte-for-byte
+                # unchanged. Only newly added prose may differ on its retry.
+                earlier_payload = {key: value for key, value in payload.items() if key not in _PM_FIELDS}
+                if any(key in existing for key in _PM_FIELDS) or existing['payload_sha256'] != _digest(earlier_payload):
+                    raise ValueError('run_id already published with different canonical content')
             load_evidence(config, existing)
             return existing
         records = list_records(config)

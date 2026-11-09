@@ -3,8 +3,8 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
-    opponent_argument_or_opening,
     report_or_absent,
+    risk_conversation_view,
 )
 
 
@@ -14,12 +14,7 @@ def create_conservative_debator(llm):
         history = risk_debate_state.get("history", "")
         conservative_history = risk_debate_state.get("conservative_history", "")
 
-        current_aggressive_response = opponent_argument_or_opening(
-            risk_debate_state.get("current_aggressive_response", ""), "aggressive analyst"
-        )
-        current_neutral_response = opponent_argument_or_opening(
-            risk_debate_state.get("current_neutral_response", ""), "neutral analyst"
-        )
+        conversation = risk_conversation_view(risk_debate_state, 'aggressive', 'neutral')
 
         market_research_report = report_or_absent(state["market_report"], "market")
         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
@@ -29,10 +24,15 @@ def create_conservative_debator(llm):
         portfolio_context = get_portfolio_context_from_state(state)
 
         trader_decision = state["trader_investment_plan"]
+        research_plan = state.get("investment_plan") or "Research Manager plan unavailable."
 
         prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
 
 {trader_decision}
+
+Research Manager plan (unvalidated research):
+{research_plan}
+Flag any Trader step that drops or contradicts a research condition.
 
 Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
 
@@ -42,13 +42,16 @@ Market Research Report: {market_research_report}
 Social Media Sentiment Report: {sentiment_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+Here is the conversation history, with each supplied turn once:
+{conversation}
+If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 
-        argument = f"Conservative Analyst: {response.content}"
+        from tradingagents.operational_capture import delivered_narrative
+        argument = f"Conservative Analyst: {delivered_narrative(response.content, response)}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument,

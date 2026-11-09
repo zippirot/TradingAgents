@@ -172,6 +172,7 @@ SHARED_VALUATION_INPUTS = (
     " Use equity, borrowings_only, finance_equipment or all_leases for multiple_basis. Equity applies no cash or debt adjustment."
     " Multiple period forward means forward from the analysis date. Trailing means trailing at the future valuation date, on the forecast year ending then; no historical revenue may substitute."
     " Never compare an assumed forward EV multiple as above/below an equity or trailing benchmark."
+    " In every case, multiple_rationale must name a reference point on the same multiple basis and period convention (an own-history figure, a named peer, or the 'what the price implies' ratio), or state exactly 'no same-basis reference available'. Do not present a different-basis ratio as comparable."
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
     " Use compact valid JSON: one complete object per case, concise rationales and all required exact fact IDs. Finish the JSON list and close the named fence before continuing."
     " Check the complete JSON list is syntactically valid before finishing your normal response."

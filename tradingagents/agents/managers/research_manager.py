@@ -16,6 +16,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured,
 )
+from tradingagents.operational_capture import delivered_narrative
 
 
 def create_research_manager(llm):
@@ -46,6 +47,13 @@ The debate always contains conflicting arguments; deciding which side is stronge
 
 Use the shared valuation scenarios, when available, to distinguish disputed assumptions from established inputs. In revised_cases you may supply one complete revised list in the analyst format, preserving existing names for the same case. Copy original requests and change only assumptions you justify. Otherwise omit revised_cases. Explain which assumptions the debate supports and what would change the case. Do not promote a scenario or an uncalculated debate alternative into a validated final target.
 
+For each document follow-up question_id, return one followup_judgments entry classified
+answered, partially_answered or unanswered by its retrieved passages. Retrieval status is
+not an answer judgment. For answered/partial, give one line stating what the passage
+establishes, the actual figure and source reference, and whether it changes the bull or bear
+point that raised it. For unanswered, state what remains unknown. Do not invent a figure,
+source or answer when passages do not establish one. These are unvalidated research judgments.
+
 **Debate History:**
 {history}
 
@@ -67,7 +75,11 @@ Write these sections, in this order, starting with the recommendation on its own
         if saved.get("requests"):
             prompt += "\nOriginal case inputs (unvalidated model assumptions):\n" + json.dumps(saved["requests"])
         decision = invoke_structured(structured_llm, prompt, "Research Manager")
-        investment_plan = render_research_plan(decision) if decision is not None else llm.invoke(prompt).content
+        if decision is not None:
+            investment_plan = delivered_narrative(render_research_plan(decision))
+        else:
+            raw = llm.invoke(prompt)
+            investment_plan = delivered_narrative(raw.content, raw)
         revision = {}
         if decision is not None and decision.revised_cases is not None and saved:
             revision["shared_valuation_scenarios"] = replay_cases(state, revision=decision.revised_cases)
@@ -83,6 +95,8 @@ Write these sections, in this order, starting with the recommendation on its own
 
         return {
             **revision,
+            "document_followup_judgments": [row.model_dump(mode="json") for row in decision.followup_judgments]
+            if decision is not None else [],
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
         }

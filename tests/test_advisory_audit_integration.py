@@ -130,7 +130,7 @@ def test_over_limit_audit_reports_rejected_submission_count():
     assert record["rejected_count"] == 21
 
 
-def test_role_independence_uses_exact_model_identity():
+def test_configured_slots_alone_cannot_establish_model_independence():
     from tradingagents.agents.audit_pass import create_advisory_audit
 
     class Empty:
@@ -150,8 +150,5 @@ def test_role_independence_uses_exact_model_identity():
     same = create_advisory_audit(
         Empty(), deep_model_id="openai/gpt-6.1-terra-pro", quick_model_id="openai/gpt-6.1-terra-pro"
     )(state)["advisory_audit"]
-    assert different["independence_by_role"]["market_analyst"] == "different model"
-    assert different["independence_by_role"]["bull_researcher"] == "different model"
-    assert different["independence_by_role"]["trader"] == "different model"
-    assert different["independence_by_role"]["research_manager"] == "same model"
-    assert all(flag == "same model" for flag in same["independence_by_role"].values())
+    assert all(flag == "unknown" for flag in different["independence_by_role"].values())
+    assert all(flag == "unknown" for flag in same["independence_by_role"].values())

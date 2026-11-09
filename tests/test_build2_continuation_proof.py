@@ -215,6 +215,8 @@ def test_exact_continuation_runner_on_private_checkpoint_with_mock_sdk_http(tmp_
     assert summary["usage_scope"] == "partial_observed" and summary["usage_observed_calls"] == 12
     assert summary["roles"] == [*c.RISK, c.AUDIT, c.AUDIT, c.PM]
     assert summary["feature_proof"] == "complete" and summary["source_unchanged"]
+    assert summary["historical_sensitivity_contract_frozen"]
+    assert not summary["current_r1_resume_compatibility_claim"]
     shutil.rmtree(tmp_path / "clone")
 
 
@@ -331,7 +333,37 @@ def private_drill(tmp):
     def deny(*args, **kwargs):
         raise AssertionError("Unmocked network transport in offline drill")
 
+    from tradingagents.agents import shared_valuation
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+    current_signature = TradingAgentsGraph._run_signature
+
+    def frozen_build2_signature(graph, *args, **kwargs):
+        # This is a historical Build2 proof against an exact private checkpoint,
+        # already isolated from live checkout provenance above. B changes the
+        # pre-analyst brief and intentionally gives fresh runs a different ID.
+        # Keep the original graph-shape token ONLY inside this offline fixture;
+        # every native checkpoint ID, pending-node and retained-input assertion
+        # below remains live. Freeze R2 retrieval and R4 condition-kind tokens
+        # ONLY here; production uses new IDs and cannot resume this old thread.
+        # The new configured decision horizon also changes the settings digest.
+        # Freeze its absence only for this historical fixture's thread identity.
+        legacy_config = {key: value for key, value in graph.config.items() if key != 'decision_horizon_months'}
+        with patch.object(graph, 'config', legacy_config):
+            signature = current_signature(graph, *args, **kwargs)
+        return signature.replace(
+            "shared_source_brief=5", "shared_source_brief=3").replace(
+            "advisory_thesis=3", "advisory_thesis=2").replace(
+            "document_search=3", "document_search=2").replace(
+            "document_followup=3", "document_followup=2").replace("|operational_delivery=1", "").replace("|decision_page=1", "")
+
     with ExitStack() as stack:
+        stack.enter_context(patch.object(TradingAgentsGraph, "_run_signature", frozen_build2_signature))
+        # This fixture intentionally runs the historical Build2 contract under
+        # a frozen signature, not current R1 resume compatibility. Freeze only
+        # R1's added optional sensitivity output; retain every native checkpoint,
+        # original case-result, role, source, budget and transport assertion.
+        stack.enter_context(patch.object(shared_valuation, "_source_bound_lease_requests", return_value={}))
         for module in (httpx, httpx2):
             stack.enter_context(
                 patch.object(module.HTTPTransport, "handle_request", transport(module))
@@ -374,6 +406,9 @@ def private_drill(tmp):
             "usage_scope": metrics["token_usage_scope"],
             "usage_observed_calls": metrics["token_usage_observed_calls"],
             "feature_proof": result["feature_proof"],
+            "historical_sensitivity_contract_frozen": True,
+            "current_r1_resume_compatibility_claim": False,
+            "current_r2_resume_compatibility_claim": False,
             "source_unchanged": c.input_hashes(c.ORIGINAL) == original_hashes
             and h.sha(original_ledger) == original_ledger_sha,
         }

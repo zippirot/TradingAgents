@@ -484,10 +484,44 @@ def extract_sections(
     if parser.table_depth:
         gaps.append("Unclosed HTML table; column context may be incomplete")
     blocks, used = [], 0
-    candidates = list(enumerate(parser.blocks))
+    candidates = [[(index, block)] for index, block in enumerate(parser.blocks)]
+    guidance_starts = set()
     bounded = sum(len(block.text) for block in parser.blocks) > max_chars
     if bounded:
         gaps.append("Document text limit reached; selected sections omit other content")
+        guidance_runs = []
+        # A styled paragraph can be a heading even when its HTML tag is not
+        # h1-h6. Preserve guidance blocks through the next unrelated heading.
+        def heading(block):
+            label = block.text.strip()
+            title = label.removesuffix(":")
+            return (len(label) <= 80 and not label.startswith(("•", "-", "–"))
+                    and (title.istitle() or title.isupper()))
+
+        position = 0
+        while position < len(parser.blocks):
+            label = parser.blocks[position].text.strip()
+            if (heading(parser.blocks[position])
+                    and re.search(r"\b(?:outlook|guidance)\b", label, re.I)):
+                end = position + 1
+                while end < len(parser.blocks):
+                    next_label = parser.blocks[end].text.strip()
+                    if (heading(parser.blocks[end])
+                            and not re.search(r"\b(?:outlook|guidance)\b", next_label, re.I)):
+                        break
+                    end += 1
+                guidance_runs.append((position, end, label.removesuffix(":")))
+                guidance_starts.add(position)
+                position = end
+            else:
+                position += 1
+        by_start = {start: end for start, end, _ in guidance_runs}
+        candidates = []
+        position = 0
+        while position < len(parser.blocks):
+            end = by_start.get(position, position + 1)
+            candidates.append([(index, parser.blocks[index]) for index in range(position, end)])
+            position = end
         financial = re.compile(
             r"equity|lease|financ|commitment|guidance|outlook|revenue|net retention|"
             r"remaining performance|earnings|reconciliation|cash flow|capital|debt|"
@@ -505,7 +539,7 @@ def extract_sections(
             re.I,
         )
 
-        def priority(pair):
+        def block_priority(pair):
             _, block = pair
             hits = len(financial.findall(block.text))
             table = "|" in block.text
@@ -542,19 +576,27 @@ def extract_sections(
                 bool(financial.search(block.section)),
             )
 
+        def priority(unit):
+            return max(block_priority(pair) for pair in unit)
+
         candidates.sort(key=priority, reverse=True)
     selected = []
-    for index, block in candidates:
+    for unit in candidates:
         remaining = max_chars - used
         if remaining <= 0:
             break
-        if len(block.text) > remaining:
+        length = sum(len(block.text) for _, block in unit)
+        if length > remaining and (len(unit) > 1 or unit[0][0] in guidance_starts):
+            continue
+        index, block = unit[0]
+        if length > remaining:
             # Prefer whole shorter blocks; use a partial block only when there
             # is no smaller remaining block to preserve.
             if any(
-                len(other.text) <= remaining
-                for j, other in candidates
-                if j not in {i for i, _ in selected} and j != index
+                len(other[0][1].text) <= remaining
+                for other in candidates
+                if len(other) == 1 and other[0][0] not in {i for i, _ in selected}
+                and other[0][0] != index
             ):
                 continue
             selected.append(
@@ -565,8 +607,13 @@ def extract_sections(
             )
             gaps.append("Document text limit reached; section truncated")
             break
-        selected.append((index, block))
-        used += len(block.text)
+        selected.extend(unit)
+        used += length
+    if bounded:
+        retained = {index for index, _ in selected}
+        for start, end, label in guidance_runs:
+            if not all(index in retained for index in range(start, end)):
+                gaps.append(f"Document text limit reached; {label} guidance run omitted")
     blocks = [block for _, block in sorted(selected)]
     if not blocks:
         gaps.append("Document contains no usable visible sections")
@@ -608,6 +655,18 @@ class DocumentClient:
             or parsed.fragment
         ):
             raise VendorUnavailableError("Unsupported SEC document URL")
+        from tradingagents.source_replay import external_input
+
+        value = external_input("sec_document", {"url": url}, lambda: self._fetch(url))
+        raw = value["text"].encode()
+        if (value["url"] != url or len(raw) > self.max_bytes
+                or hashlib.sha256(raw).hexdigest() != value["content_hash"]):
+            raise VendorUnavailableError("Recorded SEC document identity/hash/size mismatch")
+        return value
+
+    def _fetch(self, url: str):
+        global _LAST_REQUEST
+
         key = hashlib.sha256(url.encode()).hexdigest()
         path = Path(get_config()["data_cache_dir"]) / "sec_documents" / (key + ".json")
         if (
@@ -1121,11 +1180,14 @@ def get_filing_search_evidence(
                 if any("Document text limit reached" in gap for gap in extraction_gaps):
                     gaps.append(f"{filing.accession} {url}: full source extraction limit reached; omitted")
                     continue
+                rpo_facts = ()
+                if filing.form in {"10-Q", "10-K"} and url == filing.url:
+                    rpo_facts, _ = extract_rpo_facts(source["text"], cik, as_of_date)
                 documents.append(FilingDocument(
                     source_id="sec-document-" + hashlib.sha256(url.encode()).hexdigest(),
                     filing=filing, url=url, retrieved_at=source["retrieved_at"],
                     content_hash=source["content_hash"], blocks=tuple(blocks),
-                    gaps=tuple(extraction_gaps),
+                    gaps=tuple(extraction_gaps), rpo_facts=rpo_facts,
                 ))
                 gaps.extend(f"{filing.accession} {url}: {gap}" for gap in extraction_gaps)
                 if filing.form.startswith("8-K") and url == filing.url:

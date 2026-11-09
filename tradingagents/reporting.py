@@ -66,7 +66,7 @@ def _header(ticker: str, final_state: dict, settings: dict | None, *, metadata_o
         lines.append(f"- Analysis date: {_plain_markdown(final_state['trade_date'])}")
     if final_state.get("final_trade_decision"):
         lines.append(f"- Rating: {_plain_markdown(run_rating(final_state))}")
-        if final_state.get("decision_context"):
+        if final_state.get("decision_context") and not metadata_only:
             lines += ["", render_condition_summary(final_state["decision_context"]), ""]
     if not final_state.get("evidence_quality"):
         lines.append("- Evidence: Legacy export — financial evidence unvalidated")
@@ -92,6 +92,13 @@ def _header(ticker: str, final_state: dict, settings: dict | None, *, metadata_o
                 f"quick {quick_provider} {s('quick_think_llm', '?')}"
             )
         lines.append(f"- TradingAgents {_plain_markdown(s('version', '?'))}: {_plain_markdown(models)}")
+        if s("source_hash"):
+            lines.append(f"- Source hash: {_plain_markdown(s('source_hash'))}")
+        for key, label in (("openai_reasoning_effort", "OpenAI/OpenRouter reasoning effort"),
+                           ("anthropic_effort", "Anthropic effort"),
+                           ("google_thinking_level", "Google thinking level")):
+            if s(key):
+                lines.append(f"- {label}: {_plain_markdown(s(key))}")
         lines.append(
             f"- Analysts: {_plain_markdown(', '.join(analyst_names(s('analysts'))))}; "
             f"research debate rounds {_plain_markdown(s('max_debate_rounds', '?'))}, "
@@ -187,6 +194,9 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
     parts = []
     for heading, folder, agents in _SECTIONS:
         written = []
+        if folder == '4_risk' and (final_state.get('risk_debate_state') or {}).get('history'):
+            parts.append((heading, folder, [('Risk debate in speaking order', 'debate.md', final_state['risk_debate_state']['history'])]))
+            continue
         for agent, filename, path in agents:
             value = final_state
             for key in path:
@@ -201,7 +211,7 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
             from tradingagents.agents.mechanical_valuation import render_mechanical_valuation_grid
             grid_text = render_mechanical_valuation_grid(final_state["mechanical_valuation_grid"])
             if grid_text:
-                written.insert(0, ("Mechanical sensitivity", "mechanical_grid.md", grid_text))
+                written.append(("Mechanical sensitivity", "mechanical_grid.md", grid_text))
         if written:
             parts.append((heading, folder, written))
     return parts
@@ -209,11 +219,49 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
 
 def summary_input_for_report(prepared_state: dict, settings: dict | None = None, parts=None):
     """Build the same summary context used at finalization and during offline export."""
+    from html import unescape
+
+    from tradingagents.agents.decision_context import _display
     from tradingagents.report_summary import build_summary_input
 
     retained = prepared_state.get("run_settings")
+    source_parts = report_sections(prepared_state) if parts is None else parts
+    originals = prepared_state.get("unvalidated_outputs")
+    pm = originals.get("portfolio_manager") if isinstance(originals, dict) else None
+    structured = pm.get("structured") if isinstance(pm, dict) else None
+    if isinstance(structured, dict):
+        replacements = []
+        for key, label in (("executive_summary", "Executive Summary"),
+                           ("investment_thesis", "Investment Thesis")):
+            raw = structured.get(key)
+            if isinstance(raw, str) and raw.strip():
+                displayed = _display(raw[:20000])
+                marker = f"**{label} — unvalidated PM reasoning**:\n\n{displayed}"
+                replacements.append((marker, marker.replace(displayed, unescape(displayed), 1)))
+        if replacements:
+            projected_parts = []
+            for part in source_parts:
+                if not isinstance(part, (list, tuple)) or len(part) != 3 or part[1] != "5_portfolio" or not isinstance(part[2], (list, tuple)):
+                    projected_parts.append(part)
+                    continue
+                heading, folder, rows = part
+                projected_rows = []
+                for row in rows:
+                    if isinstance(row, (list, tuple)) and len(row) == 3 and row[1] == "decision.md" and isinstance(row[2], str):
+                        projected_rows.append((row[0], row[1], _replace_pm_summary_text(row[2], replacements)))
+                    else:
+                        projected_rows.append(row)
+                projected_parts.append((heading, folder, projected_rows))
+            source_parts = projected_parts
     return build_summary_input(prepared_state, retained if isinstance(retained, dict) else settings,
-                               report_sections(prepared_state) if parts is None else parts)
+                               source_parts)
+
+
+def _replace_pm_summary_text(text: str, replacements: list[tuple[str, str]]) -> str:
+    """Undo only the HTML layer added around retained structured PM prose."""
+    for marker, replacement in replacements:
+        text = text.replace(marker, replacement, 1)
+    return text
 
 
 def _plain_markdown(value: str) -> str:
@@ -305,14 +353,14 @@ def _contents_markdown(parts) -> str:
     return "\n".join(lines) + "\n"
 
 
-def prepare_report_state(final_state: dict) -> dict:
+def prepare_report_state(final_state: dict, *, publication_config: dict | None = None) -> dict:
     """Return readable research without changing canonical state or memory inputs.
 
     Python callers may pass the state returned by propagate() here for the
     same labeled research shown by CLI/Markdown/HTML. Use the original state for
     decision consumers; this copy is for presentation only.
     """
-    prepared = {**final_state, **enforce_publication(final_state)}
+    prepared = {**final_state, **enforce_publication(final_state, publication_config=publication_config)}
     if (prepared.get("evidence_quality") or {}).get("status") == "insufficient":
         diagnostics = dict(prepared.get("unvalidated_outputs") or {})
         for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report"):
@@ -321,7 +369,7 @@ def prepare_report_state(final_state: dict) -> dict:
                 diagnostics.setdefault(field, raw)
                 prepared[field] = (
                     "Analyst narrative is unvalidated for this REVIEW run. "
-                    "The original text is retained in evidence.json diagnostics."
+                    "The original text is retained in diagnostics.json."
                 )
         if diagnostics:
             prepared["unvalidated_outputs"] = diagnostics
@@ -350,8 +398,13 @@ def prepare_report_state(final_state: dict) -> dict:
             "### Unvalidated model research\n\n" + UNVALIDATED_RESEARCH_NOTICE + "\n\n" + text
         )
 
+    pm = originals.get('portfolio_manager') or {}
+    if not pm.get('structured') and isinstance(originals.get('final_trade_decision'), str):
+        # Older/free-text calls retain their argument in a labeled appendix.
+        prepared['final_trade_decision'] += '\n\n' + research(originals['final_trade_decision'])
+
     for field in ("market_report", "sentiment_report", "news_report", "fundamentals_report",
-                  "investment_plan", "trader_investment_plan", "final_trade_decision"):
+                  "investment_plan", "trader_investment_plan"):
         raw = originals.get(field)
         if field == "fundamentals_report":
             validation = prepared.get("financial_claim_validation") or {}
@@ -364,10 +417,11 @@ def prepare_report_state(final_state: dict) -> dict:
         canonical = prepared.get(field) or ""
         if field in ("market_report", "sentiment_report", "news_report") or field == "fundamentals_report" and not prepared.get("canonical_financial_context"):
             canonical = ""
-        prepared[field] = (
+        canonical_text = (
             ("### Canonical evidence and decision limits\n\n" + canonical + "\n\n")
             if canonical else ""
-        ) + research(raw)
+        )
+        prepared[field] = research(raw) + '\n\n' + canonical_text if field == 'investment_plan' else canonical_text + research(raw)
     for field in ("investment_debate_state", "risk_debate_state"):
         original = originals.get(field)
         if isinstance(original, dict):
@@ -420,6 +474,8 @@ def evidence_snapshot(final_state: dict) -> dict:
         "transcript_sources",
         "document_search_trace",
         "document_followups",
+        "document_followup_judgments",
+        "prompt_evidence_references",
         "shared_source_brief",
         "price_observation",
         "valuation_price_comparison",
@@ -431,6 +487,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "financial_evidence",
         "filing_evidence",
         "filing_fact_extraction",
+        "filing_terms_evidence",
         "financial_calculations",
         "disclosure_evidence",
         "target_validation",
@@ -490,6 +547,11 @@ def evidence_appendix(final_state: dict) -> str:
                   f"Model submissions: {count('model_accepted')} accepted, {count('model_rejected')} rejected.",
                   f"Deterministic discovery: {count('deterministic_accepted')} accepted, {count('deterministic_rejected')} rejected.",
                   "Accepted sets may overlap; raw rejected records and source locators remain in evidence.json.", ""]
+    from tradingagents.agents.filing_terms import render_filing_terms
+
+    terms = render_filing_terms(final_state)
+    if terms:
+        lines += ["#### Source-bound instrument terms and commitments", "", terms, ""]
     checks = quality.get("checks") or []
     if checks:
         lines += ["#### Evidence checks", "", "Check | Status | Finding", "--- | --- | ---"]
@@ -633,22 +695,25 @@ def _write_report_tree_locked(
         raise ValueError("Claimed historical publication is missing from the configured store")
     original_quality = evidence_quality_snapshot(final_state)
     original_diagnostics = evidence_snapshot(final_state).get("raw_diagnostics", {})
-    final_state = prepare_report_state(final_state)
+    final_state = prepare_report_state(final_state, publication_config=publication_config)
     if frozen is not None:
         record, original_snapshot = frozen
         final_state["publication_record"] = {key: record[key] for key in ("decision_id", "published_at", "record_sha256")}
         final_state["report_view_note"] = ("Current validated presentation of a verified immutable publication. "
             "Display and current validation may differ from the original; evidence.json retains its original immutable snapshot. "
             "For this export, diagnostic references in the research text refer to companion diagnostics.json.")
+        if 'pm_executive_summary' not in record:
+            final_state['report_view_note'] += ' Historical publication did not separately bind PM summary, thesis or stated conditions; displayed retained PM prose is unvalidated and unbound by that original record.'
     elif final_state.get("publication_record"):
         final_state["report_view_note"] = ("Historical publication identity not verified against a configured store. "
             "This export is a current validated projection, not an immutable publication snapshot.")
     _write_json(save_path / "quality.json", original_quality if frozen else evidence_quality_snapshot(final_state))
     _write_json(save_path / "evidence.json", original_snapshot if frozen else evidence_snapshot(final_state))
-    if frozen or (final_state.get("publication_record") and (
-            (final_state.get("run_settings") or {}).get("ground_truth_audit") is True
-            or final_state.get("ground_truth_audit"))):
-        _write_json(save_path / "diagnostics.json", original_diagnostics)
+    preserve_diagnostics = frozen or (final_state.get("publication_record") and (
+        (final_state.get("run_settings") or {}).get("ground_truth_audit") is True
+        or final_state.get("ground_truth_audit")))
+    _write_json(save_path / "diagnostics.json", original_diagnostics if preserve_diagnostics else
+                evidence_snapshot(final_state).get("raw_diagnostics", {}))
     display_settings = (final_state.get("run_settings") if isinstance(final_state.get("run_settings"), dict)
                         else settings)
     parts = report_sections(final_state)
@@ -682,6 +747,13 @@ def _write_report_tree_locked(
             ground_truth_text = audit_assessment(ground_truth_record, final_state)
             ground_truth_text += f"\n\n[Full Ground Truth Audit](./{audit_name})\n"
     anchors = historical_anchors(parts)
+    risk = final_state.get('risk_debate_state') or {}
+    if risk.get('history'):
+        risk_path = save_path / '4_risk'
+        risk_path.mkdir(exist_ok=True)
+        for key, filename in (('aggressive_history', 'aggressive.md'), ('conservative_history', 'conservative.md'), ('neutral_history', 'neutral.md')):
+            if risk.get(key):
+                (risk_path / filename).write_text(risk[key], encoding='utf-8')
     sections = []
     for heading, folder, written in parts:
         (save_path / folder).mkdir(exist_ok=True)

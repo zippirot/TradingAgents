@@ -94,7 +94,8 @@ class StaleGuardRoutingTests(unittest.TestCase):
 
         def _stale(symbol, *a, **k):
             raise NoMarketDataError(
-                symbol, symbol, "latest row is 2025-06-11, 365 days before ... (stale)"
+                symbol, symbol,
+                "latest row is 2025-06-11, 365 days before the requested 2026-06-11 (stale) — refusing to use it",
             )
 
         with mock.patch.dict(
@@ -106,7 +107,7 @@ class StaleGuardRoutingTests(unittest.TestCase):
                 "get_stock_data", "CB", "2026-06-01", "2026-06-11"
             )
         self.assertIn("NO_DATA_AVAILABLE", out)
-        self.assertIn("stale", out)  # the typed detail is surfaced to the agent
+        self.assertIn("latest row is 2025-06-11", out)  # the local stale detail reaches the agent
 
 
 if __name__ == "__main__":
