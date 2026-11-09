@@ -198,6 +198,7 @@ def test_openrouter_cli_shows_step8_reasoning_effort_prompt(monkeypatch):
     monkeypatch.setattr(selections, "get_ticker", lambda: "AAPL")
     monkeypatch.setattr(selections, "get_analysis_date", lambda: "2026-11-07")
     monkeypatch.setattr(selections, "ask_output_language", lambda _default: "English")
+    monkeypatch.setattr(selections, "select_ground_truth_audit", lambda flags: False)
     monkeypatch.setattr(selections, "select_analysts", lambda *_: [])
     monkeypatch.setattr(selections, "select_research_depth", lambda *_: 1)
     monkeypatch.setattr(selections, "select_llm_provider", lambda *_: ("openrouter", None))

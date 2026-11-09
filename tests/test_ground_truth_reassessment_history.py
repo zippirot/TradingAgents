@@ -23,6 +23,7 @@ OLD_CLAIM = 'ORIGINAL_WRONG_CLAIM_SENTINEL: Revenue was 99 USD.'
 CORRECTION = 'CORRECTED_OLD_CLAIM_SENTINEL: Revenue was 100 USD.'
 SOURCE_QUOTE = CORRECTION + ' Period 2026-07-01 to 2026-09-30; USD; US-GAAP.'
 NEW_REASON = 'REAL_PM_NEW_REASONING_SENTINEL'
+MARKDOWN_NEW_REASON = r'REAL\_PM\_NEW\_REASONING\_SENTINEL'
 
 
 class HistoryModel(graph_fixture.ScriptedModel):
@@ -94,7 +95,7 @@ def test_real_typed_pm_refreshes_readable_prose_and_retains_exact_original(tmp_p
     assert len(calls) == 1
     assert OLD_REASON not in original['final_trade_decision']
     assert state['ground_truth_reassessment']['original_decision'] == old_prepared
-    assert NEW_REASON in prepare_report_state(state)['final_trade_decision']
+    assert MARKDOWN_NEW_REASON in prepare_report_state(state)['final_trade_decision']
     assert OLD_REASON not in prepare_report_state(state)['final_trade_decision']
     assert state['final_rating'] == 'Hold'
     assert state['unvalidated_outputs']['portfolio_manager']['structured']['investment_thesis'] == NEW_REASON
@@ -124,10 +125,11 @@ def test_full_detail_contains_bound_historical_reasoning_corrections_and_sources
         assert '99 USD' in detail and '100 USD' in detail
         assert '2026-07-01' in detail and '2026-09-30' in detail and 'US-GAAP' in detail
         assert 'Contradicted claims 0, unsupported claims 0' in detail
-        assert NEW_REASON in (tmp_path / folder / 'complete_report.md').read_text()
+        assert MARKDOWN_NEW_REASON in (tmp_path / folder / 'complete_report.md').read_text()
         assert 'historical-injection</script>' not in detail
         assert '[unsafe](javascript:' not in detail
     html = render_report('DOCN', state, None)
+    assert NEW_REASON in html
     assert 'Historical reassessment' in html and 'ORIGINAL_REASONING_SENTINEL' in html
     assert '<script>historical-injection</script>' not in html
     assert 'href="javascript:' not in html
@@ -157,6 +159,7 @@ def test_failed_validation_keeps_previous_readable_candidate_without_cache_mutat
     assert state['final_trade_decision'] == original['final_trade_decision']
     assert state['unvalidated_outputs'] == original['unvalidated_outputs']
     assert NEW_REASON not in prepare_report_state(state)['final_trade_decision']
+    assert MARKDOWN_NEW_REASON not in prepare_report_state(state)['final_trade_decision']
     assert 'FAILED_VALIDATION_MUTATION' not in str(state['unvalidated_outputs'])
 
 
@@ -226,7 +229,7 @@ def test_actual_finalizer_publishes_reassessed_history_once_and_reexports_offlin
     app.record_decision('DOCN', state['trade_date'], state)
     assert len(app.audit_llm.pm_invocations) == 1
     assert state['final_rating'] == 'Hold'
-    assert NEW_REASON in prepare_report_state(state)['final_trade_decision']
+    assert MARKDOWN_NEW_REASON in prepare_report_state(state)['final_trade_decision']
     assert OLD_REASON not in prepare_report_state(state)['final_trade_decision']
     assert state['executive_summary']['status'] == 'completed'
     record = resolve_audit(state, state['ground_truth_audit'], inventory=build_report_inventory(state))
@@ -245,7 +248,8 @@ def test_actual_finalizer_publishes_reassessed_history_once_and_reexports_offlin
         assert 'Historical reassessment' in detail
         for extension in ('md', 'html'):
             report = (tmp_path / folder / f'complete_report.{extension}').read_text()
-            assert NEW_REASON in report and 'Saved audit unavailable' not in report
+            expected_reason = MARKDOWN_NEW_REASON if extension == 'md' else NEW_REASON
+            assert expected_reason in report and 'Saved audit unavailable' not in report
             assert 'ORIGINAL_REASONING_SENTINEL' not in report and OLD_CLAIM not in report
         assert resolve_audit(state, state['ground_truth_audit'], inventory=build_report_inventory(state))['status'] != 'unavailable'
     app.record_decision('DOCN', state['trade_date'], state)
