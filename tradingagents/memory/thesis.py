@@ -137,34 +137,36 @@ def _content_key(row):
         return ('metric', item.metric, item.period_start, item.period_end, item.comparator, threshold, item.unit, item.basis)
     if item.kind == 'price_level':
         return ('price_level', item.comparator, threshold, item.currency)
-    return ('event', _event_tokens(item.description))
+    return ('event', ' '.join(item.description.split()))
 
 
 _EVENT_STOP_WORDS = frozenset(
     ['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'how', 'if', 'in', 'into', 'is', 'its', 'of', 'on', 'or', 's', 'that', 'the', 'their', 'to', 'was', 'were', 'whether', 'will', 'with'])
-# Two descriptions that differ in direction describe opposite events.
+# Two descriptions that differ in direction, negation or scale describe different events.
 _EVENT_DIRECTIONS = frozenset(('cut', 'lower', 'reduc', 'decreas', 'declin', 'rais', 'increas', 'withdraw'))
-_EVENT_NEGATIONS = frozenset(('not', 'no', 'never', 'without', 't'))
+_EVENT_NEGATIONS = frozenset(('not', 'no', 'never', 'without', 'cannot', 'fail', 'fails', 'failed'))
+_EVENT_SCALES = frozenset(('thousand', 'million', 'billion', 'trillion'))
 _EVENT_SIMILARITY = 0.6
 
 
-def _event_tokens(description):
-    tokens = set()
-    for word in re.findall(r'[^\W_]+', description.casefold()):
-        if word not in _EVENT_STOP_WORDS:
-            # Enough stemming that "settled" and "settlement" are one word.
-            tokens.add(re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) if not word.isdigit() else word)
-    return frozenset(tokens)
+def _event_profile(description):
+    """Stemmed words for similarity, plus what must match exactly, read before stemming."""
+    text = description.casefold().replace('’', "'")
+    quantities = frozenset(value.replace(',', '') for value in re.findall(r'[a-z]*\d[\d,]*(?:\.\d+)?[a-z]*', text))
+    words = re.findall(r"[^\W\d_]+(?:'t)?", text)
+    negated = any(word in _EVENT_NEGATIONS or word.endswith("n't") for word in words)
+    # Enough stemming that "settled" and "settlement" are one word.
+    stems = frozenset(re.sub(r'e$', '', re.sub(r'(?:ments?|ing|ed|s)$', '', word)) for word in words
+                      if word not in _EVENT_STOP_WORDS and word not in _EVENT_NEGATIONS and not word.endswith("n't"))
+    return stems, quantities, negated, stems & _EVENT_DIRECTIONS, frozenset(words) & _EVENT_SCALES
 
 
 def _same_event(first, second):
-    """Paraphrases of one event; a differing year, amount, direction or negation is a different event."""
-    if first[0] != 'event' or second[0] != 'event' or not first[1] or not second[1]:
+    """Paraphrases of one event; a differing quantity, direction or negation is a different event."""
+    if first[0] != 'event' or second[0] != 'event':
         return False
-    left, right = first[1], second[1]
-    if ({t for t in left if t.isdigit()} != {t for t in right if t.isdigit()}
-            or left & _EVENT_DIRECTIONS != right & _EVENT_DIRECTIONS
-            or left & _EVENT_NEGATIONS != right & _EVENT_NEGATIONS):
+    (left, *left_exact), (right, *right_exact) = _event_profile(first[1]), _event_profile(second[1])
+    if not left or not right or left_exact != right_exact:
         return False
     return len(left & right) / len(left | right) >= _EVENT_SIMILARITY
 

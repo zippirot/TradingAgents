@@ -147,3 +147,15 @@ def test_keep_by_id_alone_is_not_an_omission(new_conditions):
     assert [row['condition_id'] for row in saved['conditions']].count(identifier) == 1
     assert len(saved['conditions']) == 1 + len(new_conditions)
     assert not any('omitted from proposal' in warning for warning in saved['warnings'])
+
+
+@pytest.mark.parametrize('prior_text,new_text', [
+    ('DOCN refinances its 2026 convertible notes.', 'DOCN will not refinance its 2026 convertible notes.'),
+    ('Disclosure of a $1.5 billion ATM program.', 'Disclosure of a $5.1 billion ATM program.'),
+    ('Disclosure of a $1.5 billion ATM program.', 'Disclosure of a $1.5 million ATM program.'),
+    ('Management cuts its Q3 revenue guidance.', 'Management cuts its Q4 revenue guidance.'),
+])
+def test_opposite_or_different_amount_events_stay_separate(prior_text, new_text):
+    identifier, saved = _restated(prior_text, new_text)
+    assert len(saved['conditions']) == 2
+    assert not any(row.get('condition_aliases') for row in saved['conditions'] if row['condition_id'] == identifier)
