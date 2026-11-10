@@ -31,7 +31,13 @@ from tradingagents.agents.decision_context import (
     horizon_incomplete,
     validate_final_case,
 )
+from tradingagents.agents.event_view import (
+    conditions_from_state,
+    horizon_date,
+    render_for_manager as render_events_for_manager,
+)
 from tradingagents.agents.rating import parse_rating
+from tradingagents.agents.required_return import rate_from_state
 from tradingagents.agents.scenario_decision import (
     priced_cases,
     render_cases_for_manager,
@@ -84,8 +90,15 @@ def create_portfolio_manager(llm):
         if state.get("shared_valuation_scenarios"):
             with contextlib.suppress(ValidationError, ValueError, TypeError, KeyError):
                 replayed = annotate_disputed_cases(state, replay_cases(state))
-        scenario_context = render_cases_for_manager(with_value_today(priced_cases(replayed), state),
-                                                    state.get("required_return"))
+        scenario_cases = with_value_today(priced_cases(replayed), state)
+        scenario_context = render_cases_for_manager(scenario_cases, state.get("required_return"))
+        # The six-month view is asked for only when an answer could be used: weights can move between at
+        # least two cases, a required return is known, and an earlier decision left open conditions.
+        event_context = render_events_for_manager(
+            conditions_from_state(state), len(scenario_cases) >= 2 and rate_from_state(state) is not None,
+            horizon_date(state.get("trade_date"), horizon_months))
+        if event_context:
+            scenario_context += "\n\n" + event_context
         brief = state.get("decision_brief")
         change_lines = render_brief(brief, for_manager=True)
         change_context = ("\n".join(change_lines) + "\n\n") if change_lines else ""
@@ -199,7 +212,9 @@ Write in order, rating first:
             # One correction when the priced cases were not addressed, or the rating
             # points against the accepted cases with no reason. The answer stands either way.
             answered = {**state, "final_rating": decision.rating.value, "unvalidated_outputs": {
-                "portfolio_manager": {"scenario_contract": 1, "structured": decision.model_dump(mode="json")}}}
+                "portfolio_manager": {"scenario_contract": 1, **({"event_contract": 1} if event_context else {}),
+                                      "configured_horizon_months": horizon_months,
+                                      "structured": decision.model_dump(mode="json")}}}
             feedback = " ".join(part for part in (
                 retry_feedback(answered, replayed),
                 change_feedback(brief, decision.rating.value, getattr(decision, "change_assessment", None)),
@@ -227,6 +242,7 @@ Write in order, rating first:
                 "configured_horizon_months": horizon_months,
                 "case_contract": 1,
                 "scenario_contract": 1,
+                **({"event_contract": 1} if event_context else {}),
                 **({"change_contract": 1} if change_lines else {}),
                 "structured": json.loads(
                     json.dumps(

@@ -44,6 +44,7 @@ REASONS = {
     "valuation_case_rejected": (4, "A submitted valuation case was rejected; the remaining cases were priced."),
     "change_assessment_unusable": (3, "The Portfolio Manager did not say what changed since the last decision, or its answer disagrees with the two ratings."),
     "decision_basis_unaddressed": (3, "The Portfolio Manager did not address the priced scenario cases, or rated against them without a reason."),
+    "event_view_unaddressed": (3, "The Portfolio Manager gave no usable six-month view from dated events."),
     "replay_miss": (3, "A comparison used a live external input absent from its baseline; input control is incomplete."),
     "stage_unusable": (2, "A required stage has no trustworthy usable completion."),
     "incomplete_history": (2, "Execution history is incomplete, so required work cannot be fully established."),
@@ -265,6 +266,14 @@ def _capability_findings(state) -> list[dict]:
         findings.append({"score": REASONS[code][0], "code": code, "stage": "Portfolio Manager",
                          "text": f"Portfolio Manager: {detail}",
                          "locator": "decision_context.scenario_decision"})
+    events = basis.get("event_view") if isinstance(basis, Mapping) else None
+    if isinstance(events, Mapping) and events.get("status") == "unaddressed":
+        code = "event_view_unaddressed"
+        problems = [str(item) for item in events.get("problems") or () if isinstance(item, str)]
+        findings.append({"score": REASONS[code][0], "code": code, "stage": "Portfolio Manager",
+                         "text": "Portfolio Manager: its six-month view from dated events could not be used"
+                                 + (": " + " ".join(problems[:3]) if problems else "."),
+                         "locator": "decision_context.scenario_decision.event_view"})
     changes = card.get("since_last_decision") if isinstance(card, Mapping) else None
     if isinstance(changes, Mapping) and (changes.get("assessment") or {}).get("problems"):
         code = "change_assessment_unusable"

@@ -353,6 +353,12 @@ def prepare_decision_context(state: dict) -> dict:
     if isinstance(brief, dict) and isinstance(state.get('decision_brief'), dict):
         from tradingagents.agents.decision_brief import attach_weights
         brief = attach_weights(brief, scenario)
+    resolved = _mapping(brief.get('events')) if isinstance(brief, dict) else {}
+    if resolved.get('rows') and isinstance(scenario, dict):
+        # Beside the weights an earlier decision said it would hold after an event, the weights held now.
+        brief = {**brief, 'events': {**resolved, 'weights_now': [
+            {'role': case.get('role'), 'name': case.get('name'), 'weight': case['weight']}
+            for case in scenario.get('cases', ()) if case.get('disposition') == 'accepted']}}
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
             **({'since_last_decision': brief} if isinstance(brief, dict) and brief.get('status') != 'no_prior' else {}),
             'assumption_changes': _mapping(_mapping(state.get('decision_context')).get('assumption_changes')),

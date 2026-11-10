@@ -381,6 +381,11 @@ class ThesisProposal(BaseModel):
         description="For each prior condition ID, say kept, overridden or retired and why; do not hide a breach.")
 
 
+_EVENT_CASE_WEIGHT = {"type": "object", "properties": {
+    "case_id": {"type": "string"}, "version": {"type": "integer"}, "weight": {"type": "number"},
+}, "required": ["case_id", "version", "weight"], "additionalProperties": False}
+
+
 class PortfolioDecision(BaseModel):
     """Structured output produced by the Portfolio Manager.
 
@@ -522,6 +527,24 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
     rating_basis_reason: str | None = Field(
         default=None, max_length=1200,
         description="When the rating points against your accepted scenarios (their weighted value differs from the close by more than 10 percent the other way, or it returns more than the required return under a bearish rating or less under a bullish one): why the rating still stands, with figures.",
+    )
+
+    event_view: Annotated[Any, WithJsonSchema({
+        "anyOf": [
+            {"type": "array", "items": {"type": "object", "properties": {
+                "condition_id": {"type": "string"},
+                "expected_date": {"type": "string"},
+                "favourable_when": {"type": "string", "enum": ["met", "not_met"]},
+                "favourable_weights": {"type": "array", "items": _EVENT_CASE_WEIGHT},
+                "adverse_weights": {"type": "array", "items": _EVENT_CASE_WEIGHT},
+                "reason": {"type": "string"},
+            }, "required": ["condition_id", "expected_date", "favourable_when", "favourable_weights",
+                            "adverse_weights", "reason"], "additionalProperties": False}},
+            {"type": "null"},
+        ],
+    })] = Field(
+        default=None,
+        description="When the prompt lists open advisory conditions for a six-month view from dated events and you accept two or more cases: one to three entries, each with the exact condition_id, the expected_date (YYYY-MM-DD, inside the horizon), favourable_when (met or not_met), the case weights you would hold after the favourable and after the adverse outcome (every accepted case once with its case_id and version, 0 allowed, each set summing to 1), and a short reason. Your scenario_view weights must lie between the two sets. Null otherwise. No probabilities.",
     )
 
     change_assessment: Annotated[Any, WithJsonSchema({

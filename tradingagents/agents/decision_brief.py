@@ -143,6 +143,45 @@ def _weights_text(rows, display):
                         else f"{(Decimal(row['weight']) * 100).normalize():f}%") for row in rows)
 
 
+def _weights(cases, pairs):
+    """Readable weights for a set of (case_id, version, weight) rows, in the saved case order."""
+    names = {(case.get("case_id"), case.get("version")): case for case in cases if isinstance(case, dict)}
+    rows = []
+    for pair in pairs:
+        case = names.get((pair.get("case_id"), pair.get("version")))
+        weight = _decimal(pair.get("weight"))
+        if case is None or weight is None:
+            raise ValueError("an earlier event weight names a case the earlier record does not hold")
+        rows.append({"role": _text(case.get("role"), 40), "name": _text(case.get("name"), 120), "weight": str(weight)})
+    return rows
+
+
+def _events(record, snapshot, state):
+    """Dated events the earlier decision committed weights to, and how each has since resolved."""
+    basis = (snapshot.get("decision_context") or {}).get("scenario_decision") or {}
+    view = basis.get("event_view") if isinstance(basis, dict) else None
+    if not isinstance(view, dict) or view.get("status") != "addressed" or not view.get("events"):
+        return {"status": "none", "rows": [], "tracked": 0}
+    prior = state.get("prior_thesis")
+    if not isinstance(prior, dict) or not isinstance(prior.get("observations"), list):
+        raise ValueError("the earlier decision's conditions were not observed in this run")
+    if prior.get("publication_id") != record["decision_id"]:
+        raise ValueError("advisory conditions in this run come from a different earlier record")
+    now = {row.get("condition_id"): row.get("status") for row in prior["observations"] if isinstance(row, dict)}
+    today, rows = str(state.get("trade_date") or ""), []
+    for event in view["events"]:
+        status = now.get(event["condition_id"])
+        if status in ("met", "breached"):
+            outcome = "favourable" if (status == "met") == (event["favourable_when"] == "met") else "adverse"
+            rows.append({"event": _text(event["label"], 160), "expected_date": event["expected_date"],
+                         "outcome": outcome,
+                         "weights_then": _weights(basis.get("cases") or (), event[outcome]["weights"])})
+        elif today and event["expected_date"] < today:
+            rows.append({"event": _text(event["label"], 160), "expected_date": event["expected_date"],
+                         "outcome": "overdue", "weights_then": []})
+    return {"status": "known", "rows": rows, "tracked": len(view["events"])}
+
+
 def _prices(replayed):
     return {case["name"]: case for case in priced_cases(replayed)}
 
@@ -192,6 +231,7 @@ def since_last_decision(config: dict, ticker: str, state: dict) -> dict:
     for name, build in (("price", lambda: _price(snapshot, state)),
                         ("filings", lambda: _new_filings(snapshot, state)),
                         ("conditions", lambda: _conditions(record, snapshot, state)),
+                        ("events", lambda: _events(record, snapshot, state)),
                         ("cases", lambda: _cases(snapshot, state)),
                         ("weights", lambda: _case_weights(snapshot)),
                         ("sources", lambda: _sources(snapshot, state))):
@@ -294,6 +334,20 @@ def render(brief, *, for_manager: bool = False, display=str) -> list[str]:
                                  for row in rows[:8]) + ".")
     elif conditions:
         lines.append("- Advisory conditions: none carried from the earlier decision.")
+    events = brief.get("events")
+    if events and events["status"] == "known":
+        def weights(rows):
+            return ", ".join(f"{display(row['role'])} {Decimal(row['weight']) * 100:.0f}%" for row in rows)
+        for row in events["rows"]:
+            if row["outcome"] == "overdue":
+                lines.append(f"- Dated event: {display(row['event'])} was expected by {row['expected_date']} and has "
+                             "not been read as resolved.")
+                continue
+            lines.append(f"- Dated event resolved {row['outcome']}: {display(row['event'])}. The earlier decision "
+                         f"said it would then hold {weights(row['weights_then'])}."
+                         + (f" This decision holds {weights(events['weights_now'])}." if events.get("weights_now") else ""))
+        if not events["rows"]:
+            lines.append(f"- Dated events: {events['tracked']} from the earlier decision, none resolved yet.")
     cases = brief.get("cases")
     if cases:
         changes = [f"\"{display(row['scenario'])}\" repriced {Decimal(row['then']):.2f} to "

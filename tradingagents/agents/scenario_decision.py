@@ -12,6 +12,11 @@ import re
 from decimal import Decimal, InvalidOperation, localcontext
 
 from tradingagents.agents.case_reference import BANDS
+from tradingagents.agents.event_view import (
+    render as render_events,
+    retry_feedback as event_feedback,
+    summarize as summarize_events,
+)
 from tradingagents.agents.required_return import (
     rate_from_state,
     render_required_return,
@@ -245,6 +250,7 @@ def summarize(state, replayed) -> dict:
                                                "high": str((max(values) / close - 1) * 100)},
                        direction=_direction(weighted, close), direction_basis="period_end")
         summary["sizing_rule"] = sizing_rule(accepted, close)
+        summary["event_view"] = summarize_events(state, accepted, close)
         # With a required return every accepted case has a value today, and the check moves to that basis:
         # a value at a later date and today's price are otherwise not comparable.
         # The weighted yearly return is earned from the dated close, which can be older than the analysis date.
@@ -295,27 +301,31 @@ def retry_feedback(state, replayed) -> str:
     if summary["status"] == "unaddressed":
         return ("Your scenario_view could not be used: " + " ".join(summary["problems"])
                 + " Resubmit the complete decision with a valid scenario_view.")
+    parts = []
     if summary.get("reason_conflict"):
         claim = "fall short of" if Decimal(summary["return_gap_points"]) > 0 else "clear"
-        return (f"Your rating_basis_reason says the accepted scenarios {claim} the required return. Code's figure on "
-                f"those same cases: bought at the close they return {_return_figures(summary)}, a gap of "
-                f"{Decimal(summary['return_gap_points']):+.1f} points. The value today already has the required "
-                "return taken out, so its gap to the close is not a yearly return to hold against that rate. Resubmit "
-                "the complete decision: start rating_basis_reason from the code's figure and say, with figures, why "
-                "the rating still stands (naming any other basis you mean), or revise the rating or the scenario_view.")
-    if summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "return_gap":
-        return ("Your rating points against your own accepted scenarios: bought at the close, their weighted value "
-                f"returns {Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year against a required "
-                f"{Decimal(summary['required_return']['rate']) * 100:.2f}%, a gap of "
-                f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
-                "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
-                "scenario_view.")
-    if summary.get("consistency") == "unexplained":
+        parts.append(
+            f"Your rating_basis_reason says the accepted scenarios {claim} the required return. Code's figure on "
+            f"those same cases: bought at the close they return {_return_figures(summary)}, a gap of "
+            f"{Decimal(summary['return_gap_points']):+.1f} points. The value today already has the required "
+            "return taken out, so its gap to the close is not a yearly return to hold against that rate. Resubmit "
+            "the complete decision: start rating_basis_reason from the code's figure and say, with figures, why "
+            "the rating still stands (naming any other basis you mean), or revise the rating or the scenario_view.")
+    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "return_gap":
+        parts.append(
+            "Your rating points against your own accepted scenarios: bought at the close, their weighted value "
+            f"returns {_return_figures(summary)}, a gap of "
+            f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
+            "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
+            "scenario_view.")
+    elif summary.get("consistency") == "unexplained":
         basis = "weighted value today" if summary.get("direction_basis") == "value_today" else "weighted value"
-        return (f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
-                "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
-                "rating_basis_reason or revise the rating or the scenario_view.")
-    return ""
+        parts.append(f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
+                     "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
+                     "rating_basis_reason or revise the rating or the scenario_view.")
+    # There is one resubmission, so everything it must correct goes back together.
+    parts.append(event_feedback(summary.get("event_view")))
+    return " ".join(part for part in parts if part)
 
 
 def render_cases_for_manager(cases, required=None) -> str:
@@ -418,6 +428,7 @@ def render(summary) -> list[str]:
                      "required return taken out, so its gap to the close is not a yearly return.")
     lines.extend(render_return_parts(summary))
     lines.extend(render_sturdiness(summary))
+    lines.extend(render_events(summary.get("event_view")))
     lines.extend(render_sizing_rule(summary))
     return lines
 
