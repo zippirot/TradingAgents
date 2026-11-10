@@ -183,3 +183,17 @@ That would put the total near 8.3 to 8.6. I would not promise 9.5.
 ## Audit declaration for Build 3
 
 - Build size: small.
+
+## Status and later decisions (2026-11-10)
+
+Builds 3, 1 and 2 are built and their independent audits closed. Evidence:
+`docs/reviews/2026-11-10-sizing-from-downside.md`, `docs/reviews/2026-11-10-time-basis-return.md`,
+`docs/reviews/2026-11-10-like-for-like-multiple.md`.
+
+Decided by the user after the builds:
+- Build 3 item 3d (portfolio-file additions) left out for now.
+- Build 2's three plan adjustments accepted: history on the trailing basis the cases use, not forward
+  revenue; funding sized by code from the filing, not declared by the analyst; a multiple outside the range
+  is shown, not blocked.
+- Peer coverage on the same basis: accepted as not done; on hold.
+- Merge to staging, push and launcher install approved. Production is not promoted.
