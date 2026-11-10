@@ -290,7 +290,8 @@ def test_explicit_empty_proposal_is_distinct_from_malformed_payload():
     assert result['reasons'] == ['No valuation scenarios were proposed; no numerical sensitivity published.']
     malformed = state([])
     malformed['financial_claim_validation']['raw_report'] = '```valuation_scenarios\n[broken\n```'
-    assert 'malformed' in prepare_shared_valuation(malformed)['reasons'][0]
+    record = prepare_shared_valuation(malformed)
+    assert record['submission_error'] == 'unreadable' and 'not valid JSON' in record['reasons'][0]
 
 
 def _docn_notes_case(borrowings):

@@ -1,0 +1,15 @@
+
+== 2a2e47dd as submitted: available [('Base: FY2027 revenue at management 60%+ ', '74.86471'), ('Downside: FY2027 growth 40%, compressed ', '44.85745')] []
+   nothing to correct on current code
+
+== 86aa515f as submitted: available [('Base: 2027 revenue just below 60%+ guida', '69.48403'), ('Downside: growth below guidance, ATM-fun', '44.63482')] ['Row 1: assumption label missing on obligations.borrowings; treated as estimated.', 'Row 2: assumption label missing on obligations.borrowings; treated as estimated.']
+   nothing to correct on current code
+
+== c463bdac as submitted: unavailable [] ['Valuation block is not valid JSON: Expecting \',\' delimiter near ":"unchanged_from_snapshot"}}}}}]"']
+   good correction: available [('FY2027 revenue at guided 60%+ growth, de', '74.16162')] ['Row 1: corrected by the analyst after a validation error: Valuation block is not valid JSON: Expecting \',\' delimiter near ":"unchanged_from_snapshot"}'] | calls 1 | score 5
+   bad correction: unavailable [] ['Valuation block is not valid JSON: Expecting \',\' delimiter near ":"unchanged_from_snapshot"}}}}}]"', 'Correction attempt did not produce an accepted case.'] | score 3 ['valuation_cases_rejected']
+
+== c463bdac LIVE correction by anthropic/claude-opus-5.5 (one paid call, 2026-11-10, run with --live):
+   available; FY2027 revenue at guided 60%+ growth case priced at 74.16162 USD/share;
+   note "Row 1: corrected by the analyst after a validation error: Valuation block is not valid JSON: ...";
+   corrected_submission recorded; operational score 5.

@@ -220,8 +220,13 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
     headline = [findings[0]['text']] if findings else []
     headline.extend(f['text'] for f in findings[1:] if f['code'] in {'fallback_recovered', 'vendor_fallback_recovered', 'model_fallback_recovered',
                                                                          'valuation_cases_rejected', 'price_session_fallback'})
-    return _assessment(score, state, rows, expected, missing, integrity, ' '.join(dict.fromkeys(headline)) if findings else
-                       "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
+    assessment = _assessment(score, state, rows, expected, missing, integrity, ' '.join(dict.fromkeys(headline)) if findings else
+                             "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
+    scenarios = state.get("shared_valuation_scenarios")
+    if isinstance(scenarios, Mapping) and isinstance(scenarios.get("corrected_submission"), Mapping):
+        assessment["recovered"] = ["Valuation Scenarios: The analyst corrected its valuation submission after a "
+                                   "validation error; the corrected cases passed the same checks."]
+    return assessment
 
 
 def _capability_findings(state) -> list[dict]:
@@ -233,6 +238,13 @@ def _capability_findings(state) -> list[dict]:
         whole = scenarios.get("rejected_submissions")
         # A submission rejected as a collection retains only its size.
         submitted = max(len(scenarios["requests"]), whole if type(whole) is int and 0 < whole <= 1024 else 0)
+        unread = scenarios.get("submission_error")
+        if not submitted and not priced and unread in {"unreadable", "duplicate_block", "oversized"}:
+            code = "valuation_cases_rejected"
+            findings.append({"score": REASONS[code][0], "code": code, "stage": "Valuation Scenarios",
+                             "text": "Valuation Scenarios: The analyst's valuation block could not be read "
+                                     f"({unread.replace('_', ' ')}), so the report has no scenario values.",
+                             "locator": "shared_valuation_scenarios.reasons"})
         if priced < submitted:
             code = "valuation_case_rejected" if priced else "valuation_cases_rejected"
             findings.append({"score": REASONS[code][0], "code": code, "stage": "Valuation Scenarios",
@@ -308,6 +320,9 @@ def render_audit(assessment) -> str:
               "- Expected stages: " + (", ".join(coverage["expected_stages"]) or "unknown"),
               "- Observed stages: " + (", ".join(coverage["observed_stages"]) or "none"),
               f"- Valid observations: {coverage['valid_observations']}; invalid or stale: {coverage['invalid_observations']}"]
+    if assessment.get("recovered"):
+        lines += ["", "## Recovered issues", ""]
+        lines.extend(f"- {text}" for text in assessment["recovered"])
     if assessment["findings"]:
         lines += ["", "## Material findings", ""]
         lines.extend(f"- {item['text']} Record: `{item['locator']}`." for item in assessment["findings"])

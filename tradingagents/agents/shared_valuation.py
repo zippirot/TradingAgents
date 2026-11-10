@@ -35,11 +35,55 @@ def _record(status, requests=(), rows=(), reasons=()):
     return {"status": status, "requests": list(requests), "rows": list(rows), "reasons": list(reasons)}
 
 
+_BLOCK = re.compile(r"```valuation_scenarios\s*\n(.*?)\n```", re.S)
+_CORRECTION_FAILED = "Correction attempt did not produce an accepted case."
+
+
+class _SubmissionError(ValueError):
+    """The submission failed as a whole; ``kind`` says how, for the reader and the correction attempt."""
+
+    def __init__(self, kind, message):
+        super().__init__(message)
+        self.kind = kind
+
+
+def _decode(body):
+    if len(body) > MAX_PAYLOAD:
+        raise _SubmissionError("oversized", f"Valuation block is larger than {MAX_PAYLOAD} characters.")
+    try:
+        value = json.loads(body)
+    except json.JSONDecodeError as exc:
+        near = " ".join(body[max(0, exc.pos - 30):exc.pos + 30].split())
+        raise _SubmissionError("unreadable", f'Valuation block is not valid JSON: {exc.msg} near "{near}"') from None
+    if not isinstance(value, list):
+        raise _SubmissionError("unreadable", "Valuation block must be a JSON list of cases.")
+    return value
+
+
 def _parse(report):
-    matches = re.findall(r"```valuation_scenarios\s*\n(.*?)\n```", report, re.S)
-    if len(matches) != 1 or len(matches[0]) > MAX_PAYLOAD:
-        raise ValueError("Scenario block missing, duplicated or oversized")
-    return json.loads(matches[0])
+    matches = _BLOCK.findall(report)
+    if not matches:
+        raise _SubmissionError("missing_block", "No valuation_scenarios block was found in the fundamentals report.")
+    if len(matches) > 1:
+        raise _SubmissionError("duplicate_block", "More than one valuation_scenarios block was found; exactly one is required.")
+    return _decode(matches[0])
+
+
+def _report_digest(state):
+    report = (state.get("financial_claim_validation") or {}).get("raw_report")
+    return hashlib.sha256(report.encode()).hexdigest() if isinstance(report, str) else None
+
+
+def _saved_correction(state):
+    """A correction applies only to the report it was written for."""
+    saved = state.get("shared_valuation_scenarios")
+    correction = saved.get("corrected_submission") if isinstance(saved, dict) else None
+    if (not isinstance(correction, dict) or not isinstance(correction.get("block"), str)
+            or not isinstance(correction.get("notes"), list)
+            or not all(isinstance(note, str) for note in correction["notes"])
+            or correction.get("report_sha256") != _report_digest(state)):
+        return None
+    return correction
 
 
 def _comparable(request, result):
@@ -156,6 +200,21 @@ def prepare_shared_valuation(state, requests=None):
     Supplying saved requests replays calculations for publication. Stored prices
     and status strings are never used as inputs to this boundary.
     """
+    correction = _saved_correction(state) if requests is None else None
+    if correction:
+        try:
+            corrected = _decode(correction["block"])
+        except _SubmissionError:
+            corrected = None
+        if corrected is not None:
+            # Every later replay prices the analyst's corrected cases, not the rejected original.
+            record = _prepare(state, corrected)
+            return {**record, "reasons": [*record["reasons"], *correction["notes"]],
+                    "corrected_submission": correction}
+    return _prepare(state, requests)
+
+
+def _prepare(state, requests):
     quality = state.get("evidence_quality") or {}
     if (quality.get("status") not in {"sufficient", "limited"}
             or quality.get("scope") != SCOPE or state.get("asset_type", "stock") != "stock"):
@@ -171,18 +230,25 @@ def prepare_shared_valuation(state, requests=None):
                 raise ValueError("Original fundamentals report unavailable")
             requests = _parse(report)
         # Apply the same collection limits to parsed and replayed requests.
-        if not isinstance(requests, list) or len(requests) > 3:
-            raise ValueError("Scenario inputs must be a list of at most three rows")
+        if not isinstance(requests, list):
+            raise ValueError("Scenario inputs must be a list")
+        if len(requests) > 3:
+            raise _SubmissionError("too_many", f"Valuation block has {len(requests)} cases; at most three are accepted.")
         if len(json.dumps(requests)) > MAX_PAYLOAD:
-            raise ValueError("Scenario input payload oversized")
+            raise _SubmissionError("oversized", f"Valuation block is larger than {MAX_PAYLOAD} characters.")
         if not requests:
             return _record("unavailable", requests, reasons=("No valuation scenarios were proposed; no numerical sensitivity published.",))
         names = [r.get("name") for r in requests if isinstance(r, dict)]
         valid_names = [n.strip() for n in names if isinstance(n, str)]
         if len(valid_names) != len(set(valid_names)):
-            raise ValueError("Scenario names must be distinct")
-    except (ValidationError, ValueError, TypeError, OverflowError):
-        record = _record("unavailable", reasons=("Shared scenario inputs or canonical evidence are missing, malformed, duplicated or oversized.",))
+            raise _SubmissionError("duplicate_names", "Scenario names must be distinct.")
+    except (ValidationError, ValueError, TypeError, OverflowError) as exc:
+        whole = isinstance(exc, _SubmissionError)
+        record = _record("unavailable", reasons=(
+            str(exc) if whole else
+            "Shared scenario inputs or canonical evidence are missing, malformed, duplicated or oversized.",))
+        if whole:
+            record["submission_error"] = exc.kind
         if isinstance(requests, list) and requests:
             # The submission itself is not retained; its size is, so the loss stays visible.
             record["rejected_submissions"] = len(requests)
@@ -192,8 +258,12 @@ def prepare_shared_valuation(state, requests=None):
     rows, reasons, comparisons, notes = [], [], [], []
     for index, row in enumerate(requests, 1):
         try:
-            if (not isinstance(row, dict) or not {"name", "request"} <= set(row)
-                    or set(row) - {"name", "request", "scenario_role"}):
+            extra = sorted(set(row) - {"name", "request", "scenario_role"}) if isinstance(row, dict) else []
+            if extra:
+                raise ValueError(f"unexpected field{'s' if len(extra) > 1 else ''} {', '.join(map(str, extra))[:200]} "
+                                 "beside name and request"
+                                 + ("; capital belongs inside request" if "capital" in extra else ""))
+            if not isinstance(row, dict) or not {"name", "request"} <= set(row):
                 raise ValueError("Expected name and request fields")
             scenario_role = row.get("scenario_role")
             if scenario_role is not None and (not isinstance(scenario_role, str) or not scenario_role.strip()):
@@ -321,9 +391,73 @@ def replay_cases(state, *, revision=None):
     accepted = revised["status"] == "available" and all(not r["diagnostic_only"] for r in revised["rows"])
     for row in revised["rows"]:
         row["version"] = 2
-    return {**(revised if accepted else analyst), "analyst_requests": analyst["requests"],
+    kept = {"corrected_submission": analyst["corrected_submission"]} if "corrected_submission" in analyst else {}
+    return {**(revised if accepted else analyst), **kept, "analyst_requests": analyst["requests"],
             "analyst_rows": analyst["rows"], "revision_request": revision,
             "revision_status": "accepted" if accepted else "rejected", "revision_reasons": revised["reasons"]}
+
+
+def _reply_text(reply):
+    content = getattr(reply, "content", reply)
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") if isinstance(part, dict) else part if isinstance(part, str) else ""
+                          for part in content)
+    return content if isinstance(content, str) else ""
+
+
+def prepare_with_correction(state, llm, shape):
+    """Price the analyst's cases; a rejected submission gets one correction attempt by the analyst model.
+
+    The corrected cases pass the same validation and replace the original only when
+    they price more cases without changing any that was already priced.
+    """
+    record = prepare_shared_valuation(state)
+    report = (state.get("financial_claim_validation") or {}).get("raw_report")
+    omitted = [reason for reason in record["reasons"] if re.match(r"Row \d+ omitted: ", reason)]
+    if (record["status"] == "not_applicable" or "corrected_submission" in record or not isinstance(report, str)
+            or record.get("submission_error") == "missing_block"
+            or not (record.get("submission_error") or omitted)):
+        return record
+    original = "\n\n".join(_BLOCK.findall(report))[:MAX_PAYLOAD]
+    prompt = (
+        "Validation rejected the valuation_scenarios block in your fundamentals report. Return only one corrected "
+        "```valuation_scenarios fenced block and nothing else. Change only what the reasons below require; keep "
+        "every case, assumption, value, fact ID and rationale otherwise exactly as you wrote it. Do not add or "
+        "remove cases.\n\nReasons:\n" + "\n".join("- " + reason for reason in record["reasons"])
+        + "\n\nRequired shape:" + shape + "\n\nYour original block:\n```valuation_scenarios\n" + original + "\n```"
+    )
+
+    def failed(reason=_CORRECTION_FAILED):
+        return {**record, "reasons": [*record["reasons"], reason]}
+
+    try:
+        text = _reply_text(llm.invoke(prompt))
+    except Exception as exc:  # noqa: BLE001 - a failed correction must never fail the run
+        return failed(f"Correction attempt failed: {type(exc).__name__}.")
+    blocks = _BLOCK.findall(text)
+    try:
+        corrected = _decode(blocks[0] if len(blocks) == 1 else text.strip())
+    except _SubmissionError:
+        return failed()
+    candidate = _prepare(state, corrected)
+    priced = {row["case_id"]: row for row in candidate["rows"]}
+    if len(candidate["rows"]) <= len(record["rows"]) or any(
+            row["case_id"] not in priced or priced[row["case_id"]]["request"] != row["request"]
+            or priced[row["case_id"]]["result"] != row["result"] for row in record["rows"]):
+        return failed()
+    before = {row["case_id"] for row in record["rows"]}
+    names = [item.get("name").strip() if isinstance(item, dict) and isinstance(item.get("name"), str) else None
+             for item in corrected]
+    notes = []
+    for row in candidate["rows"]:
+        if row["case_id"] in before:
+            continue
+        number = names.index(row["name"]) + 1
+        cause = next((reason.removeprefix(f"Row {number} omitted: ") for reason in omitted
+                      if reason.startswith(f"Row {number} omitted: ")), record["reasons"][0])
+        notes.append(f"Row {number}: corrected by the analyst after a validation error: {cause}")
+    correction = {"block": json.dumps(corrected), "notes": notes, "report_sha256": _report_digest(state)}
+    return {**candidate, "reasons": [*candidate["reasons"], *notes], "corrected_submission": correction}
 
 
 def _cell(value):
@@ -423,3 +557,4 @@ def render_shared_valuation(record):
         lines += ["", "Partial table: some proposed scenarios were omitted or remain unfunded diagnostics."]
     lines += ["- " + _cell(v) for v in record.get("reasons", [])]
     return "\n".join(lines)
+

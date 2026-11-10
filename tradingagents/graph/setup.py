@@ -288,7 +288,8 @@ class GraphSetup:
         evidence_gate = create_evidence_gate(selected_analysts)
 
         def evidence_with_scenarios(state):
-            from tradingagents.agents.shared_valuation import prepare_shared_valuation
+            from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
+            from tradingagents.agents.shared_valuation import prepare_with_correction
 
             checked = evidence_gate(state)
             if state.get("prior_thesis"):
@@ -302,7 +303,8 @@ class GraphSetup:
 
             checked.update(finalize_peer_reference({**state, **checked}, get_config()))
             event = prepare_event_comparison({**state, **checked}, get_config())
-            scenarios = prepare_shared_valuation({**state, **checked})
+            # A rejected submission gets one correction attempt by the analyst's own model.
+            scenarios = prepare_with_correction({**state, **checked}, self.quick_thinking_llm, SHARED_VALUATION_INPUTS)
             return {**checked, "shared_valuation_scenarios": scenarios, "event_comparison": event}
 
         add_node("Evidence Check", evidence_with_scenarios)
