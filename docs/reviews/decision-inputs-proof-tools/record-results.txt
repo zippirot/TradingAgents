@@ -1,0 +1,39 @@
+== real outcome store, read only
+### Track record (settled outcomes only)
+
+No settled outcome yet; nothing can be concluded about past calls.
+
+20 outcome window(s) pending across all tickers; they are not results.
+
+== copy of the store with every 5-session window settled at -6% excess (hand-made)
+{'settled': 14, 'failed': 0, 'immature': 56, 'terminal': 0, 'deferred': 0, 'skipped': 0}
+### Track record (settled outcomes only)
+
+A call is right when its excess return over the benchmark has the sign its rating implies; Hold is not scored. Gross price-window returns, not portfolio results.
+
+Scope | Rating | Horizon | Calls | Right vs benchmark | Average excess | Reading
+--- | --- | --- | --- | --- | --- | ---
+DOCN | Underweight | 5 sessions | 4 | 4 of 4 | -6.00% | too few to conclude
+All tickers | Underweight | 5 sessions | 4 | 4 of 4 | -6.00% | too few to conclude
+
+16 outcome window(s) pending across all tickers; they are not results.
+
+== real memory log as the manager now sees it (allocation figures removed), first 1,600 characters
+Past analyses of DOCN (most recent first):
+
+[2026-10-19 | DOCN | Underweight | +6.9% | +6.9% | 5d]
+
+DECISION:
+**Rating**: Underweight
+
+**Executive Summary**:
+
+**Investment Thesis**: The bear wins on the one argument that cannot be answered, and the other pillars survive the bull's rebuttals.
+
+1) The valuation rests on an EPS the bull's own gate cannot produce. The bull's PEG ~1.0 case assumes 54x forward P/E against ~54% clean EPS growth to $1.85. Running the bull's own confirmation gate (gross margin >=55.5%) through an unchanged ~43% opex ratio — and opex is demonstrably unlevered at +25.8% vs revenue +25.3% in H1 2026 — yields ~12.5% operating margin and roughly $1.33 EPS on $1.28B revenue. Reaching $1.85 needs ~18%+ operating margin, which at current opex requires a ~61% gross margin — above FY2025's 60.2% peak — while gross margin sits at 55.2% and falling. The bull never reconciled this in any round. At $100.37, realistic forward EPS of $1.33-1.60 implies 62-75x forward earnings, not 54x. De-rated is not cheap when the earnings base being priced is itself shrinking.
+
+2) The filed trend is still moving the wrong way. H1 2026: revenue +25.3%, cost of revenue +42.0%, capex -13.7%. The bear's incremental gross-margin math (~34.9% in H1) survives the bull's correction to Q2 sequential 43.5%, because 43.5% marginal is still ~12 points below the 55.2% blended rate — still dilutive. Operating leverage has inverted: Q2'26 operating income was $29M on $281M revenue versus $36M on $219M a year earlier, and clean Q2 EPS was ~$0.29 vs ~$0.39, down 26% YoY against +28% revenue.
+
+3)
+...
+30-35% present: False | withheld notes: 1

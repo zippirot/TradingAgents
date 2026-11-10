@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 
 from tradingagents.dataflows.date_window import get_current_date
 from tradingagents.dataflows.files import locked, replace_file
+from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.memory.publication import load_evidence, load_record, record_root, scan_records
 from tradingagents.memory.settlement import (
     PricePass,
@@ -677,6 +678,93 @@ def render_outcome_summary(
             else:
                 values = ['—'] * 4
             lines.append(f"D{index} | {endpoint_label(endpoint)} | {status} | " + ' | '.join(values))
+    return '\n'.join(lines)
+
+
+_RIGHT_WHEN = {'Buy': 1, 'Overweight': 1, 'Underweight': -1, 'Sell': -1}
+_RATING_ORDER = ('Buy', 'Overweight', 'Hold', 'Underweight', 'Sell')
+FEW_CALLS = 10
+
+
+def scorecard(config: dict, ticker: str | None = None, as_of: str | None = None) -> dict:
+    """Count settled primary outcomes by rating and horizon, for one ticker and for all tickers.
+
+    The same known-at rules as the outcome table apply: an outcome recorded after the
+    cutoff stays pending. Revisions and ineligible records are never samples. A call is
+    right when its excess return over the benchmark has the sign its rating implies;
+    Hold has no direction and is not scored.
+    """
+    timezone_name = config.get('analysis_timezone', 'America/Denver')
+    cutoff = _summary_cutoff(as_of, timezone_name)
+    analysis_day = None
+    if as_of is not None:
+        if len(as_of) == 10:
+            analysis_day = date.fromisoformat(as_of)
+        else:
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            try:
+                zone = ZoneInfo(timezone_name)
+            except (ZoneInfoNotFoundError, ValueError):
+                zone = UTC
+            analysis_day = cutoff.astimezone(zone).date()
+    scan = scan_records(config)
+    own = normalize_symbol(ticker) if ticker else None
+    groups, settled, pending, unreadable = {}, 0, 0, 0
+    for record in scan['records']:
+        if (not record['eligibility']['primary']
+                or not _known_by(record.get('published_at') or record.get('imported_at'), cutoff)):
+            continue
+        try:
+            companion = load_outcomes(config, record)
+        except (OSError, ValueError, KeyError, TypeError):
+            unreadable += 1
+            continue
+        for endpoint in companion['endpoints'].values():
+            outcome = endpoint.get('outcome')
+            known = (endpoint['status'] == 'resolved' and _known_by(endpoint['resolved_at'], cutoff)
+                     and (cutoff is None or outcome['resolution_date'] <= analysis_day.isoformat()))
+            if not known:
+                pending += endpoint['status'] in {'pending', 'resolved'} and not terminal_at(endpoint, cutoff)
+                continue
+            settled += 1
+            sign = _RIGHT_WHEN.get(record['canonical_rating'])
+            for scope in ((record['ticker'], 'All tickers') if record['ticker'] == own else ('All tickers',)):
+                group = groups.setdefault((scope, record['canonical_rating'], endpoint_label(endpoint)),
+                                          {'order': endpoint_sort_key(endpoint), 'alphas': [], 'right': 0})
+                group['alphas'].append(outcome['alpha_return'])
+                group['right'] += bool(sign and outcome['alpha_return'] * sign > 0)
+
+    def position(item):
+        (scope, rating, _label), group = item
+        return (scope == 'All tickers', _RATING_ORDER.index(rating) if rating in _RATING_ORDER else 9, group['order'])
+    rows = [{'scope': scope, 'rating': rating, 'horizon': label, 'calls': len(group['alphas']),
+             'right': group['right'] if rating in _RIGHT_WHEN else None,
+             'average_excess': sum(group['alphas']) / len(group['alphas'])}
+            for (scope, rating, label), group in sorted(groups.items(), key=position)]
+    return {'ticker': own, 'rows': rows, 'settled': settled, 'pending': pending,
+            'unreadable': unreadable + len(scan['skipped'])}
+
+
+def render_scorecard(card: dict) -> str:
+    """Plain summary of settled calls; pending windows are a count, never a row."""
+    if not card['rows'] and not card['pending'] and not card['unreadable']:
+        return ''  # no recommendation on record: nothing to say
+    lines = ['### Track record (settled outcomes only)', '']
+    if not card['rows']:
+        lines.append('No settled outcome yet; nothing can be concluded about past calls.')
+    else:
+        lines += ['A call is right when its excess return over the benchmark has the sign its rating implies; '
+                  'Hold is not scored. Gross price-window returns, not portfolio results.', '',
+                  'Scope | Rating | Horizon | Calls | Right vs benchmark | Average excess | Reading',
+                  '--- | --- | --- | --- | --- | --- | ---']
+        for row in card['rows']:
+            right = 'not scored' if row['right'] is None else f"{row['right']} of {row['calls']}"
+            lines.append(f"{_summary_cell(row['scope'])} | {_summary_cell(row['rating'])} | {row['horizon']} | "
+                         f"{row['calls']} | {right} | {row['average_excess']:+.2%} | "
+                         + ('too few to conclude' if row['calls'] < FEW_CALLS else 'sample of ten or more'))
+    lines += ['', f"{card['pending']} outcome window(s) pending across all tickers; they are not results."]
+    if card['unreadable']:
+        lines.append(f"{card['unreadable']} outcome record(s) could not be read and are not counted.")
     return '\n'.join(lines)
 
 

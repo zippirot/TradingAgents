@@ -101,3 +101,36 @@ def compact_prior_decision(text: str) -> str:
     if labels:
         rendered += "\nExact provenance IDs remain in the original memory record; display references are not fact IDs."
     return rendered
+
+
+_SIZING_TERM = re.compile(
+    r"\b(?:weight(?:s|ing)?|allocations?|positions?|exposure|stake|sizing|\w+-size|trim(?:s|med|ming)?|"
+    r"hedg(?:e|ed|es|ing)|remainder|residual)\b", re.I)
+
+
+def memory_without_sizing(text: str | None) -> str | None:
+    """Prompt view of an old decision: drop sentences that put a number on sizing, keep evidence figures.
+
+    The record on disk is untouched. A sentence is dropped only when it both speaks of
+    sizing and states a figure, so "revenue grew 39.87%" survives and "reduce to 30-35%
+    of a normal weight" does not.
+    """
+    # Imported here: the schemas module imports the memory package, which imports this module.
+    from tradingagents.agents.schemas import _NUMERIC_SIZING, SIZING_WITHHELD
+
+    if not isinstance(text, str) or not _NUMERIC_SIZING.search(text):
+        return text
+    lines, dropped = [], False
+    for line in text.split("\n"):
+        kept = []
+        for sentence in re.split(r"(?<=[.!?])[ \t]+", line):
+            if _NUMERIC_SIZING.search(sentence) and _SIZING_TERM.search(sentence):
+                dropped = True
+                # A section label that opened the dropped sentence stays, so the entry keeps its shape.
+                label = re.match(r"\s*\*\*[^*\n]+\*\*:?", sentence)
+                if label:
+                    kept.append(label.group(0))
+                continue
+            kept.append(sentence)
+        lines.append(" ".join(kept))
+    return "\n".join(lines) + "\n\n" + SIZING_WITHHELD if dropped else text

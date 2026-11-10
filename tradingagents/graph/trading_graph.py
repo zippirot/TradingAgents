@@ -631,7 +631,10 @@ class TradingAgentsGraph:
             if self.config.get("results_dir"):
                 summary = self.outcome_summary(state["company_of_interest"],
                                                cutoff, limit=10)
-                past_context = "\n\n".join(part for part in (past_context, summary) if part)
+                # The managers read the scorecard; the full table, mostly pending rows, stays in the report.
+                card = self.outcome_scorecard(state["company_of_interest"], cutoff)
+                past_context = "\n\n".join(part for part in (past_context, card) if part)
+                summary = "\n\n".join(part for part in (card, summary) if part)
         except Exception as exc:
             logger.warning("Reading outcome history failed: %s", exc)
             note = (note + " Outcome history unavailable; retained records need inspection.").strip()
@@ -666,6 +669,11 @@ class TradingAgentsGraph:
         """Read deterministic horizon measurements without making model calls."""
         from tradingagents.memory.publication_outcomes import render_outcome_summary
         return render_outcome_summary(self.config, ticker, as_of, limit=limit)
+
+    def outcome_scorecard(self, ticker=None, as_of=None) -> str:
+        """Settled calls by rating and horizon; pending windows are only counted."""
+        from tradingagents.memory.publication_outcomes import render_scorecard, scorecard
+        return render_scorecard(scorecard(self.config, ticker, as_of))
 
     def settle_pending(self, company_name) -> settlement.Settlement:
         """Settle this ticker's decisions whose holding window has now traded.
@@ -753,7 +761,8 @@ class TradingAgentsGraph:
             key: record[key] for key in ("decision_id", "published_at", "record_sha256")
         }
         try:
-            final_state["outcome_summary"] = self.outcome_summary(company_name, limit=10)
+            final_state["outcome_summary"] = "\n\n".join(part for part in (
+                self.outcome_scorecard(company_name), self.outcome_summary(company_name, limit=10)) if part)
         except Exception as exc:
             logger.warning("Publication saved but outcome summary unavailable: %s", exc)
             final_state["outcome_summary"] = "Outcome history unavailable; retained records need inspection."

@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from tradingagents.agents.evidence_presentation import compact_prior_decision
+from tradingagents.agents.evidence_presentation import compact_prior_decision, memory_without_sizing
 from tradingagents.agents.rating import RATINGS_5_TIER, parse_rating
 from tradingagents.dataflows.files import locked, replace_file
 
@@ -470,16 +470,16 @@ class TradingMemoryLog:
         alpha = e["alpha"] or "n/a"
         holding = e["holding"] or "n/a"
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {raw} | {alpha} | {holding}]"
-        parts = [tag, f"DECISION:\n{compact_prior_decision(e['decision'])}"]
+        parts = [tag, f"DECISION:\n{memory_without_sizing(compact_prior_decision(e['decision']))}"]
         if e["reflection"]:
-            parts.append(f"REFLECTION:\n{e['reflection']}")
+            parts.append(f"REFLECTION:\n{memory_without_sizing(e['reflection'])}")
         return "\n\n".join(parts)
 
     def _format_reflection_only(self, e: dict) -> str:
         tag = f"[{e['date']} | {e['ticker']} | {e['rating']} | {e['raw'] or 'n/a'}]"
         if e["reflection"]:
-            return f"{tag}\n{e['reflection']}"
-        decision = compact_prior_decision(e["decision"])
+            return f"{tag}\n{memory_without_sizing(e['reflection'])}"
+        decision = memory_without_sizing(compact_prior_decision(e["decision"]))
         text = decision[:300]
         suffix = "..." if len(decision) > 300 else ""
         return f"{tag}\n{text}{suffix}"
