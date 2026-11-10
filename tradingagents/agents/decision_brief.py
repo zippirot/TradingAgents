@@ -104,6 +104,45 @@ def _conditions(record, snapshot, state):
     return {"status": "known", "rows": rows, "tracked": len(prior["observations"])}
 
 
+def _weight_rows(cases):
+    return [{"role": _text(case.get("role"), 40), "name": _text(case.get("name"), 120),
+             "disposition": case.get("disposition"),
+             "weight": None if _decimal(case.get("weight")) is None else str(_decimal(case.get("weight")))}
+            for case in cases or () if isinstance(case, dict) and case.get("disposition") in ("accepted", "rejected")]
+
+
+def _case_weights(snapshot):
+    """The weights the earlier decision gave its cases: the reference for this one, not evidence."""
+    basis = (snapshot.get("decision_context") or {}).get("scenario_decision") or {}
+    rows = _weight_rows(basis.get("cases")) if isinstance(basis, dict) and basis.get("status") == "addressed" else []
+    return {"status": "known" if rows else "none", "rows": rows}
+
+
+def attach_weights(brief, scenario):
+    """Beside the earlier weights, this decision's weights and whether they differ. Matched by role, else by name."""
+    earlier = brief.get("weights") if isinstance(brief, dict) else None
+    if (not isinstance(earlier, dict) or earlier.get("status") != "known"
+            or not isinstance(scenario, dict) or scenario.get("status") != "addressed"):
+        return brief
+    now = _weight_rows(scenario.get("cases"))
+    changed = None
+    for key in ("role", "name"):
+        then_map, now_map = ({row[key]: row for row in rows} for rows in (earlier["rows"], now))
+        if (len(then_map) == len(earlier["rows"]) and len(now_map) == len(now) and then_map.keys() == now_map.keys()
+                and "" not in then_map and "unlabelled" not in then_map):
+            changed = any(then_map[k]["disposition"] != now_map[k]["disposition"]
+                          or abs((_decimal(then_map[k]["weight"]) or 0) - (_decimal(now_map[k]["weight"]) or 0)) > Decimal("0.005")
+                          for k in then_map)
+            break
+    return {**brief, "weights": {**earlier, "now": now, "changed": changed}}
+
+
+def _weights_text(rows, display):
+    return ", ".join(f"{display(row['role'] if row['role'] not in ('', 'unlabelled') else row['name'])} "
+                     + ("rejected" if row["disposition"] == "rejected" or row["weight"] is None
+                        else f"{Decimal(row['weight']) * 100:.0f}%") for row in rows)
+
+
 def _prices(replayed):
     return {case["name"]: case for case in priced_cases(replayed)}
 
@@ -154,6 +193,7 @@ def since_last_decision(config: dict, ticker: str, state: dict) -> dict:
                         ("filings", lambda: _new_filings(snapshot, state)),
                         ("conditions", lambda: _conditions(record, snapshot, state)),
                         ("cases", lambda: _cases(snapshot, state)),
+                        ("weights", lambda: _case_weights(snapshot)),
                         ("sources", lambda: _sources(snapshot, state))):
         try:
             brief[name] = build()
@@ -280,6 +320,22 @@ def render(brief, *, for_manager: bool = False, display=str) -> list[str]:
             where = "the earlier record" if row["side"] == "previous" else "this run"
             lines.append(f"- Not compared: case \"{display(row['scenario'])}\" in {where} is unusable "
                          f"({display(row['reason'])}).")
+    weights = brief.get("weights")
+    if weights and weights["status"] == "known":
+        then = _weights_text(weights["rows"], display)
+        if for_manager:
+            lines.append(
+                f"- Your case weights in that decision: {then}. Keep each weight unless a fact that is new since that "
+                "decision changes it; reading the same evidence differently is not a new fact. For each weight you "
+                "change, begin that case's reason with 'Changed since the last decision:' and name the new fact.")
+        elif weights.get("now") is not None:
+            lines.append(f"- Case weights: {then} then; {_weights_text(weights['now'], display)} now."
+                         + (" Weights changed and no new filing was retained between the two runs. Where no new fact "
+                            "is named for a change, the earlier weight remains the reference."
+                            if weights.get("changed") and filings and filings["status"] == "known"
+                            and not filings["rows"] else
+                            " Not matched case for case, so no change is stated." if weights.get("changed") is None
+                            else ""))
     for note in brief.get("sources") or ():
         lines.append("- Data: " + display(note))
     for row in brief["parts_unavailable"]:

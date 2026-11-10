@@ -1,0 +1,9 @@
+--- flags on the cases of run b9dde628 ---
+Base: FY2027 revenue at guided 60% growt | ['AF-360c39e76511c795b17e185f', 'AF-64d690f67cdaa2de95e343cb'] | accepted audit findings AF-360c39e76511c795b17e185f, AF-64d690f67cdaa2de95e343cb correct statements the conservative risk analyst and fundamentals analyst made about this case; its inputs and arithmetic are not disputed
+Downside: growth slows to ~41%, ATM dilu | None | None
+Upside: ~70% FY2027 growth, 8.0x borrowi | None | None
+flagged scenarios counted: 0
+--- earlier decision: 36c26c9d ---
+reader: ['- Case weights: base 50%, downside 35%, upside 15% then; base 45%, downside 45%, upside 10% now. Weights changed and no new filing was retained between the two runs. Where no new fact is named for a change, the earlier weight remains the reference.']
+--- what the next run's manager would be shown (earlier decision b9dde628 ) ---
+["- Your case weights in that decision: base 45%, downside 45%, upside 10%. Keep each weight unless a fact that is new since that decision changes it; reading the same evidence differently is not a new fact. For each weight you change, begin that case's reason with 'Changed since the last decision:' and name the new fact."]

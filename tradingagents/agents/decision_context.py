@@ -349,6 +349,9 @@ def prepare_decision_context(state: dict) -> dict:
     from tradingagents.agents.decision_brief import finalize as finalize_brief
     brief = (finalize_brief(state['decision_brief'], state) if isinstance(state.get('decision_brief'), dict)
              else _mapping(state.get('decision_context')).get('since_last_decision'))
+    if isinstance(brief, dict) and isinstance(state.get('decision_brief'), dict):
+        from tradingagents.agents.decision_brief import attach_weights
+        brief = attach_weights(brief, scenario)
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
             **({'since_last_decision': brief} if isinstance(brief, dict) and brief.get('status') != 'no_prior' else {}),
             'assumption_changes': _mapping(_mapping(state.get('decision_context')).get('assumption_changes')),
