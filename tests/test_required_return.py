@@ -107,8 +107,9 @@ def test_the_saved_run_gets_values_today_and_a_sizing_rule_from_its_downside_cas
     assert "Required return 9.86% a year" in text
     assert "50.7% below the 2026-11-09 close" in text and "at most 2.0% of the portfolio" in text
     assert "not an allocation" in text
-    # The period-end comparison and rating check are unchanged by this build.
-    assert Decimal(summary["weighted_value"]).quantize(Decimal("0.01")) == Decimal("70.84") and summary["direction"] == "near"
+    # The period-end figures are still stated; the direction now comes from values today (Build 1).
+    assert Decimal(summary["weighted_value"]).quantize(Decimal("0.01")) == Decimal("70.84")
+    assert (summary["direction"], summary["direction_basis"]) == ("below", "value_today")
 
 
 def test_a_rejected_downside_does_not_set_the_rule_and_a_case_above_the_close_sets_no_limit():

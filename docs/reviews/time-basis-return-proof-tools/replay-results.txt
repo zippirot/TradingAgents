@@ -1,0 +1,53 @@
+== d58117ef as saved (no required return): period-end basis
+  direction near on period_end; consistency consistent; operational score 5
+  **Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares, -1.2% a year from the close; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason (unvalidated): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares, -41.0% a year from the close; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason (unvalidated): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares, +27.5% a year from the close; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares (range -45.2% to +31.9%). Direction: near the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+  
+  Where each case's value comes from, per share, from the 2026-11-09 close, applied in order: revenue, then the multiple, then shares and net obligations. Today's price is 8.19x revenue of the last twelve months (1.10B) on the case's own obligation basis; each case applies its multiple to revenue of the twelve months ending at its period end.
+  
+  - base — revenue to 1.95B: +58.84; multiple 8.19x to 4.70x: -57.68; shares and net obligations: -2.24; total -1.08 to 77.22 USD/shares.
+  - downside — revenue to 1.70B: +41.48; multiple 8.19x to 3.00x: -74.79; shares and net obligations: -2.06; total -35.37 to 42.93 USD/shares.
+  - upside — revenue to 2.05B: +65.78; multiple 8.19x to 6.00x: -38.04; shares and net obligations: -2.79; total +24.95 to 103.25 USD/shares.
+== d58117ef with 4.86% + 5 points: value-today basis
+  direction below on value_today; consistency consistent; operational score 5
+  **Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end; each value today is that value brought back at the required return stated below, and the rating check uses values today.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares at 2027-12-31, 69.37 USD/shares today, -1.2% a year from the close; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason (unvalidated): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares at 2027-12-31, 38.56 USD/shares today, -41.0% a year from the close; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason (unvalidated): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares at 2027-12-31, 92.76 USD/shares today, +27.5% a year from the close; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares (range -45.2% to +31.9%).
+  
+  On one time basis: accepted range today 38.56 USD/shares to 92.76 USD/shares; weighted value today 63.64 USD/shares, -18.7% against the close (range -50.7% to +18.5%). Bought at the close, the weighted case returns -8.4% a year against a required 9.86%, a gap of -18.3 points. Direction: below the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+  
+  Where each case's value comes from, per share, from the 2026-11-09 close, applied in order: revenue, then the multiple, then shares and net obligations. Today's price is 8.19x revenue of the last twelve months (1.10B) on the case's own obligation basis; each case applies its multiple to revenue of the twelve months ending at its period end.
+  
+  - base — revenue to 1.95B: +58.84; multiple 8.19x to 4.70x: -57.68; shares and net obligations: -2.24; total -1.08 to 77.22 USD/shares.
+  - downside — revenue to 1.70B: +41.48; multiple 8.19x to 3.00x: -74.79; shares and net obligations: -2.06; total -35.37 to 42.93 USD/shares.
+  - upside — revenue to 2.05B: +65.78; multiple 8.19x to 6.00x: -38.04; shares and net obligations: -2.79; total +24.95 to 103.25 USD/shares.
+  
+  If the weights are wrong: with equal weights the value today is 66.90 USD/shares, -14.6% against the close. The highest accepted case (upside) would need a weight of 58%, against the 15% given, for the weighted value today to equal the close.
+  
+  Required return 9.86% a year: 10-year Treasury yield 4.86% (FRED DGS10, 2026-11-06) plus a fixed premium of 5.00 points. A stated assumption, not a forecast.
+  
+  Sizing from the downside (arithmetic on the accepted cases, not an allocation): in the lowest accepted case (downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple) the position is worth 38.56 USD/shares today, 50.7% below the 2026-11-09 close. For each 1% of a portfolio you accept losing in that case, the position can be at most 2.0% of the portfolio. Your holdings, loss limit and other exposures are not known to this report.
+== what the Portfolio Manager would be shown (first lines)
+  Priced scenario cases. Each is conditional arithmetic on stated assumptions at its period end. The value today is the period-end value brought back at the required return. Required return 9.86% a year: 10-year Treasury yield 4.86% (FRED DGS10, 2026-11-06) plus a fixed premium of 5.00 points. A stated assumption, not a forecast.
+  - case_id case-0426950560578fcd, version 1, role base, "Base: FY2027 revenue at management 60%+ floor, near price-implied multiple": 77.22 USD/shares at 2027-12-31 (69.37 USD/shares today). Funding assessed: scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are stated and maturing notes are accounted for.
+  - case_id case-15378ef230aeba7c, version 1, role downside, "Downside: capacity or AI demand slip, ATM dilution, lower multiple": 42.93 USD/shares at 2027-12-31 (38.56 USD/shares today). Funding assessed: scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are stated and maturing notes are accounted for. Imp
+  - case_id case-245d47a86b626d4a, version 1, role upside, "Upside: growth beats 60%+ floor, multiple re-rates": 103.25 USD/shares at 2027-12-31 (92.76 USD/shares today). Funding assessed: scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are stated and maturing notes are accounted for. Implied equity value
+== earlier runs: card section and score must be unchanged by this build (no required return saved)
+  520623df: scenario no_priced_cases, basis None, score 4, 'On one time basis' printed: False
+  2a2e47dd: scenario not_applicable, basis None, score 3, 'On one time basis' printed: False
+  eea86100: scenario not_applicable, basis None, score 5, 'On one time basis' printed: False
+  86aa515f: scenario not_applicable, basis None, score 3, 'On one time basis' printed: False
+  c463bdac: scenario no_priced_cases, basis None, score 5, 'On one time basis' printed: False

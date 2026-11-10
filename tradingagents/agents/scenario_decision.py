@@ -16,6 +16,12 @@ from tradingagents.agents.required_return import (
     render_required_return,
     value_today,
 )
+from tradingagents.agents.scenario_return import (
+    annual_return,
+    return_parts,
+    sturdiness,
+    today_basis,
+)
 
 REJECTABLE_INPUTS = ("revenue_forecast", "multiple", "shares", "cash", "obligations", "funding")
 DIRECTION_THRESHOLD = Decimal("0.10")
@@ -60,7 +66,12 @@ def priced_cases(replayed) -> list[dict]:
                 or _decimal(result.get("target")) is None):
             continue
         funding, position = row.get("funding") or {}, row.get("reference_position") or {}
+        request = row.get("request") if isinstance(row.get("request"), dict) else {}
+        forecast = request.get("forecast") if isinstance(request.get("forecast"), dict) else {}
         cases.append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
+                      "forecast_revenue": forecast.get("value"), "multiple": result.get("multiple"),
+                      "multiple_basis": request.get("multiple_basis"), "net_obligations": result.get("net_obligations"),
+                      "closing_shares": result.get("shares_outstanding"),
                       "role": _text(row.get("scenario_role"), 40) or "unlabelled", "price": str(_decimal(result["target"])),
                       "unit": result.get("unit"), "period_end": result.get("valuation_period_end"),
                       "funding": funding.get("status", "unassessed"), "funding_summary": funding.get("summary", ""),
@@ -188,7 +199,7 @@ def summarize(state, replayed) -> dict:
                "close": None, "session_date": None, "direction": None, "consistency": "not_checked",
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
-               "sizing_rule": None}
+               "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None}
     if not accepted:
         return summary
     # Only the close each accepted case was validated against on replay is comparable; the raw
@@ -209,8 +220,20 @@ def summarize(state, replayed) -> dict:
                        weighted_vs_close_percent=str((weighted / close - 1) * 100),
                        range_vs_close_percent={"low": str((min(values) / close - 1) * 100),
                                                "high": str((max(values) / close - 1) * 100)},
-                       direction=_direction(weighted, close))
+                       direction=_direction(weighted, close), direction_basis="period_end")
         summary["sizing_rule"] = sizing_rule(accepted, close)
+        # With a required return every accepted case has a value today, and the check moves to that basis:
+        # a value at a later date and today's price are otherwise not comparable.
+        today = today_basis(accepted, close, rate_from_state(state), state.get("trade_date"))
+        if today is not None:
+            summary.update(today, direction=_direction(Decimal(today["weighted_value_today"]), close),
+                           direction_basis="value_today", sturdiness=sturdiness(accepted, close))
+        for row in rows:
+            row["annual_return"] = (lambda r: None if r is None else str(r))(
+                annual_return(row["price"], close, state.get("trade_date"), row.get("period_end")))
+            parts = return_parts(row, state.get("price_implied_valuation"), close)
+            if parts is not None:
+                row["return_parts"] = parts
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -226,20 +249,24 @@ def retry_feedback(state, replayed) -> str:
         return ("Your scenario_view could not be used: " + " ".join(summary["problems"])
                 + " Resubmit the complete decision with a valid scenario_view.")
     if summary.get("consistency") == "unexplained":
-        return (f"Your rating points against your own accepted scenarios (weighted value {summary['direction']} the "
+        basis = "weighted value today" if summary.get("direction_basis") == "value_today" else "weighted value"
+        return (f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
                 "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
                 "rating_basis_reason or revise the rating or the scenario_view.")
     return ""
 
 
-def render_cases_for_manager(cases) -> str:
+def render_cases_for_manager(cases, required=None) -> str:
     if not cases:
         return "No priced scenario case in this run; omit scenario_view."
-    lines = ["Priced scenario cases. Each is conditional arithmetic on stated assumptions at its period end, "
-             "not discounted to today:"]
+    valued = all(case.get("value_today") for case in cases)
+    lines = ["Priced scenario cases. Each is conditional arithmetic on stated assumptions at its period end"
+             + (". The value today is the period-end value brought back at the required return. "
+                + render_required_return(required) if valued else ", not discounted to today:")]
     for case in cases:
+        today = f" ({Decimal(case['value_today']):.2f} {case['unit']} today)" if valued else ""
         lines.append(f"- case_id {case['case_id']}, version {case['version']}, role {case['role']}, "
-                     f"\"{case['name']}\": {Decimal(case['price']):.2f} {case['unit']} at {case['period_end']}. "
+                     f"\"{case['name']}\": {Decimal(case['price']):.2f} {case['unit']} at {case['period_end']}{today}. "
                      f"{case['funding_summary']} {case['reference_summary']}".rstrip())
     lines.append(
         "Supply scenario_view with one entry per case above: case_id, version, disposition (accepted or rejected), "
@@ -251,8 +278,10 @@ def render_cases_for_manager(cases) -> str:
         "downside case, not by rejecting. Reject a case only when you can state the value the rejected input should "
         "take and that value changes the case materially; say that value in the reason. Accepting an audit finding that "
         "names a case does not remove the case: it stays in this list, is shown flagged, and still needs your entry. Code then "
-        "compares the weighted value of your accepted cases with the completed close. If your rating points the "
-        "other way by more than 10 percent, state why in rating_basis_reason. This is a labelled conditional range, "
+        + ("compares the weighted value today of your accepted cases with the completed close, so a later value and "
+           "today's price are on one time basis. If your rating points the " if valued else
+           "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
+        + "other way by more than 10 percent, state why in rating_basis_reason. This is a labelled conditional range, "
         "never a price target.")
     return "\n".join(lines)
 
@@ -273,8 +302,8 @@ def render(summary) -> list[str]:
     valued = any(case.get("value_today") for case in summary["cases"])
     lines = [f"**{LABEL}**: the Portfolio Manager's stance on each priced case. Weights are subjective and "
              "uncalibrated; values are at each case's period end"
-             + ("; each value today is that value brought back at the required return stated below. The range, "
-                "weighted value and rating check use the period-end values." if valued else " and are not discounted.")]
+             + ("; each value today is that value brought back at the required return stated below, and the "
+                "rating check uses values today." if valued else " and are not discounted.")]
     for case in summary["cases"]:
         stance = (f"accepted, weight {Decimal(case['weight']):.2f}" if case["disposition"] == "accepted"
                   else f"rejected on {case['rejected_input'].replace('_', ' ')}")
@@ -282,6 +311,8 @@ def render(summary) -> list[str]:
                     if case.get("reference_band") in BANDS else "reference position unavailable")
         flag = ("; flagged by accepted audit finding " + ", ".join(case["flagged_by"])) if case.get("flagged_by") else ""
         today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""
+        if case.get("annual_return") is not None:
+            today += f", {Decimal(case['annual_return']) * 100:+.1f}% a year from the close"
         lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}{today}; funding "
                      f"{case['funding']}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
@@ -297,15 +328,81 @@ def render(summary) -> list[str]:
     lines.append(text + f", {Decimal(summary['weighted_vs_close_percent']):+.1f}% against the "
                  f"{summary['session_date']} close of {_money(summary['close'], unit)} "
                  f"(range {Decimal(summary['range_vs_close_percent']['low']):+.1f}% to "
-                 f"{Decimal(summary['range_vs_close_percent']['high']):+.1f}%). Direction: {summary['direction']} "
-                 "the close, using a 10 percent threshold.")
+                 f"{Decimal(summary['range_vs_close_percent']['high']):+.1f}%)."
+                 + ("" if summary.get("direction_basis") == "value_today" else
+                    f" Direction: {summary['direction']} the close, using a 10 percent threshold."))
+    lines.extend(render_today_basis(summary))
     lines.append({"consistent": "Rating check: the rating does not point against the accepted scenarios.",
                   "explained": "Rating check: the rating points against the accepted scenarios. Portfolio Manager's "
                                "reason (unvalidated): " + summary["rating_basis_reason"],
                   "unexplained": "Rating check: the rating points against the accepted scenarios and no reason was given.",
                   }.get(summary["consistency"], "Rating check: not performed."))
+    lines.extend(render_return_parts(summary))
+    lines.extend(render_sturdiness(summary))
     lines.extend(render_sizing_rule(summary))
     return lines
+
+
+def render_today_basis(summary) -> list[str]:
+    """The comparison the rating check uses when a required return is recorded."""
+    if summary.get("direction_basis") != "value_today":
+        return []
+    unit, span, percent = summary["unit"], summary["range_today"], summary["range_today_vs_close_percent"]
+    text = (f"On one time basis: accepted range today {_money(span['low'], unit)} to {_money(span['high'], unit)}; "
+            f"weighted value today {_money(summary['weighted_value_today'], unit)}, "
+            f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close (range "
+            f"{Decimal(percent['low']):+.1f}% to {Decimal(percent['high']):+.1f}%).")
+    if summary.get("weighted_annual_return") is not None:
+        required = Decimal(summary["required_return"]["rate"]) * 100
+        text += (f" Bought at the close, the weighted case returns {Decimal(summary['weighted_annual_return']) * 100:+.1f}% "
+                 f"a year against a required {required:.2f}%, a gap of {Decimal(summary['return_gap_points']):+.1f} points.")
+    return [text + f" Direction: {summary['direction']} the close, using a 10 percent threshold."]
+
+
+def _billions(value):
+    return f"{Decimal(value) / Decimal(10) ** 9:.2f}B"
+
+
+def render_return_parts(summary) -> list[str]:
+    """Per share, where each case's change from the close comes from."""
+    rows = [case for case in summary["cases"] if case.get("return_parts")]
+    if not rows:
+        return []
+    first = rows[0]["return_parts"]
+    lines = [f"Where each case's value comes from, per share, from the {summary['session_date']} close, applied in "
+             f"order: revenue, then the multiple, then shares and net obligations. Today's price is "
+             f"{Decimal(first['multiple_today']):.2f}x revenue of the last twelve months "
+             f"({_billions(first['revenue_today'])}) on the case's own obligation basis; each case applies its multiple "
+             "to revenue of the twelve months ending at its period end."]
+    for case in rows:
+        parts = case["return_parts"]
+        lines.append(f"- {case['role']} — revenue to {_billions(parts['revenue_case'])}: "
+                     f"{Decimal(parts['revenue_effect']):+.2f}; multiple {Decimal(parts['multiple_today']):.2f}x to "
+                     f"{Decimal(parts['multiple_case']):.2f}x: {Decimal(parts['multiple_effect']):+.2f}; shares and net "
+                     f"obligations: {Decimal(parts['capital_effect']):+.2f}; total {Decimal(parts['total']):+.2f} "
+                     f"to {_money(case['price'], case['unit'])}.")
+    return lines
+
+
+def render_sturdiness(summary) -> list[str]:
+    """How much the weights would have to change before the comparison with the close changes."""
+    check = summary.get("sturdiness")
+    if not check:
+        return []
+    unit, top = summary["unit"], check["highest"]
+    text = (f"If the weights are wrong: with equal weights the value today is "
+            f"{_money(check['equal_weight_value_today'], unit)}, {Decimal(check['equal_weight_vs_close_percent']):+.1f}% "
+            "against the close.")
+    given = f"{Decimal(top['weight']) * 100:.0f}%"
+    if check["break_even"] == "available":
+        text += (f" The highest accepted case ({top['role']}) would need a weight of "
+                 f"{Decimal(check['break_even_weight']) * 100:.0f}%, against the {given} given, for the weighted value "
+                 "today to equal the close.")
+    elif check["break_even"] == "unreachable":
+        text += " No accepted case is worth more than the close today, so no weighting reaches the close."
+    else:
+        text += " The other accepted cases already average at or above the close today, whatever weight the highest gets."
+    return [text]
 
 
 def render_sizing_rule(summary) -> list[str]:

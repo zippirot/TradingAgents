@@ -36,6 +36,7 @@ from tradingagents.agents.scenario_decision import (
     priced_cases,
     render_cases_for_manager,
     retry_feedback,
+    with_value_today,
 )
 from tradingagents.agents.schemas import RequiredHorizonPortfolioDecision, render_pm_decision
 from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
@@ -74,7 +75,8 @@ def create_portfolio_manager(llm):
         if state.get("shared_valuation_scenarios"):
             with contextlib.suppress(ValidationError, ValueError, TypeError, KeyError):
                 replayed = annotate_disputed_cases(state, replay_cases(state))
-        scenario_context = render_cases_for_manager(priced_cases(replayed))
+        scenario_context = render_cases_for_manager(with_value_today(priced_cases(replayed), state),
+                                                    state.get("required_return"))
         brief = state.get("decision_brief")
         change_lines = render_brief(brief, for_manager=True)
         change_context = ("\n".join(change_lines) + "\n\n") if change_lines else ""
