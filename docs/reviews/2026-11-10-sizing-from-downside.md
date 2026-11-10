@@ -77,3 +77,20 @@ the card prints one line saying so and states no value today or rule.
 
 - 3d portfolio-file additions.
 - Using value today in the range, weighted value and rating check (Build 1).
+
+## Independent audit and closure (2026-11-10)
+
+Audit of `59a52daf` by GPT-6 Astra (run 7e11ccd3, 23 turns, $0.71): two Medium findings, no High or Critical.
+
+| Finding | Verdict | Action |
+|---|---|---|
+| When every case was rejected, or no comparable close existed, the card printed values today and then stopped before stating the required return behind them. | Confirmed, reproduced by a new test that failed on `59a52daf`. | Fixed: the required-return line (or the "unavailable" line) is printed on those two paths as well. No sizing rule is printed there. |
+| A saved record with a valid rate but missing yield, premium, source or date was used for arithmetic while the card said the record was unusable, and the sizing rule was still printed. | Confirmed, reproduced by six parameterised cases that failed on `59a52daf`. Normal acquisition never writes such a record; this is the damaged-saved-record path. | Fixed: one check (`usable_rate`) decides for both arithmetic and display. It requires the yield, the premium, their sum, and the series, source and observation date. |
+
+Closure checks (ran): full suite 4,391 passed, 10 skipped, 1 deselected; `ruff check .` clean; replay of d58117ef unchanged.
+
+Also checked by reading `source_replay.ReplaySession.input`: a comparison replayed against a baseline recorded before this
+build records the yield request as a replay miss, fetches it live and continues. That is the existing designed behaviour;
+it was not exercised by a run.
+
+Remaining unverified: a live run; remote CI on a pushed SHA.

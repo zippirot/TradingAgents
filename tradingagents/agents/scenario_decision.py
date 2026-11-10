@@ -286,13 +286,14 @@ def render(summary) -> list[str]:
                      f"{case['funding']}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
-        return lines
+        # A value today printed above is never left without the assumption behind it.
+        return lines + render_sizing_rule(summary)
     unit, span = summary["unit"], summary["range"]
     text = (f"Accepted range {_money(span['low'], unit)} to {_money(span['high'], unit)}; weighted value "
             f"{_money(summary['weighted_value'], unit)}")
     if summary["close"] is None:
         lines.append(text + ". No comparable completed close is available, so no comparison with the price is made.")
-        return lines
+        return lines + render_sizing_rule(summary)
     lines.append(text + f", {Decimal(summary['weighted_vs_close_percent']):+.1f}% against the "
                  f"{summary['session_date']} close of {_money(summary['close'], unit)} "
                  f"(range {Decimal(summary['range_vs_close_percent']['low']):+.1f}% to "

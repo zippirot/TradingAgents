@@ -64,12 +64,24 @@ def required_return_record(point, premium: Decimal, as_of: str) -> dict:
             "premium": str(premium), "rate": str(risk_free + premium)}
 
 
-def rate_from_state(state) -> Decimal | None:
-    record = state.get("required_return") if isinstance(state, dict) or hasattr(state, "get") else None
+def usable_rate(record) -> Decimal | None:
+    """The rate of a complete record, or None. Arithmetic and display both go through this one check.
+
+    A record is usable only when the assumption can be stated in full: the yield, the premium, their sum,
+    and where and when the yield was observed.
+    """
     if not isinstance(record, dict) or record.get("status") != "available":
         return None
-    rate = _decimal(record.get("rate"))
-    return rate if rate is not None and Decimal(0) <= rate <= Decimal(1) else None
+    rate, risk_free, premium = (_decimal(record.get(key)) for key in ("rate", "risk_free_rate", "premium"))
+    if None in (rate, risk_free, premium) or not Decimal(0) <= rate <= Decimal(1) or rate != risk_free + premium:
+        return None
+    if not all(isinstance(record.get(key), str) and record[key] for key in ("series", "source", "observation_date")):
+        return None
+    return rate
+
+
+def rate_from_state(state) -> Decimal | None:
+    return usable_rate(state.get("required_return") if isinstance(state, dict) or hasattr(state, "get") else None)
 
 
 def value_today(price, analysis_date, period_end, rate) -> Decimal | None:
@@ -89,8 +101,7 @@ def value_today(price, analysis_date, period_end, rate) -> Decimal | None:
 def render_required_return(record) -> str:
     if not isinstance(record, dict) or record.get("status") is None:
         return ""
-    numbers = [_decimal(record.get(key)) for key in ("rate", "risk_free_rate", "premium")]
-    if record["status"] != "available" or None in numbers or rate_from_state({"required_return": record}) is None:
+    if usable_rate(record) is None:
         reason = record.get("reason") if record["status"] != "available" else "the saved record is not usable"
         return f"Required return unavailable: {reason or 'not recorded'}. No value today or sizing rule is stated."
     return (f"Required return {Decimal(record['rate']) * 100:.2f}% a year: 10-year Treasury yield "

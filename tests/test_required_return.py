@@ -182,3 +182,32 @@ def test_the_acquisition_step_records_the_required_return_once_beside_the_price(
     # A source failure leaves the run going and the return unstated.
     monkeypatch.setattr(fred, "latest_observation", lambda series, as_of: (_ for _ in ()).throw(RuntimeError("x")))
     assert acquire(initial())["required_return"]["status"] == "unavailable"
+
+
+def test_values_today_are_never_printed_without_the_assumption_behind_them():
+    """Audit finding: the all-rejected and no-close paths printed values today and then returned early."""
+    rejected = "\n".join(render(_run([_reject("base"), _reject("down"), _reject("up")])))
+    assert "38.57 USD/shares today" in rejected and "Required return 9.86% a year" in rejected
+    assert "Sizing from the downside" not in rejected
+    state = {**_state([_accept("base", 0.55), _accept("down", 0.30), _accept("up", 0.15)]),
+             "trade_date": "2026-11-10", "required_return": RETURN}
+    rows = _three()
+    for row in rows["rows"]:
+        row["comparison"] = {"status": "unavailable"}
+    no_close = "\n".join(render(summarize(state, rows)))
+    assert "USD/shares today" in no_close and "Required return 9.86% a year" in no_close
+    assert "Sizing from the downside" not in no_close
+    unavailable = {"status": "unavailable", "reason": "x"}
+    assert "Required return unavailable: x" in "\n".join(render(_run([_reject("base"), _reject("down"), _reject("up")],
+                                                                    required=unavailable)))
+
+
+@pytest.mark.parametrize("damage", [{"risk_free_rate": None}, {"premium": "x"}, {"observation_date": ""},
+                                    {"series": None}, {"source": 7}, {"rate": "0.2"}, {"rate": "1.5"}])
+def test_a_partial_saved_record_is_unusable_for_arithmetic_and_display_alike(damage):
+    """Audit finding: a record with a usable rate but missing provenance was calculated on yet reported unusable."""
+    summary = _run([_accept("base", 0.55), _accept("down", 0.30), _accept("up", 0.15)], required={**RETURN, **damage})
+    assert summary["sizing_rule"] is None and all("value_today" not in case for case in summary["cases"])
+    text = "\n".join(render(summary))
+    assert "Required return unavailable: the saved record is not usable" in text
+    assert "USD/shares today" not in text and "Sizing from the downside" not in text and "at most" not in text
