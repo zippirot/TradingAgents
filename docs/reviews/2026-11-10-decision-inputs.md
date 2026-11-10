@@ -19,7 +19,7 @@ The plan was written against `3e517089`. The decision-basis build had since chan
 
 ## Verification (builder-run)
 
-- New tests: `tests/test_decision_brief.py` (32), `tests/test_scorecard.py` (11), `tests/test_portfolio_sizing.py` (30). Each file was run against the code before its task and failed (collection error on the missing module or function, or 10 of 10 failing for the scorecard), then passed.
+- New tests: `tests/test_decision_brief.py` (36), `tests/test_scorecard.py` (11), `tests/test_portfolio_sizing.py` (31). Each file was run against the code before its task and failed (collection error on the missing module or function, or 10 of 10 failing for the scorecard), then passed.
 - Full suite on the final tree: see "Final state" below. `ruff check .` clean.
 - Offline replays, `docs/reviews/decision-inputs-proof-tools/replay.py`, outputs beside it:
 
@@ -30,6 +30,25 @@ The plan was written against `3e517089`. The decision-basis build had since chan
 | `sizing` | saved run c463bdac with `sample-portfolio.json` (made-up holdings) | Block for the agents and for the report at the 2026-11-09 close of 78.30 USD; Markdown and HTML carry it; the published decision text and evidence snapshot contain the fingerprint and none of the inputs or computed figures; with no file the fixed sentence is present and there is no block. |
 
 Reproduced first, as the plan required: `assumption_changes` against run 86aa515f. The cause was not an unreadable case but a retained case whose `capital.obligations.borrowings` entry had no `assumption` label (the defect the 86aa515f repair fixed for pricing). The comparison validated the raw request strictly, so one case failed the whole comparison.
+
+## Independent audit
+
+Run `dadf6665` on `f609b8e7` (GPT-6 Astra, 33 turns, $1.13, 8 minutes; caps reduced to the plan's medium size). One High, one Medium. Both were reproduced by running them, then closed.
+
+| Finding | Reproduced | Correction |
+|---|---|---|
+| High: the agents are shown the caller's portfolio figures, and their prose (summary, thesis, change reading) is copied into the published decision, so a figure a manager repeats reaches the record | Ran: a manager answer repeating "100 units, 4.0% of the portfolio" appeared in the record's `canonical_decision`, `pm_executive_summary`, `pm_investment_thesis` and in the snapshot's decision card | When a run was given a portfolio value, model-written text bound for the record (the manager's summary, thesis and stated conditions, the decision card, the thesis) loses each sentence that states a figure together with a portfolio or sizing word, with one line saying figures were withheld. The reader's own report still opens with the computed block. Runs without a portfolio value publish their prose untouched. |
+| Medium: a change reading whose status is not text (a list or object) crashed the manager step and the card instead of getting the one correction | Ran: `TypeError: unhashable type` for a list and an object | The status is type-checked first; such an answer is "missing", gets the one correction attempt and is shown as a problem. |
+
+One part of the High finding was not confirmed: raw model diagnostics are not in the published record (`publication.publish` removes `raw_diagnostics` from the snapshot). They are in the run's local report files only.
+
+The auditor also noted that an unusable change reading is kept and scored rather than strictly rejected. That is the existing structured-output path the plan names: one correction attempt, then the answer stands, is printed as a problem on the page and lowers the run's score to 3. A manager answer never blocks publication in this system.
+
+After closure: five new test cases, the three that exercise the defects red before the fix and all green after; no second audit, the corrections are bounded and tested. Audit record: `~/Claude/audits/docs/superpowers/audits/2026-11-10-decision-inputs/`.
+
+## Final state
+
+Full suite on the final source tree (the tree of the commit that adds this section; later commits, if any, touch only this report): 4358 passed, 10 skipped, 1 deselected. `ruff check .` clean. Replays rerun and unchanged. No CI: the branch is unpushed.
 
 ## Plan adjustments
 
@@ -58,7 +77,7 @@ Reproduced first, as the plan required: `assumption_changes` against run 86aa515
 ## Known limits
 
 - Not proven without a paid run: how the managers word the change reading and use the sizing block and scorecard.
-- The agents see the sizing block, and their own prose is retained in the run's local diagnostics. If a model repeats a figure from the block, that sentence is in the local evidence file. The system itself writes only the fingerprint.
+- Withholding portfolio figures from the published record is a sentence rule: a figure together with a portfolio or sizing word (units, of the portfolio, weight, allocation, holding, stake, trim, loss budget and similar). A figure a model states with none of those words would get through, and a sentence about, say, share-count weights can be withheld by mistake. The run's local report files and state log keep the models' full prose.
 - The 2026-10-19 result (+6.9 percent) exists only in the legacy memory log, not in the outcome store, so the scorecard says no call has settled while the memory entry shows that result.
 - The scorecard counts overlapping windows and same-ticker calls as separate calls, as the outcome table does; the "too few to conclude" line is a count threshold, not a significance test.
 - A position's loss is computed for the units held now, not for the units a rating would imply.

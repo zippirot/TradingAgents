@@ -11,7 +11,7 @@ from tradingagents.agents.decision_context import (
     render_decision_context,
     validate_final_case,
 )
-from tradingagents.agents.evidence_presentation import readable_evidence
+from tradingagents.agents.evidence_presentation import readable_evidence, without_portfolio_figures
 from tradingagents.agents.evidence_validation import review_terminal_state
 from tradingagents.agents.rating import normalized_evidence_quality
 from tradingagents.agents.schemas import render_target_result
@@ -229,7 +229,8 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     updates["unvalidated_outputs"] = originals
     card = _decision_card({**state, **updates}, publication_config)
     if sizing_line:
-        card["portfolio_fingerprint"] = sized.get("fingerprint")
+        # The agents were shown the caller's figures; their prose must not carry them into the record.
+        card = {**without_portfolio_figures(card), "portfolio_fingerprint": sized.get("fingerprint")}
     updates["decision_context"] = card
     disputed = (card.get('adopted_case') or {}).get('disputed_by')
     if disputed:
@@ -242,6 +243,8 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     structured = pm.get('structured') or {}
     def pm_text(key):
         value = structured.get(key)
+        if sizing_line:
+            value = without_portfolio_figures(value)
         return _display(value[:20000]) + (' [truncated at 20,000 characters]' if len(value) > 20000 else '') if isinstance(value, str) and value.strip() else 'Unavailable in the retained structured PM output; see diagnostics.'
     from tradingagents.agents.audit_pass import prepare_audit_dispositions
     from tradingagents.agents.citation_check import check_pm_citations, render_pm_citation_check

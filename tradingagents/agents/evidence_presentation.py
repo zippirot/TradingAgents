@@ -108,7 +108,29 @@ _SIZING_TERM = re.compile(
     r"hedg(?:e|ed|es|ing)|remainder|residual)\b", re.I)
 
 
-def memory_without_sizing(text: str | None) -> str | None:
+_PORTFOLIO_TERM = re.compile(
+    r"\b(?:units?|of\s+(?:the|your|a|my)\s+(?:portfolio|book)|portfolio\s+value|(?:standard|normal|benchmark|"
+    r"current|target)\s+weight|weights?|allocations?|position\s+siz\w+|loss\s+budget|than\s+you\s+hold|"
+    r"holdings?|stake|trim(?:s|med|ming)?)\b", re.I)
+PORTFOLIO_WITHHELD = "Figures stated against the caller's portfolio are withheld from the published record."
+
+
+def without_portfolio_figures(value):
+    """Published copy of model prose from a run that was shown the caller's portfolio figures.
+
+    Strings anywhere inside ``value`` lose each sentence that states a figure together with
+    a portfolio or sizing word; everything else is returned as it was.
+    """
+    if isinstance(value, str):
+        return memory_without_sizing(value, terms=_PORTFOLIO_TERM, note=PORTFOLIO_WITHHELD)
+    if isinstance(value, dict):
+        return {key: without_portfolio_figures(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [without_portfolio_figures(item) for item in value]
+    return value
+
+
+def memory_without_sizing(text: str | None, *, terms=_SIZING_TERM, note: str | None = None) -> str | None:
     """Prompt view of an old decision: drop sentences that put a number on sizing, keep evidence figures.
 
     The record on disk is untouched. A sentence is dropped only when it both speaks of
@@ -118,13 +140,15 @@ def memory_without_sizing(text: str | None) -> str | None:
     # Imported here: the schemas module imports the memory package, which imports this module.
     from tradingagents.agents.schemas import _NUMERIC_SIZING, SIZING_WITHHELD
 
+    note = note or SIZING_WITHHELD
+
     if not isinstance(text, str) or not _NUMERIC_SIZING.search(text):
         return text
     lines, dropped = [], False
     for line in text.split("\n"):
         kept = []
         for sentence in re.split(r"(?<=[.!?])[ \t]+", line):
-            if _NUMERIC_SIZING.search(sentence) and _SIZING_TERM.search(sentence):
+            if _NUMERIC_SIZING.search(sentence) and terms.search(sentence):
                 dropped = True
                 # A section label that opened the dropped sentence stays, so the entry keeps its shape.
                 label = re.match(r"\s*\*\*[^*\n]+\*\*:?", sentence)
@@ -133,4 +157,4 @@ def memory_without_sizing(text: str | None) -> str | None:
                 continue
             kept.append(sentence)
         lines.append(" ".join(kept))
-    return "\n".join(lines) + "\n\n" + SIZING_WITHHELD if dropped else text
+    return "\n".join(lines) + "\n\n" + note if dropped else text

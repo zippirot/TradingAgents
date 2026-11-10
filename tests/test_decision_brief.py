@@ -366,3 +366,19 @@ def test_a_saved_card_is_rendered_without_recomputing(monkeypatch):
     card = prepare_decision_context(state)
     del state["decision_brief"]
     assert prepare_decision_context({**state, "decision_context": card})["since_last_decision"] == card["since_last_decision"]
+
+
+@pytest.mark.parametrize("status", [[], {}, 3, None])
+def test_a_status_that_is_not_text_is_an_unusable_answer_not_a_crash(monkeypatch, status):
+    from tests.test_scenario_decision import _decision, _manager
+    from tradingagents.agents.decision_context import prepare_decision_context
+
+    answer = {"status": status, "reason": "Changed."}
+    assert "change_assessment is missing" in assessment_problems(BRIEF, "Hold", answer)[0]
+    node, structured = _manager(_decision(change_assessment=answer), _decision(change_assessment=answer))
+    node(_pm_state(monkeypatch))
+    assert structured.invoke.call_count == 2
+    assert "Your change_assessment could not be used" in structured.invoke.call_args.args[0]
+    card = prepare_decision_context(_finished(monkeypatch, "Underweight", answer))
+    assert card["since_last_decision"]["assessment"]["status"] is None
+    assert "change_assessment is missing" in " ".join(render(card["since_last_decision"]))

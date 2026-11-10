@@ -203,6 +203,14 @@ def _pm_reasoning(state: dict) -> dict:
         candidate = state.get('thesis_candidate')
     conditions = candidate.get('conditions') if isinstance(candidate, dict) else None
 
+    inputs = state.get('portfolio_inputs')
+    shown = isinstance(inputs, dict) and inputs.get('portfolio_value') is not None
+
+    if shown:
+        # The manager was shown the caller's portfolio figures; the record keeps none of them.
+        from tradingagents.agents.evidence_presentation import without_portfolio_figures
+        summary, thesis, conditions = (without_portfolio_figures(value) for value in (summary, thesis, conditions))
+
     def bounded(text):
         return {'text': text[:_PM_TEXT_LIMIT], 'truncated': len(text) > _PM_TEXT_LIMIT}
 

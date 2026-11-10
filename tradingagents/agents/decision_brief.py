@@ -149,11 +149,16 @@ def since_last_decision(config: dict, ticker: str, state: dict) -> dict:
     return brief
 
 
+def _usable(assessment) -> bool:
+    return (isinstance(assessment, dict) and isinstance(assessment.get("status"), str)
+            and assessment["status"] in ASSESSMENTS)
+
+
 def assessment_problems(brief, rating, assessment) -> list[str]:
     """Why the manager's change assessment cannot stand; empty when it agrees with the two ratings."""
     if not isinstance(brief, dict) or brief.get("status") != "available":
         return []
-    if not isinstance(assessment, dict) or assessment.get("status") not in ASSESSMENTS:
+    if not _usable(assessment):
         return ["change_assessment is missing: state one of " + ", ".join(ASSESSMENTS) + " with a reason."]
     problems = []
     if not _text(assessment.get("reason")):
@@ -175,7 +180,7 @@ def finalize(brief, state) -> dict:
     structured = manager.get("structured") if isinstance(manager.get("structured"), dict) else {}
     answer = structured.get("change_assessment")
     problems = assessment_problems(brief, state.get("final_rating"), answer)
-    valid = isinstance(answer, dict) and answer.get("status") in ASSESSMENTS
+    valid = _usable(answer)
     return {**brief, "assessment": {"status": answer["status"] if valid else None,
                                     "reason": _text(answer.get("reason"), 600) if valid else "",
                                     "rating": state.get("final_rating"), "problems": problems}}

@@ -509,6 +509,14 @@ def evidence_snapshot(final_state: dict) -> dict:
         "quality_status": evidence_quality_snapshot(final_state)["status"],
     }
     snapshot.update({name: final_state[name] for name in names if name in final_state})
+    inputs = final_state.get("portfolio_inputs")
+    if isinstance(inputs, dict) and inputs.get("portfolio_value") is not None:
+        # Model-written parts of the record from a run that was shown the caller's portfolio figures.
+        from tradingagents.agents.evidence_presentation import without_portfolio_figures
+
+        for name in ("thesis", "decision_context"):
+            if name in snapshot:
+                snapshot[name] = without_portfolio_figures(snapshot[name])
     diagnostics = {
         name: final_state[name]
         for name in ("financial_claim_validation", "unvalidated_outputs")

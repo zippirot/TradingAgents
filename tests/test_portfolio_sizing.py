@@ -291,3 +291,47 @@ def test_where_the_portfolio_file_lives_does_not_invalidate_a_saved_checkpoint()
     from tradingagents.graph.trading_graph import _NOT_IN_SIGNATURE
 
     assert "portfolio_path" in _NOT_IN_SIGNATURE
+
+
+ECHO = "Hold 100 units, 4.0% of the portfolio; trim toward a 2.5% target weight worth $5,000."
+
+
+def test_figures_a_manager_repeats_from_the_block_do_not_reach_the_published_record(monkeypatch, tmp_path):
+    """Independent audit, High: the agents are shown the figures, and their prose is published."""
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from tests.test_decision_brief import _finished
+    from tradingagents.agents.output_validation import enforce_publication
+    from tradingagents.memory import publication
+    from tradingagents.reporting import prepare_report_state
+
+    def run(inputs):
+        state = _finished(monkeypatch, "Underweight", {"status": "strengthens", "reason": "Margin fell 2%. " + ECHO})
+        answer = state["unvalidated_outputs"]["portfolio_manager"]
+        answer["structured"].update(executive_summary=ECHO, investment_thesis="Revenue grew 39.87%. " + ECHO)
+        answer["thesis_candidate"] = {"rationale": ECHO, "conditions": [
+            {"kind": "event", "description": "Note settles", "rationale": ECHO, "thesis_role": "supports_thesis"}]}
+        state.update(run_id=str(uuid4()), thesis={"schema_version": 1, "rationale": "Margin thesis. " + ECHO})
+        if inputs is not None:
+            state["portfolio_inputs"] = inputs
+        state.update(enforce_publication(state))
+        monkeypatch.setattr(publication, "_utcnow", lambda: datetime(2026, 10, 19, 22, tzinfo=UTC))
+        config = {"results_dir": str(tmp_path / str(inputs is None))}
+        record = publication.publish(config, state, "DOCN", state["trade_date"])
+        return state, json.dumps([record, publication.load_evidence(config, record)])
+
+    state, published = run(full(100))
+    for private in ("100 units", "4.0% of the portfolio", "2.5% target weight", "$5,000"):
+        assert private not in published
+    # Evidence figures and the rest of the prose stay; the withholding is said once per text.
+    assert "Revenue grew 39.87%." in published and "Margin fell 2%." in published and "Margin thesis." in published
+    assert "Figures stated against the caller's portfolio are withheld from the published record." in published
+    assert state["portfolio_inputs"]["fingerprint"] in published
+    # The reader's own report still opens with the computed block.
+    assert prepare_report_state(state)["final_trade_decision"].startswith("**Position and sizing**")
+    # A run that was shown no portfolio figures publishes its prose untouched.
+    _plain_, untouched = run(None)
+    assert "100 units, 4.0% of the portfolio" in untouched and "withheld from the published record" not in untouched
+    _legacy_, same = run(book())
+    assert "100 units, 4.0% of the portfolio" in same
