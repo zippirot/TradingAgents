@@ -48,6 +48,8 @@ def create_fundamentals_analyst(llm):
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements, and `get_insider_transactions` for recent insider buying and selling."
             + " Use the shared source brief and get_financial_evidence for exact dated facts and source IDs before drawing financial conclusions. The source tool reuses this run’s retained package. Cite fact IDs and retain reported versus derived status. It does not prove narrative disclosure coverage is complete."
             + SHARED_VALUATION_INPUTS
+            # The analyst's own cases from the last decision, when one exists: the starting point, not evidence.
+            + (state.get("prior_case_context") or "")
             + PEER_PROPOSAL
             + FINANCIAL_CLAIM_EXTRACTION
             + DISCLOSURE_EXTRACTION

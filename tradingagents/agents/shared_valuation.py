@@ -410,6 +410,11 @@ def _prepare(state, requests):
     return record
 
 
+_OTHER_ROLES = frozenset({"market_analyst", "sentiment_analyst", "news_analyst", "research_manager", "trader",
+                          "bull_researcher", "bear_researcher", "aggressive_risk_analyst",
+                          "conservative_risk_analyst", "neutral_risk_analyst"})
+
+
 def annotate_disputed_cases(state, record):
     """An accepted finding can exclude a displayed case, never alter its math."""
     from tradingagents.agents.audit_pass import prepare_audit_dispositions
@@ -430,8 +435,18 @@ def annotate_disputed_cases(state, record):
         ids = [f['finding_id'] for f in findings
                if (f.get('case_id') == row['case_id'] if f.get('case_id') else
                    bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text))]
-        clean = {key: value for key, value in row.items() if key != 'disputed_by'}
-        rows.append({**clean, **({'disputed_by': ids} if ids else {})})
+        clean = {key: value for key, value in row.items() if key not in {'disputed_by', 'dispute_note'}}
+        # A finding can name a case because a role misdescribed it. That corrects the role, not the case.
+        # Only a known role other than the analyst who wrote the case can be "a statement about it".
+        about_case = [f for f in findings if f['finding_id'] in ids and (
+            f.get('role') not in _OTHER_ROLES
+            or (bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text)))]
+        note = {}
+        if ids and not about_case:
+            roles = sorted({str(f.get('role') or 'a role').replace('_', ' ') for f in findings if f['finding_id'] in ids})
+            note = {'dispute_note': 'accepted audit finding ' + ', '.join(ids) + ' corrects a statement the '
+                                    + ' and '.join(roles) + ' made about this case; its inputs and arithmetic are not disputed'}
+        rows.append({**clean, **({'disputed_by': ids} if ids else {}), **note})
     return {**record, 'rows': rows}
 
 
@@ -550,6 +565,8 @@ def _cell(value):
 def _summary_value(row):
     result = row["result"]
     value = display_value(result["target"], result["unit"])
+    if row.get("dispute_note"):
+        return f"{value} — a statement about this case was corrected ({', '.join(row['disputed_by'])}); inputs not disputed"
     if row.get("disputed_by"):
         return f"{value} — flagged ({', '.join(row['disputed_by'])}), shown in range"
     return value
@@ -593,7 +610,8 @@ def render_shared_valuation(record):
                       + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]
             lines.append(f"Case ID {row['case_id']}, version {row['version']}.")
             if row.get('disputed_by'):
-                lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; shown flagged in the conditional range. Arithmetic retained unchanged.')
+                lines.append((row['dispute_note'][0].upper() + row['dispute_note'][1:] + '.') if row.get('dispute_note') else
+                             'Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; shown flagged in the conditional range. Arithmetic retained unchanged.')
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = MULTIPLE_CONSTRUCTION

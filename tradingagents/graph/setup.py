@@ -166,6 +166,17 @@ class GraphSetup:
         self.audit_sdk_retries_disabled = audit_sdk_retries_disabled
         self.publication_config = publication_config
 
+    def _with_prior_cases(self, analyst):
+        """Hand the fundamentals analyst its cases from the last decision; read from saved records, no model call."""
+        def node(state):
+            if self.publication_config is None or state.get("prior_case_context"):
+                return analyst(state)
+            from tradingagents.agents.prior_cases import prior_cases, render_prior_cases
+
+            text = render_prior_cases(prior_cases(self.publication_config, state.get("company_of_interest", ""), state))
+            return analyst({**state, "prior_case_context": text} if text else state)
+        return node
+
     def setup_graph(
         self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
     ):
@@ -186,7 +197,7 @@ class GraphSetup:
             "market": lambda: create_market_analyst(self.quick_thinking_llm),
             "social": lambda: create_sentiment_analyst(self.quick_thinking_llm),
             "news": lambda: create_news_analyst(self.quick_thinking_llm),
-            "fundamentals": lambda: create_fundamentals_analyst(self.quick_thinking_llm),
+            "fundamentals": lambda: self._with_prior_cases(create_fundamentals_analyst(self.quick_thinking_llm)),
         }
 
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)

@@ -521,7 +521,7 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
     )
     rating_basis_reason: str | None = Field(
         default=None, max_length=1200,
-        description="Only when the rating points against the weighted value of your accepted scenarios by more than 10 percent: why the rating still stands.",
+        description="When the rating points against your accepted scenarios (their weighted value differs from the close by more than 10 percent the other way, or it returns more than the required return under a bearish rating or less under a bullish one): why the rating still stands, with figures.",
     )
 
     change_assessment: Annotated[Any, WithJsonSchema({

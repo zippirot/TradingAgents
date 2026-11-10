@@ -270,6 +270,12 @@ def render(brief, *, for_manager: bool = False, display=str) -> list[str]:
                     ) if rows else "none priced"
         lines.append(f"- Valuation cases: {priced(cases['values_then'])} then; {priced(cases['values_now'])} now; "
                      + ("; ".join(changes) if changes else "no input or value change") + ".")
+        if cases["rows"] and filings and filings["status"] == "known" and not filings["rows"]:
+            # Said once, plainly: the same evidence priced differently is a different assumption set.
+            lines.append("- Case assumptions changed with no new filing retained between the two runs: these are "
+                         "changes of assumption, not of evidence, and the earlier values remain the reference."
+                         + (" Weigh the cases with that in mind and say in your reasons which changes you accept."
+                            if for_manager else ""))
         for row in cases["unusable"]:
             where = "the earlier record" if row["side"] == "previous" else "this run"
             lines.append(f"- Not compared: case \"{display(row['scenario'])}\" in {where} is unusable "

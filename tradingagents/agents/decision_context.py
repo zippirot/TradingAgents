@@ -230,6 +230,7 @@ def _case_groups(rows, scenario=None):
                  if v["assumption"] == "unchanged_from_snapshot"]
         group["cases"].append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
                                **({'disputed_by': row['disputed_by']} if row.get('disputed_by') else {}),
+                               **({'dispute_note': row['dispute_note']} if row.get('dispute_note') else {}),
                                **({'manager_rejected': True} if (row["case_id"], row["version"]) in rejected else {}),
                                "value": result["target"], "unchanged_from_snapshot": fixed})
         comparison = row.get("comparison") or {}
@@ -366,7 +367,8 @@ def prepare_decision_context(state: dict) -> dict:
                        'reasons': [_text(r) for r in (*target.reasons, *target.decision_use.reasons)[:3]]},
             'scenarios': {'status': replayed['status'], 'supported_count': supported_scenarios,
                           'diagnostic_count': sum(bool(row.get('diagnostic_only')) for row in replayed.get('rows', [])),
-                          'disputed_count': sum(bool(row.get('disputed_by')) for row in replayed.get('rows', []))},
+                          'disputed_count': sum(bool(row.get('disputed_by')) and not row.get('dispute_note')
+                                                for row in replayed.get('rows', []))},
             'trader_provisional': _trader(trader),
             'trader_reading': action_reading(_trader(trader), research_rating(originals.get('investment_plan', state.get('investment_plan')))),
             'conditions': condition_rows,
@@ -443,9 +445,10 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
         for case in values:
             fixed = ", ".join(case["unchanged_from_snapshot"])
             lines.append(f"- {_display(case['name'])} ({case['case_id']} v{case['version']}): {display_number(case['value'])}" +
-                         ('; flagged by accepted audit finding ' + ', '.join(case['disputed_by']) if case.get('disputed_by') else '') +
+                         ('; ' + _display(case['dispute_note']) if case.get('dispute_note') else
+                          '; flagged by accepted audit finding ' + ', '.join(case['disputed_by']) if case.get('disputed_by') else '') +
                          ('; rejected by the Portfolio Manager; not in the conditional range' if case.get('manager_rejected')
-                          else '; shown in the conditional range' if case.get('disputed_by') else '') +
+                          else '; shown in the conditional range' if case.get('disputed_by') and not case.get('dispute_note') else '') +
                          ("; unchanged from snapshot: " + _display(fixed) if fixed else ""))
         quote = group.get("completed_close")
         lines.append(f"Completed close {display_number(quote['close'])} {quote['currency']} on {quote['session_date']}: "

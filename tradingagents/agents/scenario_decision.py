@@ -80,7 +80,8 @@ def priced_cases(replayed) -> list[dict]:
                       "reference_band": position.get("band"), "reference_summary": position.get("summary", ""),
                       "reference_same_basis": position.get("basis") == "like_for_like",
                       "guidance_floor": (row.get("guidance_floor") or {}).get("summary", ""),
-                      "flagged_by": [str(item) for item in row.get("disputed_by") or ()]})
+                      "flagged_by": [str(item) for item in row.get("disputed_by") or ()],
+                      "flag_note": _text(row.get("dispute_note"), 300)})
     return cases
 
 
@@ -253,6 +254,12 @@ def summarize(state, replayed) -> dict:
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
+    # Within 10 percent of the close the price test says nothing, but the accepted cases still say whether the
+    # stock earns its required return. A rating on the other side of that owes a reason too.
+    gap = _decimal(summary.get("return_gap_points"))
+    summary["contrary_basis"] = "direction" if contrary else None
+    if not contrary and gap is not None and ((rating in _BEARISH and gap > 0) or (rating in _BULLISH and gap < 0)):
+        contrary, summary["contrary_basis"] = True, "return_gap"
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     return summary
@@ -264,6 +271,13 @@ def retry_feedback(state, replayed) -> str:
     if summary["status"] == "unaddressed":
         return ("Your scenario_view could not be used: " + " ".join(summary["problems"])
                 + " Resubmit the complete decision with a valid scenario_view.")
+    if summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "return_gap":
+        return ("Your rating points against your own accepted scenarios: bought at the close, their weighted value "
+                f"returns {Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year against a required "
+                f"{Decimal(summary['required_return']['rate']) * 100:.2f}%, a gap of "
+                f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
+                "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
+                "scenario_view.")
     if summary.get("consistency") == "unexplained":
         basis = "weighted value today" if summary.get("direction_basis") == "value_today" else "weighted value"
         return (f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
@@ -299,8 +313,11 @@ def render_cases_for_manager(cases, required=None) -> str:
         + ("compares the weighted value today of your accepted cases with the completed close, so a later value and "
            "today's price are on one time basis. If your rating points the " if valued else
            "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
-        + "other way by more than 10 percent, state why in rating_basis_reason. This is a labelled conditional range, "
-        "never a price target.")
+        + "other way by more than 10 percent, state why in rating_basis_reason."
+        + (" The same applies inside 10 percent when the weighted value returns more than the required return and "
+           "your rating is Underweight or Sell, or less than it and your rating is Overweight or Buy: give the "
+           "reason with figures." if valued else "")
+        + " This is a labelled conditional range, never a price target.")
     return "\n".join(lines)
 
 
@@ -329,7 +346,8 @@ def render(summary) -> list[str]:
                      if case.get("reference_same_basis") else
                      f"implied multiple {BANDS[case['reference_band']]} of its own history")
                     if case.get("reference_band") in BANDS else "reference position unavailable")
-        flag = ("; flagged by accepted audit finding " + ", ".join(case["flagged_by"])) if case.get("flagged_by") else ""
+        flag = ("; " + (case.get("flag_note") or "flagged by accepted audit finding " + ", ".join(case["flagged_by"]))
+                ) if case.get("flagged_by") else ""
         today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""
         if case.get("annual_return") is not None:
             today += f", {Decimal(case['annual_return']) * 100:+.1f}% a year from the close"
@@ -352,10 +370,14 @@ def render(summary) -> list[str]:
                  + ("" if summary.get("direction_basis") == "value_today" else
                     f" Direction: {summary['direction']} the close, using a 10 percent threshold."))
     lines.extend(render_today_basis(summary))
+    against = ("the rating points against the accepted scenarios, which return "
+               + ("more" if _decimal(summary.get("return_gap_points")) > 0 else "less") + " than the required return"
+               if summary.get("contrary_basis") == "return_gap" else
+               "the rating points against the accepted scenarios")
     lines.append({"consistent": "Rating check: the rating does not point against the accepted scenarios.",
-                  "explained": "Rating check: the rating points against the accepted scenarios. Portfolio Manager's "
+                  "explained": f"Rating check: {against}. Portfolio Manager's "
                                "reason (unvalidated): " + summary["rating_basis_reason"],
-                  "unexplained": "Rating check: the rating points against the accepted scenarios and no reason was given.",
+                  "unexplained": f"Rating check: {against} and no reason was given.",
                   }.get(summary["consistency"], "Rating check: not performed."))
     lines.extend(render_return_parts(summary))
     lines.extend(render_sturdiness(summary))
