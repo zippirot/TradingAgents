@@ -755,7 +755,7 @@ def assess_financial_package(
             },
         }
     if rpo_comparison is not None and disclosures is not None:
-        update["disclosure_evidence"]["kpi_comparisons"] = [rpo_comparison]
+        update.setdefault("disclosure_evidence", {})["kpi_comparisons"] = [rpo_comparison]
         update["canonical_financial_context"] += "\n\n" + rpo_comparison["text"]
         references = []
         for i, (role, source) in enumerate(rpo_comparison.get("sources", {}).items(), 1):

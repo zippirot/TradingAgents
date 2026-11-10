@@ -1,0 +1,324 @@
+[
+  {
+    "ticker": "DOCN",
+    "as_of": "2026-11-10",
+    "passes": true,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "pass",
+      "obligation_perimeter": "pass",
+      "cash_flow_perimeter": "pass",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": []
+  },
+  {
+    "ticker": "NET",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001477333-26-000060: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1477333/000147733326000060/q326exhibit992.htm omitted; 0001477333-26-000026: Package text limit 120000 "
+    ]
+  },
+  {
+    "ticker": "AKAM",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "unavailable",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "core_statements: unavailable: Missing or incompatible statements at 2026-09-30: Revenue",
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001193125-26-452631: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1086222/000119312526452631/d137487d8k.htm omitted; 0001193125-26-455539: Package text limit 120000 reac"
+    ]
+  },
+  {
+    "ticker": "DDOG",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+    ]
+  },
+  {
+    "ticker": "SNOW",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Disclosed software capitalization lacks a compatible cash amount; Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001640147-26-000043: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1640147/000164014726000043/snow-20260928.htm omitted"
+    ]
+  },
+  {
+    "ticker": "TWLO",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period; explicit complete cash spending coverage required"
+    ]
+  },
+  {
+    "ticker": "OKTA",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Disclosed software capitalization lacks a compatible cash amount; Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+    ]
+  },
+  {
+    "ticker": "ZS",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001713683-26-000095: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1713683/000171368326000095/zs-20260526.htm omitted"
+    ]
+  },
+  {
+    "ticker": "MDB",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Disclosed software capitalization lacks a compatible cash amount; Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001628280-26-063850: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1441816/000162828026063850/mdb-20260925.htm omitted"
+    ]
+  },
+  {
+    "ticker": "HUBS",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "pass",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "equity_movement: unavailable: Complete dated equity-movement table unavailable",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001193125-26-414965: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1404655/000119312526414965/d183135d8k.htm omitted"
+    ]
+  },
+  {
+    "ticker": "TEAM",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+    ]
+  },
+  {
+    "ticker": "ESTC",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001707753-26-000036: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1707753/000170775326000036/a20260827_exx991xpr.htm omitted"
+    ]
+  },
+  {
+    "ticker": "CFLT",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "unavailable",
+      "core_statements": "unavailable",
+      "balance_sheet": "unavailable",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "source_integrity: unavailable: Stock not identified in SEC issuer map; issuer filing status cannot be verified and US accounting validation was not performed",
+      "core_statements: unavailable: Required evidence check not completed",
+      "balance_sheet: unavailable: Required evidence check not completed",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: Required evidence check not completed",
+      "cash_flow_perimeter: unavailable: Required evidence check not completed",
+      "disclosure_coverage: unavailable: Required evidence check not completed"
+    ]
+  },
+  {
+    "ticker": "GTLB",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "unavailable",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "balance_sheet: unavailable: Nonzero residual cannot be assessed without source rounding precision",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+    ]
+  },
+  {
+    "ticker": "PATH",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "pass",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "pass"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Disclosed software capitalization lacks a compatible cash amount; Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+    ]
+  },
+  {
+    "ticker": "FSLY",
+    "as_of": "2026-11-10",
+    "passes": false,
+    "checks": {
+      "source_integrity": "fail",
+      "core_statements": "unavailable",
+      "balance_sheet": "pass",
+      "equity_movement": "unavailable",
+      "obligation_perimeter": "unavailable",
+      "cash_flow_perimeter": "unavailable",
+      "disclosure_coverage": "unavailable"
+    },
+    "reasons": [
+      "source_integrity: fail: conflicting document metadata: block text or attributes",
+      "core_statements: unavailable: Missing or incompatible statements at 2026-09-30: Revenue",
+      "equity_movement: unavailable: Required evidence check not completed",
+      "obligation_perimeter: unavailable: required obligation category unavailable; explicit sourced zero required for absence",
+      "cash_flow_perimeter: unavailable: Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period",
+      "disclosure_coverage: unavailable: 0001517413-26-000342: Package text limit 120000 reached; https://www.sec.gov/Archives/edgar/data/1517413/000151741326000342/ex992-investorsupplement93.htm omitted; 0001517413-26-000357: Package text l"
+    ]
+  }
+]

@@ -239,3 +239,22 @@ def test_canonical_context_and_analyst_brief_reuse_same_recomputed_text(monkeypa
     brief = context.build_shared_source_brief(state)
     assert expected in brief and expected in prepared['canonical_financial_context']
     assert 'UNVERIFIED_SAVED_COMPARISON' not in prepared['canonical_financial_context']
+
+
+def test_a_kpi_comparison_survives_when_the_excerpt_packages_cannot_be_combined(monkeypatch):
+    """Conflicting excerpt views drop the excerpts; the separately verified comparison must not crash the step."""
+    from tradingagents.agents.evidence_validation import assess_financial_package
+    from tradingagents.dataflows import disclosure_context
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
+    state = rpo_source_state(monkeypatch)
+    comparison = state['evidence_acquisition']['rpo_comparison']
+    package = EvidencePackage.model_validate(state['financial_evidence'])
+    docs = DisclosurePackage.model_validate(state['disclosure_evidence']['packages'][0])
+
+    def conflict(packages):
+        raise ValueError('Conflicting source views')
+    monkeypatch.setattr(disclosure_context, 'collapse_quote_packages', conflict)
+    prepared = assess_financial_package(state, package, docs, rpo_comparison=comparison, source_only=True)
+    assert prepared['disclosure_evidence']['kpi_comparisons'][0]['text'] in prepared['canonical_financial_context']
+    assert 'packages' not in prepared['disclosure_evidence']
