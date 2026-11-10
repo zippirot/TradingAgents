@@ -182,7 +182,10 @@ def render_cases_for_manager(cases) -> str:
         "reason, and for accepted cases a weight above 0 and at most 1; accepted weights must sum to 1 and are your "
         "subjective weights, not measured probabilities. To reject a case name the single input you reject in "
         "rejected_input: one of " + ", ".join(REJECTABLE_INPUTS) + ". The funding status and reference position "
-        "printed above are computed; do not call a case unassessed or uncalibrated unless they say so. Code then "
+        "printed above are computed; do not call a case unassessed or uncalibrated unless they say so. A limit that "
+        "applies equally to every case, or an uncertainty you cannot size, is expressed through lower weights and the "
+        "downside case, not by rejecting. Reject a case only when you can state the value the rejected input should "
+        "take and that value changes the case materially; say that value in the reason. Code then "
         "compares the weighted value of your accepted cases with the completed close. If your rating points the "
         "other way by more than 10 percent, state why in rating_basis_reason. This is a labelled conditional range, "
         "never a price target.")

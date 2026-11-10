@@ -160,6 +160,9 @@ def test_manager_sees_each_case_with_its_funding_and_reference():
     assert "Funding partial: x." in text and "Implied 3.65×." in text
     assert "revenue_forecast, multiple, shares, cash, obligations, funding" in text
     assert "never a price target" in text
+    # Without this standard the live manager rejected every case on limits common to all of them.
+    assert "Reject a case only when you can state the value the rejected input should take" in text
+    assert "expressed through lower weights and the downside case, not by rejecting" in text
 
 
 # Wiring: the manager's call, the decision card and the operational score -------

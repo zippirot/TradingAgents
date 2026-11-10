@@ -1,0 +1,20 @@
+== Q1/Q2 on the two saved cases
+- Base: FY2027 at management 60%+ floor, cash repa: 74.447 | funding partial | band median_to_high
+   Funding partial: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes.
+- Downside: slower 2027 capacity ramp, lower multi: 52.751 | funding partial | band low_to_median
+   Funding partial: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes.
+
+== Q3 card, as the run recorded it (decision made before this contract)
+**Basis**: risk assessment. The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.
+
+== Q3 card, same decision under the new contract with no scenario_view
+**Basis**: risk assessment. The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.
+**Conditional scenario range (not a price target)**: decision basis is opinion only; the Portfolio Manager did not address the priced cases. scenario_view is missing: every priced case needs an accepted or rejected entry.
+
+== Q3 card, stub answer accepting both cases 60/40
+**Basis**: conditional scenarios. The rating is checked against the scenario cases the Portfolio Manager accepted; they are assumptions with subjective weights, not a price target or a demonstrated expected return.
+**Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+- unlabelled — Base: FY2027 at management 60%+ floor, cash repay of 2026 notes: 74.45 USD/shares; funding partial; accepted, weight 0.60. Reason (unvalidated): Stub answer for the offline replay.
+- unlabelled — Downside: slower 2027 capacity ramp, lower multiple: 52.75 USD/shares; funding partial; accepted, weight 0.40. Reason (unvalidated): Stub answer for the offline replay.
+Accepted range 52.75 USD/shares to 74.45 USD/shares; weighted value 65.77 USD/shares, -16.0% against the 2026-11-09 close of 78.31 USD/shares (range -32.6% to -4.9%). Direction: below the close, using a 10 percent threshold.
+Rating check: the rating does not point against the accepted scenarios.
