@@ -179,3 +179,7 @@ applicable, the builds run in Claude Code.
 My expectation, as a judgment only: Build 1 moves the valuation part from 5.5 to about 7; Build 2 to
 about 8; Build 3 moves portfolio construction from 5 to about 7 without your file and higher with it.
 That would put the total near 8.3 to 8.6. I would not promise 9.5.
+
+## Audit declaration for Build 3
+
+- Build size: small.
