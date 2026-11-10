@@ -1,0 +1,9 @@
+{
+  "currency": "USD",
+  "cash": 25000,
+  "portfolio_value": 250000,
+  "default_standard_weight": 0.04,
+  "loss_budget": 0.01,
+  "rating_weights": {"Buy": 1.5, "Overweight": 1.25, "Hold": 1.0, "Underweight": 0.5, "Sell": 0},
+  "positions": [{"ticker": "DOCN", "quantity": 150, "average_price": 92.4}]
+}

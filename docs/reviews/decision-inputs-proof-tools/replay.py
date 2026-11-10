@@ -5,6 +5,9 @@ Run from the repository root:  PYTHONPATH=. python docs/reviews/decision-inputs-
   record    the track-record scorecard from the real outcome store (read only), the same store copied
             with every 5-session window settled by hand-made prices, and the real memory entries as
             the manager now sees them.
+  sizing    the "Position and sizing" block for saved run c463bdac with the sample portfolio file beside
+            this script (made-up holdings), as the agents see it and as the report shows it, and the same
+            run with no file.
 """
 import glob
 import json
@@ -75,5 +78,39 @@ def record():
     print("...\n30-35% present:", "30-35%" in context, "| withheld notes:", context.count("Numeric sizing withheld"))
 
 
+def sizing():
+    import tempfile
+    from pathlib import Path
+
+    from tradingagents.agents.context import get_portfolio_context_from_state
+    from tradingagents.agents.output_validation import enforce_publication
+    from tradingagents.portfolio import load_portfolio
+    from tradingagents.reporting import evidence_snapshot, position_sizing_note, write_report_tree
+
+    book = load_portfolio(Path(__file__).with_name("sample-portfolio.json"))
+    state = saved("c463bdac")
+    plain = enforce_publication(state)["final_trade_decision"]
+    print("== no file: fixed sentence present:",
+          "Position sizing: qualitative only; no validated numerical allocation." in plain,
+          "| block:", repr(position_sizing_note(state)))
+    state.update(portfolio_context=book.render("DOCN"), portfolio_inputs=book.inputs())
+    print("\n== what the Trader, risk analysts and Portfolio Manager are given")
+    print(get_portfolio_context_from_state(state))
+    updated = {**state, **enforce_publication(state)}
+    print("\n== what the report shows above the decision")
+    print(position_sizing_note(updated))
+    line = [row for row in updated["final_trade_decision"].splitlines() if row.startswith("Position sizing:")]
+    print("\n== line in the published decision text:", line)
+    published = json.dumps([updated["final_trade_decision"], evidence_snapshot(updated)])
+    private = ("portfolio_value", "loss_budget", "rating_weights", "150 units", "4.7% of the portfolio",
+               "units fewer than you hold")
+    print("== published text and evidence contain any portfolio input or computed figure:",
+          [text for text in private if text in published], "| the fingerprint:", book.fingerprint() in published)
+    with tempfile.TemporaryDirectory() as scratch:
+        write_report_tree(updated, "DOCN", Path(scratch))
+        for name in ("complete_report.md", "complete_report.html"):
+            print(f"== {name} carries the block:", "Position and sizing" in (Path(scratch) / name).read_text())
+
+
 if __name__ == "__main__":
-    {"changes": changes, "record": record}[sys.argv[1] if len(sys.argv) > 1 else "changes"]()
+    {"changes": changes, "record": record, "sizing": sizing}[sys.argv[1] if len(sys.argv) > 1 else "changes"]()

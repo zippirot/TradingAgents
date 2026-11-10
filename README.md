@@ -335,6 +335,23 @@ The CLI takes the same content as a JSON file: `tradingagents --portfolio my_boo
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
 
+With no `--portfolio`, the CLI reads `~/.tradingagents/portfolio.json` when that file exists (`TRADINGAGENTS_PORTFOLIO_PATH` names another location). No file means no portfolio context, exactly as before.
+
+Sizing stays qualitative unless the file says how big the portfolio is. These optional fields turn it into arithmetic on your own inputs at the run's dated close:
+
+```json
+{
+  "currency": "USD",
+  "portfolio_value": 250000,
+  "default_standard_weight": 0.04,
+  "loss_budget": 0.01,
+  "rating_weights": {"Buy": 1.5, "Overweight": 1.25, "Hold": 1.0, "Underweight": 0.5, "Sell": 0},
+  "positions": [{"ticker": "NVDA", "quantity": 120, "standard_weight": 0.05}]
+}
+```
+
+`default_standard_weight` (or a position's own `standard_weight`) is a normal position as a fraction of the portfolio, `loss_budget` the most you accept losing on one position as a fraction of the portfolio, and `rating_weights` what each rating means as a multiple of the standard weight. The report then opens the decision with a "Position and sizing" block: current weight, above/at/below standard, the weight your scale gives the final rating and the units between here and there, and the loss at each advisory review level and at one average daily move against the budget. It is arithmetic, not an order. Percentages and units are shown; `"show_amounts": true` adds currency amounts. Whatever a field does not allow is left out and said so. The published decision record keeps only a fingerprint of the file.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.

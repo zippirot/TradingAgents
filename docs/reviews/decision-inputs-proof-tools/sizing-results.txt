@@ -1,0 +1,25 @@
+== no file: fixed sentence present: True | block: ''
+
+== what the Trader, risk analysts and Portfolio Manager are given
+Portfolio at the analysis date:
+- Current position in DOCN: 150 units, average price 92.40
+- Cash available: 25,000.00 USD
+
+**Position and sizing** (arithmetic on your portfolio file, file fingerprint e5861fa55e2a, at the 2026-11-09 close of 78.30 USD; not an order):
+- Current position in DOCN: 150 units, 4.7% of the portfolio.
+- Standard weight: 4.0%. The position is above standard (within 5 percent of the standard weight counts as at standard).
+- What each rating means on your scale: Buy 6.0% of the portfolio (about 42 units more than you hold); Overweight 5.0% of the portfolio (about 10 units more than you hold); Hold 4.0% of the portfolio (about 22 units fewer than you hold); Underweight 2.0% of the portfolio (about 86 units fewer than you hold); Sell 0.0% of the portfolio (about 150 units fewer than you hold).
+- Loss budget 1.00% of the portfolio: at the advisory review level 68.60 USD the position loses 0.58%, inside the budget; at one average daily move (5.5%, mean absolute close-to-close change over 14 sessions) the position loses 0.26%, inside the budget. Prices can gap through a level; these are not stops.
+These figures are computed from the caller's own inputs. Use them as stated facts about the position; do not restate different figures or invent others.
+
+== what the report shows above the decision
+**Position and sizing** (arithmetic on your portfolio file, file fingerprint e5861fa55e2a, at the 2026-11-09 close of 78.30 USD; not an order):
+- Current position in DOCN: 150 units, 4.7% of the portfolio.
+- Standard weight: 4.0%. The position is above standard (within 5 percent of the standard weight counts as at standard).
+- For the final rating Underweight on your scale: 2.0% of the portfolio (about 86 units fewer than you hold).
+- Loss budget 1.00% of the portfolio: at the advisory review level 68.60 USD the position loses 0.58%, inside the budget; at the advisory review level 68.92 USD the position loses 0.56%, inside the budget; at one average daily move (5.5%, mean absolute close-to-close change over 14 sessions) the position loses 0.26%, inside the budget. Prices can gap through a level; these are not stops.
+
+== line in the published decision text: ['Position sizing: see the Position and sizing block in the report, arithmetic on the portfolio inputs supplied for this run (file fingerprint e5861fa55e2a); not an order.']
+== published text and evidence contain any portfolio input or computed figure: [] | the fingerprint: True
+== complete_report.md carries the block: True
+== complete_report.html carries the block: True

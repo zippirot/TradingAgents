@@ -616,6 +616,12 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
     """
     context = state.get("portfolio_context")
     if isinstance(context, str) and context.strip():
+        from tradingagents.portfolio import render_sizing, sizing_from_state
+
+        block = render_sizing(sizing_from_state(state))
+        if block:
+            context += ("\n\n" + "\n".join(block) + "\nThese figures are computed from the caller's own inputs. "
+                        "Use them as stated facts about the position; do not restate different figures or invent others.")
         return context
     return (
         "Portfolio context: not provided. You do not know the caller's current "

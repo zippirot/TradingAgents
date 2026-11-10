@@ -156,9 +156,16 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         "Research evidence summary\n\n" + context
         + "\n\nUnvalidated model reasoning is retained in diagnostics.json."
     )
+    from tradingagents.portfolio import sizing_from_state
+    sized = sizing_from_state(state)
+    # With the caller's portfolio value the report carries a computed block; the record keeps only its fingerprint.
+    sizing_line = (f"Position sizing: see the Position and sizing block in the report, arithmetic on the portfolio "
+                   f"inputs supplied for this run (file fingerprint {sized.get('fingerprint')}); not an order."
+                   if sized["status"] == "available" else None)
     updates["trader_investment_plan"] = (
-        "Position sizing: qualitative guidance only. A numerical allocation is "
-        "not published without verified portfolio, loss-budget and execution/gap assumptions.\n\n"
+        (sizing_line + "\n\n" if sizing_line else
+         "Position sizing: qualitative guidance only. A numerical allocation is "
+         "not published without verified portfolio, loss-budget and execution/gap assumptions.\n\n") +
         "Technical entry and stop proposals remain unvalidated model diagnostics; "
         "they are not fundamental fair value."
     )
@@ -221,6 +228,8 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         updates.update(continuity)
     updates["unvalidated_outputs"] = originals
     card = _decision_card({**state, **updates}, publication_config)
+    if sizing_line:
+        card["portfolio_fingerprint"] = sized.get("fingerprint")
     updates["decision_context"] = card
     disputed = (card.get('adopted_case') or {}).get('disputed_by')
     if disputed:
@@ -251,7 +260,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         + render_decision_context(card, include_mechanical=False, include_cases=False) + '\n\n' + target_text
         + '\n\n' + render_case_summary(card, include_mechanical=False)
         + f"\n\n**Canonical evidence**:\n\n{context}\n\n"
-        'Position sizing: qualitative only; no validated numerical allocation.\n\n'
+        + (sizing_line or 'Position sizing: qualitative only; no validated numerical allocation.') + '\n\n'
         'Original model narrative is retained separately in diagnostics.json.'
     )
     return updates

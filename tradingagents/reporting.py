@@ -330,6 +330,15 @@ def stale_price_note(state) -> str:
             f"source; all price and indicator figures use {_plain_markdown(selected)}.")
 
 
+def position_sizing_note(state) -> str:
+    """The 'Position and sizing' block when the run was given a portfolio value; otherwise nothing."""
+    from tradingagents.portfolio import render_sizing, sizing_from_state
+
+    if not isinstance(state, dict) or not state.get("final_rating"):
+        return ""
+    return "\n".join(render_sizing(sizing_from_state(state, final=True), final=True))
+
+
 def prepare_report_state(final_state: dict, *, publication_config: dict | None = None) -> dict:
     """Return readable research without changing canonical state or memory inputs.
 
@@ -338,6 +347,10 @@ def prepare_report_state(final_state: dict, *, publication_config: dict | None =
     decision consumers; this copy is for presentation only.
     """
     prepared = _prepare_report_state(final_state, publication_config=publication_config)
+    sizing = position_sizing_note(prepared)
+    if sizing and isinstance(prepared.get("final_trade_decision"), str) and prepared["final_trade_decision"]:
+        # Arithmetic on the reader's own file, shown with the decision and kept out of the published record.
+        prepared["final_trade_decision"] = sizing + "\n\n" + prepared["final_trade_decision"]
     stale = stale_price_note(prepared)
     if stale:
         # Every price and indicator below is a session old; say so where the reader
@@ -782,6 +795,7 @@ def _write_report_tree_locked(
         + (f"- Analysis date: {_plain_markdown(final_state['trade_date'])}\n\n"
            if final_state.get("trade_date") else "")
         + ground_truth_text + "\n" + (stale_price_note(final_state) + "\n\n" if stale_price_note(final_state) else "")
+        + (position_sizing_note(final_state) + "\n\n" if position_sizing_note(final_state) else "")
         + _summary_markdown(summary) + "\n" + _contents_markdown(parts) + "\n"
         + _header(ticker, final_state, display_settings, metadata_only=True) + "\n\n".join(sections)
         + "\n\n---\n\n" + render_token_usage(final_state.get("run_metrics")) + "\n"

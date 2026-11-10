@@ -120,7 +120,7 @@ def _validate_trade_date(trade_date) -> str:
 # Config keys that do not change what a run writes: where it keeps its files,
 # whether it checkpoints, and how often it retries a provider.
 _NOT_IN_SIGNATURE = frozenset({
-    "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "results_dir", "data_cache_dir", "memory_log_path", "portfolio_path", "checkpoint_enabled", "llm_max_retries",
     "input_cost_per_million", "output_cost_per_million",
 })
 
@@ -565,6 +565,8 @@ class TradingAgentsGraph:
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
         )
 
+        if portfolio is not None:
+            state["portfolio_inputs"] = portfolio.inputs()
         state["run_metrics"] = self._initial_run_metrics()
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()
@@ -953,7 +955,7 @@ class TradingAgentsGraph:
             if field in final_state:
                 entry[field] = final_state[field]
 
-        for field in ("ground_truth_source_documents", "ground_truth_source_acquisition", "ground_truth_audit", "ground_truth_prepublication", "ground_truth_reassessment", "ground_truth_execution", "operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "document_followup_judgments", "prompt_evidence_references", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "decision_brief", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "filing_terms_evidence", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
+        for field in ("ground_truth_source_documents", "ground_truth_source_acquisition", "ground_truth_audit", "ground_truth_prepublication", "ground_truth_reassessment", "ground_truth_execution", "operational_observations", "executive_summary", "audit_market_tool_evidence", "audit_social_tool_evidence", "audit_news_tool_evidence", "audit_fundamentals_tool_evidence", "advisory_audit", "run_metrics", "valuation_reference", "valuation_reference_brief", "vendor_expectations", "analysis_clock", "asset_type", "document_sources", "transcript_sources", "document_search_trace", "document_followups", "document_followup_judgments", "prompt_evidence_references", "market_observation_cutoff", "evidence_acquisition", "shared_source_brief", "prior_thesis", "thesis_context", "thesis_candidate", "thesis", "thesis_version_id", "price_observation", "valuation_price_comparison", "price_implied_valuation", "mechanical_valuation_grid", "decision_context", "decision_brief", "portfolio_inputs", "event_comparison", "issuer_identity", "news_coverage", "issuer_event_evidence", "evaluation_mode", "outcome_summary", "run_id", "publication_versions", "publication_record", "evidence_quality", "financial_evidence", "financial_calculations", "financial_claim_validation", "canonical_financial_context", "filing_evidence", "filing_fact_extraction", "filing_terms_evidence", "disclosure_evidence", "target_validation", "unvalidated_outputs", "shared_valuation_scenarios"):
             if field in final_state:
                 entry[field] = final_state[field]
 

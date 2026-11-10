@@ -12,7 +12,7 @@ from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
-from tradingagents.portfolio import load_portfolio
+from tradingagents.portfolio import default_portfolio_path, load_portfolio
 
 # prompt_toolkit's win32 output module is importable only on Windows (it asserts
 # the platform at import time), so gate on the platform rather than catching the
@@ -85,6 +85,8 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     portfolio_context = None
+    # With no --portfolio, the user's own file is picked up when it exists; no file means no portfolio context.
+    portfolio = portfolio or default_portfolio_path()
     if portfolio:
         try:
             portfolio_context = load_portfolio(portfolio)

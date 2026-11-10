@@ -19,6 +19,7 @@ from tradingagents.reporting import (
     _DESCRIPTIONS,
     analyst_names,
     historical_anchors,
+    position_sizing_note,
     prepare_report_state,
     render_token_usage,
     report_sections,
@@ -427,6 +428,9 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 
     stale = stale_price_note(final_state)
     stale_html = f'<p class="notice">{md.renderInline(stale)}</p>' if stale else ""
+    sizing = position_sizing_note(final_state)
+    if sizing:
+        stale_html += f'<section class="notice">{md.render(sizing)}</section>'
     summary_html = (
         '<section class="summary" aria-labelledby="executive-summary">'
         '<h2 id="executive-summary">Executive summary</h2>'
