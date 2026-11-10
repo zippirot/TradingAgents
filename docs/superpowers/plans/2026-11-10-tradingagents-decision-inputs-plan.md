@@ -1,6 +1,6 @@
 # TradingAgents: decision inputs plan (Build Q) — portfolio, what changed, feedback
 
-**Status:** decisions made 2026-11-10 (see "Decisions"). Build NOT started and not yet authorised to start: no worktree or goal has been created. The user asked for the plan only.
+**Status:** decisions made 2026-11-10 (see "Decisions"). Start instructed by the user 2026-11-10; built on branch `claude/decision-inputs-20261110` from `e2db2dd6` (staging had moved on from the base named below). Evidence and plan adjustments: `docs/reviews/2026-11-10-decision-inputs.md`. Not merged, pushed or installed.
 **Written:** 2026-11-10. **Repo:** `~/Documents/ChatGPT/Tauric/TradingAgents` (GitHub `zippirot/TradingAgents`).
 **Base:** `staging` = `origin/staging` = launcher = `3e517089`.
 **Scope:** items 4, 5 and 6 from the decision-quality breakdown. Items 1 to 3 (scenario-based decision, checked multiple, funding inside the case) are a separate plan, not written yet.
@@ -62,7 +62,8 @@ None of these changes how the rating itself is reached. That is items 1 to 3.
 
 ## Estimate
 
-- Build size: medium (three independent tasks, three commits, one audit).
+- Build size: medium.
+- Shape: three independent tasks, three commits, one audit.
 - Recommended model: Claude Fable 5.2, `claude-fable-5-2`, medium effort. Each task has a clear contract and offline proof; none involves cross-system reasoning.
 - Wall-clock: 5 to 9 active hours including the audit and closure. Q1 about 2 to 3, Q2 about 2 to 4, Q3 about 1 to 2. The last three builds finished in roughly half their estimates.
 - Paid calls: none in the build. Audit about $1.
