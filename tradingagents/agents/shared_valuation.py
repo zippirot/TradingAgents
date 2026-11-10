@@ -182,7 +182,11 @@ def prepare_shared_valuation(state, requests=None):
         if len(valid_names) != len(set(valid_names)):
             raise ValueError("Scenario names must be distinct")
     except (ValidationError, ValueError, TypeError, OverflowError):
-        return _record("unavailable", reasons=("Shared scenario inputs or canonical evidence are missing, malformed, duplicated or oversized.",))
+        record = _record("unavailable", reasons=("Shared scenario inputs or canonical evidence are missing, malformed, duplicated or oversized.",))
+        if isinstance(requests, list) and requests:
+            # The submission itself is not retained; its size is, so the loss stays visible.
+            record["rejected_submissions"] = len(requests)
+        return record
 
     outlooks = grounded_outlooks(state)
     rows, reasons, comparisons, notes = [], [], [], []

@@ -229,7 +229,10 @@ def _capability_findings(state) -> list[dict]:
     findings = []
     scenarios = state.get("shared_valuation_scenarios")
     if isinstance(scenarios, Mapping) and isinstance(scenarios.get("requests"), list) and isinstance(scenarios.get("rows"), list):
-        submitted, priced = len(scenarios["requests"]), len(scenarios["rows"])
+        priced = len(scenarios["rows"])
+        whole = scenarios.get("rejected_submissions")
+        # A submission rejected as a collection retains only its size.
+        submitted = max(len(scenarios["requests"]), whole if type(whole) is int and 0 < whole <= 1024 else 0)
         if priced < submitted:
             code = "valuation_case_rejected" if priced else "valuation_cases_rejected"
             findings.append({"score": REASONS[code][0], "code": code, "stage": "Valuation Scenarios",

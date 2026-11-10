@@ -337,6 +337,24 @@ def prepare_report_state(final_state: dict, *, publication_config: dict | None =
     same labeled research shown by CLI/Markdown/HTML. Use the original state for
     decision consumers; this copy is for presentation only.
     """
+    prepared = _prepare_report_state(final_state, publication_config=publication_config)
+    stale = stale_price_note(prepared)
+    if stale:
+        # Every price and indicator below is a session old; say so where the reader
+        # starts, on the full, REVIEW and legacy presentations alike.
+        for field in ("final_trade_decision", "market_report"):
+            if isinstance(prepared.get(field), str) and prepared[field]:
+                prepared[field] = stale + "\n\n" + prepared[field]
+    return prepared
+
+
+def _prepare_report_state(final_state: dict, *, publication_config: dict | None = None) -> dict:
+    """Return readable research without changing canonical state or memory inputs.
+
+    Python callers may pass the state returned by propagate() here for the
+    same labeled research shown by CLI/Markdown/HTML. Use the original state for
+    decision consumers; this copy is for presentation only.
+    """
     prepared = {**final_state, **enforce_publication(final_state, publication_config=publication_config)}
     if (prepared.get("evidence_quality") or {}).get("status") == "insufficient":
         diagnostics = dict(prepared.get("unvalidated_outputs") or {})
@@ -417,12 +435,6 @@ def prepare_report_state(final_state: dict, *, publication_config: dict | None =
         table = render_shared_valuation(scenarios)
         if table:
             prepared["fundamentals_report"] = table + "\n\n" + (prepared.get("fundamentals_report") or "")
-    stale = stale_price_note(prepared)
-    if stale:
-        # Every price and indicator below is a session old; say so where the reader starts.
-        for field in ("final_trade_decision", "market_report"):
-            if isinstance(prepared.get(field), str) and prepared[field]:
-                prepared[field] = stale + "\n\n" + prepared[field]
     if isinstance(prepared.get("trader_investment_plan"), str):
         prepared["trader_investment_plan"] = label_legacy_trader_price(prepared["trader_investment_plan"])
     return prepared

@@ -103,6 +103,24 @@ def test_current_price_adds_no_stale_line():
     assert "Stale price" not in prepared["final_trade_decision"] + prepared["market_report"]
 
 
+@pytest.mark.parametrize("quality", [{"evidence_quality": {"status": "insufficient"}}, {}])
+def test_stale_price_also_leads_review_and_legacy_presentations(quality, tmp_path):
+    from tradingagents.reporting import write_report_tree
+
+    base = {"company_of_interest": "DOCN", "trade_date": "2026-11-09",
+            "final_trade_decision": "**Rating**: Hold", "market_report": "Market text", **quality}
+    prepared = prepare_report_state({**base, **_priced(_FALLBACK)})
+    assert prepared["final_trade_decision"].startswith(_STALE + "\n\n")
+    assert prepared["market_report"].startswith(_STALE + "\n\n")
+    current = prepare_report_state({**base, **_priced()})
+    assert "Stale price" not in current["final_trade_decision"] + current["market_report"]
+    write_report_tree({**base, **_priced(_FALLBACK)}, "DOCN", tmp_path, settings={}, html=True)
+    assert (tmp_path / "1_analysts" / "market.md").read_text().startswith(_STALE)
+    assert (tmp_path / "5_portfolio" / "decision.md").read_text().startswith(_STALE)
+    for name in ("complete_report.md", "complete_report.html"):
+        assert (tmp_path / name).read_text().count("Stale price:") == 3
+
+
 def test_stale_price_sits_above_the_executive_summary_in_both_exports(tmp_path):
     from tradingagents.reporting import write_report_tree
 
@@ -154,6 +172,24 @@ def test_run_86aa515f_shape_is_degraded_and_names_both_losses():
 ])
 def test_intact_capability_keeps_a_clean_run_strong(extra):
     assert assess_audit({**observed(), **extra})["score"] == 5
+
+
+def test_cases_rejected_as_a_collection_still_lower_the_score():
+    """Duplicate names reject the whole submission before any row is priced."""
+    record = prepare_shared_valuation(state([revenue_case(), revenue_case()]))
+    assert record["rows"] == [] and record["requests"] == [] and record["rejected_submissions"] == 2
+    assessment = assess_audit({**observed(), "shared_valuation_scenarios": record})
+    assert assessment["score"] == 3
+    assert "Rejected: 2 of 2 submitted valuation cases." in assessment["findings"][0]["text"]
+
+
+def test_no_proposal_and_unreadable_counts_do_not_lower_the_score():
+    empty = prepare_shared_valuation(state([]))
+    assert "rejected_submissions" not in empty
+    assert assess_audit({**observed(), "shared_valuation_scenarios": empty})["score"] == 5
+    for count in (True, -1, "2", 2.0, None):
+        record = {"status": "unavailable", "requests": [], "rows": [], "reasons": [], "rejected_submissions": count}
+        assert assess_audit({**observed(), "shared_valuation_scenarios": record})["score"] == 5, count
 
 
 # Z4, Z5 --------------------------------------------------------------------
