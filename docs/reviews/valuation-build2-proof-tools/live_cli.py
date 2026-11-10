@@ -322,8 +322,8 @@ def assess(state, work):
             if basis != "equity":
                 equity -= sum(amounts[k] for k in categories[basis]) - Decimal(cap["cash"]["value"])
             per_share = equity / Decimal(cap["closing_shares"]["value"])
-        period_clock = ("trailing at the future valuation date" if req["multiple_period"] == "trailing"
-                        else "forward from the analysis date")
+        # One description whichever period word the analyst chose (decision-quality Part A, 2026-11-10).
+        period_clock = "applied at the period end to that period's revenue"
         identity = (row["case_id"], row["version"])
         expected_ids.add(identity)
         matches = [(g, c) for g, c in published if (c["case_id"], c["version"]) == identity]

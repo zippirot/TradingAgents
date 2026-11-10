@@ -164,8 +164,9 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
                    if sized["status"] == "available" else None)
     updates["trader_investment_plan"] = (
         (sizing_line + "\n\n" if sizing_line else
-         "Position sizing: qualitative guidance only. A numerical allocation is "
-         "not published without verified portfolio, loss-budget and execution/gap assumptions.\n\n") +
+         "Position sizing: no numerical allocation is published without verified portfolio, loss-budget and "
+         "execution/gap assumptions. A loss-based sizing ratio in the decision card, where one is stated, is "
+         "arithmetic on the accepted cases and not an allocation.\n\n") +
         "Technical entry and stop proposals remain unvalidated model diagnostics; "
         "they are not fundamental fair value."
     )
@@ -263,7 +264,8 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         + render_decision_context(card, include_mechanical=False, include_cases=False) + '\n\n' + target_text
         + '\n\n' + render_case_summary(card, include_mechanical=False)
         + f"\n\n**Canonical evidence**:\n\n{context}\n\n"
-        + (sizing_line or 'Position sizing: qualitative only; no validated numerical allocation.') + '\n\n'
+        + (sizing_line or 'Position sizing: no validated numerical allocation; any sizing ratio above is '
+           'arithmetic on the accepted cases.') + '\n\n'
         'Original model narrative is retained separately in diagnostics.json.'
     )
     return updates

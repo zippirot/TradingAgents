@@ -15,6 +15,17 @@ from tradingagents.agents.audit_evidence import (
 from tradingagents.attempt_trace import _model_id
 
 TYPES = ("unsupported_claim", "contradiction", "numerical_inconsistency")
+_COMPUTED_LIMIT = 1500
+
+
+def _computed_about(row) -> dict:
+    """The reference, funding and guidance lines code attached to a replayed case, bounded."""
+    position, funding, floor = (row.get(key) if isinstance(row.get(key), Mapping) else {}
+                                for key in ('reference_position', 'funding', 'guidance_floor'))
+    lines = {'multiple_reference': position.get('summary') if position.get('status') == 'available' else None,
+             'funding': ' '.join(str(funding[key]) for key in ('summary', 'limit') if funding.get(key)) or None,
+             'guidance_floor': floor.get('summary')}
+    return {key: str(value)[:_COMPUTED_LIMIT] for key, value in lines.items() if value}
 SOURCES = ("shared_source_brief", "canonical_financial_context", "valuation_reference_brief")
 ROLES = {
     "market_analyst": "market_report", "sentiment_analyst": "sentiment_report",
@@ -321,12 +332,16 @@ def _case_context(state):
             item = {'case_id': row['case_id'], 'name': row.get('name'),
                     'request': row.get('request')}
             encoded = json.dumps(item, ensure_ascii=False, default=str)
-            if len(encoded) <= _CASE_INPUT_LIMIT:
-                included.append(item)
-            else:
-                included.append({'case_id': row['case_id'], 'name': row.get('name'),
-                                 'request': f'omitted at {_CASE_INPUT_LIMIT}-character per-case input cap'})
+            if len(encoded) > _CASE_INPUT_LIMIT:
+                item = {'case_id': row['case_id'], 'name': row.get('name'),
+                        'request': f'omitted at {_CASE_INPUT_LIMIT}-character per-case input cap'}
                 omitted += 1
+            # What code computed about the case from retained filings. Without it a role that correctly
+            # restates the same-basis history or the funding figures reads as unsupported.
+            computed = _computed_about(row)
+            if computed:
+                item['computed_by_code'] = computed
+            included.append(item)
         return {'shared_valuation_cases': json.dumps(included, ensure_ascii=False, default=str),
                 'shared_valuation_case_ids': json.dumps(case_ids),
                 'shared_valuation_case_coverage': json.dumps({
@@ -441,7 +456,9 @@ def build_advisory_audit_prompt(state, *, _context=None):
         "inconsistencies first. Return findings: 0 to 20 records with role, quoted_claim, "
         "issue_type (unsupported_claim, contradiction, numerical_inconsistency), "
         "evidence_label (exact supplied label or null), explanation, and optional case_id "
-        "only when the claim concerns an exact replayed valuation case ID supplied below. The label may be "
+        "only when the claim concerns an exact replayed valuation case ID supplied below. Each case's "
+        "computed_by_code block was calculated by code from retained filings: a role claim that restates it "
+        "is supported, and the case_id is its evidence_label. The label may be "
         "a short display ID or a fact_id/source_id literally supplied below. Quote an "
         "exact short substring of the role text. Absence from supplied material is "
         "not proof that no source exists; an unlisted figure is unverified, not "

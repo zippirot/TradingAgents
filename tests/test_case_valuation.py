@@ -169,7 +169,9 @@ def test_trailing_at_future_date_never_rendered_or_pooled_as_forward():
     inputs = state([forward, trailing])
     record = prepare_shared_valuation(inputs)
     assert len(record["rows"]) == 2
-    assert "trailing at the future valuation date" in render_shared_valuation(record)
+    text = render_shared_valuation(record)
+    assert "applied at the period end to that period's revenue" in text
+    assert "forward from the analysis date" not in text and "trailing at the future valuation date" not in text
     inputs.update(shared_valuation_scenarios=record, final_rating="Hold",
                   unvalidated_outputs={"portfolio_manager":{"structured":{"time_horizon":"6 months"}}})
     groups = prepare_decision_context(inputs)["case_groups"]

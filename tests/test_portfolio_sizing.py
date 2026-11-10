@@ -231,10 +231,11 @@ def _published(monkeypatch, inputs):
 
 
 def test_the_fixed_qualitative_sentence_stays_without_inputs_and_is_replaced_with_them(monkeypatch):
-    fixed = "Position sizing: qualitative only; no validated numerical allocation."
+    fixed = ("Position sizing: no validated numerical allocation; any sizing ratio above is "
+             "arithmetic on the accepted cases.")
     _state_, plain = _published(monkeypatch, None)
     assert fixed in plain["final_trade_decision"] and "portfolio_fingerprint" not in plain["decision_context"]
-    assert plain["trader_investment_plan"].startswith("Position sizing: qualitative guidance only.")
+    assert plain["trader_investment_plan"].startswith("Position sizing: no numerical allocation is published without verified portfolio")
     _state_, legacy = _published(monkeypatch, book())
     assert legacy["final_trade_decision"] == plain["final_trade_decision"]
     inputs = full(100)

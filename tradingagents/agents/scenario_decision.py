@@ -79,6 +79,7 @@ def priced_cases(replayed) -> list[dict]:
                       "quote": _quote(row.get("comparison"), result.get("unit")),
                       "reference_band": position.get("band"), "reference_summary": position.get("summary", ""),
                       "reference_same_basis": position.get("basis") == "like_for_like",
+                      "guidance_floor": (row.get("guidance_floor") or {}).get("summary", ""),
                       "flagged_by": [str(item) for item in row.get("disputed_by") or ()]})
     return cases
 
@@ -282,7 +283,8 @@ def render_cases_for_manager(cases, required=None) -> str:
         today = f" ({Decimal(case['value_today']):.2f} {case['unit']} today)" if valued else ""
         lines.append(f"- case_id {case['case_id']}, version {case['version']}, role {case['role']}, "
                      f"\"{case['name']}\": {Decimal(case['price']):.2f} {case['unit']} at {case['period_end']}{today}. "
-                     f"{case['funding_summary']} {case.get('funding_bounds', '')} {case['reference_summary']}"
+                     f"{case['funding_summary']} {case.get('funding_bounds', '')} {case['reference_summary']} "
+                     f"{case.get('guidance_floor', '')}"
                      .replace("  ", " ").rstrip())
     lines.append(
         "Supply scenario_view with one entry per case above: case_id, version, disposition (accepted or rejected), "

@@ -7,11 +7,13 @@ should be.
 """
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 
 from pydantic import ValidationError
 
+from tradingagents.agents.rating import extract_rating
 from tradingagents.agents.valuation_reference import _ttm_at
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
@@ -128,6 +130,60 @@ def like_for_like(row, state) -> dict:
     return {"status": "available", "basis": basis, "multiple": str(multiple), "band": band, "low": str(low),
             "median": str(median), "high": str(high), "quarters": points, "excluded": excluded,
             "today": None if today is None else str(today), "summary": summary}
+
+
+def guidance_floor(row, state) -> dict | None:
+    """A case's revenue forecast against the arithmetic of management's own guidance, when both are retained.
+
+    The low end of the prior full-year guidance times one plus management's stated growth floor for the
+    case year. Stated as a comparison only; it never changes or rejects the case.
+    """
+    implied = state.get("price_implied_valuation")
+    request = row.get("request") or {}
+    forecast = request.get("forecast") if isinstance(request.get("forecast"), dict) else {}
+    if not isinstance(implied, dict) or implied.get("status") != "available":
+        return None
+    low = (implied.get("management_revenue_guidance_range_usd") or [None])[0]
+    low, growth, value = _decimal(low), _decimal(implied.get("growth_floor_percent")), _decimal(forecast.get("value"))
+    start, end = str(forecast.get("period_start") or ""), str(forecast.get("period_end") or "")
+    year, base_year = str(implied.get("growth_floor_period") or ""), implied.get("analysis_year")
+    guided = str(implied.get("management_revenue_guidance_period") or "")
+    if (None in (low, growth, value) or low <= 0 or value <= 0 or forecast.get("unit") != "USD"
+            or (start, end) != (f"{year}-01-01", f"{year}-12-31") or str(base_year) not in guided
+            or not year.isdigit() or int(year) != (base_year or 0) + 1):
+        return None
+    with localcontext() as ctx:
+        ctx.prec = 40
+        floor = low * (1 + growth / 100)
+        gap = (value / floor - 1) * 100
+    position = "at" if abs(gap) < Decimal("0.005") else "above" if gap > 0 else "below"
+    billions = Decimal(10) ** 9
+    summary = (f"Revenue forecast {value / billions:.3f}B is "
+               + ("at" if position == "at" else f"{abs(gap):.2f}% {position}")
+               + f" the {floor / billions:.4f}B that follows from the low end of {guided} guidance and management's "
+               f"{growth:.0f}% growth floor for {year}. The floor is management's statement, not a result.")
+    return {"floor": str(floor), "forecast": str(value), "gap_percent": str(gap), "position": position, "summary": summary}
+
+
+_RECOMMENDATION = re.compile(
+    r"(?im)^\s*(?:\*\*)?Recommendation(?:\*\*)?\s*:\s*(?:\*\*)?(Buy|Overweight|Hold|Underweight|Sell)\b")
+
+
+def research_rating(investment_plan) -> str | None:
+    """The Research Manager's five-way recommendation from its plan text, or None when absent or conflicting."""
+    text = investment_plan if isinstance(investment_plan, str) else ""
+    found = {value.title() for value in _RECOMMENDATION.findall(text[:12000])}
+    if len(found) == 1:
+        return found.pop()
+    return None if found else extract_rating(text)
+
+
+def action_reading(action, research_rating) -> str | None:
+    """How a three-way Trader action reads under a five-way research rating, or None when no reading is needed."""
+    reading = {("Sell", "Underweight"): "Reduce", ("Buy", "Overweight"): "Add"}.get((action, research_rating))
+    if reading is None:
+        return None
+    return f"{reading} (the Trader's {action} under the research rating {research_rating})"
 
 
 def reference_position(row, state) -> dict:

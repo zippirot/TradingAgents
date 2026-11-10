@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
 from tradingagents.agents.case_reference import (
+    guidance_floor,
     history_context,
     reference_position,
     render_history_context,
@@ -22,6 +23,7 @@ from tradingagents.agents.evidence_validation import _select_compatible_fact, ob
 from tradingagents.agents.retained_kpi_context import lease_maturities
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
 from tradingagents.agents.valuation_cases import (
+    MULTIPLE_CONSTRUCTION,
     RevenueCase,
     case_funding,
     obligation_bases,
@@ -392,6 +394,9 @@ def _prepare(state, requests):
     priced = [row for row in rows if row["result"]["method"] == "revenue_case"]
     for row in priced:
         row["reference_position"] = reference_position(row, state)
+        floor = guidance_floor(row, state)
+        if floor is not None:
+            row["guidance_floor"] = floor
     if any(row["reference_position"]["status"] == "available" for row in priced):
         record["reference_history"] = history_context(state)
         # The same quarters restated with borrowings less cash, beside the growth and margin they were valued at.
@@ -565,7 +570,7 @@ def render_shared_valuation(record):
         lines += ["Scenario | Method | Period | Conditional price / historical arithmetic", "--- | --- | --- | ---"]
         for row in rows:
             result = row["result"]
-            lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue", "revenue_case": row["request"].get("multiple_basis", "") + " / " + row["request"].get("multiple_period", "") + " revenue"}[result["method"]],
+            lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue", "revenue_case": row["request"].get("multiple_basis", "") + " / period revenue"}[result["method"]],
                 f"{result['valuation_period_start']} to {result['valuation_period_end']}",
                 _summary_value(row) if result['status'] == 'supported'
                 else "Unavailable — unfunded scenario")))
@@ -591,7 +596,7 @@ def render_shared_valuation(record):
                 lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; shown flagged in the conditional range. Arithmetic retained unchanged.')
             if result["method"] == "revenue_case":
                 request = row["request"]
-                clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"
+                clock = MULTIPLE_CONSTRUCTION
                 lines.append(f"{_cell(request['multiple_basis'])} / revenue ({clock}): {display_number(request['forecast']['value'])} × {display_number(request['multiple'])}; " +
                              ("equity basis, no debt or cash adjustment" if request['multiple_basis'] == 'equity' else f"less net obligations {display_number(result['net_obligations'])}") +
                              f"; divide by {display_number(result['shares_outstanding'])} assumed closing common shares at {request['capital']['valuation_date']}.")
@@ -601,6 +606,8 @@ def render_shared_valuation(record):
                 position = row.get("reference_position")
                 if isinstance(position, dict) and position.get("status") == "available":
                     lines.append(_cell(position["summary"]))
+                if isinstance(row.get("guidance_floor"), dict):
+                    lines.append(_cell(row["guidance_floor"]["summary"]))
                 supplemental = row.get("source_bound_sensitivity_requests", {})
                 for basis, price in row["sensitivities"].items():
                     assumptions = []

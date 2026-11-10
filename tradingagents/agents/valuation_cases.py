@@ -113,6 +113,12 @@ def _validate_capital_bridge(capital, refs):
 
 
 _NOTE_SCALE = {"USD": 1, "USD thousands": 1000, "USD millions": 1_000_000}
+# How every revenue case is priced: its multiple times the case period's revenue, with shares and net
+# obligations at the period end. The same construction as a past quarter's value over the preceding
+# twelve months' revenue, which is what the same-basis history states.
+MULTIPLE_CONSTRUCTION = "applied at the period end to that period's revenue"
+# A stated finance-payment total this close to the filing's schedule is the schedule, typed with a slip.
+FUNDING_TOLERANCE = Decimal("0.001")
 FUNDING_LIMIT = "Rent on leases that have not commenced is not modelled; no discounting."
 
 
@@ -259,7 +265,7 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
         reasons.insert(0, f"The payment schedule dated {snapshot_date} does not state every year through {end}."
                        if years else
                        f"No finance-lease and equipment payment schedule dated {snapshot_date} was retained.")
-    elif stated < scheduled:
+    elif scheduled - stated > scheduled * FUNDING_TOLERANCE:
         reasons.insert(0, (f"Scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
                            "are not stated in the case's cash changes." if stated <= 0 else
                            f"Scheduled finance and equipment payments are {_money(scheduled, currency)} through {end}; "
@@ -299,8 +305,8 @@ def price_case(request, package, outlooks, terms=None):
         raise ValueError("Multiple needs the analysis date and a stated rationale")
     # Both views use the explicitly forecast annual period. It is historical
     # relative only to its assumed future closing date, never observed today.
-    period_label = ("trailing at the future valuation date" if request.multiple_period == "trailing"
-                    else "forward from the analysis date")
+    # The arithmetic is the same whichever period word the analyst chose, so one description is printed.
+    period_label = MULTIPLE_CONSTRUCTION
     obligations = capital.obligations
     bases = obligation_bases(obligations)
     if set(obligations) - set(bases["all_leases"]):

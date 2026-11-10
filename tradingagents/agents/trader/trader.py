@@ -6,6 +6,7 @@ import re
 
 from langchain_core.messages import AIMessage
 
+from tradingagents.agents.case_reference import action_reading, research_rating
 from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
@@ -27,6 +28,16 @@ _ACTION_LINE = re.compile(r"^\W*(?:action|final transaction proposal)\W+(?:buy|h
 _REASONING = re.compile(r"^\W*reasoning\b", re.I | re.M)
 _HEADING = re.compile(r"^[ \t]*(?:\*\*(?P<bold>[^*\n]+)\*\*|#{1,6}[ \t]+(?P<hash>[^\n]+))", re.M)
 _CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
+
+
+def _reading(text: str, investment_plan: str) -> str:
+    """One line saying how the Trader's three-way action reads under the research rating, or ''."""
+    actions = re.findall(r"(?im)^\s*(?:\*\*)?Action(?:\*\*)?\s*:\s*(?:\*\*)?(Buy|Hold|Sell)\b", text or "")
+    reading = action_reading(actions[0].title(), research_rating(investment_plan)) if actions else None
+    if reading is None:
+        return ""
+    return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "
+            "research rating it is a change in the size of an existing position, not an exit or a new position.")
 
 
 def _carried_plan(investment_plan: str) -> str:
@@ -58,7 +69,7 @@ def _complete_fallback(text: str, investment_plan: str) -> str:
         # A localized run may translate the label, so only English can be checked.
         raise ValueError("Trader free-text fallback has no Action line; no plan published")
     note = "" if _REASONING.search(text or "") else "\n\nThe free-text fallback has no Reasoning section."
-    return f"{text}{note}\n\n{_carried_plan(investment_plan)}"
+    return f"{text}{note}{_reading(text, investment_plan)}\n\n{_carried_plan(investment_plan)}"
 
 
 def create_trader(llm):
@@ -136,7 +147,8 @@ def create_trader(llm):
             messages,
             # The Research Manager's actions and triggers follow the proposal on
             # this path too, not only on the free-text fallback.
-            lambda proposal: f"{render_trader_proposal(proposal)}\n\n{_carried_plan(investment_plan)}",
+            lambda proposal: (lambda text: f"{text}{_reading(text, investment_plan)}\n\n{_carried_plan(investment_plan)}")(
+                render_trader_proposal(proposal)),
             "Trader",
             finish_freetext=lambda text: _complete_fallback(text, investment_plan),
         )

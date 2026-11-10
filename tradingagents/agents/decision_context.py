@@ -6,8 +6,13 @@ import re
 from datetime import date, timedelta
 from decimal import Decimal
 
+from tradingagents.agents.case_reference import action_reading, research_rating
 from tradingagents.agents.issuer_events import financing_sensitivities
-from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
+from tradingagents.agents.rating import (
+    RATINGS_5_TIER,
+    normalized_evidence_quality,
+    run_rating,
+)
 from tradingagents.agents.scenario_decision import (
     LABEL as SCENARIO_LABEL,
     render as render_scenario_decision,
@@ -15,7 +20,11 @@ from tradingagents.agents.scenario_decision import (
 )
 from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
 from tradingagents.agents.valuation import TargetResult, validate_target
-from tradingagents.agents.valuation_cases import CaseSelection, obligation_bases
+from tradingagents.agents.valuation_cases import (
+    MULTIPLE_CONSTRUCTION,
+    CaseSelection,
+    obligation_bases,
+)
 from tradingagents.agents.valuation_comparison import display_number, display_value
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage
@@ -201,15 +210,18 @@ def _case_groups(rows, scenario=None):
         if row["diagnostic_only"] or not result["decision_use"]["final_target_eligible"]:
             continue
         if request["method"] == "revenue_case":
-            clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"
+            clock = MULTIPLE_CONSTRUCTION
             basis = request["multiple_basis"] + " / revenue (" + clock + ")"
             share_basis = "closing common shares"
             share_ref = tuple(request["capital"]["closing_shares"]["fact_ids"])
+            # The analyst's period word no longer changes the printed label, but still keeps ranges apart.
+            period_word = request["multiple_period"]
         else:
             basis, share_basis = "forward P/E", request["eps_basis"] + " EPS"
             share_ref = (request["eps_fact_id"],)
+            period_word = ""
         key = (result["valuation_period_start"], result["valuation_period_end"], basis, share_basis,
-               share_ref, result["accounting_basis"], result["unit"])
+               share_ref, result["accounting_basis"], result["unit"], period_word)
         group = groups.setdefault(key, {"period_start": key[0], "period_end": key[1], "multiple_basis": basis,
             "share_basis": share_basis, "accounting_basis": key[5], "unit": key[6], "cases": []})
         capital = request.get("capital") or {}
@@ -355,7 +367,9 @@ def prepare_decision_context(state: dict) -> dict:
             'scenarios': {'status': replayed['status'], 'supported_count': supported_scenarios,
                           'diagnostic_count': sum(bool(row.get('diagnostic_only')) for row in replayed.get('rows', [])),
                           'disputed_count': sum(bool(row.get('disputed_by')) for row in replayed.get('rows', []))},
-            'trader_provisional': _trader(trader), 'conditions': condition_rows,
+            'trader_provisional': _trader(trader),
+            'trader_reading': action_reading(_trader(trader), research_rating(originals.get('investment_plan', state.get('investment_plan')))),
+            'conditions': condition_rows,
             'condition_warnings': [str(w) for w in thesis.get('warnings', []) if isinstance(w, str) and 'stated but not retained' in w],
             'proposed_changes': [], 'excerpts': excerpts[:4],
             'research_only': 'Advisory conditions do not enforce a rating. No validated stop, numerical allocation or broker instruction is published.'}
@@ -483,7 +497,7 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True, in
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
              f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}{flagged}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",
-             f"**Trader provisional action**: {_display(record['trader_provisional'])}; this is not the canonical Portfolio Manager rating."]
+             f"**Trader provisional action**: {_display(record.get('trader_reading') or record['trader_provisional'])}; this is not the canonical Portfolio Manager rating."]
     lines += ['Coverage limit: ' + _display(text) for text in coverage['limits']]
     lines += ['Target limitation: ' + _display(text) for text in record['target']['reasons']]
     if record['excerpts']:

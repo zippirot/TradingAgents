@@ -290,12 +290,26 @@ class ContinuationWire(live.OpenRouterWireGuard):
         return ticket
 
 
+_PERIOD_LABELS = ("forward from the analysis date", "trailing at the future valuation date",
+                  "applied at the period end to that period's revenue")
+
+
+def _one_label(text):
+    for label in _PERIOD_LABELS:
+        if isinstance(text, str) and text.endswith(", " + label + "."):
+            return text[: -len(label) - 1] + "<period label>."
+    return text
+
+
 def _retained(value):
     """A saved record without the fields derived again from retained evidence on every replay.
 
     The 2026-11-10 decision-basis build replaced the blanket funding warning on each
     revenue case with a computed status and added each case's position against the
-    company's own valuation history. Everything else must still match exactly.
+    company's own valuation history. The decision-quality Part A build of the same day
+    replaced the "forward from the analysis date" wording in each case's multiple sentence
+    with one description of the arithmetic, and added the guidance-floor note. Everything
+    else must still match exactly.
     """
     if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
         return value
@@ -304,7 +318,9 @@ def _retained(value):
         if isinstance(row, dict) and isinstance(row.get("result"), dict):
             result = dict(row["result"])
             result["warnings"] = [w for w in result.get("warnings") or [] if not str(w).startswith("Funding ")]
-            row = {k: v for k, v in row.items() if k not in {"funding", "reference_position"}} | {"result": result}
+            result["assumptions"] = [_one_label(text) for text in result.get("assumptions") or []]
+            row = {k: v for k, v in row.items()
+                   if k not in {"funding", "reference_position", "guidance_floor"}} | {"result": result}
         rows.append(row)
     return {**{k: v for k, v in value.items() if k != "reference_history"}, "rows": rows}
 
