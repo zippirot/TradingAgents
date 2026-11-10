@@ -35,9 +35,10 @@ reported borrowings balance retained for those dates).
 | Downside | 3.0x | between the low and the median | below the low |
 | Upside | 6.0x | between the median and the high | between the low and the median |
 
-Funding bounds, base case: interest is 13% of the scheduled payments, so at most 0.34 USD a share too low;
-rent on leases not yet commenced (2026-11 to 2028-06, about 266.2M USD a year once all have) makes the case
-0.00 to 2.57 USD a share too high if it is not in the operating cash flow figure.
+Funding figures, base case (as corrected after the audit, below): if operating cash flow is already after lease
+interest, the case is too low by at most 1.13 USD a share, about 0.34 if interest falls evenly across payments;
+if rent on leases not yet commenced (2026-11 to 2028-06) is not in the operating cash flow figure, a
+level-payment sensitivity puts the case 0.00 to 2.57 USD a share too high. The rent range is not a bound.
 
 Unchanged on the same replay: every case price, the weighted value today (63.64), direction (below) and
 operational score (5). The five 2026-11-09 runs keep their operational scores; the two with priced cases on
@@ -52,7 +53,7 @@ say which multiple is right. Six quarters that include a sharp run-up are a thin
 
 ## Checks
 
-- Full suite: 4,427 passed, 10 skipped, 1 deselected. `ruff check .`: clean.
+- Full suite at the audited commit: 4,427 passed, 10 skipped, 1 deselected; after closure 4,431. `ruff check .`: clean.
 - New tests (`tests/test_like_for_like.py`, 16): restated history from reported balances; placement in each
   band; the same case in a different band under the old comparison; equity basis; unsupported bases;
   missing, duplicated and non-USD balances; too few quarters; interest and rent bounds; a period ending
@@ -85,3 +86,23 @@ say which multiple is right. Six quarters that include a sharp run-up are a thin
 
 - A live run, including how the analyst and manager use the new reference.
 - Remote CI (unpushed).
+
+## Independent audit and closure (2026-11-10)
+
+Audit of `ea5549c6` by GPT-6 Astra (run d38f7c69, 22 turns, $0.67): three Medium findings, all on the funding
+figures; none on the same-basis reference. No High or Critical.
+
+| Finding | Verdict | Action |
+|---|---|---|
+| The interest figure spread remaining interest evenly across payments and called the result "up to". Interest can fall earlier than payments. | Confirmed, reproduced by a new test. | Fixed: the stated maximum is all imputed interest remaining on the schedule, capped at the payments the case deducts (1.13 USD a share on the base case). The even spread (0.34) is printed beside it, labelled as an assumption the filing does not state. |
+| The rent range assumed level payments over the average term and called itself a bound from the filing. | Confirmed, reproduced by a new test. The filing's total, average term and window do not fix a payment pattern, and the only true maximum (the whole commitment) is useless. | Fixed in wording, not arithmetic: it is called a level-payment sensitivity, the assumption is stated, and the text says the actual figure can fall outside the range. |
+| The double-counting sentence appeared even when a case deducted no finance payments. | Confirmed, reproduced by a new test. | Fixed: the interest figure is sized on the payments the case actually deducts (the lesser of stated and scheduled) and is omitted when it deducts none. |
+
+Also added, from the auditor's requirement table: the same-basis multiple now sits beside each quarter's growth
+and gross margin in the existing history line.
+
+Closure checks (ran): full suite 4,431 passed, 10 skipped, 1 deselected; `ruff check .` clean; replay of d58117ef
+shows the corrected wording and unchanged case prices, weighted value today (63.64), direction and score.
+
+**Scope points the auditor flagged as needing the user's acceptance, not defects:** the three plan adjustments
+above (no forward-revenue history, funding sized by code, no out-of-range gate) and peers not done.

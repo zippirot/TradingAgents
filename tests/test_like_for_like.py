@@ -107,16 +107,16 @@ TERMS = {"schedule_totals": {"total": "1059176000", "interest": "-135577000"},
 
 
 def test_funding_bounds_come_from_the_filing_and_never_from_the_case():
-    bounds = funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), TERMS)
-    # 320.453M of scheduled payments x 135.577 / 1,059.176 of interest = 41.0M; / 120.4M shares = 0.34.
-    assert Decimal(bounds["interest"]["per_share"]).quantize(Decimal("0.01")) == Decimal("0.34")
+    bounds = funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), TERMS, Decimal("320453000"))
+    # 320.453M of deducted payments x 135.577 / 1,059.176 of interest = 41.0M; / 120.4M shares = 0.34.
+    assert Decimal(bounds["interest"]["per_share_estimate"]).quantize(Decimal("0.01")) == Decimal("0.34")
     rent = bounds["rent"]
     # 2,955.158M / 11.1 years = 266.2M a year; 425 days from 2026-11-01 to 2027-12-31.
     assert Decimal(rent["annual_run_rate"]).quantize(Decimal("1e6")) == Decimal("266000000")
     assert (Decimal(rent["per_share_low"]), Decimal(rent["per_share_high"]).quantize(Decimal("0.01"))) == (0, Decimal("2.57"))
     text = funding_limit(bounds, "USD")
-    assert "too low by up to 0.34 USD a share (interest is 13% of the scheduled payments)" in text
-    assert "too high by 0.00 to 2.57 USD a share" in text and "The case does not say which applies" in text
+    assert "about 0.34 USD if interest falls evenly" in text
+    assert "by 0.00 to 2.57 USD a share" in text and "The case does not say which applies" in text
 
 
 def test_a_period_ending_after_the_commencement_window_has_a_floor_above_zero():
@@ -131,10 +131,59 @@ def test_a_period_ending_after_the_commencement_window_has_a_floor_above_zero():
                 {**TERMS["leases"][0], "commencement_start": "soon"}, "text"]},
 ])
 def test_unusable_terms_state_no_bound(terms):
-    assert funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), terms) == {}
+    assert funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), terms, Decimal("320453000")) == {}
     assert funding_limit({}, "USD") == FUNDING_LIMIT
 
 
 def test_an_equity_basis_case_carries_no_bounds_because_cash_does_not_enter_its_value():
-    bounds = funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), TERMS)
+    bounds = funding_bounds(_capital(), date(2026, 9, 30), Decimal("320453000"), TERMS, Decimal("320453000"))
     assert funding_limit(bounds, "USD", counts_cash=False) == FUNDING_LIMIT
+
+
+def _bounds(stated, scheduled="320453000", terms=TERMS):
+    return funding_bounds(_capital(), date(2026, 9, 30), None if scheduled is None else Decimal(scheduled), terms,
+                          Decimal(stated))
+
+
+def test_the_interest_figure_is_a_true_maximum_with_the_even_spread_labelled_as_an_estimate():
+    """Audit finding: a lifetime-average share was printed as 'up to'. Interest can fall earlier than payments do."""
+    item = _bounds("320453000")["interest"]
+    # The most interest the period's payments can hold is all remaining imputed interest, 135.577M: 1.13 a share.
+    assert Decimal(item["per_share_maximum"]).quantize(Decimal("0.01")) == Decimal("1.13")
+    assert Decimal(item["per_share_estimate"]).quantize(Decimal("0.01")) == Decimal("0.34")
+    text = funding_limit(_bounds("320453000"), "USD")
+    assert "too low by at most 1.13 USD a share" in text and "about 0.34 USD if interest falls evenly" in text
+    assert "an assumption the filing does not state" in text
+    # Payments smaller than the remaining interest cap the maximum at the payments themselves.
+    small = _bounds("100000000", scheduled="100000000")["interest"]
+    assert Decimal(small["maximum"]) == Decimal("100000000")
+
+
+def test_no_double_counting_is_claimed_for_payments_the_case_does_not_deduct():
+    """Audit finding: the warning appeared even when the case deducted no finance payments."""
+    assert "interest" not in _bounds("0") and "interest" not in _bounds("-5")
+    assert "count that interest twice" not in funding_limit(_bounds("0"), "USD")
+    # A case deducting part of the schedule can only double count interest inside what it deducts.
+    part = _bounds("100000000")["interest"]
+    assert Decimal(part["maximum"]) == Decimal("100000000")
+    assert Decimal(part["estimate"]).quantize(Decimal("1")) == (Decimal("100000000") * Decimal("135577000") / Decimal("1059176000")).quantize(Decimal("1"))
+    assert "interest" not in _bounds("320453000", scheduled=None)
+
+
+def test_rent_is_called_a_level_payment_sensitivity_not_a_bound():
+    """Audit finding: commitments, an average term and a window do not establish level payments."""
+    text = funding_limit(_bounds("320453000"), "USD")
+    assert "sized from the filing" in text and "bounded from the filing" not in text
+    assert "if payments were level over the weighted-average term" in text
+    assert "0.00 to 2.57 USD a share" in text and "The filing gives no payment schedule, so the actual figure can fall outside this range" in text
+
+
+def test_the_same_basis_figure_sits_beside_the_growth_and_margin_of_its_quarter():
+    from tradingagents.agents.case_reference import render_history_context
+
+    text = render_history_context([
+        {"quarter_end": "2024-12-31", "multiple": "4.03", "same_basis_multiple": "5.38",
+         "revenue_growth_percent": None, "gross_margin_percent": "59.7"},
+        {"quarter_end": "2025-03-31", "multiple": "3.78", "revenue_growth_percent": None, "gross_margin_percent": "60.3"}])
+    assert "2024-12-31 4.03×, 5.38× with borrowings less cash (trailing revenue growth unavailable, gross margin 59.7%)" in text
+    assert "2025-03-31 3.78× (trailing revenue growth" in text

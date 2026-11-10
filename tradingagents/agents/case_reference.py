@@ -217,7 +217,10 @@ def render_history_context(quarters) -> str:
         number = _decimal(value)
         return "unavailable" if number is None else f"{number:.1f}%"
 
-    cells = [f"{q['quarter_end']} {_times(_decimal(q['multiple']))} (trailing revenue growth "
+    def same(q):
+        return f", {_times(_decimal(q['same_basis_multiple']))} with borrowings less cash" if q.get("same_basis_multiple") else ""
+
+    cells = [f"{q['quarter_end']} {_times(_decimal(q['multiple']))}{same(q)} (trailing revenue growth "
              f"{percent(q['revenue_growth_percent'])}, gross margin {percent(q['gross_margin_percent'])})"
              for q in quarters]
     return ("Own-history reference quarters, equity value / trailing revenue with the trailing-twelve-month growth "

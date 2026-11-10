@@ -140,19 +140,26 @@ def _month(text, *, last=False):
     return date(year + (month == 12), month % 12 + 1, 1).fromordinal(date(year + (month == 12), month % 12 + 1, 1).toordinal() - 1)
 
 
-def funding_bounds(capital, snapshot_date, scheduled, terms) -> dict:
-    """Two open questions about a case's cash bridge, each bounded from the filing. Never changes the case.
+def funding_bounds(capital, snapshot_date, scheduled, terms, stated=None) -> dict:
+    """Two open questions about a case's cash bridge, sized from the filing. Never changes the case.
 
     A case states operating cash flow as one figure. Whether that figure is before or after lease interest,
-    and whether it includes rent on leases that have not commenced, is not stated. The filing gives enough
-    to say how much each could move the case, per share.
+    and whether it includes rent on leases that have not commenced, is not stated.
+
+    Interest: only payments the case itself deducts can be counted twice. The most interest those payments
+    can hold is all the imputed interest remaining on the schedule, or the payments themselves if smaller;
+    that is a true maximum. An even spread of interest across payments is given beside it as an estimate.
+    Rent: the filing gives a total, an average term and a commencement window, not a payment schedule, so
+    the figures are a level-payment sensitivity and not a bound.
     """
     shares, end, bounds = capital.closing_shares.value, capital.valuation_date, {}
     totals = terms.get("schedule_totals") if isinstance(terms.get("schedule_totals"), dict) else {}
     total, interest = _amount(totals.get("total")), _amount(totals.get("interest"))
-    if scheduled is not None and scheduled > 0 and total is not None and interest is not None and 0 < abs(interest) < total:
-        amount = scheduled * abs(interest) / total
-        bounds["interest"] = {"amount": str(amount), "per_share": str(amount / shares),
+    deducted = min(stated, scheduled) if stated is not None and scheduled is not None else None
+    if deducted is not None and deducted > 0 and total is not None and interest is not None and 0 < abs(interest) < total:
+        most, even = min(deducted, abs(interest)), deducted * abs(interest) / total
+        bounds["interest"] = {"maximum": str(most), "per_share_maximum": str(most / shares),
+                              "estimate": str(even), "per_share_estimate": str(even / shares),
                               "share_of_payments": str(abs(interest) / total)}
     low = high = run_rate = Decimal(0)
     windows = []
@@ -185,15 +192,19 @@ def funding_limit(bounds, currency, counts_cash=True) -> str:
     parts = []
     if "interest" in bounds:
         item = bounds["interest"]
-        parts.append(f"if projected operating cash flow is already after lease interest, the scheduled payments count "
-                     f"that interest twice and the case is too low by up to {Decimal(item['per_share']):.2f} {currency} "
-                     f"a share (interest is {Decimal(item['share_of_payments']) * 100:.0f}% of the scheduled payments)")
+        parts.append(f"if projected operating cash flow is already after lease interest, the finance payments the case "
+                     f"deducts count that interest twice and the case is too low by at most "
+                     f"{Decimal(item['per_share_maximum']):.2f} {currency} a share (all imputed interest remaining on the "
+                     f"schedule), about {Decimal(item['per_share_estimate']):.2f} {currency} if interest falls evenly "
+                     f"across the payments, an assumption the filing does not state")
     if "rent" in bounds:
         item = bounds["rent"]
-        parts.append(f"if it leaves out rent on leases that have not commenced ({item['commencement']}; about "
-                     f"{_money(Decimal(item['annual_run_rate']), currency)} a year once all have), the case is too high by "
-                     f"{Decimal(item['per_share_low']):.2f} to {Decimal(item['per_share_high']):.2f} {currency} a share")
-    return ("Not in the case arithmetic, bounded from the filing: " + "; ".join(parts)
+        parts.append(f"if it leaves out rent on leases that have not commenced ({item['commencement']}), the case is too "
+                     f"high; if payments were level over the weighted-average term (about "
+                     f"{_money(Decimal(item['annual_run_rate']), currency)} a year once all have commenced), by "
+                     f"{Decimal(item['per_share_low']):.2f} to {Decimal(item['per_share_high']):.2f} {currency} a share. "
+                     "The filing gives no payment schedule, so the actual figure can fall outside this range")
+    return ("Not in the case arithmetic, sized from the filing: " + "; ".join(parts)
             + ". The case does not say which applies. No discounting.")
 
 
@@ -257,7 +268,7 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
     summary = (f"Funding assessed: scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
                "are stated and maturing notes are accounted for." if status == "assessed"
                else f"Funding {status}: " + " ".join(reasons))
-    bounds = funding_bounds(capital, snapshot_date, scheduled, terms) if counts_cash else {}
+    bounds = funding_bounds(capital, snapshot_date, scheduled, terms, stated) if counts_cash else {}
     return {"status": status, "scheduled_finance_payments": None if scheduled is None else str(scheduled),
             "stated_finance_payments": str(stated), "maturing_note_principal": str(principal),
             "reasons": reasons, "summary": summary, "bounds": bounds,

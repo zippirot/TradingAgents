@@ -394,6 +394,14 @@ def _prepare(state, requests):
         row["reference_position"] = reference_position(row, state)
     if any(row["reference_position"]["status"] == "available" for row in priced):
         record["reference_history"] = history_context(state)
+        # The same quarters restated with borrowings less cash, beside the growth and margin they were valued at.
+        restated = next((row["reference_position"]["like_for_like"] for row in priced
+                         if (row["reference_position"].get("like_for_like") or {}).get("basis") == "borrowings_only"
+                         and row["reference_position"]["like_for_like"]["status"] == "available"), None)
+        by_quarter = {point["quarter_end"]: point["multiple"] for point in (restated or {}).get("quarters", ())}
+        for quarter in record["reference_history"]:
+            if quarter["quarter_end"] in by_quarter:
+                quarter["same_basis_multiple"] = by_quarter[quarter["quarter_end"]]
     return record
 
 
