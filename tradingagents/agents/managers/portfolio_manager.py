@@ -225,6 +225,7 @@ Write in order, rating first:
             final_rating = parse_rating(final_trade_decision)
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
             original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT,
+                                             "scenario_contract": 1,
                                              "configured_horizon_months": horizon_months}
             target = TargetResult(
                 status="unsupported",

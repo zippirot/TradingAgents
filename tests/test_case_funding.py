@@ -85,6 +85,18 @@ def test_no_schedule_for_the_snapshot_is_unassessed_with_the_reason(schedule):
     assert funding["reasons"] == ["No finance-lease and equipment payment schedule dated 2026-09-30 was retained."]
 
 
+@pytest.mark.parametrize("years,valuation_date", [
+    ({"2026": Decimal("70400000")}, "2027-12-31"),
+    ({"2026": Decimal("70400000"), "2028": Decimal("249100000")}, "2028-12-31"),
+    (SCHEDULE["years"], "2029-12-31"),
+])
+def test_a_schedule_that_does_not_reach_the_case_date_is_not_assessed(years, valuation_date):
+    capital = _capital([("finance_payments", -900000000), ("debt", -312322000)], valuation_date=valuation_date)
+    funding = _check(capital, schedule={"as_of": SNAPSHOT, "years": years})
+    assert funding["status"] == "unassessed" and funding["scheduled_finance_payments"] is None
+    assert funding["reasons"] == [f"The payment schedule dated 2026-09-30 does not state every year through {valuation_date}."]
+
+
 def test_notes_outside_the_period_or_with_unknown_units_do_not_block():
     later = {**NOTE, "maturity_date": "2030-08-15"}
     assert _check(_capital([("finance_payments", -320400000)]), notes=[later])["status"] == "assessed"

@@ -131,7 +131,9 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms):
     stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
     reasons, scheduled = [], None
     years = schedule.get("years") if isinstance(schedule, dict) and schedule.get("as_of") == snapshot_date else None
-    if years:
+    # A year the table does not state is unknown, never zero.
+    covered = bool(years) and all(str(year) in years for year in range(snapshot_date.year, end.year + 1))
+    if years and covered:
         scheduled = Decimal(0)
         for label, amount in years.items():
             year = int(label)
@@ -166,7 +168,9 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms):
             reasons.append(f"{note['name'][:80]}: principal of {_money(amount, currency)} matures {matures}; "
                            f"the case accounts for {_money(covered, currency)} and borrowings fall below the snapshot.")
     if scheduled is None:
-        reasons.insert(0, f"No finance-lease and equipment payment schedule dated {snapshot_date} was retained.")
+        reasons.insert(0, f"The payment schedule dated {snapshot_date} does not state every year through {end}."
+                       if years else
+                       f"No finance-lease and equipment payment schedule dated {snapshot_date} was retained.")
     elif stated < scheduled:
         reasons.insert(0, (f"Scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
                            "are not stated in the case's cash changes." if stated <= 0 else

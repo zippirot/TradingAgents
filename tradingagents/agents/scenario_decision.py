@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation, localcontext
 
+from tradingagents.agents.case_reference import BANDS
+
 REJECTABLE_INPUTS = ("revenue_forecast", "multiple", "shares", "cash", "obligations", "funding")
 DIRECTION_THRESHOLD = Decimal("0.10")
 _BEARISH, _BULLISH = {"Sell", "Underweight"}, {"Buy", "Overweight"}
@@ -30,6 +32,15 @@ def _text(value, limit=600):
     return " ".join(value.split())[:limit] if isinstance(value, str) else ""
 
 
+def _quote(comparison, unit):
+    """The completed close this case was validated against on replay, or None when it is not comparable."""
+    price = comparison.get("price") if isinstance(comparison, dict) and comparison.get("status") == "available" else None
+    close = _decimal(price.get("close")) if isinstance(price, dict) else None
+    if close is None or close <= 0 or not isinstance(price.get("currency"), str) or price["currency"] + "/shares" != unit:
+        return None
+    return {"close": str(close), "currency": price["currency"], "session_date": price.get("session_date")}
+
+
 def priced_cases(replayed) -> list[dict]:
     """Cases with a price the manager can weigh: supported revenue cases no accepted audit finding disputes."""
     cases = []
@@ -43,6 +54,7 @@ def priced_cases(replayed) -> list[dict]:
                       "role": _text(row.get("scenario_role"), 40) or "unlabelled", "price": str(_decimal(result["target"])),
                       "unit": result.get("unit"), "period_end": result.get("valuation_period_end"),
                       "funding": funding.get("status", "unassessed"), "funding_summary": funding.get("summary", ""),
+                      "quote": _quote(row.get("comparison"), result.get("unit")),
                       "reference_band": position.get("band"), "reference_summary": position.get("summary", "")})
     return cases
 
@@ -59,12 +71,15 @@ def view_problems(cases, view) -> list[str]:
             problems.append("scenario_view entries must be objects.")
             continue
         key = (entry.get("case_id"), entry.get("version"))
+        if not isinstance(key[0], str) or type(key[1]) is not int:
+            problems.append("Each scenario_view entry needs a text case_id and an integer version.")
+            continue
         if key in seen:
             problems.append(f"Case {key[0]} is listed more than once.")
         seen[key] = entry
     known = {(case["case_id"], case["version"]) for case in cases}
     for key in seen:
-        if key not in known and key[0] is not None:
+        if key not in known:
             problems.append(f"Case {key[0]} version {key[1]} is not a priced case in this run.")
     accepted = 0
     for case in cases:
@@ -114,7 +129,7 @@ def summarize(state, replayed) -> dict:
     problems = view_problems(cases, view)
     if problems:
         return {"status": "unaddressed", "cases": cases, "problems": problems}
-    entries = {(e["case_id"], e["version"]): e for e in view}
+    entries = {(e["case_id"], e["version"]): e for e in view if isinstance(e, dict)}
     rows, accepted = [], []
     for case in cases:
         entry = entries[(case["case_id"], case["version"])]
@@ -131,8 +146,11 @@ def summarize(state, replayed) -> dict:
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200)}
     if not accepted:
         return summary
-    price = state.get("price_observation") if isinstance(state.get("price_observation"), dict) else {}
-    close = _decimal(price.get("close")) if price.get("status") == "available" else None
+    # Only the close each accepted case was validated against on replay is comparable; the raw
+    # price observation is never read here, so a quote in another currency cannot be compared.
+    quotes = [row["quote"] for row in accepted]
+    price = quotes[0] if quotes[0] is not None and all(quote == quotes[0] for quote in quotes) else {}
+    close = _decimal(price.get("close"))
     with localcontext() as ctx:
         ctx.prec = 40
         values = [Decimal(row["price"]) for row in accepted]
@@ -210,8 +228,10 @@ def render(summary) -> list[str]:
     for case in summary["cases"]:
         stance = (f"accepted, weight {Decimal(case['weight']):.2f}" if case["disposition"] == "accepted"
                   else f"rejected on {case['rejected_input'].replace('_', ' ')}")
+        position = (f"implied multiple {BANDS[case['reference_band']]} of its own history"
+                    if case.get("reference_band") in BANDS else "reference position unavailable")
         lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}; funding "
-                     f"{case['funding']}; {stance}. Reason (unvalidated): {case['reason']}")
+                     f"{case['funding']}; {position}; {stance}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
         return lines
@@ -219,7 +239,7 @@ def render(summary) -> list[str]:
     text = (f"Accepted range {_money(span['low'], unit)} to {_money(span['high'], unit)}; weighted value "
             f"{_money(summary['weighted_value'], unit)}")
     if summary["close"] is None:
-        lines.append(text + ". No completed close is available to compare with.")
+        lines.append(text + ". No comparable completed close is available, so no comparison with the price is made.")
         return lines
     lines.append(text + f", {Decimal(summary['weighted_vs_close_percent']):+.1f}% against the "
                  f"{summary['session_date']} close of {_money(summary['close'], unit)} "

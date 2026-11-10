@@ -20,15 +20,26 @@ def _row(case_id, price, role="base", **extra):
             "result": {"method": "revenue_case", "status": "supported", "target": price, "unit": "USD/shares",
                        "valuation_period_end": "2027-12-31"},
             "funding": {"status": "partial", "summary": "Funding partial: x."},
+            "comparison": {"status": "available", "price": {"close": "78.31", "currency": "USD",
+                                                            "session_date": "2026-11-09"}},
             "reference_position": {"status": "available", "band": "low_to_median", "summary": "Implied 3.65×."}, **extra}
+
+
+def _replayed(close="78.31", **comparison):
+    rows = [_row("a", "74.45"), _row("b", "52.75", role="downside")]
+    for row in rows:
+        row["comparison"] = {"status": "available", "price": {"close": close, "currency": "USD",
+                                                             "session_date": "2026-11-09"}, **comparison}
+    return {"rows": rows}
 
 
 REPLAYED = {"rows": [_row("a", "74.45"), _row("b", "52.75", role="downside")]}
 
 
-def _state(view, rating="Underweight", close="78.31", reason=None):
+def _state(view, rating="Underweight", reason=None):
     return {"final_rating": rating,
-            "price_observation": {"status": "available", "close": close, "session_date": "2026-11-09"},
+            # Deliberately not the comparison price: the raw observation is never read.
+            "price_observation": {"status": "available", "close": "1", "currency": "EUR", "session_date": "2026-11-09"},
             "unvalidated_outputs": {"portfolio_manager": {"scenario_contract": 1, "structured": {
                 "scenario_view": view, "rating_basis_reason": reason}}}}
 
@@ -94,10 +105,10 @@ def test_an_unusable_scenario_view_is_named(view, text):
     ("Buy", "70", None, "near", "consistent"),
 ])
 def test_rating_is_checked_against_the_weighted_value(rating, close, reason, direction, consistency):
-    state = _state([_accept("a", 0.6), _accept("b", 0.4)], rating=rating, close=close, reason=reason)
-    summary = summarize(state, REPLAYED)
+    state = _state([_accept("a", 0.6), _accept("b", 0.4)], rating=rating, reason=reason)
+    summary = summarize(state, _replayed(close))
     assert (summary["direction"], summary["consistency"]) == (direction, consistency)
-    feedback = retry_feedback(state, REPLAYED)
+    feedback = retry_feedback(state, _replayed(close))
     assert ("rating_basis_reason" in feedback) is (consistency == "unexplained")
     text = "\n".join(render(summary))
     assert {"consistent": "does not point against", "explained": "reason (unvalidated): " + (reason or ""),
@@ -106,7 +117,7 @@ def test_rating_is_checked_against_the_weighted_value(rating, close, reason, dir
 
 def test_threshold_is_ten_percent_inclusive():
     for close, direction in (("59.79", "above"), ("59.80", "near"), ("73.07", "near"), ("73.08", "below")):
-        summary = summarize(_state([_accept("a", 0.6), _accept("b", 0.4)], close=close), REPLAYED)
+        summary = summarize(_state([_accept("a", 0.6), _accept("b", 0.4)]), _replayed(close))
         assert summary["direction"] == direction, close
 
 
@@ -135,12 +146,43 @@ def test_a_decision_made_before_this_contract_is_not_judged():
     assert retry_feedback(state, REPLAYED) == ""
 
 
-def test_missing_close_states_the_range_without_a_direction():
-    state = _state([_accept("a", 1), _reject("b")])
-    state["price_observation"] = {"status": "unavailable"}
-    summary = summarize(state, REPLAYED)
-    assert summary["weighted_value"] == "74.45" and summary["direction"] is None
-    assert "No completed close is available" in "\n".join(render(summary))
+@pytest.mark.parametrize("replayed", [
+    _replayed(status="unavailable", reason="Quote currency differs"),
+    {"rows": [{**_row("a", "74.45"), "comparison": None}, _row("b", "52.75", role="downside")]},
+    {"rows": [{**row, "comparison": {"status": "available", "price": {**row["comparison"]["price"], "currency": "EUR"}}}
+              for row in _replayed()["rows"]]},
+    {"rows": [_replayed()["rows"][0], {**_replayed("80")["rows"][1]}]},
+    _replayed("0"), _replayed("x"),
+])
+def test_no_percentage_or_rating_check_without_a_comparable_quote(replayed):
+    state = _state([_accept("a", 0.6), _accept("b", 0.4)], rating="Buy")
+    summary = summarize(state, replayed)
+    assert summary["range"] == {"low": "52.75", "high": "74.45"} and Decimal(summary["weighted_value"]) == Decimal("65.77")
+    assert summary["close"] is None and summary["direction"] is None and summary["consistency"] == "not_checked"
+    assert "weighted_vs_close_percent" not in summary and retry_feedback(state, replayed) == ""
+    text = "\n".join(render(summary))
+    assert "No comparable completed close is available" in text and "%" not in text and "Rating check" not in text
+
+
+@pytest.mark.parametrize("extra", [
+    {"case_id": ["a"], "version": 1}, {"case_id": {"x": 1}, "version": 1}, {"case_id": "a", "version": [1]},
+    {"case_id": "a", "version": True}, {"case_id": "a", "version": "1"}, {},
+])
+def test_malformed_identities_are_problems_not_crashes(extra):
+    view = [_accept("a", 1), _reject("b"), {**_reject("z"), **extra} if extra else {}]
+    problems = view_problems(priced_cases(REPLAYED), view)
+    assert any("needs a text case_id and an integer version" in problem for problem in problems)
+    state = _state(view)
+    assert summarize(state, REPLAYED)["status"] == "unaddressed"
+    assert "Resubmit the complete decision" in retry_feedback(state, REPLAYED)
+
+
+def test_card_shows_each_case_reference_position():
+    text = "\n".join(render(summarize(_state([_accept("a", 0.6), _accept("b", 0.4)]), REPLAYED)))
+    assert text.count("implied multiple between the low and the median of its own history") == 2
+    bare = {"rows": [{**row, "reference_position": {"status": "unavailable"}} for row in REPLAYED["rows"]]}
+    text = "\n".join(render(summarize(_state([_accept("a", 0.6), _accept("b", 0.4)]), bare)))
+    assert text.count("reference position unavailable") == 2
 
 
 def test_card_lines_carry_every_label():
@@ -167,21 +209,46 @@ def test_manager_sees_each_case_with_its_funding_and_reference():
 
 # Wiring: the manager's call, the decision card and the operational score -------
 
-def _case_state():
+def _case_state(monkeypatch):
+    """A priced case (32 per share) with a validated completed close of 20 to compare it with."""
     from tests.test_case_valuation import revenue_case
     from tests.test_shared_valuation import state as case_state
+    from tests.test_valuation_comparison import state as quoted_state
     from tradingagents.agents.shared_valuation import prepare_shared_valuation
 
-    inputs = case_state([revenue_case()])
+    inputs = {**case_state([revenue_case()]), **quoted_state(monkeypatch)}
     inputs["shared_valuation_scenarios"] = prepare_shared_valuation(inputs)
     row = inputs["shared_valuation_scenarios"]["rows"][0]
     inputs.update({
         "investment_plan": "Plan", "trader_investment_plan": "Proposal", "final_rating": "Underweight",
         "risk_debate_state": {"history": "Debate", "aggressive_history": "", "conservative_history": "",
                               "neutral_history": "", "current_aggressive_response": "",
-                              "current_conservative_response": "", "current_neutral_response": "", "count": 1},
-        "price_observation": {"status": "available", "close": "40", "session_date": "2026-10-16"}})
+                              "current_conservative_response": "", "current_neutral_response": "", "count": 1}})
     return inputs, row
+
+
+def test_a_free_text_fallback_decision_is_judged_under_the_contract(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from tests.test_operational_audit import observed
+    from tradingagents.agents.decision_context import (
+        prepare_decision_context,
+        render_decision_context,
+    )
+    from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+    from tradingagents.operational_audit import assess_audit
+
+    inputs, _row_ = _case_state(monkeypatch)
+    llm = MagicMock()
+    llm.with_structured_output.return_value.invoke.return_value = None
+    llm.invoke.return_value = MagicMock(content="**Rating**: Underweight\nBecause.", response_metadata={})
+    result = create_portfolio_manager(llm)(inputs)
+    assert result["unvalidated_outputs"]["portfolio_manager"]["scenario_contract"] == 1
+    done = {**inputs, **result, "evidence_quality": {**inputs["evidence_quality"], "checks": []}}
+    record = prepare_decision_context(done)
+    assert record["scenario_decision"]["status"] == "unaddressed"
+    assert "decision basis is opinion only" in render_decision_context(record, include_mechanical=False)
+    assert assess_audit({**observed(), "decision_context": record})["findings"][0]["code"] == "decision_basis_unaddressed"
 
 
 def _decision(**fields):
@@ -203,11 +270,12 @@ def _manager(*answers):
     return create_portfolio_manager(llm), structured
 
 
-def test_manager_is_shown_the_priced_case_and_a_valid_answer_needs_one_call():
-    inputs, row = _case_state()
+def test_manager_is_shown_the_priced_case_and_a_valid_answer_needs_one_call(monkeypatch):
+    inputs, row = _case_state(monkeypatch)
     view = [{"case_id": row["case_id"], "version": 1, "disposition": "accepted", "weight": 1, "rejected_input": None,
              "reason": "Reasonable base."}]
-    node, structured = _manager(_decision(scenario_view=view))
+    # Hold does not point against a case above the close, so nothing needs explaining.
+    node, structured = _manager(_decision(rating="Hold", scenario_view=view))
     result = node(inputs)
     assert structured.invoke.call_count == 1
     prompt = structured.invoke.call_args.args[0]
@@ -216,8 +284,8 @@ def test_manager_is_shown_the_priced_case_and_a_valid_answer_needs_one_call():
     assert saved == view
 
 
-def test_an_unaddressed_case_gets_one_correction_and_the_second_answer_is_used():
-    inputs, row = _case_state()
+def test_an_unaddressed_case_gets_one_correction_and_the_second_answer_is_used(monkeypatch):
+    inputs, row = _case_state(monkeypatch)
     view = [{"case_id": row["case_id"], "version": 1, "disposition": "rejected", "weight": None,
              "rejected_input": "multiple", "reason": "Above the history high."}]
     node, structured = _manager(_decision(), _decision(rating="Hold", scenario_view=view))
@@ -228,8 +296,8 @@ def test_an_unaddressed_case_gets_one_correction_and_the_second_answer_is_used()
     assert result["unvalidated_outputs"]["portfolio_manager"]["structured"]["scenario_view"] == view
 
 
-def test_a_failed_correction_keeps_the_first_answer_and_no_third_call_is_made():
-    inputs, _row_ = _case_state()
+def test_a_failed_correction_keeps_the_first_answer_and_no_third_call_is_made(monkeypatch):
+    inputs, _row_ = _case_state(monkeypatch)
     node, structured = _manager(_decision(), None)
     result = node(inputs)
     assert structured.invoke.call_count == 2 and result["final_rating"] == "Underweight"
@@ -238,8 +306,8 @@ def test_a_failed_correction_keeps_the_first_answer_and_no_third_call_is_made():
     assert structured.invoke.call_count == 2
 
 
-def test_no_priced_case_means_no_extra_call():
-    inputs, _row_ = _case_state()
+def test_no_priced_case_means_no_extra_call(monkeypatch):
+    inputs, _row_ = _case_state(monkeypatch)
     inputs["shared_valuation_scenarios"] = {"status": "unavailable", "requests": [], "rows": [], "reasons": []}
     inputs["financial_claim_validation"] = {"raw_report": "```valuation_scenarios\n[]\n```"}
     node, structured = _manager(_decision())
@@ -248,13 +316,13 @@ def test_no_priced_case_means_no_extra_call():
     assert "No priced scenario case in this run" in structured.invoke.call_args.args[0]
 
 
-def _card(view, rating="Underweight", reason=None):
+def _card(monkeypatch, view, rating="Hold", reason=None):
     from tradingagents.agents.decision_context import (
         prepare_decision_context,
         render_decision_context,
     )
 
-    inputs, row = _case_state()
+    inputs, row = _case_state(monkeypatch)
     inputs["final_rating"] = rating
     inputs["evidence_quality"] = {**inputs["evidence_quality"], "checks": []}
     entries = None if view is None else [{**entry, "case_id": row["case_id"], "version": 1} for entry in view]
@@ -267,8 +335,8 @@ def _card(view, rating="Underweight", reason=None):
     return record, render_decision_context(record, include_mechanical=False).replace("\\", ""), inputs
 
 
-def test_decision_card_states_the_scenario_basis():
-    record, text, _ = _card([{"disposition": "accepted", "weight": 1, "reason": "Base."}])
+def test_decision_card_states_the_scenario_basis(monkeypatch):
+    record, text, _ = _card(monkeypatch, [{"disposition": "accepted", "weight": 1, "reason": "Base."}])
     assert record["scenario_decision"]["status"] == "addressed" and record["basis"] == "conditional scenarios"
     assert LABEL in text and "accepted, weight 1.00" in text and "Rating check:" in text
     assert "not a price target or a demonstrated expected return" in text
@@ -276,31 +344,29 @@ def test_decision_card_states_the_scenario_basis():
     assert record["adopted_case"] is None and record["target"]["status"] == "unsupported"
 
 
-def test_decision_card_says_when_the_cases_were_not_addressed_and_the_score_drops():
+def test_decision_card_says_when_the_cases_were_not_addressed_and_the_score_drops(monkeypatch):
     from tests.test_operational_audit import observed
     from tradingagents.operational_audit import assess_audit
 
-    record, text, _ = _card(None)
+    record, text, _ = _card(monkeypatch, None)
     assert record["scenario_decision"]["status"] == "unaddressed" and record["basis"] == "risk assessment"
     assert "decision basis is opinion only" in text
     assessment = assess_audit({**observed(), "decision_context": record})
     assert (assessment["score"], assessment["findings"][0]["code"]) == (3, "decision_basis_unaddressed")
-    good, _, _ = _card([{"disposition": "accepted", "weight": 1, "reason": "Base."}])
+    good, _, _ = _card(monkeypatch, [{"disposition": "accepted", "weight": 1, "reason": "Base."}])
     assert assess_audit({**observed(), "decision_context": good})["score"] == 5
 
 
-def test_an_unexplained_contrary_rating_is_printed_and_scored():
+def test_an_unexplained_contrary_rating_is_printed_and_scored(monkeypatch):
     from tests.test_operational_audit import observed
     from tradingagents.operational_audit import assess_audit
 
-    record, text, inputs = _card([{"disposition": "accepted", "weight": 1, "reason": "Base."}], rating="Buy")
+    view = [{"disposition": "accepted", "weight": 1, "reason": "Base."}]
+    record, text, _ = _card(monkeypatch, view, rating="Sell")
     summary = record["scenario_decision"]
-    if summary["direction"] == "below":
-        assert summary["consistency"] == "unexplained" and "no reason was given" in text
-        assert assess_audit({**observed(), "decision_context": record})["score"] == 3
-        explained, text, _ = _card([{"disposition": "accepted", "weight": 1, "reason": "Base."}], rating="Buy",
-                                   reason="Rebound expected.")
-        assert explained["scenario_decision"]["consistency"] == "explained" and "Rebound expected." in text
-        assert assess_audit({**observed(), "decision_context": explained})["score"] == 5
-    else:
-        pytest.fail(f"fixture case is not below the close: {summary['direction']} {summary['weighted_value']}")
+    assert summary["direction"] == "above" and summary["close"] == "20"
+    assert summary["consistency"] == "unexplained" and "no reason was given" in text
+    assert assess_audit({**observed(), "decision_context": record})["score"] == 3
+    explained, text, _ = _card(monkeypatch, view, rating="Sell", reason="Funding risk dominates.")
+    assert explained["scenario_decision"]["consistency"] == "explained" and "Funding risk dominates." in text
+    assert assess_audit({**observed(), "decision_context": explained})["score"] == 5
