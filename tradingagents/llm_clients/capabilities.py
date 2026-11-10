@@ -82,14 +82,18 @@ _MINIMAX_THINKING = ModelCapabilities(
     requires_reasoning_split=True,
 )
 
-# OpenRouter can route Anthropic models to hosts that reject a forced tool choice
-# (Azure, Vertex). The schema still ships as a tool; a reply without the tool
-# call falls through to the existing free-text path.
+# OpenRouter Anthropic requests are pinned to Anthropic's own host
+# (openai_client._provider_routing). That host rejects a forced tool choice for
+# current models ("tool_choice: type tool and any are not supported for this
+# model", 2026-11-09), and an unforced tool lets the model answer in prose, which
+# reached the free-text fallback in the Trader (run 8f9378ac). A JSON-schema
+# response format is accepted there and returned parsed TraderProposal,
+# SentimentReport and SummaryOutput objects in live probes the same day.
 _OPENROUTER_ANTHROPIC = ModelCapabilities(
     supports_tool_choice=False,
     supports_json_mode=False,
-    supports_json_schema=False,
-    preferred_structured_method="function_calling",
+    supports_json_schema=True,
+    preferred_structured_method="json_schema",
 )
 
 _DEFAULT = ModelCapabilities(

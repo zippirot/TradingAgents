@@ -136,3 +136,13 @@ Kept change: `679a0bd4` (`tradingagents/agents/analysts/fundamentals_analyst.py`
 | M2 | Medium | Output folders were created and caches copied before the launcher-path guard ran; ledger path unchecked; recall without a checkpoint never reached the guard | Confirmed by source order | Every command checks all its output paths (and the ledger) first. Parametrized test runs each command against a simulated launcher home and asserts nothing was created. |
 | M3 | Medium | T2 recorded as stable although PM conditions differ; stop gate bypassed | Partly confirmed: the record overstated stability (closed by correction); the stop gate was not bypassed on the plan's wording (decision stable, add-ons varied) | T2 row corrected with the condition-by-condition comparison and the stop-rule reading; the stricter reading is offered to the user. |
 | L4 | Low | Recall window was up to ~800 characters | Confirmed | All matched spans must lie in one 400-character interval; boundary tests; T1 recomputed (unchanged). |
+
+## User decisions (2026-11-09) and follow-up
+
+1. T2 reading: the user accepted that the decision was stable; the T6 change is **kept** (the strict-reading revert `c67ca552` was itself reverted in `d71ace62`).
+2. Integration to staging and launcher install: approved by the user.
+3. Build W Trader fallback: user asked for a fix.
+   - Cause: OpenRouter Anthropic requests are pinned to Anthropic's host, and the Trader's schema was sent as an unforced tool. Opus sometimes answered in prose (run `8f9378ac`). Forcing the tool is rejected by that host for this model (live probe: `tool_choice: type "tool" and "any" are not supported for this model`).
+   - Fix: `anthropic/*` models on OpenRouter use a JSON-schema response format (`tradingagents/llm_clients/capabilities.py`). Live probes parsed TraderProposal, SentimentReport and SummaryOutput; request-level test asserts the schema is sent as `response_format` with no tool and the provider pin kept.
+   - Live check: Research Manager → Trader re-run ×3 from the baseline: one Trader call each, structured output, no fallback. Cost $0.61 (plus ~$0.07 of probes); development total $5.20 of $25.
+   - Full offline suite with the fix: 4133 passed, 10 skipped, 1 deselected; Ruff clean.
