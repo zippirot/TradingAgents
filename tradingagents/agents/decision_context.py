@@ -323,7 +323,11 @@ def prepare_decision_context(state: dict) -> dict:
     from tradingagents.agents.mechanical_context import mechanical_position_from_state
     mechanical_position = (mechanical_position_from_state(state) if eligible else
                            {'status': 'unavailable', 'rows': [], 'reason': 'Current decision is not evidence-eligible'})
+    from tradingagents.agents.decision_brief import finalize as finalize_brief
+    brief = (finalize_brief(state['decision_brief'], state) if isinstance(state.get('decision_brief'), dict)
+             else _mapping(state.get('decision_context')).get('since_last_decision'))
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
+            **({'since_last_decision': brief} if isinstance(brief, dict) and brief.get('status') != 'no_prior' else {}),
             'assumption_changes': _mapping(_mapping(state.get('decision_context')).get('assumption_changes')),
             'mechanical_position': mechanical_position, 'scenario_decision': scenario,
             'horizon': horizon, 'coverage': coverage,
@@ -376,6 +380,10 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True, i
             lines.append(f"Changed since {_display(history.get('prior_label') or history['prior_as_of'])}: "
                          f"{_display(change['scenario'])} {_display(change['field'])} "
                          f"{_display(change['previous'])} → {_display(change['current'])}")
+        for row in history.get('unusable', [])[:6]:
+            lines.append(f"Not compared: case {_display(row['scenario'])} in "
+                         f"{'the earlier record' if row['side'] == 'previous' else 'this run'} is unusable "
+                         f"({_display(row['reason'])}).")
         if history.get('new_filings_between') is False:
             lines.append('No new filing was retained between the two runs.')
     elif history.get('status') == 'no_prior':

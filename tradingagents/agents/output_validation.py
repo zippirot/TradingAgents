@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 
+from tradingagents.agents.decision_brief import render as render_brief
 from tradingagents.agents.decision_context import (
     _display,
     final_request,
@@ -241,6 +242,8 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
                   if audit.get('status') == 'completed with findings' else str(audit.get('status') or 'not run; no clearance implied'))
     updates['final_trade_decision'] = (
         f"**Rating**: {run_rating(state)}\n\n**Horizon**: {_display(card['horizon']['text'])}\n\n"
+        + ''.join(line + '\n\n' for line in render_brief(card.get('since_last_decision'), display=_display))
+        +
         f"**Executive Summary — unvalidated PM reasoning**:\n\n{pm_text('executive_summary')}\n\n"
         f"**Investment Thesis — unvalidated PM reasoning**:\n\n{pm_text('investment_thesis')}\n\n"
         f"**Advisory audit**: {_display(audit_line)}\n\n"

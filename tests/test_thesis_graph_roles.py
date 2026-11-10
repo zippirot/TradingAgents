@@ -31,6 +31,8 @@ class ThesisModel(ScriptedModel):
                 return schema(
                     rating='Overweight', executive_summary='Research decision', time_horizon='3–6 months',
                     investment_thesis='The forward hypothesis remains advisory.',
+                    # The earlier decision is listed for the manager, who must say what the changes mean.
+                    change_assessment={'status': 'no_material_change', 'reason': 'No new filing or price move.'},
                     thesis_candidate={'conditions': None, 'dispositions': [{
                         'condition_id': self.condition_id, 'disposition': 'kept',
                         'reason': 'Keep monitoring; this comparison does not determine the rating.'}]})
@@ -75,6 +77,8 @@ def test_pending_thesis_roles_cross_real_graph_and_restart(tmp_path, monkeypatch
     assert observed['source_ids'] == ['s']
     assert label in result['thesis_context']
     assert len(model.prompts) == 1
+    assert '**Since the last decision** (2026-11-04 22:00 UTC, rating Overweight' in model.prompts[0]
+    assert 'Change check: consistent with the two ratings.' in result['final_trade_decision']
     assert identifier in model.prompts[0] and label in model.prompts[0]
     assert 'A trigger not met is not a failed thesis' in ' '.join(model.prompts[0].split())
     assert 'advisory, not binding' in model.prompts[0]

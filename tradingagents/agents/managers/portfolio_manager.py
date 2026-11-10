@@ -22,6 +22,10 @@ from tradingagents.agents.context import (
     get_language_instruction,
     get_portfolio_context_from_state,
 )
+from tradingagents.agents.decision_brief import (
+    render as render_brief,
+    retry_feedback as change_feedback,
+)
 from tradingagents.agents.decision_context import (
     DECISION_HORIZON_CONTRACT,
     horizon_incomplete,
@@ -71,6 +75,9 @@ def create_portfolio_manager(llm):
             with contextlib.suppress(ValidationError, ValueError, TypeError, KeyError):
                 replayed = annotate_disputed_cases(state, replay_cases(state))
         scenario_context = render_cases_for_manager(priced_cases(replayed))
+        brief = state.get("decision_brief")
+        change_lines = render_brief(brief, for_manager=True)
+        change_context = ("\n".join(change_lines) + "\n\n") if change_lines else ""
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -134,7 +141,7 @@ If no case is adopted, omit valuation_request and state why in no_case_reason. T
 **Scenario basis (not a price target):**
 {scenario_context}
 
-**Source-grounded management outlook records (guidance and ambitions are distinct):**
+{change_context}**Source-grounded management outlook records (guidance and ambitions are distinct):**
 {outlook_context}
 Use a record_id as outlook_id only when period, metric, unit and basis match.
 Disclose divergence from these ranges; do not invent consensus.
@@ -182,7 +189,9 @@ Write in order, rating first:
             # points against the accepted cases with no reason. The answer stands either way.
             answered = {**state, "final_rating": decision.rating.value, "unvalidated_outputs": {
                 "portfolio_manager": {"scenario_contract": 1, "structured": decision.model_dump(mode="json")}}}
-            feedback = retry_feedback(answered, replayed)
+            feedback = " ".join(part for part in (
+                retry_feedback(answered, replayed),
+                change_feedback(brief, decision.rating.value, getattr(decision, "change_assessment", None))) if part)
             if feedback:
                 decision = invoke_structured(structured_llm, f"{prompt}\n\n{feedback}", "Portfolio Manager") or decision
         original = dict(state.get("unvalidated_outputs") or {})
@@ -206,6 +215,7 @@ Write in order, rating first:
                 "configured_horizon_months": horizon_months,
                 "case_contract": 1,
                 "scenario_contract": 1,
+                **({"change_contract": 1} if change_lines else {}),
                 "structured": json.loads(
                     json.dumps(
                         {**decision.model_dump(mode="json"), "valuation_request": request},
@@ -226,6 +236,7 @@ Write in order, rating first:
             thesis_candidate = {"rationale": final_trade_decision[:3000]}
             original["portfolio_manager"] = {"fallback": final_trade_decision, "contract_version": DECISION_HORIZON_CONTRACT,
                                              "scenario_contract": 1,
+                                             **({"change_contract": 1} if change_lines else {}),
                                              "configured_horizon_months": horizon_months}
             target = TargetResult(
                 status="unsupported",

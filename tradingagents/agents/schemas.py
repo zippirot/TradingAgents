@@ -524,6 +524,19 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         description="Only when the rating points against the weighted value of your accepted scenarios by more than 10 percent: why the rating still stands.",
     )
 
+    change_assessment: Annotated[Any, WithJsonSchema({
+        "anyOf": [
+            {"type": "object", "properties": {
+                "status": {"type": "string", "enum": ["no_material_change", "strengthens", "weakens", "reverses"]},
+                "reason": {"type": "string"},
+            }, "required": ["status", "reason"], "additionalProperties": False},
+            {"type": "null"},
+        ],
+    })] = Field(
+        default=None,
+        description="When a 'Since the last decision' list is in the prompt: what the listed changes mean for the earlier call, as status no_material_change, strengthens, weakens or reverses, with one sentence naming the change that matters. A rating different from the earlier one must be weakens or reverses. Null when no such list is supplied.",
+    )
+
     time_horizon: str | None = Field(
         description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Use the configured default supplied in the prompt unless overriding with a nonblank horizon_reason. Separate from the forecast period. If unknown, return null and the decision is incomplete.",
     )

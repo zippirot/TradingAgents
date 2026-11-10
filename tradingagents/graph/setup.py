@@ -191,13 +191,22 @@ class GraphSetup:
 
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
         bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
-        research_manager_node = create_research_manager(self.deep_thinking_llm)
+        raw_research_manager = create_research_manager(self.deep_thinking_llm)
         trader_node = create_trader(self.quick_thinking_llm)
 
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         raw_portfolio_manager = create_portfolio_manager(self.deep_thinking_llm)
+
+        def research_manager_node(state):
+            # Built once from saved records before the managers decide; no model call.
+            if self.publication_config is None or state.get("decision_brief"):
+                return raw_research_manager(state)
+            from tradingagents.agents.decision_brief import since_last_decision
+
+            brief = since_last_decision(self.publication_config, state.get("company_of_interest", ""), state)
+            return {**raw_research_manager({**state, "decision_brief": brief}), "decision_brief": brief}
 
         def portfolio_manager_node(state):
             decision = raw_portfolio_manager(state)

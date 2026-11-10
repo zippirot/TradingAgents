@@ -42,6 +42,7 @@ REASONS = {
     "valuation_cases_rejected": (3, "Every submitted valuation case was rejected, so the report has no scenario values."),
     "price_session_fallback": (3, "The latest completed session had no close, so prices and indicators use an earlier session."),
     "valuation_case_rejected": (4, "A submitted valuation case was rejected; the remaining cases were priced."),
+    "change_assessment_unusable": (3, "The Portfolio Manager did not say what changed since the last decision, or its answer disagrees with the two ratings."),
     "decision_basis_unaddressed": (3, "The Portfolio Manager did not address the priced scenario cases, or rated against them without a reason."),
     "replay_miss": (3, "A comparison used a live external input absent from its baseline; input control is incomplete."),
     "stage_unusable": (2, "A required stage has no trustworthy usable completion."),
@@ -259,6 +260,12 @@ def _capability_findings(state) -> list[dict]:
         findings.append({"score": REASONS[code][0], "code": code, "stage": "Portfolio Manager",
                          "text": f"Portfolio Manager: {REASONS[code][1]}",
                          "locator": "decision_context.scenario_decision"})
+    changes = card.get("since_last_decision") if isinstance(card, Mapping) else None
+    if isinstance(changes, Mapping) and (changes.get("assessment") or {}).get("problems"):
+        code = "change_assessment_unusable"
+        findings.append({"score": REASONS[code][0], "code": code, "stage": "Portfolio Manager",
+                         "text": f"Portfolio Manager: {REASONS[code][1]}",
+                         "locator": "decision_context.since_last_decision"})
     price = state.get("price_observation")
     fallback = price.get("price_fallback") if isinstance(price, Mapping) else None
     if isinstance(fallback, Mapping):

@@ -65,6 +65,7 @@ class AgentState(MessagesState):
     issuer_identity: Annotated[dict, "SEC-map ticker/CIK binding verified by evidence gate"]
     event_comparison: Annotated[dict, "Verified event guidance and aligned provider price windows"]
     decision_context: Annotated[dict, "Canonical research decision card with labeled model opinions"]
+    decision_brief: Annotated[dict, "What changed since the last decision; bookkeeping on saved records"]
     valuation_price_comparison: Annotated[dict, "Replayed dated valuation and reverse sensitivity"]
     price_implied_valuation: Annotated[dict, "Independent source-only price-implied valuation"]
     mechanical_valuation_grid: Annotated[dict, "Recomputed source-based B1 sensitivity; never a forecast or rating authority"]

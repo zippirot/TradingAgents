@@ -1,0 +1,24 @@
+== run eea86100: saved comparison was available
+   comparison now: available, 4 row(s), 0 unusable case(s), against 2a2e47dd
+**Since the last decision** (2026-11-09 18:56 UTC, rating Underweight, run 2a2e47dd). Bookkeeping on saved records, not a recommendation:
+- Price: 72.48 USD on 2026-11-06 then; 78.31 USD on 2026-11-09 now; +8.0%.
+- Filings: no new filing was retained between the two runs.
+- Advisory conditions: 10 tracked, none changed status.
+- Valuation cases: none priced then; 2 priced (74.45 USD/shares, 52.75 USD/shares) now; "Base: FY2027 revenue at management 60%+ floor, borrowings-only EV" dropped; "Downside: FY2027 growth 40%, compressed borrowings-only multiple" dropped; "Base: FY2027 at management 60%+ floor, cash repay of 2026 notes" added; "Downside: slower 2027 capacity ramp, lower multiple" added.
+
+== run 86aa515f: saved comparison was unavailable (Prior-publication comparison unavailable (ValidationError))
+   comparison now: available, 4 row(s), 0 unusable case(s), against eea86100
+**Since the last decision** (2026-11-09 21:26 UTC, rating Underweight, run eea86100). Bookkeeping on saved records, not a recommendation:
+- Price: 78.31 USD on 2026-11-09 then; 72.48 USD on 2026-11-06 (stale: the latest completed session had no close) now; -7.4%.
+- Filings: no new filing was retained between the two runs.
+- Advisory conditions: 8 tracked, none changed status.
+- Valuation cases: 2 priced (74.45 USD/shares, 52.75 USD/shares) then; 2 priced (69.48 USD/shares, 44.63 USD/shares) now; "Base: FY2027 at management 60%+ floor, cash repay of 2026 notes" dropped; "Downside: slower 2027 capacity ramp, lower multiple" dropped; "Base: 2027 revenue just below 60%+ guidance, debt retired" added; "Downside: growth below guidance, ATM-funded capex" added.
+
+== run c463bdac: saved comparison was unavailable (Prior-publication comparison unavailable (ValidationError))
+   comparison now: available, 2 row(s), 0 unusable case(s), against 86aa515f
+**Since the last decision** (2026-11-10 01:49 UTC, rating Underweight, run 86aa515f). Bookkeeping on saved records, not a recommendation:
+- Price: 72.48 USD on 2026-11-06 (stale: the latest completed session had no close) then; 78.30 USD on 2026-11-09 now; +8.0%.
+- Filings: no new filing was retained between the two runs.
+- Advisory conditions: 12 tracked, none changed status.
+- Valuation cases: none priced then; none priced now; "Base: 2027 revenue just below 60%+ guidance, debt retired" dropped; "Downside: growth below guidance, ATM-funded capex" dropped.
+

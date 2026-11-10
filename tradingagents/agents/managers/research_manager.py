@@ -73,6 +73,12 @@ Write these sections, in this order, starting with the recommendation on its own
 
 {NO_EXTERNAL_TOOLS}""" + EVIDENCE_DISCIPLINE + get_language_instruction()
 
+        from tradingagents.agents.decision_brief import render as render_brief
+
+        changes = render_brief(state.get("decision_brief"))
+        if changes:
+            prompt += ("\n\n" + "\n".join(changes) + "\nWeigh what these changes mean for the earlier call; "
+                       "a list of changes does not by itself choose the recommendation.")
         saved = replay_cases(state) if state.get("shared_valuation_scenarios") else {}
         if saved.get("status") not in (None, "not_applicable"):
             from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
