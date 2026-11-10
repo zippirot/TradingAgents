@@ -47,8 +47,104 @@ def _own_history(state):
     return history, values, stats.get("count")
 
 
+MIN_LIKE_QUARTERS = 3
+_BORROWINGS = ("Total Borrowings", "Long-term Borrowings (including current)")
+_BASIS_LABEL = {"equity": "equity value", "borrowings_only": "equity value plus borrowings less cash"}
+
+
+def _instant(state, metric, day):
+    """One reported USD balance for ``metric`` on ``day``; None when absent, not in USD, or reported with two values."""
+    facts = (state.get("financial_evidence") or {}).get("facts") if isinstance(state.get("financial_evidence"), dict) else None
+    values = {_decimal(f.get("value")) for f in facts or () if isinstance(f, dict) and f.get("metric") == metric
+              and f.get("period_start") in (None, "None") and str(f.get("period_end")) == day
+              and f.get("unit") == "USD" and f.get("value") not in (None, "None")}
+    values.discard(None)
+    return values.pop() if len(values) == 1 else None
+
+
+def _today_multiple(state, basis):
+    if basis == "equity":
+        found = _own_history(state)
+        return _decimal((found[0].get("current_position") or {}).get("multiple")) if found else None
+    implied = state.get("price_implied_valuation")
+    row = next((r for r in (implied or {}).get("rows") or () if isinstance(r, dict) and r.get("perimeter") == basis
+                and r.get("status") == "available"), None) if isinstance(implied, dict) else None
+    return _decimal((row.get("ratios") or {}).get("trailing_revenue")) if row else None
+
+
+def like_for_like(row, state) -> dict:
+    """The company's own history on the case's obligation basis and revenue construction.
+
+    A case applies its multiple to revenue of the twelve months ending at its period end. The matching
+    history is, at each past quarter end, that basis's value over revenue of the preceding twelve months.
+    A quarter without one reported borrowings and one reported cash balance is left out, never estimated.
+    """
+    request, result = row.get("request") or {}, row.get("result") or {}
+    basis, multiple = request.get("multiple_basis"), _decimal(result.get("multiple"))
+    found = _own_history(state)
+    if result.get("method") != "revenue_case" or multiple is None or multiple <= 0:
+        return {"status": "unavailable", "reason": "The case states no multiple to place."}
+    if basis not in _BASIS_LABEL:
+        return {"status": "unavailable", "basis": basis,
+                "reason": "Past balances for this obligation basis are not retained, so no same-basis history is stated."}
+    if found is None:
+        return {"status": "unavailable", "basis": basis, "reason": "Own valuation history is unavailable for this run."}
+    points, excluded = [], []
+    with localcontext() as ctx:
+        ctx.prec = 60
+        for quarter in found[0].get("rows") or ():
+            if not isinstance(quarter, dict) or quarter.get("status") != "available":
+                continue
+            day = str(quarter.get("quarter_end"))
+            equity, revenue = _decimal(quarter.get("equity_value")), _decimal(quarter.get("revenue"))
+            if equity is None or revenue is None or revenue <= 0 or quarter.get("equity_value_unit") != "USD":
+                excluded.append({"quarter_end": day, "reason": "equity value or trailing revenue unavailable"})
+                continue
+            net = Decimal(0)
+            if basis == "borrowings_only":
+                owed = next((value for value in (_instant(state, metric, day) for metric in _BORROWINGS) if value is not None), None)
+                cash = _instant(state, "Cash and Equivalents", day)
+                if owed is None or cash is None:
+                    excluded.append({"quarter_end": day, "reason": "no single reported borrowings or cash balance"})
+                    continue
+                net = owed - cash
+            points.append({"quarter_end": day, "multiple": str((equity + net) / revenue)})
+    if len(points) < MIN_LIKE_QUARTERS:
+        return {"status": "unavailable", "basis": basis, "excluded": excluded,
+                "reason": f"Fewer than {MIN_LIKE_QUARTERS} past quarters can be stated on the case's basis."}
+    values = sorted(Decimal(point["multiple"]) for point in points)
+    middle = len(values) // 2
+    median = values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2
+    low, high = values[0], values[-1]
+    band = ("below_low" if multiple < low else "low_to_median" if multiple <= median
+            else "median_to_high" if multiple <= high else "above_high")
+    today = _today_multiple(state, basis)
+    left_out = ("; left out for lack of a reported balance: " + ", ".join(item["quarter_end"] for item in excluded)) if excluded else ""
+    summary = (f"Case multiple {_times(multiple)} of the twelve months' revenue ending at its period end, on "
+               f"{_BASIS_LABEL[basis]}: {BANDS[band]} of the company's own {len(points)}-quarter range on the same basis "
+               f"(low {_times(low)}, median {_times(median)}, high {_times(high)})"
+               + (f"; today's price implies {_times(today)}" if today is not None else "") + left_out
+               + ". The history is retrospective, not a point-in-time backtest; the case's revenue is a forecast.")
+    return {"status": "available", "basis": basis, "multiple": str(multiple), "band": band, "low": str(low),
+            "median": str(median), "high": str(high), "quarters": points, "excluded": excluded,
+            "today": None if today is None else str(today), "summary": summary}
+
+
 def reference_position(row, state) -> dict:
-    """Place one priced revenue case in the own-history range, or say why it cannot be placed."""
+    """Place one priced revenue case in the own-history range, or say why it cannot be placed.
+
+    The same-basis history is used when it can be stated; otherwise the case is restated on equity value
+    over forecast revenue against the retained equity series, with that mismatch said.
+    """
+    same = like_for_like(row, state)
+    position = _equity_position(row, state)
+    if same["status"] != "available":
+        return {**position, "like_for_like": same}
+    return {**position, "status": "available", "basis": "like_for_like", "band": same["band"],
+            "summary": same["summary"], "like_for_like": same}
+
+
+def _equity_position(row, state) -> dict:
     found = _own_history(state)
     if found is None:
         return {"status": "unavailable", "reason": "Own valuation history is unavailable for this run."}

@@ -133,7 +133,11 @@ def _funding_terms(state):
         schedule = {"as_of": record["as_of"],
                     "years": {key: value for key, value in record["amounts"].items() if re.fullmatch(r"20\d{2}", key)}}
     notes = (state.get("filing_terms_evidence") or {}).get("notes")
-    return {"schedule": schedule, "notes": notes if isinstance(notes, list) else []}
+    leases = (state.get("filing_terms_evidence") or {}).get("leases")
+    totals = ({key: record["amounts"][key] for key in ("total", "interest") if key in record["amounts"]}
+              if isinstance(record, dict) else {})
+    return {"schedule": schedule, "schedule_totals": totals, "notes": notes if isinstance(notes, list) else [],
+            "leases": leases if isinstance(leases, list) else []}
 
 
 def _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms=None):

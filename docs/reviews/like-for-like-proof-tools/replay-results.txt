@@ -1,0 +1,41 @@
+== saved report (before): reference position per case
+  base      equity_value / forecast_revenue: band median_to_high
+  downside  equity_value / forecast_revenue: band low_to_median
+  upside    equity_value / forecast_revenue: band median_to_high
+== now: same-basis history
+  2024-12-31  5.38x
+  2025-09-30  4.84x
+  2025-12-31  6.06x
+  2026-03-31  9.62x
+  2026-06-30  16.46x
+  2026-09-30  14.08x
+  left out: [('2025-03-31', 'no single reported borrowings or cash balance'), ('2025-06-30', 'no single reported borrowings or cash balance')]
+  low 4.84x  median 7.84x  high 16.46x  today 8.19x
+== base (Base: FY2027 revenue at management 60%+ floo)
+  multiple 4.7x: below_low on like_for_like
+  Case multiple 4.70× of the twelve months' revenue ending at its period end, on equity value plus borrowings less cash: below the low of the company's own 6-quarter range on the same basis (low 4.84×, median 7.84×, high 16.46×); today's price implies 8.19×; left out for lack of a reported balance: 2025-03-31, 2025-06-30. The history is retrospective, not a point-in-time backtest; the case's revenue is a forecast.
+  bounds: {'interest': {'amount': '41018731.90', 'per_share': '0.34', 'share_of_payments': '0.13'}, 'rent': {'annual_run_rate': '266230450.45', 'low': '0.00', 'high': '309994360.11', 'per_share_low': '0.00', 'per_share_high': '2.57', 'commencement': '2026-11 to 2028-06'}}
+  Not in the case arithmetic, bounded from the filing: if projected operating cash flow is already after lease interest, the scheduled payments count that interest twice and the case is too low by up to 0.34 USD a share (interest is 13% of the scheduled payments); if it leaves out rent on leases that have not commenced (2026-11 to 2028-06; about 266.2M USD a year once all have), the case is too high by 0.00 to 2.57 USD a share. The case does not say which applies. No discounting.
+  price unchanged: 77.2188
+== downside (Downside: capacity or AI demand slip, ATM di)
+  multiple 3.0x: below_low on like_for_like
+  Case multiple 3.00× of the twelve months' revenue ending at its period end, on equity value plus borrowings less cash: below the low of the company's own 6-quarter range on the same basis (low 4.84×, median 7.84×, high 16.46×); today's price implies 8.19×; left out for lack of a reported balance: 2025-03-31, 2025-06-30. The history is retrospective, not a point-in-time backtest; the case's revenue is a forecast.
+  bounds: {'interest': {'amount': '41018731.90', 'per_share': '0.33', 'share_of_payments': '0.13'}, 'rent': {'annual_run_rate': '266230450.45', 'low': '0.00', 'high': '309994360.11', 'per_share_low': '0.00', 'per_share_high': '2.47', 'commencement': '2026-11 to 2028-06'}}
+  Not in the case arithmetic, bounded from the filing: if projected operating cash flow is already after lease interest, the scheduled payments count that interest twice and the case is too low by up to 0.33 USD a share (interest is 13% of the scheduled payments); if it leaves out rent on leases that have not commenced (2026-11 to 2028-06; about 266.2M USD a year once all have), the case is too high by 0.00 to 2.47 USD a share. The case does not say which applies. No discounting.
+  price unchanged: 42.9255
+== upside (Upside: growth beats 60%+ floor, multiple re)
+  multiple 6.0x: low_to_median on like_for_like
+  Case multiple 6.00× of the twelve months' revenue ending at its period end, on equity value plus borrowings less cash: between the low and the median of the company's own 6-quarter range on the same basis (low 4.84×, median 7.84×, high 16.46×); today's price implies 8.19×; left out for lack of a reported balance: 2025-03-31, 2025-06-30. The history is retrospective, not a point-in-time backtest; the case's revenue is a forecast.
+  bounds: {'interest': {'amount': '41018731.90', 'per_share': '0.34', 'share_of_payments': '0.13'}, 'rent': {'annual_run_rate': '266230450.45', 'low': '0.00', 'high': '309994360.11', 'per_share_low': '0.00', 'per_share_high': '2.57', 'commencement': '2026-11 to 2028-06'}}
+  Not in the case arithmetic, bounded from the filing: if projected operating cash flow is already after lease interest, the scheduled payments count that interest twice and the case is too low by up to 0.34 USD a share (interest is 13% of the scheduled payments); if it leaves out rent on leases that have not commenced (2026-11 to 2028-06; about 266.2M USD a year once all have), the case is too high by 0.00 to 2.57 USD a share. The case does not say which applies. No discounting.
+  price unchanged: 103.2525
+== decision card case lines
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares at 2027-12-31, 69.37 USD/shares today, -1.2% a year from the close; funding assessed; multiple below the low of its own history on the same basis; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c43455
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares at 2027-12-31, 38.56 USD/shares today, -40.9% a year from the close; funding assessed; multiple below the low of its own history on the same basis; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares at 2027-12-31, 92.76 USD/shares today, +27.4% a year from the close; funding assessed; multiple between the low and the median of its own history on the same basis; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 
+== unchanged: weighted today 63.64, direction below, score 5
+  520623df: score 4, references []
+  2a2e47dd: score 3, references [('like_for_like', 'below_low'), ('like_for_like', 'below_low')]
+  eea86100: score 5, references [('like_for_like', 'below_low'), ('like_for_like', 'below_low')]
+  86aa515f: score 3, references [(None, None), (None, None)]
+  c463bdac: score 5, references []

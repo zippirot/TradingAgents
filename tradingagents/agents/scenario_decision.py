@@ -75,8 +75,10 @@ def priced_cases(replayed) -> list[dict]:
                       "role": _text(row.get("scenario_role"), 40) or "unlabelled", "price": str(_decimal(result["target"])),
                       "unit": result.get("unit"), "period_end": result.get("valuation_period_end"),
                       "funding": funding.get("status", "unassessed"), "funding_summary": funding.get("summary", ""),
+                      "funding_bounds": funding.get("limit", "") if funding.get("bounds") else "",
                       "quote": _quote(row.get("comparison"), result.get("unit")),
                       "reference_band": position.get("band"), "reference_summary": position.get("summary", ""),
+                      "reference_same_basis": position.get("basis") == "like_for_like",
                       "flagged_by": [str(item) for item in row.get("disputed_by") or ()]})
     return cases
 
@@ -280,7 +282,8 @@ def render_cases_for_manager(cases, required=None) -> str:
         today = f" ({Decimal(case['value_today']):.2f} {case['unit']} today)" if valued else ""
         lines.append(f"- case_id {case['case_id']}, version {case['version']}, role {case['role']}, "
                      f"\"{case['name']}\": {Decimal(case['price']):.2f} {case['unit']} at {case['period_end']}{today}. "
-                     f"{case['funding_summary']} {case['reference_summary']}".rstrip())
+                     f"{case['funding_summary']} {case.get('funding_bounds', '')} {case['reference_summary']}"
+                     .replace("  ", " ").rstrip())
     lines.append(
         "Supply scenario_view with one entry per case above: case_id, version, disposition (accepted or rejected), "
         "reason, and for accepted cases a weight above 0 and at most 1; accepted weights must sum to 1 and are your "
@@ -320,7 +323,9 @@ def render(summary) -> list[str]:
     for case in summary["cases"]:
         stance = (f"accepted, weight {Decimal(case['weight']):.2f}" if case["disposition"] == "accepted"
                   else f"rejected on {case['rejected_input'].replace('_', ' ')}")
-        position = (f"implied multiple {BANDS[case['reference_band']]} of its own history"
+        position = ((f"multiple {BANDS[case['reference_band']]} of its own history on the same basis"
+                     if case.get("reference_same_basis") else
+                     f"implied multiple {BANDS[case['reference_band']]} of its own history")
                     if case.get("reference_band") in BANDS else "reference position unavailable")
         flag = ("; flagged by accepted audit finding " + ", ".join(case["flagged_by"])) if case.get("flagged_by") else ""
         today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""

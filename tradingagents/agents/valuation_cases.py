@@ -120,7 +120,84 @@ def _money(value, currency):
     return f"{value / Decimal(1_000_000):,.1f}M {currency}"
 
 
-def funding_check(capital, snapshot_date, borrowings_snapshot, terms):
+def _amount(value):
+    try:
+        number = Decimal(str(value))
+    except (ArithmeticError, ValueError, TypeError):
+        return None
+    return number if number.is_finite() else None
+
+
+def _month(text, *, last=False):
+    """First (or last) day of a ``YYYY-MM`` month, or None."""
+    try:
+        year, month = (int(part) for part in str(text).split("-"))
+        first = date(year, month, 1)
+    except (ValueError, TypeError):
+        return None
+    if not last:
+        return first
+    return date(year + (month == 12), month % 12 + 1, 1).fromordinal(date(year + (month == 12), month % 12 + 1, 1).toordinal() - 1)
+
+
+def funding_bounds(capital, snapshot_date, scheduled, terms) -> dict:
+    """Two open questions about a case's cash bridge, each bounded from the filing. Never changes the case.
+
+    A case states operating cash flow as one figure. Whether that figure is before or after lease interest,
+    and whether it includes rent on leases that have not commenced, is not stated. The filing gives enough
+    to say how much each could move the case, per share.
+    """
+    shares, end, bounds = capital.closing_shares.value, capital.valuation_date, {}
+    totals = terms.get("schedule_totals") if isinstance(terms.get("schedule_totals"), dict) else {}
+    total, interest = _amount(totals.get("total")), _amount(totals.get("interest"))
+    if scheduled is not None and scheduled > 0 and total is not None and interest is not None and 0 < abs(interest) < total:
+        amount = scheduled * abs(interest) / total
+        bounds["interest"] = {"amount": str(amount), "per_share": str(amount / shares),
+                              "share_of_payments": str(abs(interest) / total)}
+    low = high = run_rate = Decimal(0)
+    windows = []
+    for lease in terms.get("leases") or ():
+        if not isinstance(lease, dict) or str(lease.get("as_of")) != str(snapshot_date):
+            continue
+        scale, amount = _NOTE_SCALE.get(lease.get("unit")), _amount(lease.get("undiscounted_amount"))
+        term = _amount(lease.get("weighted_average_term_years"))
+        start, finish = _month(lease.get("commencement_start")), _month(lease.get("commencement_end"), last=True)
+        if None in (scale, amount, term, start, finish) or amount <= 0 or term <= 0 or finish < start:
+            continue
+        yearly = amount * scale / term
+        run_rate += yearly
+        # Every lease starting on the first day of the window is the most rent the period can carry;
+        # every lease starting on its last day is the least.
+        high += yearly * max((end - start).days, 0) / 365
+        low += yearly * max((end - finish).days, 0) / 365
+        windows.append(f"{lease['commencement_start']} to {lease['commencement_end']}")
+    if run_rate > 0:
+        bounds["rent"] = {"annual_run_rate": str(run_rate), "low": str(low), "high": str(high),
+                          "per_share_low": str(low / shares), "per_share_high": str(high / shares),
+                          "commencement": "; ".join(windows)}
+    return bounds
+
+
+def funding_limit(bounds, currency, counts_cash=True) -> str:
+    """What the funding check leaves outside the case arithmetic, with the filing's bounds where it gives them."""
+    if not counts_cash or not bounds:
+        return FUNDING_LIMIT
+    parts = []
+    if "interest" in bounds:
+        item = bounds["interest"]
+        parts.append(f"if projected operating cash flow is already after lease interest, the scheduled payments count "
+                     f"that interest twice and the case is too low by up to {Decimal(item['per_share']):.2f} {currency} "
+                     f"a share (interest is {Decimal(item['share_of_payments']) * 100:.0f}% of the scheduled payments)")
+    if "rent" in bounds:
+        item = bounds["rent"]
+        parts.append(f"if it leaves out rent on leases that have not commenced ({item['commencement']}; about "
+                     f"{_money(Decimal(item['annual_run_rate']), currency)} a year once all have), the case is too high by "
+                     f"{Decimal(item['per_share_low']):.2f} to {Decimal(item['per_share_high']):.2f} {currency} a share")
+    return ("Not in the case arithmetic, bounded from the filing: " + "; ".join(parts)
+            + ". The case does not say which applies. No discounting.")
+
+
+def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cash=True):
     """Compare a case's stated cash changes with the filing's payment schedule and maturing notes.
 
     The check reads retained source terms only. It reports what the case leaves
@@ -180,9 +257,11 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms):
     summary = (f"Funding assessed: scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
                "are stated and maturing notes are accounted for." if status == "assessed"
                else f"Funding {status}: " + " ".join(reasons))
+    bounds = funding_bounds(capital, snapshot_date, scheduled, terms) if counts_cash else {}
     return {"status": status, "scheduled_finance_payments": None if scheduled is None else str(scheduled),
             "stated_finance_payments": str(stated), "maturing_note_principal": str(principal),
-            "reasons": reasons, "summary": summary, "limit": FUNDING_LIMIT}
+            "reasons": reasons, "summary": summary, "bounds": bounds,
+            "limit": funding_limit(bounds, currency, counts_cash)}
 
 
 def case_funding(request, package, terms):
@@ -191,7 +270,8 @@ def case_funding(request, package, terms):
     snapshot = _fact(package, capital.cash.fact_ids[0]).period_end
     owed = capital.obligations.get("borrowings")
     borrowings = sum(_fact(package, i).value for i in owed.fact_ids) if owed is not None else None
-    return funding_check(capital, snapshot, borrowings, terms)
+    # On an equity basis cash does not enter the value, so the bridge's open questions cannot move it.
+    return funding_check(capital, snapshot, borrowings, terms, counts_cash=request.multiple_basis != "equity")
 
 
 def price_case(request, package, outlooks, terms=None):
@@ -268,6 +348,6 @@ def price_case(request, package, outlooks, terms=None):
             net_obligations=net.get(request.multiple_basis), multiple_assumption_date=request.multiple_assumption_date,
             valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
             accounting_basis=request.forecast.basis, assumptions=tuple(assumptions),
-            warnings=(*warnings, f"{case_funding(request, package, terms)['summary']} {FUNDING_LIMIT}"),
+            warnings=(*warnings, "{summary} {limit}".format(**case_funding(request, package, terms))),
             decision_use=DecisionUse(classification="forward_scenario", suitability="conditional", final_target_eligible=True))
         return result, sensitivities

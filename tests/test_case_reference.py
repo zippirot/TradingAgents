@@ -58,7 +58,8 @@ def test_same_per_share_value_gets_the_same_position_on_any_obligation_basis():
 ])
 def test_unavailable_history_gives_no_position(inputs):
     position = reference_position(_row("40"), inputs)
-    assert position == {"status": "unavailable", "reason": "Own valuation history is unavailable for this run."}
+    assert (position["status"], position["reason"]) == ("unavailable", "Own valuation history is unavailable for this run.")
+    assert position["like_for_like"]["status"] == "unavailable" and "band" not in position
     assert history_context(inputs) == []
 
 
