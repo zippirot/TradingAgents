@@ -11,7 +11,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
-from tradingagents.agents.shared_valuation import _BLOCK, prepare_shared_valuation, prepare_with_correction
+from tradingagents.agents.shared_valuation import (
+    _BLOCK,
+    prepare_shared_valuation,
+    prepare_with_correction,
+)
 from tradingagents.operational_audit import assess_audit
 
 LOGS = Path.home() / ".tradingagents/logs/DOCN/TradingAgentsStrategy_logs"
