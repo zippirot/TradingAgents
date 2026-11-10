@@ -534,7 +534,7 @@ def _summary_value(row):
     result = row["result"]
     value = display_value(result["target"], result["unit"])
     if row.get("disputed_by"):
-        return f"{value} — disputed ({', '.join(row['disputed_by'])}), excluded from range"
+        return f"{value} — flagged ({', '.join(row['disputed_by'])}), shown in range"
     return value
 
 
@@ -576,7 +576,7 @@ def render_shared_valuation(record):
                       + ". Exact values: evidence.json → shared_valuation_scenarios.", ""]
             lines.append(f"Case ID {row['case_id']}, version {row['version']}.")
             if row.get('disputed_by'):
-                lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; excluded from conditional range. Arithmetic retained unchanged.')
+                lines.append('Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; shown flagged in the conditional range. Arithmetic retained unchanged.')
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = "trailing at the future valuation date" if request["multiple_period"] == "trailing" else "forward from the analysis date"

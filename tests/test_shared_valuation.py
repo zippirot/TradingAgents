@@ -382,7 +382,7 @@ def test_disputed_row_marked_in_summary_table():
     row = {"name": "Base", "case_id": "case-1", "version": 1, "disputed_by": ["A1"], "result": {"target": "40", "unit": "USD/shares"}}
     from tradingagents.agents.shared_valuation import _summary_value
 
-    assert _summary_value(row) == "40.00 USD/shares — disputed (A1), excluded from range"
+    assert _summary_value(row) == "40.00 USD/shares — flagged (A1), shown in range"
     del row["disputed_by"]
     assert _summary_value(row) == "40.00 USD/shares"
 

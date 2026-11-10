@@ -42,12 +42,17 @@ def _quote(comparison, unit):
 
 
 def priced_cases(replayed) -> list[dict]:
-    """Cases with a price the manager can weigh: supported revenue cases no accepted audit finding disputes."""
+    """Cases with a price the manager can weigh: supported revenue cases.
+
+    A case an accepted audit finding names stays priced and carries the finding ids as ``flagged_by``:
+    the manager answers the findings and weighs the cases in one reply, so removing a case because of
+    that reply would void the weights given in it.
+    """
     cases = []
     for row in (replayed or {}).get("rows") or ():
         result = row.get("result") if isinstance(row, dict) else None
         if (not isinstance(result, dict) or result.get("method") != "revenue_case" or result.get("status") != "supported"
-                or row.get("disputed_by") or _decimal(result.get("target")) is None):
+                or _decimal(result.get("target")) is None):
             continue
         funding, position = row.get("funding") or {}, row.get("reference_position") or {}
         cases.append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
@@ -55,7 +60,8 @@ def priced_cases(replayed) -> list[dict]:
                       "unit": result.get("unit"), "period_end": result.get("valuation_period_end"),
                       "funding": funding.get("status", "unassessed"), "funding_summary": funding.get("summary", ""),
                       "quote": _quote(row.get("comparison"), result.get("unit")),
-                      "reference_band": position.get("band"), "reference_summary": position.get("summary", "")})
+                      "reference_band": position.get("band"), "reference_summary": position.get("summary", ""),
+                      "flagged_by": [str(item) for item in row.get("disputed_by") or ()]})
     return cases
 
 
@@ -203,7 +209,8 @@ def render_cases_for_manager(cases) -> str:
         "printed above are computed; do not call a case unassessed or uncalibrated unless they say so. A limit that "
         "applies equally to every case, or an uncertainty you cannot size, is expressed through lower weights and the "
         "downside case, not by rejecting. Reject a case only when you can state the value the rejected input should "
-        "take and that value changes the case materially; say that value in the reason. Code then "
+        "take and that value changes the case materially; say that value in the reason. Accepting an audit finding that "
+        "names a case does not remove the case: it stays in this list, is shown flagged, and still needs your entry. Code then "
         "compares the weighted value of your accepted cases with the completed close. If your rating points the "
         "other way by more than 10 percent, state why in rating_basis_reason. This is a labelled conditional range, "
         "never a price target.")
@@ -230,8 +237,9 @@ def render(summary) -> list[str]:
                   else f"rejected on {case['rejected_input'].replace('_', ' ')}")
         position = (f"implied multiple {BANDS[case['reference_band']]} of its own history"
                     if case.get("reference_band") in BANDS else "reference position unavailable")
+        flag = ("; flagged by accepted audit finding " + ", ".join(case["flagged_by"])) if case.get("flagged_by") else ""
         lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}; funding "
-                     f"{case['funding']}; {position}; {stance}. Reason (unvalidated): {case['reason']}")
+                     f"{case['funding']}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
         return lines

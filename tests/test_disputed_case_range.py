@@ -1,5 +1,6 @@
-"""Accepted case-specific audit advice changes the displayed range, not arithmetic."""
+"""Accepted case-specific audit advice flags a displayed case; it never removes it or alters its arithmetic."""
 from copy import deepcopy
+from decimal import Decimal
 
 from tests.test_case_valuation import revenue_case
 from tests.test_shared_valuation import state
@@ -31,29 +32,36 @@ def inputs(*, linked=True, disposition='accepted', all_cases=False):
     return value
 
 
-def test_accepted_case_excluded_from_range_but_retained():
+def test_accepted_case_stays_in_range_flagged_and_retained():
     value = inputs()
     original = deepcopy(value)
-    group = prepare_decision_context(value)['case_groups'][0]
-    assert group['low'] == group['high'] == value['shared_valuation_scenarios']['rows'][1]['result']['target']
+    card = prepare_decision_context(value)
+    group = card['case_groups'][0]
+    targets = sorted(Decimal(row['result']['target']) for row in value['shared_valuation_scenarios']['rows'])
+    assert (Decimal(group['low']), Decimal(group['high'])) == (targets[0], targets[1]) and targets[0] != targets[1]
     assert len(group['cases']) == 2 and group['cases'][0]['disputed_by']
-    assert 'excluded from conditional range' in render_decision_context(prepare_decision_context(value))
+    page = render_decision_context(card)
+    assert 'flagged by accepted audit finding' in page and 'shown in the conditional range' in page
+    assert 'excluded from conditional range' not in page and '**Conditional case range**' in page
+    assert 'supported scenarios 2 (1 flagged by an accepted audit finding)' in page
     assert enforce_publication(value)['shared_valuation_scenarios']['rows'][0]['result'] == original['shared_valuation_scenarios']['rows'][0]['result']
     assert value == original
 
 
 def test_exact_quote_fallback_and_rejected_finding():
-    assert prepare_decision_context(inputs(linked=False))['scenarios']['supported_count'] == 1
-    assert prepare_decision_context(inputs(disposition='rejected'))['scenarios']['supported_count'] == 2
+    quoted = prepare_decision_context(inputs(linked=False))['scenarios']
+    assert (quoted['supported_count'], quoted['disputed_count']) == (2, 1)
+    rejected = prepare_decision_context(inputs(disposition='rejected'))['scenarios']
+    assert (rejected['supported_count'], rejected['disputed_count']) == (2, 0)
 
 
-def test_all_disputed_has_no_range():
+def test_all_flagged_still_shows_the_whole_range_never_one_survivor():
     card = prepare_decision_context(inputs(all_cases=True))
-    assert card['scenarios']['supported_count'] == 0
-    assert card['case_groups'][0]['low'] is None
+    assert (card['scenarios']['supported_count'], card['scenarios']['disputed_count']) == (2, 2)
+    group = card['case_groups'][0]
+    assert group['low'] is not None and Decimal(group['low']) < Decimal(group['high'])
     page = render_decision_context(card)
-    assert 'No undisputed conditional range' in page
-    assert '**No undisputed conditional range**: unavailable; case period' in page
+    assert '**Conditional case range**' in page and page.count('shown in the conditional range') == 2
 
 
 def test_adopted_disputed_case_keeps_supported_value_and_is_visibly_marked():
@@ -73,9 +81,23 @@ def test_adopted_disputed_case_keeps_supported_value_and_is_visibly_marked():
     adopted_line = next(line for line in render_decision_context(card).splitlines()
                         if line.startswith('Adopted '))
     assert 'disputed by accepted audit finding' in adopted_line
-    assert 'excluded from conditional range' in adopted_line
+    assert 'excluded from conditional range' not in adopted_line
     projected = enforce_publication(value)
     assert projected['target_validation']['status'] == 'supported'
     page = projected['final_trade_decision']
     assert page.index('Disputed PM-adopted calculation') < page.index('**Conditional valuation sensitivity**')
     assert value['shared_valuation_scenarios'] == original['shared_valuation_scenarios']
+
+
+def test_each_decision_card_statement_is_its_own_paragraph():
+    """Run d58117ef's card ran change notes, basis, range and coverage together as one block."""
+    from tradingagents.agents.decision_context import _spaced
+
+    assert _spaced(['**A**: one', '- x', '- y', 'Changed since: z', 'No new filing.', '**B**: two']) == (
+        '**A**: one\n\n- x\n- y\n\nChanged since: z\n\nNo new filing.\n\n**B**: two')
+    assert _spaced(['### Card', '', 'a\nb']) == '### Card\n\na\n\nb'
+    lines = render_decision_context(prepare_decision_context(inputs())).split('\n')
+    for label in ('**Basis**', '**Horizon**', '**Evidence coverage**', '**Valuation availability**',
+                  '**Trader provisional action**'):
+        index = next(i for i, line in enumerate(lines) if line.startswith(label))
+        assert lines[index - 1] == '', label

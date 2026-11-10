@@ -52,12 +52,47 @@ def _reject(case_id, rejected_input="multiple"):
     return {"case_id": case_id, "version": 1, "disposition": "rejected", "rejected_input": rejected_input, "reason": "r"}
 
 
-def test_only_supported_undisputed_revenue_cases_with_a_price_can_be_weighed():
+def test_only_supported_revenue_cases_with_a_price_can_be_weighed_and_a_flagged_one_stays():
     rows = [_row("a", "74.45"), _row("b", None), _row("c", "10", disputed_by=["AF-1"]),
             {**_row("d", "10"), "result": {**_row("d", "10")["result"], "method": "pe"}},
             {**_row("e", "10"), "result": {**_row("e", "10")["result"], "status": "unsupported"}}]
-    assert [case["case_id"] for case in priced_cases({"rows": rows})] == ["a"]
+    cases = priced_cases({"rows": rows})
+    assert [(case["case_id"], case["flagged_by"]) for case in cases] == [("a", []), ("c", ["AF-1"])]
     assert priced_cases(None) == [] and priced_cases({"rows": "x"}) == []
+
+
+def _flagged_run():
+    """Run d58117ef in miniature: three cases weighed, two of them named by accepted audit findings."""
+    rows = [_row("base", "77.22", disputed_by=["AF-1", "AF-2"]),
+            _row("down", "42.93", role="downside", disputed_by=["AF-3"]), _row("up", "103.25", role="upside")]
+    return {"rows": rows}
+
+
+def test_weights_given_to_cases_the_audit_flagged_are_kept_and_the_flags_are_printed():
+    view = [_accept("base", 0.55), _accept("down", 0.30), _accept("up", 0.15)]
+    summary = summarize(_state(view), _flagged_run())
+    assert summary["status"] == "addressed" and summary["problems"] == []
+    assert summary["range"] == {"low": "42.93", "high": "103.25"}
+    assert Decimal(summary["weighted_value"]).quantize(Decimal("0.01")) == Decimal("70.84")
+    # 70.84 is 9.5 percent under the 78.31 close: inside the 10 percent band, so no contrary-rating reason is owed.
+    assert summary["direction"] == "near" and summary["consistency"] != "unexplained"
+    text = "\n".join(render(summary))
+    assert "flagged by accepted audit finding AF-1, AF-2" in text and "flagged by accepted audit finding AF-3" in text
+    assert "opinion only" not in text and text.count("flagged by") == 2
+
+
+def test_a_flagged_case_the_manager_rejects_leaves_the_range_and_the_rest_must_still_sum_to_one():
+    view = [_reject("base"), _accept("down", 0.5), _accept("up", 0.5)]
+    summary = summarize(_state(view), _flagged_run())
+    assert summary["status"] == "addressed" and summary["range"] == {"low": "42.93", "high": "103.25"}
+    assert [case["disposition"] for case in summary["cases"]] == ["rejected", "accepted", "accepted"]
+    short = summarize(_state([_reject("base"), _accept("down", 0.3), _accept("up", 0.15)]), _flagged_run())
+    assert short["status"] == "unaddressed" and "Accepted weights sum to 0.45" in short["problems"][0]
+
+
+def test_the_manager_is_told_a_finding_does_not_remove_a_case():
+    text = render_cases_for_manager(priced_cases(_flagged_run()))
+    assert "does not remove the case" in text and text.count("case_id ") >= 3
 
 
 def test_accepted_cases_give_range_weighted_value_and_direction_from_replayed_prices():
@@ -353,6 +388,7 @@ def test_decision_card_says_when_the_cases_were_not_addressed_and_the_score_drop
     assert "decision basis is opinion only" in text
     assessment = assess_audit({**observed(), "decision_context": record})
     assert (assessment["score"], assessment["findings"][0]["code"]) == (3, "decision_basis_unaddressed")
+    assert "could not be used: scenario_view is missing" in assessment["findings"][0]["text"]
     good, _, _ = _card(monkeypatch, [{"disposition": "accepted", "weight": 1, "reason": "Base."}])
     assert assess_audit({**observed(), "decision_context": good})["score"] == 5
 

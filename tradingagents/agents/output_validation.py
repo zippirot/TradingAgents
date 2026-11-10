@@ -236,7 +236,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     if disputed:
         target_result_text = render_target_result(target)
         notice = ('**Disputed PM-adopted calculation**: accepted audit finding '
-                  + ', '.join(disputed) + '; excluded from conditional range. '
+                  + ', '.join(disputed) + '. '
                   'Calculation retained unchanged; this is not validated fair value.\n\n')
         target_text = target_text.replace(target_result_text, notice + target_result_text, 1)
     pm = originals.get('portfolio_manager') or {}

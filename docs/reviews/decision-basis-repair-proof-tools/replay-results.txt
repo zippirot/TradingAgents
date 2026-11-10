@@ -1,0 +1,73 @@
+== d58117ef (2026-11-10)
+  scenario decision: saved unaddressed -> now addressed
+    base         77.22  accepted  weight 0.55  flagged_by ['AF-1e71b91717cf9b8c434551f9', 'AF-5dfc1969c25114851c9d721f']
+    downside     42.93  accepted  weight 0.3  flagged_by ['AF-ed0e394c89c2a80e4d7bf0d6']
+    upside      103.25  accepted  weight 0.15  flagged_by []
+    range 42.93 to 103.25; weighted 70.84; close 78.30000305175781; direction near; consistency consistent
+    problems: []
+  displayed range: 42.93 to 103.25; close within
+  scenarios: {'status': 'available', 'supported_count': 3, 'diagnostic_count': 0, 'disputed_count': 2}
+  operational score: saved card 3 -> new card 5; findings now []
+  --- card from Basis onward ---
+  **Basis**: conditional scenarios. The rating is checked against the scenario cases the Portfolio Manager accepted; they are assumptions with subjective weights, not a price target or a demonstrated expected return.
+  
+  \*\*Conditional scenario range \(not a price target\)\*\*: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason \(unvalidated\): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason \(unvalidated\): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason \(unvalidated\): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares \(range -45.2% to +31.9%\). Direction: near the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+  
+  **Horizon**: 6 months \(configured default\) — configured decision horizon.
+  
+  **Evidence coverage**: limited; Selected US SEC-filer fundamentals; pass: 20, fail: 0, unavailable: 6, not_applicable: 0.
+  
+  **Valuation availability**: final calculation unsupported; supported scenarios 3 (2 flagged by an accepted audit finding); diagnostic scenarios 0.
+  
+  **Trader provisional action**: Sell; this is not the canonical Portfolio Manager rating.
+  
+  Coverage limit: Numerator/share arithmetic calculated; EPS reconciliation needs source precision
+  
+  Coverage limit: Numerator/share arithmetic calculated; EPS reconciliation needs source precision
+  
+  Coverage limit:
+  --- condition change note recomputed ---
+   {'status': 'known', 'rows': [], 'tracked': 15}
+   ['- Advisory conditions: 15 tracked, none changed status.']
+== 520623df (2026-11-09)
+  scenario decision: saved None -> now no_priced_cases
+    problems: []
+  scenarios: {'status': 'unavailable', 'supported_count': 0, 'diagnostic_count': 0, 'disputed_count': 0}
+  operational score: saved card 4 -> new card 4; findings now ['fallback_recovered', 'fallback_recovered']
+== 2a2e47dd (2026-11-09)
+  scenario decision: saved None -> now not_applicable
+    unlabelled    74.86  None  weight None  flagged_by ['AF-afd6e367e5560e039bb9c3b2']
+    unlabelled    44.86  None  weight None  flagged_by []
+    problems: []
+  displayed range: 44.86 to 74.86; close within
+  scenarios: {'status': 'available', 'supported_count': 2, 'diagnostic_count': 0, 'disputed_count': 1}
+  operational score: saved card 3 -> new card 3; findings now ['valuation_cases_rejected', 'fallback_recovered', 'fallback_recovered']
+== eea86100 (2026-11-09)
+  scenario decision: saved None -> now not_applicable
+    unlabelled    74.45  None  weight None  flagged_by []
+    unlabelled    52.75  None  weight None  flagged_by []
+    problems: []
+  displayed range: 52.75 to 74.45; close above
+  scenarios: {'status': 'available', 'supported_count': 2, 'diagnostic_count': 0, 'disputed_count': 0}
+  operational score: saved card 5 -> new card 5; findings now []
+== 86aa515f (2026-11-09)
+  scenario decision: saved None -> now not_applicable
+    unlabelled    69.48  None  weight None  flagged_by []
+    unlabelled    44.63  None  weight None  flagged_by []
+    problems: []
+  displayed range: 44.63 to 69.48; close above
+  scenarios: {'status': 'available', 'supported_count': 2, 'diagnostic_count': 0, 'disputed_count': 0}
+  operational score: saved card 3 -> new card 3; findings now ['price_session_fallback', 'valuation_cases_rejected']
+== c463bdac (2026-11-09)
+  scenario decision: saved None -> now no_priced_cases
+    problems: []
+  scenarios: {'status': 'unavailable', 'supported_count': 0, 'diagnostic_count': 0, 'disputed_count': 0}
+  operational score: saved card 5 -> new card 5; findings now []

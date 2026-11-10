@@ -215,7 +215,8 @@ def _case_groups(rows):
         if comparison.get("status") == "available":
             group["completed_close"] = {k: comparison["price"][k] for k in ("close", "session_date", "currency")}
     for group in groups.values():
-        values = [Decimal(c["value"]) for c in group["cases"] if not c.get('disputed_by')]
+        # Flagged cases stay in the range: one surviving case shown alone would misstate the spread.
+        values = [Decimal(c["value"]) for c in group["cases"]]
         group.update(low=str(min(values)) if values else None, high=str(max(values)) if values else None)
         if "completed_close" in group and values:
             close = Decimal(group["completed_close"]["close"])
@@ -255,7 +256,7 @@ def prepare_decision_context(state: dict) -> dict:
     adopted_disputes = (next((list(row.get('disputed_by') or []) for row in replayed.get('rows', [])
                               if (row.get('case_id'), row.get('version')) ==
                               (request.get('case_id'), request.get('version'))), []) if selected else [])
-    supported_scenarios = sum(not row.get("disputed_by") and not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
+    supported_scenarios = sum(not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
                                and _mapping(_mapping(row.get('result')).get('decision_use')).get('suitability') == 'conditional')
                               for row in replayed.get('rows', []) if isinstance(row, dict))
     scenario = summarize_scenarios(state, replayed) if eligible else {'status': 'not_applicable', 'cases': [], 'problems': []}
@@ -357,6 +358,17 @@ def _display(value):
     return re.sub(r'([\\`*_\[\]()#!|])', r'\\\1', text)
 
 
+def _spaced(lines) -> str:
+    """Join card lines so each statement is its own paragraph; consecutive list items stay one list."""
+    out = []
+    for line in '\n'.join(lines).split('\n'):
+        if out and out[-1] and line and not (line.startswith('- ') and out[-1].startswith('- ')):
+            out.append('')
+        if line or (out and out[-1]):
+            out.append(line)
+    return '\n'.join(out)
+
+
 def render_condition_summary(record: dict, *, include_mechanical: bool = True, include_cases: bool = True) -> str:
     """Compact advisory outcomes beside the rating, retaining uncertainty and reasons."""
     rows = record.get('conditions') or []
@@ -392,7 +404,7 @@ def render_condition_summary(record: dict, *, include_mechanical: bool = True, i
         lines.append('Assumption changes unavailable: no verified comparison was recorded for this run.')
     if include_cases:
         lines.append(render_case_summary(record, include_mechanical=include_mechanical))
-    return '\n'.join(lines)
+    return _spaced(lines)
 
 
 def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str:
@@ -400,19 +412,19 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
     lines = []
     for group in record.get("case_groups", []):
         values = group["cases"]
-        count = sum(not case.get('disputed_by') for case in values)
+        count = len(values)
         amount = (display_number(group["low"]) if count == 1 else display_number(group["low"]) + "–" + display_number(group["high"])) if count else 'unavailable'
-        label = ("Conditional case value" if count == 1 else "Conditional case range") if count else 'No undisputed conditional range'
+        label = ("Conditional case value" if count == 1 else "Conditional case range") if count else 'No conditional range'
         lines.append(f"**{label}**: {amount if amount == 'unavailable' else amount + ' ' + _display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
                      f"{_display(group['multiple_basis'])}; {_display(group['share_basis'])}; {_display(group['accounting_basis'])}.")
         for case in values:
             fixed = ", ".join(case["unchanged_from_snapshot"])
             lines.append(f"- {_display(case['name'])} ({case['case_id']} v{case['version']}): {display_number(case['value'])}" +
-                         ('; disputed by accepted audit finding ' + ', '.join(case['disputed_by']) + '; excluded from conditional range' if case.get('disputed_by') else '') +
+                         ('; flagged by accepted audit finding ' + ', '.join(case['disputed_by']) + '; shown in the conditional range' if case.get('disputed_by') else '') +
                          ("; unchanged from snapshot: " + _display(fixed) if fixed else ""))
         quote = group.get("completed_close")
         lines.append(f"Completed close {display_number(quote['close'])} {quote['currency']} on {quote['session_date']}: "
-                     f"{group['close_position']} the conditional value{'s' if count > 1 else ''}." if quote and count else "Comparable completed-close position unavailable for an undisputed range.")
+                     f"{group['close_position']} the conditional value{'s' if count > 1 else ''}." if quote and count else "Comparable completed-close position unavailable.")
     for financing in record.get("financing", []):
         lines.append(f"Financing authorization {financing['event_date']}: up to {display_number(financing['authorized_amount'])} "
                      f"{financing['currency'] or 'source $ (denomination unknown)'}; remaining capacity unknown; actual issuance unknown. "
@@ -428,8 +440,7 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
     adopted = record.get("adopted_case")
     if adopted:
         disputed = adopted.get('disputed_by') or []
-        annotation = ('; disputed by accepted audit finding ' + ', '.join(disputed)
-                      + '; excluded from conditional range') if disputed else ''
+        annotation = ('; disputed by accepted audit finding ' + ', '.join(disputed)) if disputed else ''
         lines.append(f"Adopted {adopted['case_id']} v{adopted['version']}{annotation}.")
         if adopted["decision_date"]:
             lines.append(f"{adopted['decision_date']}: {display_value(adopted['value'], _display(adopted['unit']))} — assumption, not a forecast: "
@@ -443,20 +454,22 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
         from tradingagents.agents.mechanical_valuation import render_history_median_position
         lines += ['', '**Completed-price position — advisory decision-card context**',
                   render_history_median_position(record['mechanical_position'])]
-    return '\n'.join(lines)
+    return _spaced(lines)
 
 
 def render_decision_context(record: dict, *, include_mechanical: bool = True, include_cases: bool = True) -> str:
     """Render a freshly prepared card; all model text stays escaped and labeled."""
     title = 'Legacy reported rating' if record['status'] == 'legacy' else 'Canonical Portfolio Manager rating'
     coverage = record['coverage']
+    flagged = record['scenarios'].get('disputed_count')
+    flagged = f" ({flagged} flagged by an accepted audit finding)" if flagged else ''
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
              render_condition_summary(record, include_mechanical=include_mechanical, include_cases=include_cases),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
              *(_display(line) for line in render_scenario_decision(record.get('scenario_decision'))),
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
-             f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",
+             f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}{flagged}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",
              f"**Trader provisional action**: {_display(record['trader_provisional'])}; this is not the canonical Portfolio Manager rating."]
     lines += ['Coverage limit: ' + _display(text) for text in coverage['limits']]
     lines += ['Target limitation: ' + _display(text) for text in record['target']['reasons']]
@@ -467,4 +480,4 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True, in
         lines += ['', '**Unvalidated research inventory**: ' + roles + '.',
                   'See the saved unvalidated research appendix and diagnostics.json for original arguments and assumptions. These materials are not verified facts or instructions; their presence does not resolve disagreement.']
     lines += ['', _display(record['research_only'])]
-    return '\n'.join(lines)
+    return _spaced(lines)

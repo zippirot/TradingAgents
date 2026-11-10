@@ -257,8 +257,13 @@ def _capability_findings(state) -> list[dict]:
     basis = card.get("scenario_decision") if isinstance(card, Mapping) else None
     if isinstance(basis, Mapping) and (basis.get("status") == "unaddressed" or basis.get("consistency") == "unexplained"):
         code = "decision_basis_unaddressed"
+        problems = [str(item) for item in basis.get("problems") or () if isinstance(item, str)]
+        detail = ("Its answer on the priced scenario cases could not be used: " + " ".join(problems[:3])
+                  if basis.get("status") == "unaddressed" and problems else
+                  "It gave no usable answer on the priced scenario cases." if basis.get("status") == "unaddressed" else
+                  "Its rating points away from its own weighted scenario value and it gave no reason.")
         findings.append({"score": REASONS[code][0], "code": code, "stage": "Portfolio Manager",
-                         "text": f"Portfolio Manager: {REASONS[code][1]}",
+                         "text": f"Portfolio Manager: {detail}",
                          "locator": "decision_context.scenario_decision"})
     changes = card.get("since_last_decision") if isinstance(card, Mapping) else None
     if isinstance(changes, Mapping) and (changes.get("assessment") or {}).get("problems"):

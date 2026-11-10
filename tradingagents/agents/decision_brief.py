@@ -17,6 +17,7 @@ from tradingagents.agents.assumption_history import (
 )
 from tradingagents.agents.scenario_decision import priced_cases
 from tradingagents.agents.shared_valuation import replay_cases
+from tradingagents.memory.thesis import condition_status_label
 
 LABEL = "Since the last decision"
 ASSESSMENTS = {
@@ -70,6 +71,11 @@ def _new_filings(snapshot, state):
     return {"status": "known", "rows": rows}
 
 
+# Records saved before role wording was stored carry only the status word; "breached" there means not satisfied.
+_PLAIN_STATUS = {"breached": "comparison not satisfied", "met": "comparison satisfied",
+                 "unobserved": "no reading yet", "unknown": "no reading yet"}
+
+
 def _conditions(record, snapshot, state):
     prior = state.get("prior_thesis")
     if not isinstance(prior, dict) or not isinstance(prior.get("observations"), list):
@@ -82,10 +88,19 @@ def _conditions(record, snapshot, state):
     for row in prior["observations"]:
         then, now = before.get(row.get("condition_id"), "unobserved"), row.get("status")
         # Unobserved (new when first proposed) and unknown (not yet reported) are the same to a reader: no reading yet.
-        if then != now and {then, now} - {"unobserved", "unknown"}:
-            label = " ".join(str(row.get(key) or "") for key in ("metric", "comparator", "threshold", "unit")).strip()
-            rows.append({"condition": _text(label or row.get("description") or row.get("condition_id"), 160),
-                         "then": then, "now": now})
+        if then == now or not {then, now} - {"unobserved", "unknown"}:
+            continue
+        # A trigger read for the first time and found not met is a first reading, not a change.
+        if then in ("unobserved", "unknown") and now == "breached" and row.get("thesis_role") == "reconsideration_trigger":
+            continue
+        metric = row.get("metric") or ("Completed close" if row.get("kind") == "price_level" else "")
+        label = " ".join(str(part or "") for part in (metric, row.get("comparator"), row.get("threshold"),
+                                                       row.get("unit") or row.get("currency"))).strip()
+        # The stored status word "breached" only means the comparison is not satisfied; readers get the role wording.
+        rows.append({"condition": _text(label or row.get("description") or row.get("condition_id"), 160),
+                     "then": then, "now": now,
+                     "then_label": condition_status_label({**row, "status": then}),
+                     "now_label": condition_status_label({**row, "status": now})})
     return {"status": "known", "rows": rows, "tracked": len(prior["observations"])}
 
 
@@ -234,7 +249,8 @@ def render(brief, *, for_manager: bool = False, display=str) -> list[str]:
         rows = conditions["rows"]
         lines.append(f"- Advisory conditions: {conditions['tracked']} tracked, none changed status." if not rows else
                      "- Advisory conditions changed: "
-                     + "; ".join(f"{display(row['condition'])}: {display(row['then'])} to {display(row['now'])}"
+                     + "; ".join(f"{display(row['condition'])}: {display(row.get('then_label') or _PLAIN_STATUS.get(row['then'], row['then']))} to "
+                                 f"{display(row.get('now_label') or _PLAIN_STATUS.get(row['now'], row['now']))}"
                                  for row in rows[:8]) + ".")
     elif conditions:
         lines.append("- Advisory conditions: none carried from the earlier decision.")

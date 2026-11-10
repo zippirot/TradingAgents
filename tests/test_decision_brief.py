@@ -169,12 +169,40 @@ def test_a_condition_that_changed_status_is_listed_and_unchanged_ones_are_counte
     current["prior_thesis"] = {"publication_id": record["decision_id"], "observations": rows}
     brief = since_last_decision(config, "DOCN", current)
     assert brief["conditions"] == {"status": "known", "tracked": 2, "rows": [
-        {"condition": "Gross Margin >= 55.5 percent", "then": "unknown", "now": "met"}]}
-    assert "- Advisory conditions changed: Gross Margin >= 55.5 percent: unknown to met." in render(brief)
+        {"condition": "Gross Margin >= 55.5 percent", "then": "unknown", "now": "met",
+         "then_label": "Comparison unknown; thesis role unspecified",
+         "now_label": "Comparison satisfied; thesis role unspecified"}]}
+    assert ("- Advisory conditions changed: Gross Margin >= 55.5 percent: Comparison unknown; thesis role unspecified "
+            "to Comparison satisfied; thesis role unspecified.") in render(brief)
     first["decision_context"]["conditions"][0]["status"] = "unobserved"
     rows[0]["status"] = "unknown"
     assert "- Advisory conditions: 2 tracked, none changed status." in render(
         since_last_decision(config, "DOCN", current))
+
+
+def test_a_trigger_first_read_as_not_met_is_not_a_change_and_the_stored_word_is_never_printed(tmp_path, monkeypatch):
+    """Run d58117ef printed 'unobserved to breached' for three price triggers a 78.30 close did not meet."""
+    first = inputs()
+    first["decision_context"]["conditions"] = [{"condition_id": "c3", "status": "breached"}]
+    config, record = _published(tmp_path, monkeypatch, first)
+    current = inputs()
+    trigger = {"kind": "price_level", "thesis_role": "reconsideration_trigger", "currency": "USD"}
+    rows = [{**trigger, "condition_id": "c1", "comparator": ">=", "threshold": "85.69", "status": "breached"},
+            {**trigger, "condition_id": "c2", "comparator": "<", "threshold": "68.92", "status": "breached"},
+            {**trigger, "condition_id": "c3", "comparator": ">", "threshold": "90.5", "status": "met"},
+            {"condition_id": "c4", "thesis_role": "supports_thesis", "metric": "Gross Margin", "comparator": ">=",
+             "threshold": "55.5", "unit": "percent", "status": "breached"}]
+    current["prior_thesis"] = {"publication_id": record["decision_id"], "observations": rows}
+    brief = since_last_decision(config, "DOCN", current)
+    assert [(row["condition"], row["then_label"], row["now_label"]) for row in brief["conditions"]["rows"]] == [
+        ("Completed close > 90.5 USD", "Reconsideration trigger not met", "Reconsideration trigger met"),
+        ("Gross Margin >= 55.5 percent", "Unobserved; advisory question remains open", "Support condition breached")]
+    line = next(text for text in render(brief) if text.startswith("- Advisory conditions changed"))
+    assert "85.69" not in line and "68.92" not in line and "unobserved to breached" not in line
+    assert "Reconsideration trigger not met to Reconsideration trigger met" in line
+    old = {**brief, "conditions": {"status": "known", "tracked": 1, "rows": [
+        {"condition": ">= 85.69", "then": "unobserved", "now": "breached"}]}}
+    assert "- Advisory conditions changed: >= 85.69: no reading yet to comparison not satisfied." in render(old)
 
 
 def test_one_unusable_part_is_named_and_the_rest_of_the_brief_stands(tmp_path, monkeypatch):
