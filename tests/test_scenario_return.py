@@ -52,7 +52,7 @@ def test_the_rating_check_moves_to_values_today_and_states_the_return_gap():
     assert "weighted value today 63.64 USD/shares, -18.7% against the close" in text
     assert "returns -8.4% a year against a required 9.86%, a gap of -18.3 points" in text
     assert text.count("Direction:") == 1 and "Direction: below the close" in text
-    assert "-41.0% a year from the close" in text and "+27.5% a year from the close" in text
+    assert "-40.9% a year from the close" in text and "+27.4% a year from the close" in text
 
 
 def test_a_value_between_the_two_bases_changes_what_a_bullish_rating_owes():
@@ -162,3 +162,46 @@ def test_a_rejected_case_gets_a_yearly_return_but_does_not_move_the_basis():
     summary = _run([_accept("base", 0.5), _reject("down"), _accept("up", 0.5)])
     down = next(case for case in summary["cases"] if case["case_id"] == "down")
     assert down["annual_return"] is not None and _q(summary["range_today"]["low"]) == Decimal("69.37")
+
+
+def test_yearly_returns_run_from_the_dated_close_not_the_analysis_date():
+    """Audit finding: the close can be days older than the analysis date; the return is earned from the close."""
+    rows = _three()
+    for row in rows["rows"]:
+        row["comparison"]["price"]["session_date"] = "2026-11-06"     # a Friday close read the following Tuesday
+    state = {**_state(WEIGHED), "trade_date": "2026-11-10", "required_return": RETURN}
+    summary = summarize(state, rows)
+    base = next(case for case in summary["cases"] if case["case_id"] == "base")
+    assert Decimal(base["annual_return"]) == annual_return("77.22", "78.30", "2026-11-06", "2027-12-31")
+    assert Decimal(base["annual_return"]) != annual_return("77.22", "78.30", "2026-11-10", "2027-12-31")
+    weighted = sum(Decimal(w) * Decimal(p) for w, p in (("0.55", "77.22"), ("0.30", "42.93"), ("0.15", "103.25")))
+    assert Decimal(summary["weighted_annual_return"]) == annual_return(weighted, "78.30", "2026-11-06", "2027-12-31")
+    # Value today is still brought back to the analysis date.
+    assert _q(base["value_today"]) == Decimal("69.37")
+    rows["rows"][0]["comparison"]["price"]["session_date"] = None
+    undated = summarize(state, rows)
+    assert next(case for case in undated["cases"] if case["case_id"] == "base")["annual_return"] is None
+
+
+def test_rejecting_every_case_keeps_each_cases_own_arithmetic_and_drops_only_the_aggregate():
+    """Audit finding: with nothing accepted the per-case returns and return parts disappeared."""
+    rows = _three()
+    for row, (revenue, multiple, net, shares, price) in zip(rows["rows"], (
+            ("1950000000", "4.7", "-133743000", "120420731", "77.2187888479"),
+            ("1700000000", "3.0", "-283743000", "125420731", "42.9254634148"),
+            ("2050000000", "6.0", "-133743000", "120420731", "103.2525122273")), strict=True):
+        row["request"] = {"forecast": {"value": revenue}, "multiple_basis": "borrowings_only"}
+        row["result"].update(multiple=multiple, net_obligations=net, shares_outstanding=shares, target=price)
+    state = {**_state([_reject("base"), _reject("down"), _reject("up")]), "trade_date": "2026-11-10",
+             "required_return": RETURN, "price_implied_valuation": IMPLIED}
+    summary = summarize(state, rows)
+    assert summary["range"] is None and summary["sizing_rule"] is None and summary["weighted_value_today"] is None
+    assert all(case["annual_return"] is not None and case.get("return_parts") for case in summary["cases"])
+    text = "\n".join(render(summary))
+    assert "-40.9% a year from the close" in text and "- base — revenue to 1.95B: +58.84" in text
+    assert "Where each case's value comes from, per share, from the 2026-11-09 close" in text
+    assert "Accepted range" not in text and "Rating check" not in text and "Sizing from the downside" not in text
+    # A case with no comparable close of its own gets neither figure.
+    rows["rows"][1]["comparison"] = {"status": "unavailable"}
+    down = next(case for case in summarize(state, rows)["cases"] if case["case_id"] == "down")
+    assert down["annual_return"] is None and "return_parts" not in down

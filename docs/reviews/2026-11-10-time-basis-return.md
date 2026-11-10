@@ -30,8 +30,8 @@ rule, operational scoring, case arithmetic.
 | Case | Yearly return from the close | Revenue | Multiple | Shares and net obligations | Total |
 |---|---|---|---|---|---|
 | Base | -1.2% | +58.84 | 8.19x to 4.70x: -57.68 | -2.24 | -1.08 |
-| Downside | -41.0% | +41.48 | 8.19x to 3.00x: -74.79 | -2.06 | -35.37 |
-| Upside | +27.5% | +65.78 | 8.19x to 6.00x: -38.04 | -2.79 | +24.95 |
+| Downside | -40.9% | +41.48 | 8.19x to 3.00x: -74.79 | -2.06 | -35.37 |
+| Upside | +27.4% | +65.78 | 8.19x to 6.00x: -38.04 | -2.79 | +24.95 |
 
 Weights: with equal weights the value today is 66.90, -14.6% against the close. The upside case would
 need a weight of 58%, against the 15% given, for the weighted value today to equal the close.
@@ -48,7 +48,7 @@ runs keep their scenario status and operational scores (4, 3, 5, 3, 5) and print
 
 ## Checks
 
-- Full suite: 4,409 passed, 10 skipped, 1 deselected. `ruff check .`: clean.
+- Full suite at the audited commit: 4,409 passed, 10 skipped, 1 deselected; after closure 4,411. `ruff check .`: clean.
 - New tests (`tests/test_scenario_return.py`, 18): yearly return; check on values today with the return
   gap; a Buy that owes a reason only on today's basis; fallback to period-end values; equal-weight value
   and break-even weight including the unreachable and not-needed cases; return parts summing exactly;
@@ -76,3 +76,21 @@ runs keep their scenario status and operational scores (4, 3, 5, 3, 5) and print
 
 - Build 2: like-for-like reference for the multiple, peer coverage, funding bounds.
 - Build 3 item 3d: portfolio-file additions.
+
+## Independent audit and closure (2026-11-10)
+
+Audit of `4bc69a67` by GPT-6 Astra (run 13ca82d7, 25 turns, $0.70): two Medium findings, no High or Critical.
+
+| Finding | Verdict | Action |
+|---|---|---|
+| Yearly returns and the return gap ran from the analysis date, not from the date of the close they are measured against. | Confirmed, reproduced by a new test that failed on `4bc69a67`. One day's difference on the saved run (-41.0% became -40.9%), larger when the close is older. | Fixed: per-case and weighted yearly returns run from the close's session date. Value today is still brought back to the analysis date. An undated close gives no yearly return. |
+| When every case was rejected, per-case yearly returns and the return split disappeared, although each case still had everything needed. | Confirmed, reproduced by a new test. | Fixed, with one deliberate difference from the auditor's suggestion (below). |
+
+**Where the fix differs from the suggestion.** The auditor proposed measuring each case against its own quote. An
+existing rule, pinned by an existing test, is that no price comparison is printed when the accepted cases were
+validated against different closes. Per-case figures therefore use one shared close: the one the accepted cases
+share, or, with nothing accepted, the one every quoted case shares. A case validated against a different close,
+or none, gets no figure.
+
+Closure checks (ran): full suite 4,411 passed, 10 skipped, 1 deselected; `ruff check .` clean; replay of d58117ef
+shows weighted value today 63.64, direction below, gap -18.3 points, unchanged apart from the two yearly figures above.

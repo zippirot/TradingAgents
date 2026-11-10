@@ -28,9 +28,9 @@ def _days(analysis_date, period_end):
         return None
 
 
-def annual_return(value, close, analysis_date, period_end) -> Decimal | None:
-    """The yearly return from ``close`` on the analysis date to ``value`` at the period end."""
-    value, close, days = _decimal(value), _decimal(close), _days(analysis_date, period_end)
+def annual_return(value, close, close_date, period_end) -> Decimal | None:
+    """The yearly return from ``close`` on its own session date to ``value`` at the period end."""
+    value, close, days = _decimal(value), _decimal(close), _days(close_date, period_end)
     if value is None or close is None or value <= 0 or close <= 0 or not days or days <= 0:
         return None
     with localcontext() as ctx:
@@ -38,8 +38,11 @@ def annual_return(value, close, analysis_date, period_end) -> Decimal | None:
         return (value / close) ** (Decimal(365) / Decimal(days)) - 1
 
 
-def today_basis(accepted, close, rate, analysis_date) -> dict | None:
-    """Weighted value today against the close; None unless every accepted case has a value today."""
+def today_basis(accepted, close, rate, close_date) -> dict | None:
+    """Weighted value today against the close; None unless every accepted case has a value today.
+
+    ``close_date`` is the session of the close: the weighted yearly return runs from it to the period end.
+    """
     close = _decimal(close)
     if close is None or close <= 0 or not accepted or any(row.get("value_today") is None for row in accepted):
         return None
@@ -57,7 +60,7 @@ def today_basis(accepted, close, rate, analysis_date) -> dict | None:
         rate = _decimal(rate)
         if len(ends) == 1 and rate is not None:
             period_end = sum(w * Decimal(row["price"]) for w, row in zip(weights, accepted, strict=True)) / sum(weights)
-            yearly = annual_return(period_end, close, analysis_date, next(iter(ends)))
+            yearly = annual_return(period_end, close, close_date, next(iter(ends)))
             if yearly is not None:
                 basis.update(weighted_annual_return=str(yearly), return_gap_points=str((yearly - rate) * 100))
     return basis

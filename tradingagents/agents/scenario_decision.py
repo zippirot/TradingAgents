@@ -195,6 +195,24 @@ def summarize(state, replayed) -> dict:
         else:
             row["rejected_input"] = entry["rejected_input"]
         rows.append(row)
+    # Arithmetic on each case's own assumptions against one validated close. Rejecting a case removes it from
+    # the accepted aggregate, never from this. The close is the one the accepted cases share; with nothing
+    # accepted, the one every quoted case shares. Cases validated against different closes get no figure.
+    if accepted:
+        reference = accepted[0]["quote"] if all(row["quote"] is not None and row["quote"] == accepted[0]["quote"]
+                                                for row in accepted) else None
+    else:
+        quoted = [row["quote"] for row in rows if row["quote"] is not None]
+        reference = quoted[0] if quoted and all(quote == quoted[0] for quote in quoted) else None
+    for row in rows:
+        row["annual_return"] = None
+        if reference is None or row["quote"] != reference:
+            continue
+        yearly = annual_return(row["price"], reference["close"], reference.get("session_date"), row.get("period_end"))
+        row["annual_return"] = None if yearly is None else str(yearly)
+        parts = return_parts(row, state.get("price_implied_valuation"), reference["close"])
+        if parts is not None:
+            row["return_parts"] = parts
     summary = {"status": "addressed", "cases": rows, "problems": [], "range": None, "weighted_value": None,
                "close": None, "session_date": None, "direction": None, "consistency": "not_checked",
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
@@ -224,16 +242,11 @@ def summarize(state, replayed) -> dict:
         summary["sizing_rule"] = sizing_rule(accepted, close)
         # With a required return every accepted case has a value today, and the check moves to that basis:
         # a value at a later date and today's price are otherwise not comparable.
-        today = today_basis(accepted, close, rate_from_state(state), state.get("trade_date"))
+        # The weighted yearly return is earned from the dated close, which can be older than the analysis date.
+        today = today_basis(accepted, close, rate_from_state(state), price.get("session_date"))
         if today is not None:
             summary.update(today, direction=_direction(Decimal(today["weighted_value_today"]), close),
                            direction_basis="value_today", sturdiness=sturdiness(accepted, close))
-        for row in rows:
-            row["annual_return"] = (lambda r: None if r is None else str(r))(
-                annual_return(row["price"], close, state.get("trade_date"), row.get("period_end")))
-            parts = return_parts(row, state.get("price_implied_valuation"), close)
-            if parts is not None:
-                row["return_parts"] = parts
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -318,7 +331,7 @@ def render(summary) -> list[str]:
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
         # A value today printed above is never left without the assumption behind it.
-        return lines + render_sizing_rule(summary)
+        return lines + render_return_parts(summary) + render_sizing_rule(summary)
     unit, span = summary["unit"], summary["range"]
     text = (f"Accepted range {_money(span['low'], unit)} to {_money(span['high'], unit)}; weighted value "
             f"{_money(summary['weighted_value'], unit)}")
@@ -369,7 +382,7 @@ def render_return_parts(summary) -> list[str]:
     if not rows:
         return []
     first = rows[0]["return_parts"]
-    lines = [f"Where each case's value comes from, per share, from the {summary['session_date']} close, applied in "
+    lines = [f"Where each case's value comes from, per share, from the {rows[0]['quote']['session_date']} close, applied in "
              f"order: revenue, then the multiple, then shares and net obligations. Today's price is "
              f"{Decimal(first['multiple_today']):.2f}x revenue of the last twelve months "
              f"({_billions(first['revenue_today'])}) on the case's own obligation basis; each case applies its multiple "
