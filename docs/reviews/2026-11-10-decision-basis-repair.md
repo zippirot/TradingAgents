@@ -85,3 +85,24 @@ They pinned the rule this plan replaces:
 - A computed reference multiple.
 - A shorter path for runs where price and filings are unchanged.
 - Whether a flagged case should be barred from adoption as a price target (see adjustment 1).
+
+## Independent audit and closure (2026-11-10)
+
+Audit of `f568d6e0` by GPT-6 Astra (run 9444977f, 28 turns, $0.69): one Medium finding, no others.
+
+| Finding | Verdict | Action |
+|---|---|---|
+| A flagged case the manager rejects still appeared in the separately printed "Conditional case range", and the close was positioned against it. | Confirmed, reproduced: two new card-level tests fail on `f568d6e0`. The manager's own accepted range was already correct; the second, inventory range was not told about the rejection. The earlier test only checked the first range and rejected a middle case, so it could not see this. | Fixed. When the manager's answer is usable, a case it rejected stays listed, is labelled "rejected by the Portfolio Manager; not in the conditional range", and leaves the range and the close position. When the answer is unusable, every priced case stays in the range. |
+
+Also fixed in the closure commit: the scenario-range heading printed literal asterisks instead of bold (present before this build).
+
+Closure checks (ran): full suite 4,366 passed, 10 skipped, 1 deselected; `ruff check .` clean; replay of d58117ef unchanged
+(addressed, 0.55/0.30/0.15, 42.93 to 103.25, weighted 70.84, score 5/5); the report for d58117ef was re-exported through
+`write_report_tree` against the stored publication record with no model call.
+
+Seen on that re-export, expected, not defects of this build:
+- The saved executive summary describes the old decision, no longer matches, and is marked unavailable, so the
+  re-exported report scores 3/5. A fresh run writes a matching summary.
+- The saved change note still lists the three price conditions, now worded "no reading yet to comparison not satisfied".
+
+Auditor limits that remain: no remote CI for this unpushed commit; no live run.

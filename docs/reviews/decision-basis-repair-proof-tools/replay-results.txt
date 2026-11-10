@@ -11,7 +11,7 @@
   --- card from Basis onward ---
   **Basis**: conditional scenarios. The rating is checked against the scenario cases the Portfolio Manager accepted; they are assumptions with subjective weights, not a price target or a demonstrated expected return.
   
-  \*\*Conditional scenario range \(not a price target\)\*\*: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+  **Conditional scenario range \(not a price target\)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
   
   - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason \(unvalidated\): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
   - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason \(unvalidated\): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
@@ -33,7 +33,7 @@
   
   Coverage limit: Numerator/share arithmetic calculated; EPS reconciliation needs source precision
   
-  Coverage limit:
+  Coverage limit: Mod
   --- condition change note recomputed ---
    {'status': 'known', 'rows': [], 'tracked': 15}
    ['- Advisory conditions: 15 tracked, none changed status.']

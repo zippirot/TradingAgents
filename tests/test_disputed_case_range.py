@@ -101,3 +101,73 @@ def test_each_decision_card_statement_is_its_own_paragraph():
                   '**Trader provisional action**'):
         index = next(i for i, line in enumerate(lines) if line.startswith(label))
         assert lines[index - 1] == '', label
+
+
+def _weighed(monkeypatch, dispositions, *, flag='low'):
+    """Three priced cases, an accepted audit finding naming one endpoint, and the manager's answer on each."""
+    from tests.test_valuation_comparison import state as quoted_state
+
+    cases = []
+    for name, multiple in (('Low', '2'), ('Mid', '3'), ('High', '4')):
+        case = revenue_case()
+        case['name'] = name
+        case['request']['multiple'] = multiple
+        case['request']['multiple_rationale'] = f'The {name} multiple.'
+        cases.append(case)
+    value = {**state(cases), **quoted_state(monkeypatch)}
+    value['final_rating'] = 'Hold'
+    value['evidence_quality'] = {**value['evidence_quality'], 'checks': []}
+    value['shared_valuation_scenarios'] = prepare_shared_valuation(value)
+    rows = {row['name']: row for row in value['shared_valuation_scenarios']['rows']}
+    named = rows[{'low': 'Low', 'high': 'High'}[flag]]
+    value['advisory_audit'] = {'status': 'completed with findings', 'findings': [
+        {'role': 'fundamentals', 'quoted_claim': named['request']['multiple_rationale'], 'case_id': named['case_id'],
+         'issue_type': 'numerical_inconsistency', 'explanation': 'Multiple disputed', 'evidence_label': None}]}
+    view = None if dispositions is None else [
+        {'case_id': rows[name]['case_id'], 'version': 1, 'reason': 'r',
+         **({'disposition': 'accepted', 'weight': weight} if weight else
+            {'disposition': 'rejected', 'rejected_input': 'multiple'})}
+        for name, weight in dispositions.items()]
+    value['unvalidated_outputs'] = {'portfolio_manager': {
+        'case_contract': 1, 'scenario_contract': 1, 'contract_version': 1, 'configured_horizon_months': 6,
+        'structured': {'rating': 'Hold', 'time_horizon': '6 months', 'scenario_view': view, 'no_case_reason': 'x'}}}
+    value['unvalidated_outputs']['portfolio_manager']['structured']['audit_dispositions'] = [
+        {'finding_id': f['finding_id'], 'disposition': 'accepted', 'reason': 'Reviewed'}
+        for f in prepare_audit_dispositions(value)['findings']]
+    card = prepare_decision_context(value)
+    prices = {name: Decimal(row['result']['target']) for name, row in rows.items()}
+    return card, render_decision_context(card, include_mechanical=False).replace('\\', ''), prices
+
+
+def test_a_flagged_endpoint_the_manager_rejects_leaves_both_published_ranges(monkeypatch):
+    card, page, prices = _weighed(monkeypatch, {'Low': None, 'Mid': 0.5, 'High': 0.5})
+    assert prices['Low'] < prices['Mid'] < prices['High']
+    basis, group = card['scenario_decision'], card['case_groups'][0]
+    assert basis['status'] == 'addressed'
+    assert (Decimal(basis['range']['low']), Decimal(basis['range']['high'])) == (prices['Mid'], prices['High'])
+    assert (Decimal(group['low']), Decimal(group['high'])) == (prices['Mid'], prices['High'])
+    low_line = next(line for line in page.split('\n') if line.startswith('- Low ('))
+    assert 'flagged by accepted audit finding' in low_line
+    assert 'rejected by the Portfolio Manager; not in the conditional range' in low_line
+    assert 'shown in the conditional range' not in low_line and 'shown in the conditional range' not in page
+    assert '**Conditional scenario range (not a price target)**' in page
+
+
+def test_a_flagged_endpoint_the_manager_accepts_is_in_both_published_ranges(monkeypatch):
+    card, page, prices = _weighed(monkeypatch, {'Low': 0.3, 'Mid': 0.5, 'High': 0.2})
+    basis, group = card['scenario_decision'], card['case_groups'][0]
+    assert (Decimal(basis['range']['low']), Decimal(group['low'])) == (prices['Low'], prices['Low'])
+    assert (Decimal(basis['range']['high']), Decimal(group['high'])) == (prices['High'], prices['High'])
+    assert page.count('shown in the conditional range') == 1 and 'rejected by the Portfolio Manager' not in page
+
+
+def test_all_rejected_leaves_no_range_and_an_unusable_answer_keeps_every_priced_case(monkeypatch):
+    card, page, prices = _weighed(monkeypatch, {'Low': None, 'Mid': None, 'High': None})
+    assert card['scenario_decision']['range'] is None and card['case_groups'][0]['low'] is None
+    assert '**No conditional range**: unavailable' in page and page.count('rejected by the Portfolio Manager') == 3
+    for answer in (None, {'Low': 0.3, 'Mid': 0.5}):  # no answer; one case left unaddressed
+        card, page, prices = _weighed(monkeypatch, answer)
+        assert card['scenario_decision']['status'] == 'unaddressed'
+        group = card['case_groups'][0]
+        assert (Decimal(group['low']), Decimal(group['high'])) == (prices['Low'], prices['High'])
+        assert 'rejected by the Portfolio Manager' not in page and 'shown in the conditional range' in page

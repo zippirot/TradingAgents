@@ -9,6 +9,7 @@ from decimal import Decimal
 from tradingagents.agents.issuer_events import financing_sensitivities
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
 from tradingagents.agents.scenario_decision import (
+    LABEL as SCENARIO_LABEL,
     render as render_scenario_decision,
     summarize as summarize_scenarios,
 )
@@ -186,7 +187,14 @@ def validate_final_case(state, request, cases=None):
         return TargetResult(status="unsupported", reasons=(str(exc).split("\n")[0],))
 
 
-def _case_groups(rows):
+def _case_groups(rows, scenario=None):
+    """Displayed case inventory and its range.
+
+    When the Portfolio Manager's answer on the priced cases is usable, a case it rejected stays listed but
+    leaves the range; otherwise every priced case, flagged or not, is in the range.
+    """
+    rejected = {(case["case_id"], case["version"]) for case in _mapping(scenario).get("cases", ())
+                if _mapping(scenario).get("status") == "addressed" and case.get("disposition") == "rejected"}
     groups = {}
     for row in rows:
         result, request = row["result"], row["request"]
@@ -210,13 +218,14 @@ def _case_groups(rows):
                  if v["assumption"] == "unchanged_from_snapshot"]
         group["cases"].append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
                                **({'disputed_by': row['disputed_by']} if row.get('disputed_by') else {}),
+                               **({'manager_rejected': True} if (row["case_id"], row["version"]) in rejected else {}),
                                "value": result["target"], "unchanged_from_snapshot": fixed})
         comparison = row.get("comparison") or {}
         if comparison.get("status") == "available":
             group["completed_close"] = {k: comparison["price"][k] for k in ("close", "session_date", "currency")}
     for group in groups.values():
         # Flagged cases stay in the range: one surviving case shown alone would misstate the spread.
-        values = [Decimal(c["value"]) for c in group["cases"]]
+        values = [Decimal(c["value"]) for c in group["cases"] if not c.get("manager_rejected")]
         group.update(low=str(min(values)) if values else None, high=str(max(values)) if values else None)
         if "completed_close" in group and values:
             close = Decimal(group["completed_close"]["close"])
@@ -333,7 +342,7 @@ def prepare_decision_context(state: dict) -> dict:
             'mechanical_position': mechanical_position, 'scenario_decision': scenario,
             'horizon': horizon, 'coverage': coverage,
             'financing': financing_sensitivities(state) if eligible and quality.get('scope') == 'Selected US SEC-filer fundamentals' and state.get('asset_type','stock') == 'stock' else [],
-            'case_groups': _case_groups(replayed['rows']) if horizon['status'] == 'explicit' else [],
+            'case_groups': _case_groups(replayed['rows'], scenario) if horizon['status'] == 'explicit' else [],
             'adopted_case': ({'case_id': request['case_id'], 'version': request['version'], 'value': str(target.target),
                               'unit': target.unit, 'decision_date': str(target.decision_date) if target.decision_date else None,
                               'rerating_assumption': target.rerating_assumption,
@@ -412,7 +421,7 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
     lines = []
     for group in record.get("case_groups", []):
         values = group["cases"]
-        count = len(values)
+        count = sum(not case.get('manager_rejected') for case in values)
         amount = (display_number(group["low"]) if count == 1 else display_number(group["low"]) + "–" + display_number(group["high"])) if count else 'unavailable'
         label = ("Conditional case value" if count == 1 else "Conditional case range") if count else 'No conditional range'
         lines.append(f"**{label}**: {amount if amount == 'unavailable' else amount + ' ' + _display(group['unit'])}; case period {group['period_start']} to {group['period_end']}; "
@@ -420,7 +429,9 @@ def render_case_summary(record: dict, *, include_mechanical: bool = True) -> str
         for case in values:
             fixed = ", ".join(case["unchanged_from_snapshot"])
             lines.append(f"- {_display(case['name'])} ({case['case_id']} v{case['version']}): {display_number(case['value'])}" +
-                         ('; flagged by accepted audit finding ' + ', '.join(case['disputed_by']) + '; shown in the conditional range' if case.get('disputed_by') else '') +
+                         ('; flagged by accepted audit finding ' + ', '.join(case['disputed_by']) if case.get('disputed_by') else '') +
+                         ('; rejected by the Portfolio Manager; not in the conditional range' if case.get('manager_rejected')
+                          else '; shown in the conditional range' if case.get('disputed_by') else '') +
                          ("; unchanged from snapshot: " + _display(fixed) if fixed else ""))
         quote = group.get("completed_close")
         lines.append(f"Completed close {display_number(quote['close'])} {quote['currency']} on {quote['session_date']}: "
@@ -466,7 +477,9 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True, in
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
              render_condition_summary(record, include_mechanical=include_mechanical, include_cases=include_cases),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
-             *(_display(line) for line in render_scenario_decision(record.get('scenario_decision'))),
+             # The heading is ours, not model text: keep its bold markup after escaping the rest of the line.
+             *(_display(line).replace(_display(f"**{SCENARIO_LABEL}**"), f"**{_display(SCENARIO_LABEL)}**", 1)
+               for line in render_scenario_decision(record.get('scenario_decision'))),
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
              f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}{flagged}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",
