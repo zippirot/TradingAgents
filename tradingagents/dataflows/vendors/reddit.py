@@ -9,16 +9,24 @@ A fetch that fails is reported as ``<unavailable>``, never as "no posts found":
 the two are different claims, and passing a rate-limited fetch off as silence
 hands the sentiment analyst a signal that was never observed (#1295).
 
-No API key required. Returns formatted plaintext blocks ready for prompt
+No API key is required for that path, but Reddit refuses anonymous requests from
+many networks. When ``REDDIT_CLIENT_ID`` and ``REDDIT_CLIENT_SECRET`` are set
+(a free "script" app from reddit.com/prefs/apps), the same search runs through
+Reddit's authenticated API instead, reading public posts only.
+
+Returns formatted plaintext blocks ready for prompt
 injection and degrades gracefully — returns a placeholder string rather than
 raising, so callers never special-case missing data.
 """
 
 from __future__ import annotations
 
+import base64
 import html
 import http.client
+import json
 import logging
+import os
 import random
 import re
 import time
@@ -254,6 +262,61 @@ def _fetch_subreddit_rss(
     return posts
 
 
+_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
+_API = "https://oauth.reddit.com/r/{sub}/search.json?{qs}"
+
+
+def _credentials() -> tuple[str, str] | None:
+    """The Reddit app's client ID and secret from the environment, or None when either is missing."""
+    client, secret = (os.environ.get(name, "").strip() for name in ("REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"))
+    return (client, secret) if client and secret else None
+
+
+def _fetch_subreddit_api(ticker: str, sub: str, limit: int, timeout: float) -> list[dict] | None:
+    """The same search through Reddit's authenticated API, for an app that reads public posts only.
+
+    Returns ``[]`` for no match and ``None`` for a failed fetch, as the feed path does. The
+    access token lives only inside this call: the replay record holds the search result alone,
+    and a failure is logged by its type, never with a header or body.
+    """
+    credentials = _credentials()
+    if credentials is None:
+        return None
+    url = _API.format(sub=sub, qs=_search_qs(ticker, limit) + "&raw_json=1")
+
+    def acquire():
+        basic = base64.b64encode(":".join(credentials).encode()).decode()
+        grant = Request(_TOKEN_URL, data=b"grant_type=client_credentials",
+                        headers={"User-Agent": _UA, "Authorization": f"Basic {basic}"})
+        with urlopen(grant, timeout=timeout) as resp:
+            token = json.loads(_read_capped(resp)).get("access_token")
+        if not isinstance(token, str) or not token:
+            raise http.client.HTTPException("Reddit returned no access token")
+        search = Request(url, headers={"User-Agent": _UA, "Authorization": f"Bearer {token}"})
+        with urlopen(search, timeout=timeout) as resp:
+            return _read_capped(resp)
+
+    try:
+        raw = external_input("reddit_api", {"url": url}, acquire)
+        children = json.loads(raw)["data"]["children"]
+        posts = []
+        for child in children[:limit]:
+            data = child["data"]
+            created = data.get("created_utc")
+            posts.append({
+                "title": str(data.get("title") or ""),
+                "created_utc": float(created) if isinstance(created, (int, float)) else None,
+                "selftext": " ".join(html.unescape(str(data.get("selftext") or "")).split()),
+                "subreddit": str(data.get("subreddit") or (sub if "+" not in sub else "")),
+            })
+        return posts
+    except HTTPError as exc:
+        logger.warning("Reddit API fetch failed for r/%s · %s: HTTP %s", sub, ticker, exc.code)
+    except (OSError, http.client.HTTPException, ValueError, KeyError, TypeError, AttributeError) as exc:
+        logger.warning("Reddit API fetch failed for r/%s · %s: %s", sub, ticker, type(exc).__name__)
+    return None
+
+
 def fetch_reddit_posts(
     ticker: str,
     subreddits: Iterable[str] | None = None,
@@ -286,7 +349,8 @@ def fetch_reddit_posts(
     # ("BTC") so the query actually matches discussion instead of near-nothing.
     ticker = crypto_base(ticker) or ticker
     label = ", ".join(f"r/{s}" for s in subreddits)
-    fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
+    fetch = _fetch_subreddit_api if _credentials() else _fetch_subreddit_rss
+    fetched = fetch(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:
         record_operation("vendor_unavailable", scope="Reddit")
         return f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>"
