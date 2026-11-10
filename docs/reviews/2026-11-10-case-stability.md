@@ -21,6 +21,17 @@ Proof source: saved run `36c26c9d` (2026-11-10 12:50), replayed with no model ca
 | Flag on the downside case | "corrects a statement the bear researcher made about this case; its inputs and arithmetic are not disputed". |
 | What the next run's analyst is shown | Earlier decision 36c26c9d; no new filing; multiples carried 6.0 / 4.0 / 8.0; 9,572 characters of prompt text. |
 
+## Independent audit (bb2676f3) and closure
+
+Two Medium findings, no Critical or High. Each was reproduced with a failing test, then fixed.
+
+| Finding | Reproduced | Fix |
+|---|---|---|
+| F1. A change to cash or obligations alone was not compared between runs, so it raised no label. | Yes (ran) | The run-to-run comparison now covers cash and obligations beside forecast, multiple and shares. |
+| F2. The label called every change "of assumption, not of evidence" merely because no filing was new; a price move can be a new fact. | Yes (ran) | The label states only that no new filing was retained and that a change with no named new fact leaves the earlier value as the reference. |
+
+After closure: 4,457 passed, 10 skipped; lint clean.
+
 ## Not proven
 - Whether the analyst model keeps the carried values. That needs a live run. No paid call was made.
 - The saved run would now score 3/5 operationally if re-published, because its rating has no stated
@@ -31,5 +42,5 @@ Proof source: saved run `36c26c9d` (2026-11-10 12:50), replayed with no model ca
 - A first run for a company has nothing to carry and is unchanged.
 
 ## Verification (ran)
-- `tests/test_case_stability.py`: 9 tests.
+- `tests/test_case_stability.py`: 11 tests (2 added at audit closure).
 - Full suite 4,455 passed, 10 skipped; lint clean (before the audit).

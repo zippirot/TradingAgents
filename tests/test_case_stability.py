@@ -81,9 +81,9 @@ def test_a_change_of_assumption_with_no_new_filing_is_named(tmp_path, monkeypatc
     config, _record = _published(tmp_path, monkeypatch, inputs(multiple="3"))
     brief = since_last_decision(config, "DOCN", inputs(multiple="4"))
     brief["filings"] = {"status": "known", "rows": []}
-    line = "- Case assumptions changed with no new filing retained between the two runs"
+    line = "- Case assumptions changed and no new filing was retained between the two runs"
     assert any(text.startswith(line) for text in render_brief(brief))
-    assert any("say in your reasons which changes you accept" in text for text in render_brief(brief, for_manager=True))
+    assert any("which new fact supports each change you rely on" in text for text in render_brief(brief, for_manager=True))
     brief["filings"] = {"status": "known", "rows": [{"form": "10-K", "filed_date": "2027-02-24", "accession": "a"}]}
     assert not any(text.startswith(line) for text in render_brief(brief))
     same = since_last_decision(config, "DOCN", inputs(multiple="3"))
@@ -180,3 +180,54 @@ def test_a_finding_about_the_cases_own_inputs_keeps_the_disputed_wording():
     card = prepare_decision_context(inputs())
     assert card["scenarios"]["disputed_count"] == 1
     assert "flagged by accepted audit finding" in render_decision_context(card)
+
+
+# Audit closure -------------------------------------------------------------------------------------
+
+def _with_capital(field, amount):
+    from tests.test_assumption_history import inputs, set_cases
+    from tests.test_case_valuation import revenue_case
+
+    row = revenue_case()
+    target = row["request"]["capital"]["cash"] if field == "cash" else row["request"]["capital"]["obligations"]["borrowings"]
+    target["value"] = str(amount)
+    if field == "cash":
+        from tests.test_case_valuation import bridge
+        bridge(row["request"])
+    return set_cases(inputs(), [row])
+
+
+def test_a_cash_only_or_obligation_only_change_is_named_too(tmp_path, monkeypatch):
+    # F1: the warning relied on a comparison that covered forecast, multiple and shares only.
+    from tests.test_assumption_history import inputs
+    from tests.test_decision_brief import _published
+    from tradingagents.agents.decision_brief import render as render_brief, since_last_decision
+
+    config, _record = _published(tmp_path, monkeypatch, inputs())
+    line = "- Case assumptions changed and no new filing was retained between the two runs"
+    for field, amount in (("cash", 95), ("obligations", 150)):
+        current = _with_capital(field, amount)
+        assert current["shared_valuation_scenarios"]["rows"], "the changed case must still price"
+        brief = since_last_decision(config, "DOCN", current)
+        brief["filings"] = {"status": "known", "rows": []}
+        assert any(row["field"] == field for row in brief["cases"]["rows"]), brief["cases"]["rows"]
+        assert any(text.startswith(line) for text in render_brief(brief))
+        assert any(text.startswith(line) for text in render_brief(brief, for_manager=True))
+    unchanged = since_last_decision(config, "DOCN", inputs())
+    unchanged["filings"] = {"status": "known", "rows": []}
+    assert not any(text.startswith(line) for text in render_brief(unchanged))
+
+
+def test_the_label_states_only_what_is_established(tmp_path, monkeypatch):
+    # F2: no new filing is not the same as no new evidence (a price move can be a new fact).
+    from tests.test_assumption_history import inputs
+    from tests.test_decision_brief import _published
+    from tradingagents.agents.decision_brief import render as render_brief, since_last_decision
+
+    config, _record = _published(tmp_path, monkeypatch, inputs(multiple="3"))
+    brief = since_last_decision(config, "DOCN", inputs(multiple="4"))
+    brief["filings"] = {"status": "known", "rows": []}
+    reader, manager = "\n".join(render_brief(brief)), "\n".join(render_brief(brief, for_manager=True))
+    assert "not of evidence" not in reader and "not of evidence" not in manager
+    assert "Where no new fact is named for a change, the earlier value remains the reference." in reader
+    assert "say in your reasons which new fact supports each change you rely on" in manager

@@ -68,7 +68,11 @@ def _case_fields(item, names):
         forecast = request.forecast
         fields = {"multiple": f"{_number(request.multiple)}× {request.multiple_basis} / {request.multiple_period}",
                   "share_basis": f"{_number(request.capital.closing_shares.value)} shares "
-                                 f"({request.capital.closing_shares.assumption}; {request.capital.valuation_date})"}
+                                 f"({request.capital.closing_shares.assumption}; {request.capital.valuation_date})",
+                  # Cash and obligations move a case as surely as its multiple does, and can offset each other.
+                  "cash": f"{_number(request.capital.cash.value)} ({request.capital.cash.assumption})",
+                  "obligations": "; ".join(f"{name} {_number(item.value)} ({item.assumption})"
+                                           for name, item in sorted(request.capital.obligations.items()))}
     elif method == "pe":
         request = PETarget.model_validate(raw)
         forecast = request.forecast
@@ -100,7 +104,7 @@ def _case_changes(previous, effective):
     for key in sorted(old_groups.keys() | new_groups.keys(), key=str):
         old, new = old_groups[key], new_groups[key]
         if len(old) == len(new) == 1:
-            for field in ("forecast", "multiple", "share_basis"):
+            for field in ("forecast", "multiple", "share_basis", "cash", "obligations"):
                 before = old[0]["fields"].get(field, "not present")
                 after = new[0]["fields"].get(field, "not present")
                 if before != after:
