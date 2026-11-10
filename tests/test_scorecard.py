@@ -185,3 +185,91 @@ def test_the_memory_log_applies_the_filter_to_past_decisions(tmp_path):
     assert "30-35%" not in context and "Revenue grew 39.87%" in context and "trimmed too early" in context
     # The stored record is untouched; only the prompt view is filtered.
     assert "30-35%" in (tmp_path / "memory.md").read_text()
+
+
+def _range(low="60", high="120", weighted="90", rate="0.10", session="2026-10-19", status="addressed"):
+    return {"decision_context": {"scenario_decision": {
+        "status": status, "unit": "USD/shares", "session_date": session, "close": "100",
+        "range_today": {"low": low, "high": high}, "weighted_value_today": weighted,
+        "required_return": {"rate": rate}}}}
+
+
+def settle_at(config, monkeypatch, exits):
+    """Settle each listed session count at the given exit price (entry 100, benchmark flat)."""
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2027, 3, 1, 18, tzinfo=UTC).astimezone(tz)
+    monkeypatch.setattr(outcomes, "datetime", Clock)
+    monkeypatch.setattr(outcomes, "get_current_date", lambda: "2027-03-01")
+    dates = {5: "2026-10-27", 21: "2026-11-18", 63: "2027-01-21"}
+
+    def prices(ticker, cutoff, days, benchmark, **kwargs):
+        if days not in exits or kwargs.get("calendar_months"):
+            return None
+        raw = exits[days] / 100. - 1
+        return {"raw_return": raw, "alpha_return": raw, "benchmark_return": 0.,
+                "holding_days": days, "resolution_date": dates[days], "ticker": ticker, "benchmark": benchmark,
+                "entry": {"date": "2026-10-20", "price": 100.}, "exit": {"date": dates[days], "price": exits[days]},
+                "benchmark_entry": {"date": "2026-10-20", "price": 400.},
+                "benchmark_exit": {"date": dates[days], "price": 400.},
+                "price_source": "frozen fixture", "price_adjustment": "adjusted"}
+    monkeypatch.setattr(outcomes, "fetch_outcome", prices)
+    outcomes.settle_publications(config)
+
+
+def test_a_settled_close_is_placed_against_the_decisions_own_range(store, monkeypatch):
+    config, add = store
+    add()
+    monkeypatch.setattr(outcomes, "load_evidence", lambda config, record: _range())
+    settle_at(config, monkeypatch, {5: 50., 21: 58., 63: 95.})
+    card = outcomes.scorecard(config, "DOCN")
+    rows = {(row["scope"], row["horizon"]): row for row in card["range_rows"]}
+    # Five-session windows are not placed. At 21 sessions the range low has grown from 60 to about 60.5: 58 is below.
+    assert set(rows) == {("DOCN", "21 sessions"), ("All tickers", "21 sessions"),
+                         ("DOCN", "63 sessions"), ("All tickers", "63 sessions")}
+    assert (rows[("DOCN", "21 sessions")]["below"], rows[("DOCN", "21 sessions")]["inside"]) == (1, 0)
+    # At 63 sessions (94 days) the weighted value has grown from 90 to about 92.2: 95 is inside and above it.
+    late = rows[("DOCN", "63 sessions")]
+    assert (late["below"], late["inside"], late["above"], late["over_weighted"], late["calls"]) == (0, 1, 0, 1, 1)
+    text = outcomes.render_scorecard(card)
+    assert "Against each decision's own accepted range" in text
+    assert "DOCN | 63 sessions | 1 | 0 | 1 | 0 | 1 of 1 | too few to conclude" in text
+
+
+def test_the_value_is_carried_forward_at_the_stated_required_return(store, monkeypatch):
+    config, add = store
+    add()
+    # 91 is above the weighted value of 90 as stated, but below it once 94 days at 10% a year are added (about 92.2).
+    monkeypatch.setattr(outcomes, "load_evidence", lambda config, record: _range())
+    settle_at(config, monkeypatch, {63: 91.})
+    assert outcomes.scorecard(config, "DOCN")["range_rows"][0]["over_weighted"] == 0
+
+
+def test_a_decision_with_no_accepted_range_is_counted_apart_and_never_placed(store, monkeypatch):
+    config, add = store
+    add()
+    for snapshot in ({}, _range(status="unaddressed"), _range(low="x"), _range(rate=None), _range(session="bad"),
+                     {"decision_context": {"scenario_decision": {"status": "addressed", "unit": "EUR/shares"}}}):
+        monkeypatch.setattr(outcomes, "load_evidence", lambda config, record, s=snapshot: s)
+        settle_at(config, monkeypatch, {21: 80.})
+        card = outcomes.scorecard(config, "DOCN")
+        assert card["range_rows"] == [] and card["range_unplaced"] == 1
+        assert "1 settled window(s) had no accepted range on record" in outcomes.render_scorecard(card)
+
+    def broken(config, record):
+        raise ValueError("Evidence integrity failure")
+    monkeypatch.setattr(outcomes, "load_evidence", broken)
+    card = outcomes.scorecard(config, "DOCN")
+    assert card["range_rows"] == [] and card["range_unplaced"] == 1 and card["rows"]
+
+
+def test_ten_placed_closes_drop_the_too_few_label(store, monkeypatch):
+    config, add = store
+    for day in range(1, 11):
+        add(asof=f"2026-10-{day:02d}")
+    monkeypatch.setattr(outcomes, "load_evidence", lambda config, record: _range())
+    settle_at(config, monkeypatch, {21: 130.})
+    card = outcomes.scorecard(config, "DOCN")
+    assert card["range_rows"][0]["above"] == 10
+    assert "DOCN | 21 sessions | 10 | 0 | 0 | 10 | 10 of 10 | sample of ten or more" in outcomes.render_scorecard(card)

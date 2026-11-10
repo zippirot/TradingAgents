@@ -686,6 +686,35 @@ _RATING_ORDER = ('Buy', 'Overweight', 'Hold', 'Underweight', 'Sell')
 FEW_CALLS = 10
 
 
+_RANGE_HORIZONS = {('trading_sessions', 21), ('trading_sessions', 63)}
+
+
+def _own_range(config: dict, record: dict, outcome: dict):
+    """Where a settled close fell against the range the decision itself accepted, or None.
+
+    The decision stated each value as of its own session. Each is carried to the exit date at the
+    required return the decision stated, so a later close is compared on one time basis. The exit
+    price is adjusted for splits and dividends; a split or dividend between the two dates is not
+    reconciled here.
+    """
+    try:
+        basis = (load_evidence(config, record).get('decision_context') or {}).get('scenario_decision') or {}
+        if basis.get('status') != 'addressed' or basis.get('unit') != 'USD/shares':
+            return None
+        days = (date.fromisoformat(outcome['exit']['date']) - date.fromisoformat(basis['session_date'])).days
+        rate = float(basis['required_return']['rate'])
+        low, high, weighted = (float(value) for value in (
+            basis['range_today']['low'], basis['range_today']['high'], basis['weighted_value_today']))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    if days < 0 or rate < 0 or not all(math.isfinite(v) and v > 0 for v in (low, high, weighted)) or low > high:
+        return None
+    growth = (1 + rate) ** (days / 365)
+    price = outcome['exit']['price']
+    return {'side': 'below' if price < low * growth else 'above' if price > high * growth else 'inside',
+            'over_weighted': price > weighted * growth}
+
+
 def scorecard(config: dict, ticker: str | None = None, as_of: str | None = None) -> dict:
     """Count settled primary outcomes by rating and horizon, for one ticker and for all tickers.
 
@@ -710,6 +739,7 @@ def scorecard(config: dict, ticker: str | None = None, as_of: str | None = None)
     scan = scan_records(config)
     own = normalize_symbol(ticker) if ticker else None
     groups, settled, pending, unreadable = {}, 0, 0, 0
+    placed, unplaced = {}, 0
     for record in scan['records']:
         if (not record['eligibility']['primary']
                 or not _known_by(record.get('published_at') or record.get('imported_at'), cutoff)):
@@ -733,6 +763,18 @@ def scorecard(config: dict, ticker: str | None = None, as_of: str | None = None)
                                           {'order': endpoint_sort_key(endpoint), 'alphas': [], 'right': 0})
                 group['alphas'].append(outcome['alpha_return'])
                 group['right'] += bool(sign and outcome['alpha_return'] * sign > 0)
+            if endpoint_group_key(endpoint) in _RANGE_HORIZONS:
+                where = _own_range(config, record, outcome)
+                if where is None:
+                    unplaced += 1
+                    continue
+                for scope in ((record['ticker'], 'All tickers') if record['ticker'] == own else ('All tickers',)):
+                    row = placed.setdefault((scope, endpoint_label(endpoint)), {
+                        'order': endpoint_sort_key(endpoint), 'calls': 0, 'below': 0, 'inside': 0, 'above': 0,
+                        'over_weighted': 0})
+                    row['calls'] += 1
+                    row[where['side']] += 1
+                    row['over_weighted'] += where['over_weighted']
 
     def position(item):
         (scope, rating, _label), group = item
@@ -741,8 +783,11 @@ def scorecard(config: dict, ticker: str | None = None, as_of: str | None = None)
              'right': group['right'] if rating in _RIGHT_WHEN else None,
              'average_excess': sum(group['alphas']) / len(group['alphas'])}
             for (scope, rating, label), group in sorted(groups.items(), key=position)]
+    range_rows = [{'scope': scope, 'horizon': label, **{k: v for k, v in row.items() if k != 'order'}}
+                  for (scope, label), row in sorted(placed.items(),
+                                                    key=lambda item: (item[0][0] == 'All tickers', item[1]['order']))]
     return {'ticker': own, 'rows': rows, 'settled': settled, 'pending': pending,
-            'unreadable': unreadable + len(scan['skipped'])}
+            'unreadable': unreadable + len(scan['skipped']), 'range_rows': range_rows, 'range_unplaced': unplaced}
 
 
 def render_scorecard(card: dict) -> str:
@@ -762,6 +807,18 @@ def render_scorecard(card: dict) -> str:
             lines.append(f"{_summary_cell(row['scope'])} | {_summary_cell(row['rating'])} | {row['horizon']} | "
                          f"{row['calls']} | {right} | {row['average_excess']:+.2%} | "
                          + ('too few to conclude' if row['calls'] < FEW_CALLS else 'sample of ten or more'))
+    if card.get('range_rows'):
+        lines += ['', "Against each decision's own accepted range, at 21 and 63 sessions. The range and weighted "
+                  'value are carried to the exit date at the required return the decision stated; the cases and '
+                  'weights were subjective, so this shows where the price went, not whether the cases were right.', '',
+                  'Scope | Horizon | Calls | Below range | Inside | Above range | Above weighted value | Reading',
+                  '--- | --- | --- | --- | --- | --- | --- | ---']
+        for row in card['range_rows']:
+            lines.append(f"{_summary_cell(row['scope'])} | {row['horizon']} | {row['calls']} | {row['below']} | "
+                         f"{row['inside']} | {row['above']} | {row['over_weighted']} of {row['calls']} | "
+                         + ('too few to conclude' if row['calls'] < FEW_CALLS else 'sample of ten or more'))
+    if card.get('range_unplaced'):
+        lines += ['', f"{card['range_unplaced']} settled window(s) had no accepted range on record and are not placed."]
     lines += ['', f"{card['pending']} outcome window(s) pending across all tickers; they are not results."]
     if card['unreadable']:
         lines.append(f"{card['unreadable']} outcome record(s) could not be read and are not counted.")
