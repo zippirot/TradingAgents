@@ -27,7 +27,7 @@ def test_fundamentals_receives_one_consistent_completion_order(monkeypatch):
         "messages": []})
     (system,) = prompts
     assert "valuation_scenarios, peers, financial_claims, disclosures" in system
-    assert "zero, one, or two justified independent cases" in system
+    assert "Submit a base case and a downside case" in system and "scenario_role of base, downside or upside" in system
     assert "compact valid JSON" in system and "500 words" in system
     assert "Never shorten a qualified sentence" in system
     for conflict in ("as much detail as possible", "Always finish with", "End your final report with",

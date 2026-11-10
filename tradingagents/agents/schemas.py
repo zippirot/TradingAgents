@@ -500,6 +500,30 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         description="Only when the audit completed with findings: one advisory response per finding, a list of {finding_id, disposition (accepted or rejected), reason (short, at most 500 characters)}. Use exact supplied stable IDs. Otherwise omit/null. Never a rating/evidence authority or publication gate. Invalid responses are retained for separate advisory validation, not a retry.",
     )
 
+    scenario_view: Annotated[Any, WithJsonSchema({
+        "anyOf": [
+            {"type": "array", "items": {"type": "object", "properties": {
+                "case_id": {"type": "string"},
+                "version": {"type": "integer"},
+                "disposition": {"type": "string", "enum": ["accepted", "rejected"]},
+                "weight": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "rejected_input": {"anyOf": [
+                    {"type": "string", "enum": ["revenue_forecast", "multiple", "shares", "cash", "obligations", "funding"]},
+                    {"type": "null"}]},
+                "reason": {"type": "string"},
+            }, "required": ["case_id", "version", "disposition", "weight", "rejected_input", "reason"],
+                "additionalProperties": False}},
+            {"type": "null"},
+        ],
+    })] = Field(
+        default=None,
+        description="When priced scenario cases are listed in the prompt: one entry per case with its exact case_id and version, disposition accepted or rejected, a short reason, a weight above 0 and at most 1 for an accepted case (accepted weights sum to 1; subjective, not measured probabilities) and, for a rejected case, the single input rejected in rejected_input. Null when no priced case is listed.",
+    )
+    rating_basis_reason: str | None = Field(
+        default=None, max_length=1200,
+        description="Only when the rating points against the weighted value of your accepted scenarios by more than 10 percent: why the rating still stands.",
+    )
+
     time_horizon: str | None = Field(
         description="Required explicit decision horizon: positive days/weeks/months (including ranges), or an ISO date. Use the configured default supplied in the prompt unless overriding with a nonblank horizon_reason. Separate from the forecast period. If unknown, return null and the decision is incomplete.",
     )

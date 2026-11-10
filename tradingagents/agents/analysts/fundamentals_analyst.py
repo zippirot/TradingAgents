@@ -160,8 +160,8 @@ FINANCIAL_CLAIM_EXTRACTION = (
 
 
 SHARED_VALUATION_INPUTS = (
-    " Use exactly one named valuation_scenarios fence. Choose zero, one, or two justified independent cases. Include a second only when a material alternative is supported by complete source inputs and defensible assumptions. An empty list is valid:"
-    "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of objects having exactly name and request."
+    " Use exactly one named valuation_scenarios fence. Submit a base case and a downside case, and an upside case when one is supportable, each from complete source inputs and defensible assumptions; the Portfolio Manager must accept or reject each one. Give each object a scenario_role of base, downside or upside beside name and request. An empty list is valid only when no case can be supported, with the reason in your narrative:"
+    "\n```valuation_scenarios\n[]\n```\n Replace [] with a JSON list of at most three objects having exactly name, scenario_role and request."
     ' Revenue case shape: {"name":"Base","request":{"method":"revenue_case","revenue_fact_id":"<annual fact ID>",'
     '"forecast":{"value":"<amount>","unit":"USD","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
     '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption>"},"multiple":"<decimal>",'

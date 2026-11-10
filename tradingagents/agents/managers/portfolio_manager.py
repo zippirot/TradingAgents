@@ -10,6 +10,7 @@ free-text generation and the rating is read from that text.
 
 from __future__ import annotations
 
+import contextlib
 import json
 
 from pydantic import ValidationError
@@ -27,7 +28,13 @@ from tradingagents.agents.decision_context import (
     validate_final_case,
 )
 from tradingagents.agents.rating import parse_rating
+from tradingagents.agents.scenario_decision import (
+    priced_cases,
+    render_cases_for_manager,
+    retry_feedback,
+)
 from tradingagents.agents.schemas import RequiredHorizonPortfolioDecision, render_pm_decision
+from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
 from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, invoke_structured
 from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
@@ -58,6 +65,12 @@ def create_portfolio_manager(llm):
 
         outlooks = grounded_outlooks(state)
         outlook_context = json.dumps([outlook.model_dump(mode="json") for outlook in outlooks])
+
+        replayed = {"rows": []}
+        if state.get("shared_valuation_scenarios"):
+            with contextlib.suppress(ValidationError, ValueError, TypeError, KeyError):
+                replayed = annotate_disputed_cases(state, replay_cases(state))
+        scenario_context = render_cases_for_manager(priced_cases(replayed))
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -118,6 +131,9 @@ A dated link needs a future date within your stated decision horizon and a subst
 Capital and the multiple must be suitable at that date. Never derive a horizon price by discounting or interpolation.
 If no case is adopted, omit valuation_request and state why in no_case_reason. The rating remains your research opinion.
 
+**Scenario basis (not a price target):**
+{scenario_context}
+
 **Source-grounded management outlook records (guidance and ambitions are distinct):**
 {outlook_context}
 Use a record_id as outlook_id only when period, metric, unit and basis match.
@@ -161,6 +177,14 @@ Write in order, rating first:
         # The typed rating is the decision; the rendered text only carries it.
         # Read back from text, a rating the thesis quotes could replace it.
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
+        if decision is not None:
+            # One correction when the priced cases were not addressed, or the rating
+            # points against the accepted cases with no reason. The answer stands either way.
+            answered = {**state, "final_rating": decision.rating.value, "unvalidated_outputs": {
+                "portfolio_manager": {"scenario_contract": 1, "structured": decision.model_dump(mode="json")}}}
+            feedback = retry_feedback(answered, replayed)
+            if feedback:
+                decision = invoke_structured(structured_llm, f"{prompt}\n\n{feedback}", "Portfolio Manager") or decision
         original = dict(state.get("unvalidated_outputs") or {})
         request = None
         thesis_candidate = None
@@ -181,6 +205,7 @@ Write in order, rating first:
                 "contract_version": DECISION_HORIZON_CONTRACT,
                 "configured_horizon_months": horizon_months,
                 "case_contract": 1,
+                "scenario_contract": 1,
                 "structured": json.loads(
                     json.dumps(
                         {**decision.model_dump(mode="json"), "valuation_request": request},

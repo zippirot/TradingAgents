@@ -212,8 +212,9 @@ def test_exact_continuation_runner_on_private_checkpoint_with_mock_sdk_http(tmp_
     )
     assert result.returncode == 0, (result.stdout + result.stderr)[-5000:]
     summary = json.loads((tmp_path / "summary.json").read_text())
-    assert summary["usage_scope"] == "partial_observed" and summary["usage_observed_calls"] == 12
-    assert summary["roles"] == [*c.RISK, c.AUDIT, c.AUDIT, c.PM]
+    # The fixture manager does not address the priced case, so it is asked once more (2026-11-10).
+    assert summary["usage_scope"] == "partial_observed" and summary["usage_observed_calls"] == 13
+    assert summary["roles"] == [*c.RISK, c.AUDIT, c.AUDIT, c.PM, c.PM]
     assert summary["feature_proof"] == "complete" and summary["source_unchanged"]
     assert summary["historical_sensitivity_contract_frozen"]
     assert not summary["current_r1_resume_compatibility_claim"]

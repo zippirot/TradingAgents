@@ -8,6 +8,10 @@ from decimal import Decimal
 
 from tradingagents.agents.issuer_events import financing_sensitivities
 from tradingagents.agents.rating import RATINGS_5_TIER, normalized_evidence_quality, run_rating
+from tradingagents.agents.scenario_decision import (
+    render as render_scenario_decision,
+    summarize as summarize_scenarios,
+)
 from tradingagents.agents.shared_valuation import annotate_disputed_cases, replay_cases
 from tradingagents.agents.valuation import TargetResult, validate_target
 from tradingagents.agents.valuation_cases import CaseSelection, obligation_bases
@@ -254,10 +258,13 @@ def prepare_decision_context(state: dict) -> dict:
     supported_scenarios = sum(not row.get("disputed_by") and not row.get("diagnostic_only") and (_mapping(row.get('result')).get('status') == 'supported'
                                and _mapping(_mapping(row.get('result')).get('decision_use')).get('suitability') == 'conditional')
                               for row in replayed.get('rows', []) if isinstance(row, dict))
+    scenario = summarize_scenarios(state, replayed) if eligible else {'status': 'not_applicable', 'cases': [], 'problems': []}
     if not eligible:
         basis, note = 'insufficient evidence', 'Current canonical evidence does not support a completed research conclusion.'
     elif selected and target.decision_use.final_target_eligible:
         basis, note = 'valuation', 'Conditional valuation arithmetic is available; assumptions and the rating remain research judgments.'
+    elif scenario.get('range'):
+        basis, note = 'conditional scenarios', 'The rating is checked against the scenario cases the Portfolio Manager accepted; they are assumptions with subjective weights, not a price target or a demonstrated expected return.'
     else:
         basis, note = 'risk assessment', 'The rating is a research risk opinion without a supported final valuation; it does not establish a demonstrated expected return.'
     originals = _mapping(state.get('unvalidated_outputs'))
@@ -318,7 +325,7 @@ def prepare_decision_context(state: dict) -> dict:
                            {'status': 'unavailable', 'rows': [], 'reason': 'Current decision is not evidence-eligible'})
     return {'status': 'legacy' if legacy else 'current', 'rating': rating, 'basis': basis, 'basis_note': note,
             'assumption_changes': _mapping(_mapping(state.get('decision_context')).get('assumption_changes')),
-            'mechanical_position': mechanical_position,
+            'mechanical_position': mechanical_position, 'scenario_decision': scenario,
             'horizon': horizon, 'coverage': coverage,
             'financing': financing_sensitivities(state) if eligible and quality.get('scope') == 'Selected US SEC-filer fundamentals' and state.get('asset_type','stock') == 'stock' else [],
             'case_groups': _case_groups(replayed['rows']) if horizon['status'] == 'explicit' else [],
@@ -438,6 +445,7 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True, in
     lines = ['### Research decision card', '', f"**{title}**: {_display(record['rating'])}",
              render_condition_summary(record, include_mechanical=include_mechanical, include_cases=include_cases),
              f"**Basis**: {_display(record['basis'])}. {_display(record['basis_note'])}",
+             *(_display(line) for line in render_scenario_decision(record.get('scenario_decision'))),
              f"**Horizon**: {_display(record['horizon']['text'])} — {_display(record['horizon']['authority'])}.",
              f"**Evidence coverage**: {_display(coverage['status'])}; {_display(coverage['scope'])}; " + ', '.join(f'{k}: {v}' for k,v in coverage['counts'].items()) + '.',
              f"**Valuation availability**: final calculation {_display(record['target']['status'])}; supported scenarios {record['scenarios']['supported_count']}; diagnostic scenarios {record['scenarios']['diagnostic_count']}.",

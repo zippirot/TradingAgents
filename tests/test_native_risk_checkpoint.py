@@ -133,5 +133,7 @@ def test_native_resume_after_trader_does_not_repeat_completed_roles(tmp_path, mo
         graph.graph.update_state({"configurable": {"thread_id": tid}}, seed, as_node="Trader")
     _, final = finish_fixture_checkpoint(graph, ticker, day)
     publish_fixture_twice(graph, ticker, day, final, tmp_path / "report")
+    # The fixture manager does not address the priced case, so it is asked once more.
     assert calls == [(role, "quick") for role in RISK] + [
-        ("Advisory Audit", "deep"), ("Advisory Audit", "deep"), ("Portfolio Manager", "deep")]
+        ("Advisory Audit", "deep"), ("Advisory Audit", "deep"), ("Portfolio Manager", "deep"),
+        ("Portfolio Manager", "deep")]
