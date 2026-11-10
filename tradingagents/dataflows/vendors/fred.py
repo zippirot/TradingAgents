@@ -164,6 +164,22 @@ def _request(path: str, params: dict) -> dict:
     return response.json()
 
 
+def latest_observation(series_id: str, as_of_date: str, look_back_days: int = 14) -> dict | None:
+    """The last published value of ``series_id`` on or before ``as_of_date``, at that date's vintage.
+
+    Returns ``{"date", "value"}`` or None when nothing was published in the window. Raises on a
+    missing key or a failed request, so the caller can say the value is unavailable.
+    """
+    end = datetime.strptime(as_of_date, "%Y-%m-%d")
+    pit = min(as_of_date, _fred_today())
+    observations = _request("series/observations", {
+        "series_id": series_id, "observation_start": (end - timedelta(days=look_back_days)).strftime("%Y-%m-%d"),
+        "observation_end": as_of_date, "sort_order": "asc", "realtime_start": pit, "realtime_end": pit,
+    }).get("observations", [])
+    points = [o for o in observations if o.get("value") not in (".", None, "")]
+    return {"date": points[-1]["date"], "value": points[-1]["value"]} if points else None
+
+
 def get_macro_data(
     indicator: str,
     as_of_date: str,

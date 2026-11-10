@@ -20,6 +20,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_DECISION_HORIZON_MONTHS": "decision_horizon_months",
+    "TRADINGAGENTS_REQUIRED_RETURN_PREMIUM": "required_return_premium",
     "TRADINGAGENTS_MAX_TOOL_ROUNDS":      "max_tool_rounds",
     "TRADINGAGENTS_AUDIT_ROLE_CHARS":     "audit_role_chars",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
@@ -102,6 +103,9 @@ def build_default_config() -> dict:
         "analysis_timezone": "America/Denver",
         "analysis_cutoff_utc": None,
         "decision_horizon_months": 6,
+        # Added to the 10-year Treasury yield retrieved for the run to state the yearly return
+        # required from a stock; used only to bring case values back to the analysis date.
+        "required_return_premium": 0.05,
         # LLM settings
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",

@@ -72,6 +72,7 @@ class AgentState(MessagesState):
     mechanical_valuation_grid: Annotated[dict, "Recomputed source-based B1 sensitivity; never a forecast or rating authority"]
     market_observation_cutoff: Annotated[str, "Retained UTC market observation instant, fixed across tools and resume"]
     price_observation: Annotated[dict, "Provider-sourced dated completed-session close; never model prose"]
+    required_return: Annotated[dict, "Retrieved 10-year Treasury yield plus the configured premium; a stated assumption"]
     outcome_summary: Annotated[str, "Known-at horizon measurements; never inferred research evidence"]
     publication_record: Annotated[dict, "Immutable publication identity and first publication time"]
     company_of_interest: Annotated[str, "Company that we are interested in trading"]

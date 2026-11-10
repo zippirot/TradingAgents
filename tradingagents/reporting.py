@@ -486,6 +486,7 @@ def evidence_snapshot(final_state: dict) -> dict:
         "prompt_evidence_references",
         "shared_source_brief",
         "price_observation",
+        "required_return",
         "valuation_price_comparison",
         "price_implied_valuation",
         "mechanical_valuation_grid",

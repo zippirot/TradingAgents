@@ -1,0 +1,57 @@
+== d58117ef as saved (no required return recorded)
+  required return: None
+    base      period end    77.22  today -  weight 0.55
+    downside  period end    42.93  today -  weight 0.3
+    upside    period end   103.25  today -  weight 0.15
+  sizing rule: {}
+  unchanged period-end basis: weighted 70.84, direction near, consistency consistent
+  operational score: 5
+  **Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason (unvalidated): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason (unvalidated): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares (range -45.2% to +31.9%). Direction: near the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+== d58117ef with the run's own 10-year yield (4.86% on 2026-11-06) plus 5 points
+  required return: {'schema_version': 1, 'status': 'available', 'series': 'DGS10', 'source': 'FRED', 'observation_date': '2026-11-06', 'as_of': '2026-11-10', 'risk_free_rate': '0.0486', 'premium': '0.05', 'rate': '0.0986'}
+    base      period end    77.22  today 69.37  weight 0.55
+    downside  period end    42.93  today 38.56  weight 0.3
+    upside    period end   103.25  today 92.76  weight 0.15
+  sizing rule: {'case_id': 'case-15378ef230aeba7c', 'role': 'downside', 'value_today': '38.5628', 'fall': '0.5075', 'status': 'available', 'weight_per_point_of_loss': '1.9704'}
+  unchanged period-end basis: weighted 70.84, direction near, consistency consistent
+  operational score: 5
+  **Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end; each value today is that value brought back at the required return stated below. The range, weighted value and rating check use the period-end values.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares at 2027-12-31, 69.37 USD/shares today; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason (unvalidated): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares at 2027-12-31, 38.56 USD/shares today; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason (unvalidated): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares at 2027-12-31, 92.76 USD/shares today; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares (range -45.2% to +31.9%). Direction: near the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+  
+  Required return 9.86% a year: 10-year Treasury yield 4.86% (FRED DGS10, 2026-11-06) plus a fixed premium of 5.00 points. A stated assumption, not a forecast.
+  
+  Sizing from the downside (arithmetic on the accepted cases, not an allocation): in the lowest accepted case (downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple) the position is worth 38.56 USD/shares today, 50.7% below the 2026-11-09 close. For each 1% of a portfolio you accept losing in that case, the position can be at most 2.0% of the portfolio. Your holdings, loss limit and other exposures are not known to this report.
+== d58117ef when the yield could not be retrieved
+  required return: {'status': 'unavailable', 'reason': 'The 10-year Treasury yield could not be retrieved (OSError)'}
+    base      period end    77.22  today -  weight 0.55
+    downside  period end    42.93  today -  weight 0.3
+    upside    period end   103.25  today -  weight 0.15
+  sizing rule: {}
+  unchanged period-end basis: weighted 70.84, direction near, consistency consistent
+  operational score: 5
+  **Conditional scenario range (not a price target)**: the Portfolio Manager's stance on each priced case. Weights are subjective and uncalibrated; values are at each case's period end and are not discounted.
+  
+  - base — Base: FY2027 revenue at management 60%+ floor, near price-implied multiple: 77.22 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.55; flagged by accepted audit finding AF-1e71b91717cf9b8c434551f9, AF-5dfc1969c25114851c9d721f. Reason (unvalidated): Subjective central conditional case: $1.95B 2027 revenue and 4.7x borrowings-only forward EV/revenue, with cash and funding estimates uncertain.
+  - downside — Downside: capacity or AI demand slip, ATM dilution, lower multiple: 42.93 USD/shares; funding assessed; implied multiple between the low and the median of its own history; accepted, weight 0.30; flagged by accepted audit finding AF-ed0e394c89c2a80e4d7bf0d6. Reason (unvalidated): Subjective stress case combines slower revenue, 3x multiple and assumed ATM issuance; not evidence these occur together.
+  - upside — Upside: growth beats 60%+ floor, multiple re-rates: 103.25 USD/shares; funding assessed; implied multiple between the median and the high of its own history; accepted, weight 0.15. Reason (unvalidated): Subjective upside case requires $2.05B 2027 revenue and a 6x multiple, alongside capacity and funding execution.
+  
+  Accepted range 42.93 USD/shares to 103.25 USD/shares; weighted value 70.84 USD/shares, -9.5% against the 2026-11-09 close of 78.30 USD/shares (range -45.2% to +31.9%). Direction: near the close, using a 10 percent threshold.
+  
+  Rating check: the rating does not point against the accepted scenarios.
+  
+  Required return unavailable: The 10-year Treasury yield could not be retrieved (OSError). No value today or sizing rule is stated.

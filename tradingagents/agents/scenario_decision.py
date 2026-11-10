@@ -11,6 +11,11 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation, localcontext
 
 from tradingagents.agents.case_reference import BANDS
+from tradingagents.agents.required_return import (
+    rate_from_state,
+    render_required_return,
+    value_today,
+)
 
 REJECTABLE_INPUTS = ("revenue_forecast", "multiple", "shares", "cash", "obligations", "funding")
 DIRECTION_THRESHOLD = Decimal("0.10")
@@ -63,6 +68,38 @@ def priced_cases(replayed) -> list[dict]:
                       "reference_band": position.get("band"), "reference_summary": position.get("summary", ""),
                       "flagged_by": [str(item) for item in row.get("disputed_by") or ()]})
     return cases
+
+
+def with_value_today(cases, state) -> list[dict]:
+    """Add each case's value brought back to the analysis date, when the run recorded a required return."""
+    rate = rate_from_state(state)
+    if rate is None:
+        return cases
+    priced = []
+    for case in cases:
+        today = value_today(case["price"], state.get("trade_date"), case.get("period_end"), rate)
+        priced.append({**case, "value_today": None if today is None else str(today)})
+    return priced
+
+
+def sizing_rule(accepted, close) -> dict | None:
+    """Position size per unit of accepted loss, from the lowest accepted case's value today.
+
+    Arithmetic on the cases the manager accepted and the stated required return. It needs no holdings
+    and is a ratio for the reader's own loss limit, never an allocation.
+    """
+    valued = [row for row in accepted if row.get("value_today") is not None]
+    if close is None or close <= 0 or not valued or len(valued) != len(accepted):
+        return None
+    lowest = min(valued, key=lambda row: Decimal(row["value_today"]))
+    with localcontext() as ctx:
+        ctx.prec = 40
+        fall = (close - Decimal(lowest["value_today"])) / close
+        rule = {"case_id": lowest["case_id"], "version": lowest["version"], "name": lowest["name"],
+                "role": lowest["role"], "value_today": lowest["value_today"], "fall": str(fall)}
+        if fall <= 0:
+            return {**rule, "status": "not_limiting"}
+        return {**rule, "status": "available", "weight_per_point_of_loss": str(1 / fall)}
 
 
 def view_problems(cases, view) -> list[str]:
@@ -123,7 +160,7 @@ def _direction(value, close):
 
 def summarize(state, replayed) -> dict:
     """Recalculate the scenario basis of a decision from replayed cases and the manager's retained answer."""
-    cases = priced_cases(replayed)
+    cases = with_value_today(priced_cases(replayed), state)
     if not cases:
         return {"status": "no_priced_cases", "cases": [], "problems": []}
     manager = ((state.get("unvalidated_outputs") or {}).get("portfolio_manager") or {})
@@ -149,7 +186,9 @@ def summarize(state, replayed) -> dict:
         rows.append(row)
     summary = {"status": "addressed", "cases": rows, "problems": [], "range": None, "weighted_value": None,
                "close": None, "session_date": None, "direction": None, "consistency": "not_checked",
-               "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200)}
+               "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
+               "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
+               "sizing_rule": None}
     if not accepted:
         return summary
     # Only the close each accepted case was validated against on replay is comparable; the raw
@@ -171,6 +210,7 @@ def summarize(state, replayed) -> dict:
                        range_vs_close_percent={"low": str((min(values) / close - 1) * 100),
                                                "high": str((max(values) / close - 1) * 100)},
                        direction=_direction(weighted, close))
+        summary["sizing_rule"] = sizing_rule(accepted, close)
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -230,15 +270,19 @@ def render(summary) -> list[str]:
     if summary["status"] == "unaddressed":
         return [f"**{LABEL}**: decision basis is opinion only; the Portfolio Manager did not address the priced cases. "
                 + " ".join(summary["problems"][:4])]
+    valued = any(case.get("value_today") for case in summary["cases"])
     lines = [f"**{LABEL}**: the Portfolio Manager's stance on each priced case. Weights are subjective and "
-             "uncalibrated; values are at each case's period end and are not discounted."]
+             "uncalibrated; values are at each case's period end"
+             + ("; each value today is that value brought back at the required return stated below. The range, "
+                "weighted value and rating check use the period-end values." if valued else " and are not discounted.")]
     for case in summary["cases"]:
         stance = (f"accepted, weight {Decimal(case['weight']):.2f}" if case["disposition"] == "accepted"
                   else f"rejected on {case['rejected_input'].replace('_', ' ')}")
         position = (f"implied multiple {BANDS[case['reference_band']]} of its own history"
                     if case.get("reference_band") in BANDS else "reference position unavailable")
         flag = ("; flagged by accepted audit finding " + ", ".join(case["flagged_by"])) if case.get("flagged_by") else ""
-        lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}; funding "
+        today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""
+        lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}{today}; funding "
                      f"{case['funding']}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
@@ -259,4 +303,25 @@ def render(summary) -> list[str]:
                                "reason (unvalidated): " + summary["rating_basis_reason"],
                   "unexplained": "Rating check: the rating points against the accepted scenarios and no reason was given.",
                   }.get(summary["consistency"], "Rating check: not performed."))
+    lines.extend(render_sizing_rule(summary))
     return lines
+
+
+def render_sizing_rule(summary) -> list[str]:
+    """The required return and the holdings-free sizing ratio, or why they are not stated."""
+    stated = render_required_return(summary.get("required_return"))
+    if not stated:
+        return []
+    rule, unit = summary.get("sizing_rule"), summary.get("unit")
+    if not rule:
+        return [stated]
+    lowest = f"the lowest accepted case ({rule['role']} — {rule['name']})"
+    if rule["status"] != "available":
+        return [stated, f"Sizing from the downside: {lowest} is worth {_money(rule['value_today'], unit)} today, "
+                        "not below the close, so the accepted cases set no loss-based limit on the position."]
+    fall, per_point = Decimal(rule["fall"]) * 100, Decimal(rule["weight_per_point_of_loss"])
+    return [stated, f"Sizing from the downside (arithmetic on the accepted cases, not an allocation): in {lowest} the "
+                    f"position is worth {_money(rule['value_today'], unit)} today, {fall:.1f}% below the "
+                    f"{summary['session_date']} close. For each 1% of a portfolio you accept losing in that case, the "
+                    f"position can be at most {per_point:.1f}% of the portfolio. Your holdings, loss limit and other "
+                    "exposures are not known to this report."]

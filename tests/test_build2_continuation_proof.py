@@ -349,7 +349,8 @@ def private_drill(tmp):
         # ONLY here; production uses new IDs and cannot resume this old thread.
         # The new configured decision horizon also changes the settings digest.
         # Freeze its absence only for this historical fixture's thread identity.
-        legacy_config = {key: value for key, value in graph.config.items() if key not in {'decision_horizon_months', 'audit_role_chars'}}
+        # The required-return premium (2026-11-10) is a later setting of the same kind.
+        legacy_config = {key: value for key, value in graph.config.items() if key not in {'decision_horizon_months', 'audit_role_chars', 'required_return_premium'}}
         with patch.object(graph, 'config', legacy_config):
             signature = current_signature(graph, *args, **kwargs)
         return signature.replace(
