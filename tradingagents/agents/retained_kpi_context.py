@@ -162,29 +162,29 @@ def _millions(value):
     return f"${value / Decimal(1_000_000):,.1f}M"
 
 
-def render_lease_maturities(state) -> str:
-    """Render only source-supported total-column maturity amounts."""
+def lease_maturities(state) -> dict | None:
+    """Source-supported total-column maturity amounts by year, or None when the table is not retained."""
     corpus = validated_document_corpus(state)
     if corpus is None:
-        return ""
+        return None
     periods = sorted({doc.filing.report_date for doc in corpus.documents
                       if doc.filing.form in {"10-Q", "10-K"} and doc.url == doc.filing.url and doc.filing.report_date})
     if not periods:
-        return ""
+        return None
     doc = _primary_at(corpus, periods[-1])
     if doc is None:
-        return ""
+        return None
     caption = (r"Maturities of finance lease liabilities and equipment financing obligations as of "
                + re.escape(periods[-1].strftime("%B %d, %Y")) + r" were as follows:")
     blocks = [block for block in doc.blocks if not block.truncated
               and re.search(caption, block.section, re.I)]
     if len(blocks) != 1:
-        return ""
+        return None
     block = blocks[0]
     try:
         rows = _rows(block)
         if sum(row == ["", "Finance Leases", "Equipment Financing Obligations", "Total"] for row in rows) != 1:
-            return ""
+            return None
         scale = _scale(block, rows)
         labels = {
             "Total undiscounted finance lease liabilities and equipment financing obligations": "total",
@@ -199,22 +199,31 @@ def render_lease_maturities(state) -> str:
                 key = None
             if key:
                 if key in amounts or len(row) != 4:
-                    return ""
+                    return None
                 amounts[key] = _number(row[3], scale)[0]
         if not amounts or ("interest" in amounts and amounts["interest"] >= 0):
-            return ""
+            return None
         if (all(key in amounts for key in ("total", "interest", "present value"))
                 and amounts["total"] + amounts["interest"] != amounts["present value"]):
-            return ""
-        years = sorted(key for key in amounts if re.fullmatch(r"20\d{2}", key))
-        pieces = [f"{year} {_millions(amounts[year])}" for year in years]
-        if "total" in amounts:
-            pieces.append(f"total {_millions(amounts['total'])}")
-        if "interest" in amounts:
-            pieces.append(f"less imputed interest {_millions(-amounts['interest'])}")
-        if "present value" in amounts:
-            pieces.append(f"present value {_millions(amounts['present value'])}")
-        return ("Finance lease and equipment maturities (undiscounted, include imputed interest): "
-                + f"as of {periods[-1].isoformat()}; " + "; ".join(pieces) + f" ({_source(doc, block)}). Scheduled payments are not principal.")
+            return None
+        return {"as_of": periods[-1], "amounts": amounts, "source": _source(doc, block)}
     except (ValueError, ArithmeticError):
+        return None
+
+
+def render_lease_maturities(state) -> str:
+    """Render only source-supported total-column maturity amounts."""
+    record = lease_maturities(state)
+    if record is None:
         return ""
+    amounts = record["amounts"]
+    years = sorted(key for key in amounts if re.fullmatch(r"20\d{2}", key))
+    pieces = [f"{year} {_millions(amounts[year])}" for year in years]
+    if "total" in amounts:
+        pieces.append(f"total {_millions(amounts['total'])}")
+    if "interest" in amounts:
+        pieces.append(f"less imputed interest {_millions(-amounts['interest'])}")
+    if "present value" in amounts:
+        pieces.append(f"present value {_millions(amounts['present value'])}")
+    return ("Finance lease and equipment maturities (undiscounted, include imputed interest): "
+            + f"as of {record['as_of'].isoformat()}; " + "; ".join(pieces) + f" ({record['source']}). Scheduled payments are not principal.")

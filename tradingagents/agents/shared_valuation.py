@@ -14,8 +14,14 @@ from pydantic import ValidationError
 
 from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
 from tradingagents.agents.evidence_validation import _select_compatible_fact, obligation_checks
+from tradingagents.agents.retained_kpi_context import lease_maturities
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
-from tradingagents.agents.valuation_cases import RevenueCase, obligation_bases, price_case
+from tradingagents.agents.valuation_cases import (
+    RevenueCase,
+    case_funding,
+    obligation_bases,
+    price_case,
+)
 from tradingagents.agents.valuation_comparison import (
     comparable_quote,
     compare_valuation,
@@ -111,7 +117,21 @@ def _comparable(request, result):
     return (*common, request.eps_fact_id, request.eps_basis, request.forecast is not None)
 
 
-def _source_bound_lease_requests(request, result, package, outlooks, sensitivities):
+def _funding_terms(state):
+    """The filing's own payment schedule and note terms, for the funding check on each case."""
+    try:
+        record = lease_maturities(state)
+    except Exception:  # noqa: BLE001 - an unreadable schedule leaves funding unassessed, never fails pricing
+        record = None
+    schedule = None
+    if isinstance(record, dict):
+        schedule = {"as_of": record["as_of"],
+                    "years": {key: value for key, value in record["amounts"].items() if re.fullmatch(r"20\d{2}", key)}}
+    notes = (state.get("filing_terms_evidence") or {}).get("notes")
+    return {"schedule": schedule, "notes": notes if isinstance(notes, list) else []}
+
+
+def _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms=None):
     """Price missing lease perimeters on separate requests with dated filing balances."""
     supplemental = {}
     capital = request.capital
@@ -166,7 +186,7 @@ def _source_bound_lease_requests(request, result, package, outlooks, sensitiviti
         if obligations.keys() == capital.obligations.keys():
             continue
         try:
-            priced, _ = price_case(RevenueCase.model_validate(candidate), package, outlooks)
+            priced, _ = price_case(RevenueCase.model_validate(candidate), package, outlooks, terms)
         except (ValueError, ArithmeticError):
             # An overlapping category or nonpositive equity can invalidate only
             # this alternative. Never replace the accepted case or guess a price.
@@ -273,6 +293,7 @@ def _prepare(state, requests):
         return record
 
     outlooks = grounded_outlooks(state)
+    terms = _funding_terms(state)
     rows, reasons, comparisons, notes = [], [], [], []
     for index, row in enumerate(requests, 1):
         try:
@@ -298,8 +319,8 @@ def _prepare(state, requests):
                 row_notes = []
                 request = RevenueCase.model_validate(_label_capital_estimates(raw, index, row_notes))
                 notes += row_notes
-                result, sensitivities = price_case(request, package, outlooks)
-                supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities)
+                result, sensitivities = price_case(request, package, outlooks, terms)
+                supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms)
             elif raw.get("method") == "ev_revenue" and raw.get("capital_structure_assumption") == "forward_capital_v1":
                 request = EVRevenueTarget.model_validate(raw)
                 if len(request.scenarios) != 1 or request.scenarios[0].weight != 1:
@@ -335,6 +356,7 @@ def _prepare(state, requests):
                          **({"scenario_role": scenario_role} if scenario_role is not None else {}),
                          "request": _request_record(request), "result": result.model_dump(mode="json"),
                          "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
+                         **({"funding": case_funding(request, package, terms)} if isinstance(request, RevenueCase) else {}),
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
         except ValidationError as exc:
             error = exc.errors(include_input=False)[0]
@@ -550,6 +572,9 @@ def render_shared_valuation(record):
                 lines.append(f"{_cell(request['multiple_basis'])} / revenue ({clock}): {display_number(request['forecast']['value'])} × {display_number(request['multiple'])}; " +
                              ("equity basis, no debt or cash adjustment" if request['multiple_basis'] == 'equity' else f"less net obligations {display_number(result['net_obligations'])}") +
                              f"; divide by {display_number(result['shares_outstanding'])} assumed closing common shares at {request['capital']['valuation_date']}.")
+                funding = row.get("funding")
+                if isinstance(funding, dict):
+                    lines.append(_cell(funding["summary"]) + " " + _cell(funding["limit"]))
                 supplemental = row.get("source_bound_sensitivity_requests", {})
                 for basis, price in row["sensitivities"].items():
                     assumptions = []

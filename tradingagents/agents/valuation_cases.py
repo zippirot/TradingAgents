@@ -46,7 +46,7 @@ class ShareChange(_Record):
 
 
 class CashChange(_Record):
-    source: Literal["atm", "operations", "debt", "other"]
+    source: Literal["atm", "operations", "finance_payments", "capex", "debt", "other"]
     amount: Decimal = Field(max_digits=40)
     reason: str = Field(min_length=1, max_length=600)
 
@@ -112,7 +112,85 @@ def _validate_capital_bridge(capital, refs):
         raise ValueError(f"Converted principal {converted} still counted in borrowings")
 
 
-def price_case(request, package, outlooks):
+_NOTE_SCALE = {"USD": 1, "USD thousands": 1000, "USD millions": 1_000_000}
+FUNDING_LIMIT = "Rent on leases that have not commenced is not modelled; no discounting."
+
+
+def _money(value, currency):
+    return f"{value / Decimal(1_000_000):,.1f}M {currency}"
+
+
+def funding_check(capital, snapshot_date, borrowings_snapshot, terms):
+    """Compare a case's stated cash changes with the filing's payment schedule and maturing notes.
+
+    The check reads retained source terms only. It reports what the case leaves
+    unstated; it never adds a payment or changes the case's arithmetic.
+    """
+    terms = terms or {}
+    schedule, currency, end = terms.get("schedule"), capital.currency, capital.valuation_date
+    stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
+    reasons, scheduled = [], None
+    years = schedule.get("years") if isinstance(schedule, dict) and schedule.get("as_of") == snapshot_date else None
+    if years:
+        scheduled = Decimal(0)
+        for label, amount in years.items():
+            year = int(label)
+            if snapshot_date.year <= year < end.year:
+                scheduled += amount
+            elif year == end.year:
+                # The snapshot year's column is the remainder of that year.
+                start = snapshot_date if year == snapshot_date.year else date(year - 1, 12, 31)
+                whole = (date(year, 12, 31) - start).days
+                scheduled += amount * (end - start).days / whole if whole > 0 else 0
+    principal = Decimal(0)
+    for note in terms.get("notes") or ():
+        if not isinstance(note, dict) or not isinstance(note.get("name"), str):
+            continue
+        try:
+            matures = date.fromisoformat(str(note.get("maturity_date")))
+            if not snapshot_date < matures <= end:
+                continue
+            scale = _NOTE_SCALE.get(note.get("principal_unit"))
+            if scale is None:
+                reasons.append(f"{note['name'][:80]}: principal unit is not recognised, so its maturity is not checked.")
+                continue
+            amount = Decimal(str(note.get("principal_outstanding"))) * scale
+        except (ValueError, ArithmeticError):
+            continue
+        principal += amount
+        covered = (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
+                   + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
+        owed = capital.obligations.get("borrowings")
+        still_owed = borrowings_snapshot is not None and owed is not None and owed.value >= borrowings_snapshot
+        if covered < principal and not still_owed:
+            reasons.append(f"{note['name'][:80]}: principal of {_money(amount, currency)} matures {matures}; "
+                           f"the case accounts for {_money(covered, currency)} and borrowings fall below the snapshot.")
+    if scheduled is None:
+        reasons.insert(0, f"No finance-lease and equipment payment schedule dated {snapshot_date} was retained.")
+    elif stated < scheduled:
+        reasons.insert(0, (f"Scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
+                           "are not stated in the case's cash changes." if stated <= 0 else
+                           f"Scheduled finance and equipment payments are {_money(scheduled, currency)} through {end}; "
+                           f"the case states {_money(stated, currency)}."))
+    status = "unassessed" if scheduled is None else ("partial" if reasons else "assessed")
+    summary = (f"Funding assessed: scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
+               "are stated and maturing notes are accounted for." if status == "assessed"
+               else f"Funding {status}: " + " ".join(reasons))
+    return {"status": status, "scheduled_finance_payments": None if scheduled is None else str(scheduled),
+            "stated_finance_payments": str(stated), "maturing_note_principal": str(principal),
+            "reasons": reasons, "summary": summary, "limit": FUNDING_LIMIT}
+
+
+def case_funding(request, package, terms):
+    """The funding check for a validated revenue case, read against its own snapshot facts."""
+    capital = request.capital
+    snapshot = _fact(package, capital.cash.fact_ids[0]).period_end
+    owed = capital.obligations.get("borrowings")
+    borrowings = sum(_fact(package, i).value for i in owed.fact_ids) if owed is not None else None
+    return funding_check(capital, snapshot, borrowings, terms)
+
+
+def price_case(request, package, outlooks, terms=None):
     capital = request.capital
     revenue = _fact(package, request.revenue_fact_id)
     if (revenue.metric != "Revenue" or revenue.value <= 0 or not _annual(revenue.period_start, revenue.period_end)
@@ -186,6 +264,6 @@ def price_case(request, package, outlooks):
             net_obligations=net.get(request.multiple_basis), multiple_assumption_date=request.multiple_assumption_date,
             valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
             accounting_basis=request.forecast.basis, assumptions=tuple(assumptions),
-            warnings=(*warnings, "Funding feasibility unassessed. No cash plug or discounting."),
+            warnings=(*warnings, f"{case_funding(request, package, terms)['summary']} {FUNDING_LIMIT}"),
             decision_use=DecisionUse(classification="forward_scenario", suitability="conditional", final_target_eligible=True))
         return result, sensitivities

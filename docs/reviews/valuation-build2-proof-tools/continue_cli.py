@@ -290,6 +290,24 @@ class ContinuationWire(live.OpenRouterWireGuard):
         return ticket
 
 
+def _retained(value):
+    """A saved record without the funding check, which is derived again from retained terms on every replay.
+
+    The 2026-11-10 decision-basis build replaced the blanket funding warning on each
+    revenue case with a computed status. Everything else must still match exactly.
+    """
+    if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
+        return value
+    rows = []
+    for row in value["rows"]:
+        if isinstance(row, dict) and isinstance(row.get("result"), dict):
+            result = dict(row["result"])
+            result["warnings"] = [w for w in result.get("warnings") or [] if not str(w).startswith("Funding ")]
+            row = {k: v for k, v in row.items() if k != "funding"} | {"result": result}
+        rows.append(row)
+    return {**value, "rows": rows}
+
+
 def verify_snapshot(snapshot, thread):
     state = snapshot.values
     if (
@@ -354,7 +372,7 @@ def run_graph(work, spec, wire, session):
                 != (3, 3)
                 or metrics["model_call_scope"] != "partial_observed"
                 or any(
-                    final[k] != saved[k]
+                    _retained(final[k]) != _retained(saved[k])
                     for k in (
                         "run_id",
                         "analysis_clock",
