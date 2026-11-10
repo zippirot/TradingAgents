@@ -22,6 +22,7 @@ from tradingagents.reporting import (
     prepare_report_state,
     render_token_usage,
     report_sections,
+    stale_price_note,
     summary_input_for_report,
 )
 
@@ -424,6 +425,8 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
             body.append(f'<h3 id="{anchor}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
         body.append("</section>")
 
+    stale = stale_price_note(final_state)
+    stale_html = f'<p class="notice">{md.renderInline(stale)}</p>' if stale else ""
     summary_html = (
         '<section class="summary" aria-labelledby="executive-summary">'
         '<h2 id="executive-summary">Executive summary</h2>'
@@ -462,6 +465,7 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
 </header>
 {ground_truth_html}
+{stale_html}
 {summary_html}
 <nav class="contents" aria-label="Table of contents"><h2>Table of contents</h2><ul>{"".join(contents)}</ul></nav>
 <aside class="report-meta" aria-label="Report details">

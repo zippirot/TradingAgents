@@ -39,6 +39,9 @@ REASONS = {
     "model_output_truncated": (3, "A model response was truncated before the full output was available."),
     "tool_error": (3, "A tool failed, reducing support for the affected section."),
     "summary_unavailable": (3, "The executive summary is unavailable; the underlying research and decision remain available."),
+    "valuation_cases_rejected": (3, "Every submitted valuation case was rejected, so the report has no scenario values."),
+    "price_session_fallback": (3, "The latest completed session had no close, so prices and indicators use an earlier session."),
+    "valuation_case_rejected": (4, "A submitted valuation case was rejected; the remaining cases were priced."),
     "replay_miss": (3, "A comparison used a live external input absent from its baseline; input control is incomplete."),
     "stage_unusable": (2, "A required stage has no trustworthy usable completion."),
     "incomplete_history": (2, "Execution history is incomplete, so required work cannot be fully established."),
@@ -211,12 +214,38 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
         findings.append({"score": 3, "code": "summary_unavailable", "stage": "Executive Summary",
                          "text": "The executive summary is unavailable; the underlying research and decision remain available.",
                          "locator": "executive_summary.status"})
+    findings.extend(_capability_findings(state))
     findings.sort(key=lambda item: (item["score"], item["stage"], item["code"]))
     score = min((item["score"] for item in findings), default=5)
     headline = [findings[0]['text']] if findings else []
-    headline.extend(f['text'] for f in findings[1:] if f['code'] in {'fallback_recovered', 'vendor_fallback_recovered', 'model_fallback_recovered'})
+    headline.extend(f['text'] for f in findings[1:] if f['code'] in {'fallback_recovered', 'vendor_fallback_recovered', 'model_fallback_recovered',
+                                                                         'valuation_cases_rejected', 'price_session_fallback'})
     return _assessment(score, state, rows, expected, missing, integrity, ' '.join(dict.fromkeys(headline)) if findings else
                        "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
+
+
+def _capability_findings(state) -> list[dict]:
+    """Stages can all complete while the report still loses its scenario values or its current price."""
+    findings = []
+    scenarios = state.get("shared_valuation_scenarios")
+    if isinstance(scenarios, Mapping) and isinstance(scenarios.get("requests"), list) and isinstance(scenarios.get("rows"), list):
+        submitted, priced = len(scenarios["requests"]), len(scenarios["rows"])
+        if priced < submitted:
+            code = "valuation_case_rejected" if priced else "valuation_cases_rejected"
+            findings.append({"score": REASONS[code][0], "code": code, "stage": "Valuation Scenarios",
+                             "text": f"Valuation Scenarios: {REASONS[code][1]} Rejected: {submitted - priced} of "
+                                     f"{submitted} submitted valuation cases.",
+                             "locator": "shared_valuation_scenarios.reasons"})
+    price = state.get("price_observation")
+    fallback = price.get("price_fallback") if isinstance(price, Mapping) else None
+    if isinstance(fallback, Mapping):
+        latest, selected = _safe_text(fallback.get("latest_completed_session_date"), 10), _safe_text(price.get("session_date"), 10)
+        if latest and selected and latest != selected:
+            code = "price_session_fallback"
+            findings.append({"score": REASONS[code][0], "code": code, "stage": "Market Price",
+                             "text": f"Market Price: {REASONS[code][1]} Used {selected}; latest completed session {latest}.",
+                             "locator": "price_observation.price_fallback"})
+    return findings
 
 
 def _assessment(score, state, rows, expected, missing, integrity, consequence, invalid, total, findings=None):

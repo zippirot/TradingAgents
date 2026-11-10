@@ -33,7 +33,7 @@ def create_conservative_debator(llm):
 
 Research Manager plan (this run), unvalidated research:
 {research_plan}
-Flag any Trader step that drops or contradicts a research condition. Attribute a condition to its source, this plan or the prior thesis, before calling it kept or dropped.
+Flag any Trader step that drops or contradicts a research condition. Attribute a condition to its source, this plan or the prior thesis, before calling it kept or dropped. Conditions printed under "Carried from the Research Manager's plan (not restated by the Trader)" are part of the Trader's plan and count as kept; flag only a Trader statement that contradicts or weakens one.
 
 Your task is to make the strongest case for the direction your risk lens supports, including if that differs from the Trader. Respond directly to the Aggressive and Neutral Analysts' points using the following sources:
 

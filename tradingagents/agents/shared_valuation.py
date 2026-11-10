@@ -118,6 +118,27 @@ def _source_bound_lease_requests(request, result, package, outlooks, sensitiviti
     return supplemental
 
 
+def _label_capital_estimates(raw, index, notes):
+    """A capital value submitted without its label is the analyst's estimate; the case is still priced."""
+    capital = raw.get("capital")
+    if not isinstance(capital, dict):
+        return raw
+    filled = {**raw, "capital": dict(capital)}
+    values = [("closing_shares", None), ("cash", None)]
+    if isinstance(capital.get("obligations"), dict):
+        filled["capital"]["obligations"] = dict(capital["obligations"])
+        values += [("obligations", category) for category in capital["obligations"]]
+    for field, category in values:
+        holder = filled["capital"] if category is None else filled["capital"]["obligations"]
+        key = field if category is None else category
+        value = holder.get(key)
+        if isinstance(value, dict) and "assumption" not in value:
+            holder[key] = {**value, "assumption": "estimated"}
+            notes.append(f"Row {index}: assumption label missing on "
+                         f"{field if category is None else f'{field}.{category}'}; treated as estimated.")
+    return filled
+
+
 def _request_record(request):
     """Dump a request; a case with no stated bridge keeps its original record shape."""
     record = request.model_dump(mode="json")
@@ -164,7 +185,7 @@ def prepare_shared_valuation(state, requests=None):
         return _record("unavailable", reasons=("Shared scenario inputs or canonical evidence are missing, malformed, duplicated or oversized.",))
 
     outlooks = grounded_outlooks(state)
-    rows, reasons, comparisons = [], [], []
+    rows, reasons, comparisons, notes = [], [], [], []
     for index, row in enumerate(requests, 1):
         try:
             if (not isinstance(row, dict) or not {"name", "request"} <= set(row)
@@ -182,7 +203,9 @@ def prepare_shared_valuation(state, requests=None):
             sensitivities = {}
             supplemental = {}
             if raw.get("method") == "revenue_case":
-                request = RevenueCase.model_validate(raw)
+                row_notes = []
+                request = RevenueCase.model_validate(_label_capital_estimates(raw, index, row_notes))
+                notes += row_notes
                 result, sensitivities = price_case(request, package, outlooks)
                 supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities)
             elif raw.get("method") == "ev_revenue" and raw.get("capital_structure_assumption") == "forward_capital_v1":
@@ -242,7 +265,7 @@ def prepare_shared_valuation(state, requests=None):
                         key = f"guided diluted weighted average {share['point']} ({share['value']} shares, {share['period']})"
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
-    return _record(status, requests, rows, reasons)
+    return _record(status, requests, rows, [*reasons, *notes])
 
 
 def annotate_disputed_cases(state, record):

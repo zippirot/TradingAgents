@@ -125,7 +125,7 @@ def create_trader(llm):
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
                     "sized by how strong the case is; conflict alone is not a Hold.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** in qualitative words only: holdings and loss budget are unknown, so give no percentages, fractions, share counts or currency amounts"
+                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** in qualitative words only: holdings and loss budget are unknown, so give no percentages, fractions, share counts or currency amounts. When the plan makes an action conditional on current exposure, state that condition in the Reasoning or the Position Sizing"
                 ),
             },
         ]
