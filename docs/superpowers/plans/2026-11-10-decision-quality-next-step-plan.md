@@ -144,9 +144,9 @@ paid call without explicit approval. Part A is built first.
 
 ## Estimates
 
-Part A, the part built and audited first:
+Part A was built and audited first as a small build (closed at `6e6d195d`). Part B, built and audited next:
 
-- Build size: small.
+- Build size: medium.
 
 | Part | Size | Build and verification | Recommended model |
 |---|---|---|---|
