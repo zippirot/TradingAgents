@@ -21,6 +21,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
+from tradingagents.agents.arithmetic_check import arithmetic_note
 from tradingagents.agents.audit_evidence import AUDIT_TOOL_FIELDS, collect_tool_outputs
 from tradingagents.agents.audit_pass import create_advisory_audit
 from tradingagents.agents.document_access import merge_search_traces
@@ -103,6 +104,11 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
             if state.get("shared_source_brief") or state.get("disclosure_evidence"):
                 warning += " Separately supplied shared filing evidence may still be available."
             result[spec.report_key] = warning + "\n\n" + (state.get(spec.report_key) or "")
+        # A percentage that the sentence's own figures do not give is noted before anyone argues from it.
+        report = result.get(spec.report_key, state.get(spec.report_key) or "")
+        note = arithmetic_note(report)
+        if note:
+            result[spec.report_key] = report + note
         return result
 
     graph.add_node("finish", finish)
