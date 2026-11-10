@@ -200,6 +200,78 @@ def test_list_content_from_the_model_is_read():
     assert len(prepare_with_correction(inputs, model, SHAPE)["rows"]) == 1
 
 
+def _named(row, name):
+    row = deepcopy(row)
+    row["name"] = name
+    return row
+
+
+def test_a_correction_may_not_drop_a_rejected_case():
+    priced, second, third = revenue_case(), _named(_invalid_label(), "B"), _named(_invalid_label(), "C")
+    inputs = state([priced, second, third])
+    dropped = prepare_with_correction(inputs, Model(_fenced([priced, _named(revenue_case(), "B")])), SHAPE)
+    assert [row["name"] for row in dropped["rows"]] == ["Base"]
+    assert dropped["reasons"][-1] == "Correction attempt did not produce an accepted case."
+    assert assess_audit({**observed(), "shared_valuation_scenarios": dropped})["score"] == 4
+    partly = prepare_with_correction(
+        inputs, Model(_fenced([priced, _named(revenue_case(), "B"), third])), SHAPE)
+    assert [row["name"] for row in partly["rows"]] == ["Base", "B"]
+    assert any(reason.startswith("Row 3 omitted: ") for reason in partly["reasons"])
+    assert assess_audit({**observed(), "shared_valuation_scenarios": partly})["score"] == 4
+
+
+def _unfunded():
+    from tests.test_valuation_funding import request as funding_request
+
+    return {"name": "Unfunded", "request": funding_request(cash_capex=500)}
+
+
+def test_a_correction_into_an_unpriced_funding_diagnostic_is_not_a_recovery():
+    diagnostic = prepare_shared_valuation(state([_unfunded()]))
+    assert len(diagnostic["rows"]) == 1 and diagnostic["rows"][0]["result"]["target"] is None
+    inputs = _state(_misplaced_capital())
+    record = prepare_with_correction(inputs, Model(_fenced([_unfunded()])), SHAPE)
+    assert not record["rows"] and "corrected_submission" not in record
+    assert assess_audit({**observed(), "shared_valuation_scenarios": record})["score"] == 3
+
+
+@pytest.mark.parametrize("model,reason", [
+    (Model("no"), "Correction attempt did not produce an accepted case."),
+    (Model(error=RuntimeError("x")), "Correction attempt failed: RuntimeError."),
+])
+def test_a_failed_correction_is_still_explained_after_replay(model, reason):
+    inputs = _state(_misplaced_capital())
+    record = prepare_with_correction(inputs, model, SHAPE)
+    saved = {**inputs, "shared_valuation_scenarios": record}
+    once = replay_cases(saved)
+    twice = replay_cases({**saved, "shared_valuation_scenarios": once})
+    for replayed in (once, twice):
+        assert replayed["reasons"] == record["reasons"] and replayed["reasons"][-1] == reason
+        assert reason in render_shared_valuation(replayed)
+        assert replayed["submission_error"] == "unreadable"
+    # No second attempt once one is on record, and none is replayed against another report.
+    again = Model(_fenced([revenue_case()]))
+    assert prepare_with_correction(saved, again, SHAPE)["reasons"] == record["reasons"] and again.prompts == []
+    other = {**_state(json.dumps([_invalid_label()])), "shared_valuation_scenarios": record}
+    assert reason not in replay_cases(other)["reasons"]
+
+
+def test_an_accepted_revision_still_shows_that_the_analyst_case_was_corrected():
+    inputs = _state(_misplaced_capital())
+    record = prepare_with_correction(inputs, Model(_fenced([revenue_case()])), SHAPE)
+    saved = {**inputs, "shared_valuation_scenarios": record}
+    same = replay_cases(saved, revision=[revenue_case()])
+    assert same["revision_status"] == "accepted" and len(same["rows"]) == 1
+    note = 'Analyst case "Base" was corrected after a validation error before this revision: '
+    assert [reason for reason in same["reasons"] if reason.startswith(note)]
+    assert note in render_shared_valuation(same)
+    again = replay_cases({**saved, "shared_valuation_scenarios": same})
+    assert again["reasons"] == same["reasons"]
+    renamed = replay_cases(saved, revision=[_named(revenue_case(), "Manager case")])
+    assert renamed["revision_status"] == "accepted"
+    assert not [reason for reason in renamed["reasons"] if "was corrected" in reason]
+
+
 # R3 ------------------------------------------------------------------------
 
 def test_an_unreadable_uncorrected_submission_is_degraded():

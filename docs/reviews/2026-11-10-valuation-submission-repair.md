@@ -10,14 +10,27 @@ Plan: `docs/superpowers/plans/2026-11-10-tradingagents-valuation-submission-repa
 
 ## Verification (builder-run)
 
-- `tests/test_valuation_repair.py`: 25 tests; 17 failed against the unchanged code plus a stub, all pass after.
-- Full suite on the final tree: 4191 passed, 10 skipped, 1 deselected. `ruff check .` clean.
+- `tests/test_valuation_repair.py`: 30 tests. The first 25: 17 failed against the unchanged code plus a stub. The 5 added for the audit findings failed before their fix. All pass.
+- Full suite on the final tree: 4196 passed, 10 skipped, 1 deselected. `ruff check .` clean.
 - Offline replay, `docs/reviews/valuation-repair-proof-tools/replay.py`, output in `replay-results.txt`:
   - Runs `2a2e47dd` and `86aa515f`: both submissions now price as written on current code (Builds W and Z), so no correction is attempted.
   - Run `c463bdac`: as submitted, "Valuation block is not valid JSON: Expecting ',' delimiter near ...". With a stub returning a correct block: one call, case priced at 74.16 USD/share, correction note, score 5. With a stub returning the same bad block: original record, "Correction attempt did not produce an accepted case.", score 3.
 - One real call, approved by the user: the rejected `c463bdac` block sent through `prepare_with_correction` to the run's quick model (`anthropic/claude-opus-5.5` on OpenRouter). The model returned a corrected block; it passed validation and priced at 74.16 USD/share, the same value as the hand-corrected block.
 
 One existing expectation changed: `test_explicit_empty_proposal_is_distinct_from_malformed_payload` pinned the word "malformed" from the old generic sentence; it now expects `submission_error == "unreadable"` and the JSON message.
+
+## Independent audit
+
+Run e44d606a on `699eae7d` (GPT-6 Astra, 24 turns, $0.80, 7.5 minutes): no Critical or High, four Medium. Closed in the commit after `699eae7d`.
+
+| Finding | Disposition | Correction |
+|---|---|---|
+| 1 A correction could drop a rejected case and the run still scored 5 | confirmed (read; failing test written and run) | When the original submission was readable, the corrected block must contain exactly the same case names. A correction that drops a case is refused. |
+| 2 A correction into an unpriced funding diagnostic counted as a recovery | partially confirmed (failing test run) | Acceptance now counts cases that gain a price, not rows. Not adopted: scoring a genuine funding-gap diagnostic as a rejected case. A funding gap is an analytic result, not an operational failure; that scoring is unchanged from Build Z. |
+| 3 The failed-correction reason was lost on replay | confirmed (ran) | The attempt's outcome is saved with the hash of its report and re-attached on every replay. No second attempt is made once one is on record. |
+| 4 An accepted Research Manager revision removed the correction note | confirmed (ran) | A surviving case keeps a note that the analyst's case had been corrected, with the cause. |
+
+After closure: 5 new tests red then green; full suite 4196 passed; ruff clean; replay unchanged. No second audit: the corrections are bounded and tested.
 
 ## Plan adjustments
 

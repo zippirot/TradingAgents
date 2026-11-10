@@ -86,6 +86,20 @@ def _saved_correction(state):
     return correction
 
 
+def _saved_attempt(state):
+    """A failed correction attempt stays on record for the report it was made on."""
+    saved = state.get("shared_valuation_scenarios")
+    attempt = saved.get("correction_attempt") if isinstance(saved, dict) else None
+    if (not isinstance(attempt, dict) or not isinstance(attempt.get("outcome"), str)
+            or attempt.get("report_sha256") != _report_digest(state)):
+        return None
+    return attempt
+
+
+def _priced(rows):
+    return [row for row in rows if row["result"].get("target") is not None]
+
+
 def _comparable(request, result):
     common = (request.method, result.unit, result.valuation_period_start,
               result.valuation_period_end, result.accounting_basis, result.decision_date)
@@ -211,7 +225,11 @@ def prepare_shared_valuation(state, requests=None):
             record = _prepare(state, corrected)
             return {**record, "reasons": [*record["reasons"], *correction["notes"]],
                     "corrected_submission": correction}
-    return _prepare(state, requests)
+    record = _prepare(state, requests)
+    attempt = _saved_attempt(state) if requests is None else None
+    if attempt and record["status"] != "not_applicable":
+        record = {**record, "reasons": [*record["reasons"], attempt["outcome"]], "correction_attempt": attempt}
+    return record
 
 
 def _prepare(state, requests):
@@ -391,7 +409,14 @@ def replay_cases(state, *, revision=None):
     accepted = revised["status"] == "available" and all(not r["diagnostic_only"] for r in revised["rows"])
     for row in revised["rows"]:
         row["version"] = 2
-    kept = {"corrected_submission": analyst["corrected_submission"]} if "corrected_submission" in analyst else {}
+    kept = {key: analyst[key] for key in ("corrected_submission", "correction_attempt") if key in analyst}
+    if accepted and "corrected_submission" in analyst:
+        # The revision replaces the analyst's rows; a surviving case still says it had been corrected.
+        surviving = {row["name"] for row in revised["rows"]}
+        kept["reasons"] = [*revised["reasons"], *(
+            f'Analyst case "{case["name"]}" was corrected after a validation error before this revision: {case["cause"]}'
+            for case in analyst["corrected_submission"].get("cases", ())
+            if isinstance(case, dict) and case.get("name") in surviving)]
     return {**(revised if accepted else analyst), **kept, "analyst_requests": analyst["requests"],
             "analyst_rows": analyst["rows"], "revision_request": revision,
             "revision_status": "accepted" if accepted else "rejected", "revision_reasons": revised["reasons"]}
@@ -414,7 +439,8 @@ def prepare_with_correction(state, llm, shape):
     record = prepare_shared_valuation(state)
     report = (state.get("financial_claim_validation") or {}).get("raw_report")
     omitted = [reason for reason in record["reasons"] if re.match(r"Row \d+ omitted: ", reason)]
-    if (record["status"] == "not_applicable" or "corrected_submission" in record or not isinstance(report, str)
+    if (record["status"] == "not_applicable" or "corrected_submission" in record
+            or "correction_attempt" in record or not isinstance(report, str)
             or record.get("submission_error") == "missing_block"
             or not (record.get("submission_error") or omitted)):
         return record
@@ -428,7 +454,8 @@ def prepare_with_correction(state, llm, shape):
     )
 
     def failed(reason=_CORRECTION_FAILED):
-        return {**record, "reasons": [*record["reasons"], reason]}
+        return {**record, "reasons": [*record["reasons"], reason],
+                "correction_attempt": {"outcome": reason, "report_sha256": _report_digest(state)}}
 
     try:
         text = _reply_text(llm.invoke(prompt))
@@ -440,23 +467,29 @@ def prepare_with_correction(state, llm, shape):
     except _SubmissionError:
         return failed()
     candidate = _prepare(state, corrected)
-    priced = {row["case_id"]: row for row in candidate["rows"]}
-    if len(candidate["rows"]) <= len(record["rows"]) or any(
-            row["case_id"] not in priced or priced[row["case_id"]]["request"] != row["request"]
-            or priced[row["case_id"]]["result"] != row["result"] for row in record["rows"]):
-        return failed()
-    before = {row["case_id"] for row in record["rows"]}
     names = [item.get("name").strip() if isinstance(item, dict) and isinstance(item.get("name"), str) else None
              for item in corrected]
-    notes = []
-    for row in candidate["rows"]:
+    submitted = [item.get("name").strip() if isinstance(item, dict) and isinstance(item.get("name"), str) else None
+                 for item in record["requests"]]
+    after = {row["case_id"]: row for row in candidate["rows"]}
+    # More cases must gain a price, none may be dropped, and none already retained may change.
+    if (len(_priced(candidate["rows"])) <= len(_priced(record["rows"]))
+            or (submitted and sorted(map(str, names)) != sorted(map(str, submitted)))
+            or any(row["case_id"] not in after or after[row["case_id"]]["request"] != row["request"]
+                   or after[row["case_id"]]["result"] != row["result"] for row in record["rows"])):
+        return failed()
+    before = {row["case_id"] for row in record["rows"]}
+    notes, cases = [], []
+    for row in _priced(candidate["rows"]):
         if row["case_id"] in before:
             continue
         number = names.index(row["name"]) + 1
         cause = next((reason.removeprefix(f"Row {number} omitted: ") for reason in omitted
                       if reason.startswith(f"Row {number} omitted: ")), record["reasons"][0])
         notes.append(f"Row {number}: corrected by the analyst after a validation error: {cause}")
-    correction = {"block": json.dumps(corrected), "notes": notes, "report_sha256": _report_digest(state)}
+        cases.append({"name": row["name"], "cause": cause})
+    correction = {"block": json.dumps(corrected), "notes": notes, "cases": cases,
+                  "report_sha256": _report_digest(state)}
     return {**candidate, "reasons": [*candidate["reasons"], *notes], "corrected_submission": correction}
 
 
