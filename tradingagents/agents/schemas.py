@@ -547,6 +547,11 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         description="When the prompt lists open advisory conditions for a six-month view from dated events and you accept two or more cases: one to three entries, each with the exact condition_id, the expected_date (YYYY-MM-DD, inside the horizon), favourable_when (met or not_met), the case weights you would hold after the favourable and after the adverse outcome (every accepted case once with its case_id and version, 0 allowed, each set summing to 1), and a short reason. Your scenario_view weights must lie between the two sets. Null otherwise. No probabilities.",
     )
 
+    no_event_reason: str | None = Field(
+        default=None, max_length=600,
+        description="Only when event_view is asked for and you expect none of the listed conditions to resolve by the horizon date: why. Null otherwise.",
+    )
+
     change_assessment: Annotated[Any, WithJsonSchema({
         "anyOf": [
             {"type": "object", "properties": {

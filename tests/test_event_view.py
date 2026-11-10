@@ -33,7 +33,7 @@ def _set(base, down, up):
 
 def _event(**changes):
     return {"condition_id": "condition-q4", "expected_date": "2027-02-20", "favourable_when": "met",
-            "favourable_weights": _set(0.5, 0.1, 0.4), "adverse_weights": _set(0.4, 0.55, 0.05),
+            "favourable_weights": _set(0.5, 0.1, 0.4), "adverse_weights": _set(0.5, 0.5, 0.0),
             "reason": "Fourth-quarter revenue against the guidance low.", **changes}
 
 
@@ -65,11 +65,12 @@ def test_the_arithmetic_of_one_event():
     value = lambda base, down, up: (Decimal(base) * 100 + Decimal(down) * 60 + Decimal(up) * 140) / factor  # noqa: E731
     event = summary["events"][0]
     assert Decimal(summary["current_value"]).quantize(Decimal("0.0001")) == value("0.5", "0.3", "0.2").quantize(Decimal("0.0001"))
-    high, low, now = value("0.5", "0.1", "0.4"), value("0.4", "0.55", "0.05"), value("0.5", "0.3", "0.2")
+    high, low, now = value("0.5", "0.1", "0.4"), value("0.5", "0.5", "0.0"), value("0.5", "0.3", "0.2")
     assert Decimal(event["favourable"]["value"]).quantize(Decimal("0.0001")) == high.quantize(Decimal("0.0001"))
     assert Decimal(event["adverse"]["value"]).quantize(Decimal("0.0001")) == low.quantize(Decimal("0.0001"))
     assert Decimal(event["favourable"]["move_percent"]).quantize(Decimal("0.01")) == ((high / 80 - 1) * 100).quantize(Decimal("0.01"))
-    # Weighted values before discounting: favourable 112, adverse 80, current 96, so the implied odds are 50%.
+    # Today's 0.5 / 0.3 / 0.2 is exactly half of each outcome set. Before discounting: favourable 112, adverse 80,
+    # current 96, so the value sits at the same 50%.
     assert Decimal(event["implied_odds_percent"]).quantize(Decimal("0.01")) == ((now - low) / (high - low) * 100).quantize(Decimal("0.01")) == Decimal("50.00")
     assert event["label"] == "Revenue >= 348000000 USD" and event["favourable_when"] == "met"
 
@@ -103,15 +104,15 @@ def test_a_missing_view_is_unaddressed_when_asked():
     ({"favourable_weights": None}, "favourable_weights is missing"),
     ({"favourable_weights": _set(0.5, 0.1, 0.3)}, "favourable_weights sums to 0.9"),
     ({"adverse_weights": _set(0.5, 0.6, -0.1)}, "adverse_weights needs each accepted case once with a weight from 0 to 1"),
-    ({"adverse_weights": _set(0.4, 0.55, 0.05)[:2]}, "adverse_weights must give a weight for every accepted case"),
-    ({"adverse_weights": [*_set(0.4, 0.55, 0.05)[:2], {"case_id": "other", "version": 1, "weight": 0.05}]},
+    ({"adverse_weights": _set(0.5, 0.5, 0.0)[:2]}, "adverse_weights must give a weight for every accepted case"),
+    ({"adverse_weights": [*_set(0.5, 0.45, 0.0)[:2], {"case_id": "other", "version": 1, "weight": 0.05}]},
      "names a case that is not an accepted case"),
     ({"adverse_weights": [*_set(0.4, 0.3, 0.05), {"case_id": "down", "version": 1, "weight": 0.25}]},
      "needs each accepted case once"),
     # Favourable below adverse.
     ({"favourable_weights": _set(0.4, 0.55, 0.05), "adverse_weights": _set(0.5, 0.1, 0.4)}, "is not above"),
     ({"favourable_weights": _set(0.5, 0.3, 0.2), "adverse_weights": _set(0.5, 0.3, 0.2)}, "is not above"),
-    # Current weights (96 before discounting) sit above the favourable set (92).
+    # Today's weights are not a mix of these two sets.
     ({"favourable_weights": _set(0.6, 0.3, 0.1)}, "the three sets of weights disagree"),
 ])
 def test_an_unusable_event_is_reported_and_nothing_is_computed(change, fragment):
@@ -406,3 +407,50 @@ def test_unresolved_overdue_and_absent_events(tmp_path, monkeypatch):
     # An earlier decision with no event view adds nothing.
     plain_config, _record = _published(tmp_path / "plain", monkeypatch, inputs())
     assert since_last_decision(plain_config, "DOCN", inputs())["events"] == {"status": "none", "rows": [], "tracked": 0}
+
+
+# Audit closure ------------------------------------------------------------------------------------
+
+def test_outcome_weights_that_no_single_probability_reconciles_are_sent_back():
+    # F1: at 50/50 these outcome sets give 0.45 / 0.325 / 0.225, not today's 0.5 / 0.3 / 0.2; no one
+    # probability reproduces today's weights within 5 points a case, although the values happen to line up.
+    summary = _assess([_event(favourable_weights=_set(0.5, 0.1, 0.4), adverse_weights=_set(0.3, 0.7, 0.0))])
+    assert summary["status"] == "unaddressed"
+    assert "the three sets of weights disagree" in summary["problems"][0]
+    assert "base" in summary["problems"][0] or "0." in summary["problems"][0]
+    # A small rounding difference is not disagreement.
+    near = _assess([_event(favourable_weights=_set(0.52, 0.1, 0.38), adverse_weights=_set(0.5, 0.5, 0.0))])
+    assert near["status"] == "addressed"
+
+
+def test_saying_no_listed_condition_is_expected_inside_the_horizon_is_an_answer():
+    # F2: a truthful "none inside the horizon" must not be scored as a missing answer.
+    summary = assess(ACCEPTED, CONDITIONS, [], TODAY, HORIZON, CLOSE, RATE,
+                     none_reason="Both conditions depend on the 2027 annual report, due after the horizon.")
+    assert summary["status"] == "none_expected" and summary["problems"] == []
+    assert retry_feedback(summary) == ""
+    lines = render(summary)
+    assert len(lines) == 1 and "expects none of the open conditions to resolve by 2027-05-10" in lines[0]
+    assert "due after the horizon" in lines[0]
+    # Without a reason it is still a missing answer; with events supplied the reason is ignored.
+    assert assess(ACCEPTED, CONDITIONS, [], TODAY, HORIZON, CLOSE, RATE, none_reason=" ")["status"] == "unaddressed"
+    assert assess(ACCEPTED, CONDITIONS, [_event()], TODAY, HORIZON, CLOSE, RATE, none_reason="x")["status"] == "addressed"
+
+
+def test_none_expected_through_the_manager_call_is_not_corrected_or_scored(monkeypatch):
+    from tests.test_operational_audit import observed
+    from tests.test_scenario_decision import _decision as pm_decision, _manager
+    from tradingagents.operational_audit import assess_audit
+
+    inputs, priced = _two_case_state(monkeypatch)
+    view = [{"case_id": row["case_id"], "version": 1, "disposition": "accepted", "weight": weight,
+             "rejected_input": None, "reason": "Reasonable."} for row, weight in zip(priced, (0.6, 0.4), strict=True)]
+    node, structured = _manager(pm_decision(rating="Hold", scenario_view=view, event_view=None,
+                                            no_event_reason="Nothing listed reports before the horizon date."))
+    result = node(inputs)
+    assert structured.invoke.call_count == 1
+    summary = scenario_decision.summarize({**inputs, **result}, inputs["shared_valuation_scenarios"])
+    assert summary["event_view"]["status"] == "none_expected"
+    card = {"scenario_decision": summary}
+    assert not [f for f in assess_audit({**observed(), "decision_context": card})["findings"]
+                if f["code"] == "event_view_unaddressed"]

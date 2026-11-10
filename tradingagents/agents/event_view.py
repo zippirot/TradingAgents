@@ -17,8 +17,9 @@ from tradingagents.agents.required_return import rate_from_state, value_today
 MAX_EVENTS = 3
 OPEN_STATUSES = ("unknown", "unobserved")
 _SUM_TOLERANCE = Decimal("0.001")
-# Implied odds this far outside 0 to 1 are rounding, not disagreement.
-_ODDS_TOLERANCE = Decimal("0.005")
+# Today's weights must be one mix of the two outcome sets. A case's weight may sit this far from that mix
+# before the three sets are said to disagree: weights are usually given to the nearest five points.
+WEIGHT_TOLERANCE = Decimal("0.05")
 
 
 def _decimal(value):
@@ -106,7 +107,7 @@ def _priced(weights, values):
     return sum(weights[key] * values[key] for key in weights)
 
 
-def assess(accepted, conditions, view, analysis_date, horizon, close, rate) -> dict:
+def assess(accepted, conditions, view, analysis_date, horizon, close, rate, none_reason=None) -> dict:
     """Check an event view and compute its arithmetic.
 
     ``accepted`` are the accepted scenario rows (case_id, version, price, period_end, weight).
@@ -116,8 +117,12 @@ def assess(accepted, conditions, view, analysis_date, horizon, close, rate) -> d
         return {"status": "not_applicable", "events": [], "problems": []}
     base = {"horizon_date": str(horizon), "close": str(_decimal(close))}
     if not isinstance(view, list) or not view:
+        if _text(none_reason):
+            # A stated view that nothing listed resolves inside the horizon is an answer, printed as such.
+            return {**base, "status": "none_expected", "events": [], "problems": [], "reason": _text(none_reason)}
         return {**base, "status": "unaddressed", "events": [],
-                "problems": ["event_view is missing: name at least one open advisory condition expected inside the horizon."]}
+                "problems": ["event_view is missing: name at least one open advisory condition expected inside the "
+                             "horizon, or give no_event_reason if none of them is."]}
     problems, events, seen = [], [], set()
     if len(view) > MAX_EVENTS:
         problems.append(f"event_view has {len(view)} entries; at most {MAX_EVENTS} are used.")
@@ -128,6 +133,7 @@ def assess(accepted, conditions, view, analysis_date, horizon, close, rate) -> d
         values = {(case["case_id"], case["version"]): _value(case, horizon, rate) for case in accepted}
         current = {(case["case_id"], case["version"]): _decimal(case["weight"]) for case in accepted}
         current_value = _priced(current, values) / sum(current.values())
+        names = {(case["case_id"], case["version"]): _text(case.get("role"), 40) or case["case_id"] for case in accepted}
         for entry in view[:MAX_EVENTS]:
             if not isinstance(entry, dict):
                 problems.append("event_view entries must be objects.")
@@ -158,14 +164,23 @@ def assess(accepted, conditions, view, analysis_date, horizon, close, rate) -> d
                 problems.append(f"{name}: the favourable weights give a value at the horizon ({high:.2f}) that is not above "
                                 f"the adverse weights' ({low:.2f}); the two outcomes must differ in that direction.")
                 continue
-            odds = (current_value - low) / (high - low)
-            if not -_ODDS_TOLERANCE <= odds <= 1 + _ODDS_TOLERANCE:
-                problems.append(
-                    f"{name}: your current weights give {current_value:.2f} at the horizon, outside the "
-                    f"{low:.2f} to {high:.2f} your adverse and favourable weights give, so the three sets of weights "
-                    "disagree. Revise the outcome weights or the scenario_view weights.")
-                continue
+            # Today's weight on each case must be one mix of the two outcome weights: odds x favourable plus
+            # (1 - odds) x adverse. The odds are the best single fit across the cases, held to 0 to 1.
+            spread = {key: favourable[key] - adverse[key] for key in current}
+            odds = (sum((current[key] - adverse[key]) * spread[key] for key in current)
+                    / sum(value * value for value in spread.values()))
             odds = min(max(odds, Decimal(0)), Decimal(1))
+            mixed = {key: adverse[key] + odds * spread[key] for key in current}
+            if max(abs(mixed[key] - current[key]) for key in current) > WEIGHT_TOLERANCE:
+                problems.append(
+                    f"{name}: the three sets of weights disagree. The closest single mix of your outcome weights "
+                    f"(about {odds * 100:.0f}% favourable) gives case weights "
+                    + ", ".join(f"{names[key]} {mixed[key]:.2f}" for key in current) + "; your scenario_view holds "
+                    + ", ".join(f"{names[key]} {current[key]:.2f}" for key in current)
+                    + ". Today's weight on each case must equal one probability times its "
+                    "favourable weight plus the rest times its adverse weight, within 0.05. Revise the outcome "
+                    "weights or the scenario_view weights.")
+                continue
             events.append({
                 "condition_id": identity, "label": labels[identity], "expected_date": str(expected),
                 "favourable_when": entry["favourable_when"], "reason": _text(entry.get("reason")),
@@ -211,7 +226,7 @@ def summarize(state, accepted, close) -> dict:
         return {"status": "not_applicable", "events": [], "problems": []}
     structured = manager.get("structured") if isinstance(manager.get("structured"), dict) else {}
     return assess(accepted, conditions_from_state(state), structured.get("event_view"), state.get("trade_date"),
-                  horizon_from_state(state), close, rate_from_state(state))
+                  horizon_from_state(state), close, rate_from_state(state), structured.get("no_event_reason"))
 
 
 def render_for_manager(conditions, accepted_possible, horizon) -> str:
@@ -227,8 +242,10 @@ def render_for_manager(conditions, accepted_possible, horizon) -> str:
         "date and no later than the horizon date), favourable_when (met or not_met: which result of the condition "
         "is the favourable one for the stock), favourable_weights and adverse_weights (the case weights you would "
         "hold after each outcome: every accepted case once, 0 allowed, each set summing to 1), and a short reason. "
-        "Code prices each set at the horizon date and derives the odds your current weights imply; your current "
-        "weights must therefore lie between the two outcome sets. Do not state a probability.")
+        "Code prices each set at the horizon date and derives the odds your current weights imply: your "
+        "scenario_view weight on each case must equal one probability times its favourable weight plus the rest "
+        "times its adverse weight, within 0.05. Do not state a probability. If you expect none of the listed "
+        "conditions to resolve by the horizon date, leave event_view null and say why in no_event_reason.")
     return "\n".join(lines)
 
 
@@ -244,6 +261,9 @@ def render(summary) -> list[str]:
     if isinstance(summary, dict) and summary.get("status") == "unaddressed":
         return ["**Six-month view from dated events**: not stated; the Portfolio Manager's event_view could not be "
                 "used. " + " ".join(summary.get("problems", [])[:3])]
+    if isinstance(summary, dict) and summary.get("status") == "none_expected":
+        return [f"**Six-month view from dated events**: the Portfolio Manager expects none of the open conditions to "
+                f"resolve by {summary['horizon_date']}. Reason (unvalidated): {summary['reason']}"]
     if not isinstance(summary, dict) or summary.get("status") != "addressed" or not summary.get("events"):
         return []
     lines = [f"**Six-month view from dated events** (to {summary['horizon_date']}; arithmetic on the manager's own "
@@ -259,6 +279,6 @@ def render(summary) -> list[str]:
                      f"{adverse} if adverse; today's weights imply about "
                      f"{Decimal(event['implied_odds_percent']):.0f}% for the favourable outcome. "
                      f"Reason (unvalidated): {event['reason']}")
-    lines.append("The implied odds are not a probability the manager stated: they are where today's weights sit "
-                 "between the weights it says it would hold after each outcome.")
+    lines.append("The implied odds are not a probability the manager stated: they are the single mix of its two "
+                 "outcome weight sets that best reproduces today's weights (each case within 5 points).")
     return lines
