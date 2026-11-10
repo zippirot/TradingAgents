@@ -291,10 +291,11 @@ class ContinuationWire(live.OpenRouterWireGuard):
 
 
 def _retained(value):
-    """A saved record without the funding check, which is derived again from retained terms on every replay.
+    """A saved record without the fields derived again from retained evidence on every replay.
 
     The 2026-11-10 decision-basis build replaced the blanket funding warning on each
-    revenue case with a computed status. Everything else must still match exactly.
+    revenue case with a computed status and added each case's position against the
+    company's own valuation history. Everything else must still match exactly.
     """
     if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
         return value
@@ -303,9 +304,9 @@ def _retained(value):
         if isinstance(row, dict) and isinstance(row.get("result"), dict):
             result = dict(row["result"])
             result["warnings"] = [w for w in result.get("warnings") or [] if not str(w).startswith("Funding ")]
-            row = {k: v for k, v in row.items() if k != "funding"} | {"result": result}
+            row = {k: v for k, v in row.items() if k not in {"funding", "reference_position"}} | {"result": result}
         rows.append(row)
-    return {**value, "rows": rows}
+    return {**{k: v for k, v in value.items() if k != "reference_history"}, "rows": rows}
 
 
 def verify_snapshot(snapshot, thread):

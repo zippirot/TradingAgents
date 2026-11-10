@@ -13,6 +13,11 @@ from decimal import Decimal, localcontext
 from pydantic import ValidationError
 
 from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
+from tradingagents.agents.case_reference import (
+    history_context,
+    reference_position,
+    render_history_context,
+)
 from tradingagents.agents.evidence_validation import _select_compatible_fact, obligation_checks
 from tradingagents.agents.retained_kpi_context import lease_maturities
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
@@ -379,7 +384,13 @@ def _prepare(state, requests):
                         key = f"guided diluted weighted average {share['point']} ({share['value']} shares, {share['period']})"
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
-    return _record(status, requests, rows, [*reasons, *notes])
+    record = _record(status, requests, rows, [*reasons, *notes])
+    priced = [row for row in rows if row["result"]["method"] == "revenue_case"]
+    for row in priced:
+        row["reference_position"] = reference_position(row, state)
+    if any(row["reference_position"]["status"] == "available" for row in priced):
+        record["reference_history"] = history_context(state)
+    return record
 
 
 def annotate_disputed_cases(state, record):
@@ -575,6 +586,9 @@ def render_shared_valuation(record):
                 funding = row.get("funding")
                 if isinstance(funding, dict):
                     lines.append(_cell(funding["summary"]) + " " + _cell(funding["limit"]))
+                position = row.get("reference_position")
+                if isinstance(position, dict) and position.get("status") == "available":
+                    lines.append(_cell(position["summary"]))
                 supplemental = row.get("source_bound_sensitivity_requests", {})
                 for basis, price in row["sensitivities"].items():
                     assumptions = []
@@ -614,5 +628,8 @@ def render_shared_valuation(record):
     if record.get("status") == "partial":
         lines += ["", "Partial table: some proposed scenarios were omitted or remain unfunded diagnostics."]
     lines += ["- " + _cell(v) for v in record.get("reasons", [])]
+    context = render_history_context(record.get("reference_history"))
+    if context:
+        lines += ["", _cell(context)]
     return "\n".join(lines)
 
