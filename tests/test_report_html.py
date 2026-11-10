@@ -78,6 +78,18 @@ def test_copy_control_is_accessible_in_masthead_and_hidden_when_printing(tmp_pat
     assert '.copy-all { display: none; }' in page[page.index('@media print'):]
 
 
+def test_download_pdf_control_sits_beside_copy_all_and_prints_through_the_browser(tmp_path):
+    page = _html(tmp_path)
+    header = page[page.index('<header'):page.index('</header>')]
+    assert '<button type="button" class="download-pdf" id="download-pdf"' in header
+    assert 'aria-label="Save the full report as a PDF"' in header and '>Download PDF</button>' in header
+    # Same container, before Copy All, and neither control appears in the saved PDF.
+    actions = header[header.index('<div class="actions">'):]
+    assert actions.index('id="download-pdf"') < actions.index('id="copy-all"')
+    assert "getElementById('download-pdf').addEventListener('click', () => window.print())" in page
+    assert '.download-pdf { display: none; }' in page[page.index('@media print'):]
+
+
 @pytest.mark.unit
 def test_report_text_cannot_inject_markup_or_fetch_anything(tmp_path):
     hostile = ("<script>alert(1)</script> <img src=x onerror=alert(1)>\n\n"

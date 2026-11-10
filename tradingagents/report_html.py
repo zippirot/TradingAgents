@@ -43,6 +43,9 @@ _COPY_SCRIPT = """(() => {
   const button = document.getElementById('copy-all');
   let reset;
 
+  // The browser's own print dialog saves the page as a PDF, using the print layout below.
+  document.getElementById('download-pdf').addEventListener('click', () => window.print());
+
   function reportText() {
     const source = document.getElementById('top');
     const copy = source.cloneNode(true);
@@ -146,10 +149,12 @@ h1, h2, h3, h4 { text-wrap: balance; }
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .masthead { position: relative; padding-bottom: 1.75rem; border-bottom: 1px solid var(--rule); }
-.copy-all { position: absolute; top: 0; right: 0; max-width: calc(100% - 10rem);
+.actions { position: absolute; top: 0; right: 0; max-width: calc(100% - 10rem);
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.copy-all, .download-pdf {
   padding: 0.35rem 0.6rem; border: 1px solid var(--edge); border-radius: 4px;
   background: var(--paper); color: var(--muted); font: 0.8rem/1.4 var(--sans); cursor: pointer; }
-.copy-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.copy-all:focus-visible, .download-pdf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .copy-all:disabled { cursor: wait; }
 /* Render the same layout off-screen so innerText preserves paragraphs and tables. */
 .copy-source, .copy-buffer { position: fixed; left: -100000px; top: 0; pointer-events: none; }
@@ -254,6 +259,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .contents { background: none; border: 1px solid var(--rule); break-inside: avoid; }
   .to-top { display: none; }
   .copy-all { display: none; }
+  .download-pdf { display: none; }
   main h2 { break-before: page; border-top: 0; margin-top: 0; }
   main section:first-child h2 { break-before: auto; }
   main h3, main h4 { break-after: avoid; }
@@ -463,7 +469,10 @@ def _render_prepared_report(ticker: str, final_state: dict, settings: dict | Non
 <body>
 <div class="page" id="top">
 <header class="masthead">
+<div class="actions">
+<button type="button" class="download-pdf" id="download-pdf" aria-label="Save the full report as a PDF">Download PDF</button>
 <button type="button" class="copy-all" id="copy-all" aria-label="Copy the full report as text" aria-live="polite">Copy All</button>
+</div>
 <a class="logo" href="{_COMPANY}" rel="noopener" aria-label="Tauric Research">{_LOGO}</a>
 <h1>{title}</h1>
 <p class="date">{escape(f"Analysis of {date}" if date else "Analysis")}</p>
