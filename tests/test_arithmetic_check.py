@@ -59,3 +59,15 @@ def test_an_analysts_finished_report_carries_the_note_and_a_clean_one_is_untouch
     noted = run(REAL)
     assert noted.startswith(REAL) and "Stated 43%; 79.52 against 128.21 (2026-10-13) gives 38%." in noted
     assert run("Close is 79.52.") == "Close is 79.52."
+
+
+def test_two_subjects_in_one_sentence_are_left_alone():
+    assert check_percentages("80 is 20% below 100, while 60 is 40% below 100.") == []
+
+
+def test_a_dated_figure_with_a_unit_or_without_a_listing_form_is_not_taken_as_a_close():
+    claim = "79.52 is about 43% below the 2026-10-13 close."
+    assert check_percentages("Volume was 128.21M on 2026-10-13.\n" + claim) == []
+    assert check_percentages("- 2026-10-13: 128.21M shares\n" + claim) == []
+    assert check_percentages("Volume was 128.21 on 2026-10-13.\n" + claim) == []
+    assert len(check_percentages("The close was 128.21 (2026-10-13).\n" + claim)) == 1

@@ -8,7 +8,7 @@ Plan: `docs/superpowers/plans/2026-11-10-evidence-work-plan.md`. Base `0fe86cc4`
 | D2 | The scorecard places each settled close at 21 and 63 sessions below, inside or above the range the decision accepted, and above or below its weighted value, both carried to the exit date at the decision's stated required return. | `tests/test_scorecard.py` (4 new). On the real store: 0 rows, nothing has settled. |
 | D3 | `python -m tradingagents.screen TICKER...`: source collection and the seven required source checks, no model. | `tests/test_screen.py` (2); live run below. |
 | Fix found by D3 | The source step crashed (`KeyError: 'disclosure_evidence'`) when excerpt packages conflicted and an RPO comparison existed. Seven of sixteen companies hit it. | Failing test first, `tests/test_shared_source_brief.py`. |
-| Arithmetic check | A stated percentage that its sentence's own two figures do not give is noted at the end of the analyst's report, by code. | `tests/test_arithmetic_check.py` (5). On the saved reports of the five runs of 2026-11-10 it flags one sentence: the market analyst's "about 43% below the 2026-10-13 close" in run 6fe6324b (the closes give 38%), which the paid auditor also found. One false alarm seen during the build ("below the 200 SMA") is excluded and tested. |
+| Arithmetic check | A stated percentage that its sentence's own two figures do not give is noted at the end of the analyst's report, by code. | `tests/test_arithmetic_check.py` (7). On the saved reports of the five runs of 2026-11-10 it flags one sentence: the market analyst's "about 43% below the 2026-10-13 close" in run 6fe6324b (the closes give 38%), which the paid auditor also found. One false alarm seen during the build ("below the 200 SMA") is excluded and tested. |
 
 ## Screen result, 2026-11-10 (ran; free SEC and price requests only)
 Sixteen mid-sized US software and cloud companies. One passes: DOCN. Full output:
@@ -28,4 +28,14 @@ in the large-filer plan (on hold); the screen shows they are not limited to very
 - The screen leaves out the one required check that reads a model's report.
 
 ## Verification (ran)
-Full suite at the final commit: 4,482 passed, 10 skipped. Lint clean.
+Full suite at the final commit: 4,484 passed, 10 skipped. Lint clean.
+
+## Independent audit (GPT-6 Astra, run 972a7a03, $0.42)
+Two medium findings, both in the arithmetic check, both reproduced with a failing test and fixed.
+
+| Finding | Fix |
+|---|---|
+| A sentence with two subjects ("80 is 20% below 100, while 60 is 40% below 100") used the first subject for both and "corrected" a right figure | A sentence with more than one subject is left alone |
+| A dated figure with a unit ("128.21M on 2026-10-13") was read as that day's close | Unit-bearing figures are never closes and make the date ambiguous; only the listing forms "DATE: value" and "value (DATE)" are read |
+
+No finding on the Reddit key path, the range scoring, the screen or the crash fix.

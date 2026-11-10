@@ -2,7 +2,7 @@
 
 Only two shapes are checked, both where the figures sit in the same sentence as the percentage:
 "from A to B ... up/down P%" and "B is P% below/above A" (A may be a dated close the same report lists).
-A sentence that does not fit exactly is left alone: a missed slip costs less than a wrong correction.
+A sentence that does not fit exactly, or names two subjects, is left alone: a missed slip costs less than a wrong correction.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ _SUBJECT = re.compile(rf"{_NUM}\s+is\s+(?={_APPROX}{_PCT}\s+(?:below|above))", r
 # A number that names an indicator ("the 200 SMA", "the 50-day average") is a label, not a value.
 _LABEL = r"(?!\s*-?\s*(?:SMA|EMA|DMA|WMA|VWMA|MA|day|week|month|session|quarter|year)\b)"
 _RELATIVE = re.compile(rf"{_APPROX}{_PCT}\s+(below|above)\s+(?:the|its|a)?\s*(?:{_DATE}|{_NUM}{_LABEL})", re.I)
-_DATED = (re.compile(rf"{_DATE}:\s+{_NUM}"), re.compile(rf"{_NUM}\s+\(?(?:on\s+)?{_DATE}\)?"))
+_DATED = (re.compile(rf"{_DATE}:\s+{_NUM}"), re.compile(rf"{_NUM}\s+\({_DATE}\)"))
 LIMIT = 5
 
 
@@ -32,10 +32,11 @@ def _value(text, unit=None):
 def _dated(text):
     """Closes the report lists against a date, where a date has exactly one value."""
     found = {}
+    # A figure with a unit (128.21M shares) is not a price, and it makes the date ambiguous.
     for match in _DATED[0].finditer(text):
-        found.setdefault(match.group(1), set()).add(_value(match.group(2))[0])
+        found.setdefault(match.group(1), set()).add(None if match.group(3) else _value(match.group(2))[0])
     for match in _DATED[1].finditer(text):
-        found.setdefault(match.group(3), set()).add(_value(match.group(1))[0])
+        found.setdefault(match.group(3), set()).add(None if match.group(2) else _value(match.group(1))[0])
     return {day: next(iter(values)) for day, values in found.items() if len(values) == 1}
 
 
@@ -58,7 +59,8 @@ def check_percentages(text) -> list[dict]:
                 if _off(stated, computed):
                     findings.append({"quote": sentence.strip()[:240], "stated": stated, "computed": round(computed, 1),
                                      "basis": f"{pairs[0].group(1)} to {pairs[0].group(3)}"})
-        subject = _SUBJECT.search(sentence)
+        subjects = list(_SUBJECT.finditer(sentence))
+        subject = subjects[0] if len(subjects) == 1 else None  # two subjects: which one a clause means is a guess
         if subject and not subject.group(2):
             price = _value(subject.group(1))[0]
             for match in _RELATIVE.finditer(sentence, subject.end()):
