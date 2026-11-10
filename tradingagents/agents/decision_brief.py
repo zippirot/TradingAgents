@@ -131,7 +131,7 @@ def attach_weights(brief, scenario):
         if (len(then_map) == len(earlier["rows"]) and len(now_map) == len(now) and then_map.keys() == now_map.keys()
                 and "" not in then_map and "unlabelled" not in then_map):
             changed = any(then_map[k]["disposition"] != now_map[k]["disposition"]
-                          or abs((_decimal(then_map[k]["weight"]) or 0) - (_decimal(now_map[k]["weight"]) or 0)) > Decimal("0.005")
+                          or _decimal(then_map[k]["weight"]) != _decimal(now_map[k]["weight"])
                           for k in then_map)
             break
     return {**brief, "weights": {**earlier, "now": now, "changed": changed}}
@@ -140,7 +140,7 @@ def attach_weights(brief, scenario):
 def _weights_text(rows, display):
     return ", ".join(f"{display(row['role'] if row['role'] not in ('', 'unlabelled') else row['name'])} "
                      + ("rejected" if row["disposition"] == "rejected" or row["weight"] is None
-                        else f"{Decimal(row['weight']) * 100:.0f}%") for row in rows)
+                        else f"{(Decimal(row['weight']) * 100).normalize():f}%") for row in rows)
 
 
 def _prices(replayed):

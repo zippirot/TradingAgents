@@ -15,6 +15,7 @@ def inputs(*, linked=True, disposition='accepted', all_cases=False):
     high['name'] = 'Higher'
     high['request']['multiple'] = '4'
     low['request']['multiple_rationale'] = 'The distinct equipment assumption.'
+    high['request']['multiple_rationale'] = 'The higher multiple assumption.'
     value = state([low, high])
     value.update(final_rating='Hold', unvalidated_outputs={'portfolio_manager': {'structured': {'time_horizon': '6 months'}}})
     value['shared_valuation_scenarios'] = prepare_shared_valuation(value)
@@ -24,7 +25,8 @@ def inputs(*, linked=True, disposition='accepted', all_cases=False):
         finding['case_id'] = value['shared_valuation_scenarios']['rows'][0]['case_id']
     findings = [finding]
     if all_cases:
-        findings.append({**finding, 'case_id': value['shared_valuation_scenarios']['rows'][1]['case_id']})
+        findings.append({**finding, 'quoted_claim': high['request']['multiple_rationale'],
+                         'case_id': value['shared_valuation_scenarios']['rows'][1]['case_id']})
     value['advisory_audit'] = {'status': 'completed with findings', 'findings': findings}
     value['unvalidated_outputs']['portfolio_manager']['structured']['audit_dispositions'] = [
         {'finding_id': f['finding_id'], 'disposition': disposition, 'reason': 'Reviewed'}

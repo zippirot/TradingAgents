@@ -410,11 +410,6 @@ def _prepare(state, requests):
     return record
 
 
-_STATEMENT_ROLES = frozenset({"fundamentals_analyst", "market_analyst", "sentiment_analyst", "news_analyst", "research_manager", "trader",
-                          "bull_researcher", "bear_researcher", "aggressive_risk_analyst",
-                          "conservative_risk_analyst", "neutral_risk_analyst"})
-
-
 def annotate_disputed_cases(state, record):
     """An accepted finding can exclude a displayed case, never alter its math."""
     from tradingagents.agents.audit_pass import prepare_audit_dispositions
@@ -437,11 +432,10 @@ def annotate_disputed_cases(state, record):
                    bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text))]
         clean = {key: value for key, value in row.items() if key not in {'disputed_by', 'dispute_note'}}
         # A finding can name a case because a role misdescribed it. That corrects the role, not the case.
-        # A finding disputes the case only when it quotes the case's own inputs. A known role's statement about
-        # the case, the analyst's narrative included, is a correction of that role.
+        # A finding disputes the case only when it quotes the case's own inputs. A role's statement about the case,
+        # the analyst's narrative included, is a correction of that role.
         about_case = [f for f in findings if f['finding_id'] in ids and (
-            f.get('role') not in _STATEMENT_ROLES
-            or (bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text)))]
+            bool(f.get('quoted_claim')) and any(f['quoted_claim'] in part for part in text))]
         note = {}
         if ids and not about_case:
             roles = sorted({str(f.get('role') or 'a role').replace('_', ' ') for f in findings if f['finding_id'] in ids})

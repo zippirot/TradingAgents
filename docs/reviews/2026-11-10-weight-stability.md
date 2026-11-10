@@ -10,7 +10,7 @@ Proof source: saved runs `36c26c9d` and `b9dde628`, replayed with no model call
 |---|---|---|
 | 1 | The since-last-decision record carries the earlier decision's case weights. The manager's prompt lists them with the rule to keep each unless a new fact changes it. | `agents/decision_brief.py` (`_case_weights`, `render`) |
 | 1 | The decision card shows earlier and current weights, matched by role (else by name), and labels a change when no new filing was retained. Unmatched case sets are shown without a change claim. | `agents/decision_brief.py` (`attach_weights`), `agents/decision_context.py` |
-| 2 | A finding linked to a case disputes it only when it quotes the case's own inputs; a statement by any known role, the fundamentals analyst included, is worded as a corrected statement and not counted as a flagged scenario. | `agents/shared_valuation.py` |
+| 2 | A finding linked to a case disputes it only when it quotes the case's own inputs; a statement by any known role, the fundamentals analyst included, is worded as a corrected statement and not counted (any role, known or not) as a flagged scenario. | `agents/shared_valuation.py` |
 
 ## Replay (ran)
 
@@ -29,5 +29,15 @@ Proof source: saved runs `36c26c9d` and `b9dde628`, replayed with no model call
 - There is no send-back for a changed weight; the label is the consequence.
 
 ## Verification (ran)
-- `tests/test_weight_stability.py`: 7 tests.
-- Full suite and lint on the committed tree: see the commit message.
+- `tests/test_weight_stability.py`: 9 tests.
+- Full suite: 4,466 passed, 10 skipped. Lint clean.
+
+## Independent audit (GPT-6 Astra, run bbe05095, $0.19)
+Two medium findings, both reproduced with a failing test, then fixed.
+
+| Finding | Fix |
+|---|---|
+| A weight change under half a point (45 to 45.4) read as unchanged and both sets printed as 45% | Weights compared exactly and printed with their own precision |
+| A finding from a role outside the known list still flagged the case without quoting its inputs | The input-quote test now applies to every finding |
+
+One older test (`tests/test_disputed_case_range.py`) linked a finding to a second case while quoting the first case's text; its fixture now quotes the second case's own input.

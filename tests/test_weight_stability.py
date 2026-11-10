@@ -122,3 +122,18 @@ def test_a_finding_quoting_the_cases_own_input_still_disputes_it_whoever_is_name
     card = prepare_decision_context(_flagged("fundamentals_analyst", "The distinct equipment assumption."))
     assert card["scenarios"]["disputed_count"] == 1
     assert "flagged by accepted audit finding" in render_decision_context(card)
+
+
+def test_a_small_weight_change_is_shown_and_labelled():
+    brief = attach_weights(_brief(), _now("0.454", "0.446", "0.10"))
+    assert brief["weights"]["changed"] is True
+    text = "\n".join(render(brief))
+    assert "base 45.4%, downside 44.6%, upside 10% now" in text
+    assert "Weights changed and no new filing was retained" in text
+
+
+def test_a_role_outside_the_known_list_does_not_bypass_the_input_quote_rule():
+    from tradingagents.agents.decision_context import prepare_decision_context
+
+    assert prepare_decision_context(_flagged("valuation_reviewer", "Funding is unassessed"))["scenarios"]["disputed_count"] == 0
+    assert prepare_decision_context(_flagged("valuation_reviewer", "The distinct equipment assumption."))["scenarios"]["disputed_count"] == 1
