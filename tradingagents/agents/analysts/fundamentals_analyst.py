@@ -165,8 +165,8 @@ SHARED_VALUATION_INPUTS = (
     ' Revenue case shape: {"name":"Base","request":{"method":"revenue_case","revenue_fact_id":"<annual fact ID>",'
     '"forecast":{"value":"<amount>","unit":"USD","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
     '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption>"},"multiple":"<decimal>",'
-    '"multiple_basis":"borrowings_only","multiple_period":"forward","multiple_assumption_date":"<analysis date>",'
-    '"multiple_rationale":"<why this forward multiple on this basis>","capital":{"valuation_date":"<forecast period end>",'
+    '"multiple_basis":"borrowings_only","multiple_assumption_date":"<analysis date>",'
+    '"multiple_rationale":"<why this multiple on this basis>","capital":{"valuation_date":"<forecast period end>",'
     '"currency":"USD","closing_shares":{"value":"<positive shares>","fact_ids":["<common shares outstanding ID>"],'
     '"reason":"<why this closing count, considering dilution>","assumption":"estimated"},'
     '"cash":{"value":"<cash>","fact_ids":["<cash ID>"],"reason":"<why>","assumption":"estimated"},'
@@ -179,7 +179,7 @@ SHARED_VALUATION_INPUTS = (
     " Never use guided diluted weighted-average shares as closing shares. Funding feasibility remains unassessed."
     " Include complete evidenced additional obligation categories for labeled sensitivities, especially finance_equipment and operating_leases."
     " Use equity, borrowings_only, finance_equipment or all_leases for multiple_basis. Equity applies no cash or debt adjustment."
-    " Whichever multiple_period word you give, the multiple is applied at the period end to that period's forecast revenue, with shares and obligations at that date; no historical revenue may substitute."
+    " The multiple is applied at the period end to that period's forecast revenue, with shares and obligations at that date; no historical revenue may substitute."
     " That is the same construction as a past quarter's value over its preceding twelve months' revenue, so the company's own history on the same obligation basis is a like-for-like reference. Never compare the multiple with a ratio on a different obligation basis."
     " In every case, multiple_rationale must name a reference point on the same multiple basis and period convention (an own-history figure, a named peer, or the 'what the price implies' ratio), or state exactly 'no same-basis reference available'. Do not present a different-basis ratio as comparable."
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."

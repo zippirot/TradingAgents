@@ -176,3 +176,51 @@ def test_the_floor_note_reaches_the_case_card_and_the_manager():
         return
     assert note["summary"] in render_shared_valuation(record)
     assert note["summary"] in render_cases_for_manager(priced_cases(record))
+
+
+# Audit closure -----------------------------------------------------------------
+
+def test_a_finding_citing_a_case_id_as_its_evidence_label_is_kept():
+    # F1: the prompt tells the auditor a case_id is the evidence label for the computed block.
+    from tests.test_advisory_audit import FakeModel
+    from tests.test_audit_case_id import _state
+    from tradingagents.agents.audit_pass import create_advisory_audit
+
+    inputs, case, quote = _state()
+    base = {"role": "research_manager", "quoted_claim": quote, "issue_type": "contradiction",
+            "explanation": "Contradicts the computed reference."}
+    findings = [{**base, "evidence_label": case["case_id"], "case_id": case["case_id"]},
+                {**base, "evidence_label": "case-invented", "case_id": case["case_id"]}]
+    record = create_advisory_audit(FakeModel({"findings": findings}),
+                                   deep_model_id="d", quick_model_id="q")(inputs)["advisory_audit"]
+    assert record["accepted_count"] == 1 and record["rejected_count"] == 1
+    assert record["findings"][0]["evidence_label"] == case["case_id"]
+    assert "unknown evidence label" in record["rejection_reasons"][0]
+
+
+def test_the_period_word_is_no_longer_asked_for_and_old_requests_still_price():
+    # F2: the word changes no arithmetic, so the analyst is not asked for it.
+    from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
+
+    assert "multiple_period" not in SHARED_VALUATION_INPUTS
+    assert "applied at the period end to that period's forecast revenue" in SHARED_VALUATION_INPUTS
+    with_word, without = revenue_case(), revenue_case()
+    del without["request"]["multiple_period"]
+    old, new = (prepare_shared_valuation(state([row]))["rows"][0] for row in (with_word, without))
+    assert new["result"]["status"] == "supported" and new["result"]["target"] == old["result"]["target"]
+    assert new["case_id"] == old["case_id"] and new["request"]["multiple_period"] == "forward"
+
+
+def test_the_reading_follows_every_action_label_the_fallback_accepts():
+    # F3: the free-text fallback also accepts "FINAL TRANSACTION PROPOSAL".
+    from tradingagents.agents.trader.trader import _complete_fallback
+
+    for text, plan, word in (
+            ("FINAL TRANSACTION PROPOSAL: **SELL**\n\nReasoning: valuation.", PLAN, "Reduce"),
+            ("FINAL TRANSACTION PROPOSAL: Buy\n\nReasoning: growth.", "**Recommendation**: Overweight", "Add"),
+            ("**Action**: Buy\n\nReasoning: growth.", "**Recommendation**: Overweight", "Add")):
+        out = _complete_fallback(text, plan)
+        assert f"Reading of this action: {word} (the Trader's" in out and out.startswith(text)
+    # Two different actions give no reading.
+    assert "Reading of this action" not in _complete_fallback(
+        "**Action**: Buy\nFINAL TRANSACTION PROPOSAL: **SELL**\n\nReasoning: mixed.", PLAN)

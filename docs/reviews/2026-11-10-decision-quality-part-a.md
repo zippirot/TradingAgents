@@ -44,8 +44,20 @@ Rating label), and gives no reading when two different recommendations appear.
 
 ## Verification (ran)
 
-- New tests: `tests/test_decision_quality_part_a.py`, 11 tests.
+- New tests: `tests/test_decision_quality_part_a.py`, 14 tests (3 added at audit closure).
 - Full suite and lint: see the commit message for the counts on the committed tree.
+
+## Independent audit (654a6569) and closure
+
+Three Medium findings, no Critical or High. Each was reproduced with a failing test, then fixed.
+
+| Finding | Reproduced | Fix |
+|---|---|---|
+| F1. The prompt told the auditor to cite a case ID as the evidence label, but the validator rejected case IDs as unknown labels, so such a finding was discarded. | Yes (ran) | Case IDs established on replay are accepted as evidence labels; an invented ID is still rejected. |
+| F2. The plan said to stop asking the analyst for the period word if it is only a label; it was still required. | Yes (ran) | The analyst is no longer asked. The field defaults to its old value, so saved requests replay with the same case ID and price. |
+| F3. The Reduce/Add reading was missed when the Trader's free-text fallback used "FINAL TRANSACTION PROPOSAL" instead of "Action". | Yes (ran) | The reading follows every label the fallback accepts; two different actions give no reading. |
+
+After closure: 4,445 passed, 10 skipped; lint clean.
 
 ## Not proven
 
@@ -55,5 +67,8 @@ Rating label), and gives no reading when two different recommendations appear.
 
 ## Deferred
 
+- Saved runs whose cases used different period words keep separate ranges, as before. New runs no longer
+  produce the second word.
+- `assumption_history.py` still prints the stored period word in assumption-change text.
 - `docs/reviews/decision-inputs-proof-tools/replay.py` still prints a check for the old sizing sentence
   (a historical script, not run by any test).

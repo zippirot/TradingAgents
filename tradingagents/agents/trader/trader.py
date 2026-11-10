@@ -25,6 +25,7 @@ from tradingagents.agents.structured import (
 )
 
 _ACTION_LINE = re.compile(r"^\W*(?:action|final transaction proposal)\W+(?:buy|hold|sell)\b", re.I | re.M)
+_ACTION_VALUE = re.compile(r"^\W*(?:action|final transaction proposal)\W+(buy|hold|sell)\b", re.I | re.M)
 _REASONING = re.compile(r"^\W*reasoning\b", re.I | re.M)
 _HEADING = re.compile(r"^[ \t]*(?:\*\*(?P<bold>[^*\n]+)\*\*|#{1,6}[ \t]+(?P<hash>[^\n]+))", re.M)
 _CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
@@ -32,8 +33,9 @@ _CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
 
 def _reading(text: str, investment_plan: str) -> str:
     """One line saying how the Trader's three-way action reads under the research rating, or ''."""
-    actions = re.findall(r"(?im)^\s*(?:\*\*)?Action(?:\*\*)?\s*:\s*(?:\*\*)?(Buy|Hold|Sell)\b", text or "")
-    reading = action_reading(actions[0].title(), research_rating(investment_plan)) if actions else None
+    # Every label the fallback accepts; two different actions are no action.
+    actions = {action.title() for action in _ACTION_VALUE.findall(text or "")}
+    reading = action_reading(actions.pop(), research_rating(investment_plan)) if len(actions) == 1 else None
     if reading is None:
         return ""
     return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "

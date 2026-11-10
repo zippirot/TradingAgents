@@ -67,7 +67,8 @@ class RevenueCase(_Record):
     forecast: ForecastAssumption
     multiple: Decimal = Field(gt=0, max_digits=20)
     multiple_basis: Literal["equity", "borrowings_only", "finance_equipment", "all_leases"]
-    multiple_period: Literal["forward", "trailing"]
+    # No longer asked for: the word changes no arithmetic. Kept, with the old default, so saved requests replay.
+    multiple_period: Literal["forward", "trailing"] = "forward"
     multiple_assumption_date: date
     multiple_rationale: str = Field(min_length=1, max_length=1200)
     capital: CaseCapital

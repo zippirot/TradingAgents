@@ -673,6 +673,8 @@ def create_advisory_audit(llm, *, deep_model_id, quick_model_id, sdk_retries_dis
         labels = _known_labels({key: text for key, text in source.items()
                                 if key not in {"analyst_tool_outputs", "shared_mechanical_sensitivities",
                                                "retained_document_sources", "retained_document_coverage"}}) | known_tool_labels(state)
+        # A replayed case's ID is the label for what code computed about it; only IDs established on replay count.
+        labels |= case_ids
         document_coverage = (json.loads(source["retained_document_coverage"])
                              if "retained_document_coverage" in source else None)
         record = {
