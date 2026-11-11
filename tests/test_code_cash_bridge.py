@@ -165,7 +165,7 @@ def test_a_priced_case_with_no_operating_cash_or_capex_is_asked_for_them_once_an
     model = Model(fenced([completed()]))
     record = prepare_with_correction(inputs, model, "SHAPE")
     assert len(model.prompts) == 1 and "state no operating cash flow or no capital spending" in model.prompts[0]
-    assert "Base" in model.prompts[0] and "code deducts the filed payment schedule" in model.prompts[0]
+    assert "Base" in model.prompts[0] and "deducts the filed payment schedule" in model.prompts[0]
     assert record["corrected_submission"]["kind"] == "cash_bridge" and len(record["rows"]) == 1
     sources = [c["source"] for c in record["rows"][0]["request"]["capital"]["cash_changes"]]
     assert sources == ["operations", "capex"] and record["rows"][0]["request"]["capital"]["cash"]["value"] == "115"

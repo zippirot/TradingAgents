@@ -171,6 +171,19 @@ def assess(accepted, conditions, view, analysis_date, horizon, close, rate, none
             odds = (sum((current[key] - adverse[key]) * spread[key] for key in current)
                     / sum(value * value for value in spread.values()))
             odds = min(max(odds, Decimal(0)), Decimal(1))
+            # The stated test is each case within the tolerance. Where some mix meets it, use the one nearest
+            # the best fit, so weights that satisfy the stated rule are never sent back.
+            floor, ceiling = Decimal(0), Decimal(1)
+            for key in current:
+                gap = current[key] - adverse[key]
+                if spread[key] == 0:
+                    if abs(gap) > WEIGHT_TOLERANCE:
+                        floor, ceiling = Decimal(1), Decimal(0)
+                    continue
+                ends = sorted(((gap - WEIGHT_TOLERANCE) / spread[key], (gap + WEIGHT_TOLERANCE) / spread[key]))
+                floor, ceiling = max(floor, ends[0]), min(ceiling, ends[1])
+            if floor <= ceiling:
+                odds = min(max(odds, floor), ceiling)
             mixed = {key: adverse[key] + odds * spread[key] for key in current}
             if max(abs(mixed[key] - current[key]) for key in current) > WEIGHT_TOLERANCE:
                 problems.append(

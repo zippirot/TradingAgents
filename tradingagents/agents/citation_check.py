@@ -182,6 +182,8 @@ def check_pm_citations(state: Mapping) -> dict:
             explained = {fact for label in labels if label.startswith('C')
                          and any(_matches(stated, value, unit) for value, unit in canonical.get(label) or ())
                          for fact in inputs_of.get(label, ())}
+            signed_clauses = [_numbers(_LOCATOR.sub(' ', clause)) for clause in re.split(r',\s|;', sentence)
+                              if _NEGATIVE_WORD.search(clause)]
             for label in labels:
                 options = canonical.get(label)
                 if not options:
@@ -189,10 +191,11 @@ def check_pm_citations(state: Mapping) -> dict:
                         unresolved.append(label)
                     continue
                 checked += 1
-                # A loss or outflow is stated as a positive amount beside the word that carries its sign.
-                signed = _NEGATIVE_WORD.search(sentence) is not None
+                # A loss or outflow is stated as a positive amount beside the word that carries its sign: the
+                # word must sit in the same clause as the figure, not anywhere in the sentence.
                 if label in explained or any(_matches(stated, value, unit) or (
-                        signed and isinstance(value, Decimal) and value < 0 and _matches(stated, -value, unit))
+                        isinstance(value, Decimal) and value < 0 and any(_matches(numbers, -value, unit)
+                                                                         for numbers in signed_clauses))
                                              for value, unit in options):
                     matched += 1
                 else:

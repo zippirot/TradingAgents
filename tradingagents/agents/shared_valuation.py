@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 from datetime import date
-from decimal import Decimal, localcontext
+from decimal import Decimal, InvalidOperation, localcontext
 
 from pydantic import ValidationError
 
@@ -553,14 +553,46 @@ _BRIDGE_FIELDS = ("cash", "cash_changes", "cash_model", "operations_after_lease_
                   "operations_include_new_lease_rent")
 
 
-def _lacks_bridge(item) -> bool:
-    """A revenue case whose value uses cash but states no operating cash flow or no capital spending."""
+def _bridge_capital(item):
     request = item.get("request") if isinstance(item, dict) else None
     if not isinstance(request, dict) or request.get("method") != "revenue_case" or request.get("multiple_basis") == "equity":
+        return None
+    return request.get("capital") if isinstance(request.get("capital"), dict) else {}
+
+
+def _lacks_bridge(item) -> bool:
+    """A revenue case whose value uses cash but states no operating cash flow or no capital spending."""
+    capital = _bridge_capital(item)
+    if capital is None:
         return False
-    capital = request.get("capital") if isinstance(request.get("capital"), dict) else {}
     sources = {change.get("source") for change in capital.get("cash_changes") or () if isinstance(change, dict)}
     return not isinstance(capital.get("cash_model"), dict) and not {"operations", "capex"} <= sources
+
+
+def _balances_to_zero(item) -> bool:
+    """Stated operating cash and capital spending that, with the other changes, sum to nothing: a plug, not a forecast."""
+    capital = _bridge_capital(item)
+    if capital is None or isinstance(capital.get("cash_model"), dict):
+        return False
+    changes = [change for change in capital.get("cash_changes") or () if isinstance(change, dict)]
+    if len(changes) < 2 or not any(change.get("source") in ("operations", "capex") for change in changes):
+        return False
+    try:
+        return sum(Decimal(str(change.get("amount"))) for change in changes) == 0
+    except (InvalidOperation, ValueError):
+        return False
+
+
+def _rates_unexplained(item) -> bool:
+    """Rates given without saying whether the margin is after lease interest and includes rent on new leases."""
+    capital = _bridge_capital(item)
+    return bool(capital) and isinstance(capital.get("cash_model"), dict) and any(
+        not isinstance(capital.get(key), bool)
+        for key in ("operations_after_lease_interest", "operations_include_new_lease_rent"))
+
+
+def _needs_bridge(item) -> bool:
+    return _lacks_bridge(item) or _balances_to_zero(item) or _rates_unexplained(item)
 
 
 def _outside_bridge(item):
@@ -582,23 +614,27 @@ def _request_cash_bridge(state, llm, shape, record, report):
     priced = {row["name"] for row in _priced(record["rows"]) if not row.get("diagnostic_only")}
     submitted = [item for item in record["requests"] if isinstance(item, dict)]
     asked = [item["name"].strip() for item in submitted
-             if isinstance(item.get("name"), str) and item["name"].strip() in priced and _lacks_bridge(item)]
+             if isinstance(item.get("name"), str) and item["name"].strip() in priced and _needs_bridge(item)]
     if not asked:
         return record
     original = "\n\n".join(_BLOCK.findall(report))[:MAX_PAYLOAD]
     prompt = (
         "Your valuation cases price, but these state no operating cash flow or no capital spending between the "
-        "balance-sheet date and the valuation date, so their closing cash is not a forecast: "
-        + "; ".join(asked) + ". Return only one corrected ```valuation_scenarios fenced block and nothing else. "
-        'In each of those cases add to capital "cash_model":{"operating_cash_margin":"<fraction of revenue, e.g. '
-        '0.30>","operating_cash_reason":"<why, against the filed margin>","capex_rate":"<fraction of revenue>",'
-        '"capex_reason":"<why, against the filed rate>"}: operating cash flow before finance-lease and equipment '
-        "payments, and cash capital spending, each as a share of revenue you expect over that period. Give each case "
-        "the rates that fit its own story; a slower-growth case need not earn the base case's margin. Do not give "
-        'amounts and do not choose rates to make cash come out at any figure: code applies the rates to each case\'s '
-        'revenue. Set "operations_after_lease_interest" and "operations_include_new_lease_rent" for the margin you '
-        "give. Leave cash and cash_changes as they are, and leave out finance_payments and the repayment of a note "
-        "that falls due in the period: code deducts the filed payment schedule and repays such a note itself. Change "
+        "balance-sheet date and the valuation date, or state amounts that sum to zero so that cash simply stays at "
+        "the filed balance, or give rates without saying what the margin holds; their closing cash is not a "
+        "forecast: " + "; ".join(asked) + ". Return only one corrected ```valuation_scenarios fenced block and "
+        'nothing else. In each of those cases give capital "cash_model":{"operating_cash_margin":"<fraction of '
+        'revenue, e.g. 0.30>","operating_cash_reason":"<why, against the filed margin>","capex_rate":"<fraction of '
+        'revenue>","capex_reason":"<why, against the filed rate>"}: operating cash flow before finance-lease and '
+        "equipment payments, and cash capital spending, each as a share of revenue you expect over that period. Give "
+        "each case the rates that fit its own story; a slower-growth case need not earn the base case's margin. Do "
+        "not give amounts and do not choose rates to make cash come out at any figure: code applies the rates to "
+        'each case\'s revenue. Set "operations_after_lease_interest" and "operations_include_new_lease_rent" to true '
+        "or false for the margin you give. Rates and amounts cannot stand together: Remove the operations, capex and "
+        "finance_payments entries from cash_changes and leave out the repayment of a note that falls due in the "
+        "period, because code applies your rates, deducts the filed payment schedule and repays such a note "
+        "itself. Keep any other cash_changes entry, and set cash to the filed balance plus only the entries that "
+        "remain (with none remaining, the filed balance, unchanged from the snapshot). Change "
         "nothing else: keep every name, forecast, multiple, basis, "
         "share count, obligation, fact ID and rationale exactly as you wrote it. Do not add or remove cases."
         "\n\nRequired shape:" + shape + "\n\nYour original block:\n```valuation_scenarios\n" + original + "\n```"
@@ -623,12 +659,13 @@ def _request_cash_bridge(state, llm, shape, record, report):
     if (before.keys() != after.keys() or len(after) != len(corrected)
             or any(not isinstance(after[name].get("request"), dict)
                    or _outside_bridge(after[name]) != _outside_bridge(before[name]) for name in before)
-            or any(_lacks_bridge(after[name]) for name in asked)):
+            or any(_needs_bridge(after[name]) for name in asked)):
         return declined()
     candidate = _prepare(state, corrected)
     if {row["name"] for row in _priced(candidate["rows"])} != {row["name"] for row in _priced(record["rows"])}:
         return declined()
-    cause = "it stated no operating cash flow or capital spending; the analyst was asked once to state them"
+    cause = ("its operating cash flow and capital spending were missing, balanced to zero or left unexplained; the "
+             "analyst was asked once to state them")
     notes = [f"Row {index}: cash bridge stated by the analyst at code's request (operating cash flow and capital "
              "spending); nothing else in the case changed."
              for index, item in enumerate(corrected, 1) if item["name"].strip() in asked]

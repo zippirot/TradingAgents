@@ -118,7 +118,10 @@ _PORTFOLIO_TERM = re.compile(
     # A scenario's weight is not a portfolio weight, and "holding X fixed" is not a holding.
     r"holdings|(?:the|your|current|existing|this)\s+holding|stake|trim(?:s|med|ming)?)\b", re.I)
 # "the subjective 50% weight" is a scenario's weight with its figure, not a portfolio weight.
-_CASE_WEIGHT = re.compile(r"\b(?:scenario|subjective|case|equal|probability)\s+\d+(?:\.\d+)?\s*%\s+weights?\b", re.I)
+# A word or two may sit between: "subjective central weight retained" is still the scenario's weight.
+_CASE_WEIGHT = re.compile(
+    r"\b(?:scenario|subjective|case|equal|probability)\s+"
+    r"(?:(?!(?:portfolio|standard|normal|benchmark|current|target)\b)[\w.%-]+\s+){0,2}weights?\b", re.I)
 # A count of units is a position figure the general sizing pattern does not read as a number.
 _UNIT_COUNT = re.compile(r"\d[\d,.]*\s*units?\b", re.I)
 PORTFOLIO_WITHHELD = "Figures stated against the caller's portfolio are withheld from the published record."
