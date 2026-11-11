@@ -110,8 +110,10 @@ _SIZING_TERM = re.compile(
 
 _PORTFOLIO_TERM = re.compile(
     r"\b(?:units?|of\s+(?:the|your|a|my)\s+(?:portfolio|book)|portfolio\s+value|(?:standard|normal|benchmark|"
-    r"current|target)\s+weight|weights?|allocations?|position\s+siz\w+|loss\s+budget|than\s+you\s+hold|"
-    r"holdings?|stake|trim(?:s|med|ming)?)\b", re.I)
+    r"current|target)\s+weight|(?<!scenario\s)(?<!subjective\s)(?<!case\s)(?<!equal\s)weights?|allocations?|"
+    r"position\s+siz\w+|loss\s+budget|than\s+you\s+hold|"
+    # A scenario's weight is not a portfolio weight, and "holding X fixed" is not a holding.
+    r"holdings|(?:the|your|current|existing|this)\s+holding|stake|trim(?:s|med|ming)?)\b", re.I)
 PORTFOLIO_WITHHELD = "Figures stated against the caller's portfolio are withheld from the published record."
 
 

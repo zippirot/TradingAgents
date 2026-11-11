@@ -336,3 +336,21 @@ def test_figures_a_manager_repeats_from_the_block_do_not_reach_the_published_rec
     assert "100 units, 4.0% of the portfolio" in untouched and "withheld from the published record" not in untouched
     _legacy_, same = run(book())
     assert "100 units, 4.0% of the portfolio" in same
+
+
+def test_case_weights_and_ordinary_wording_are_not_mistaken_for_portfolio_figures():
+    from tradingagents.agents.evidence_presentation import (
+        PORTFOLIO_WITHHELD,
+        without_portfolio_figures,
+    )
+    kept = ["Retain prior subjective weight; 6x borrowings-only and approximately $1.93bn 2027 revenue are plausible.",
+            "Subjective scenario weights remain 45% base, 45% downside and 10% upside, unchanged since the prior decision.",
+            "The all-leases sensitivity changes the perimeter while holding the 6x multiple fixed.",
+            "With equal weights the value today is 88.99."]
+    for sentence in kept:
+        assert without_portfolio_figures(sentence) == sentence
+    hidden = ["Reduce DOCN from 35.8% of the portfolio toward the 2.5% underweight allocation.",
+              "Cut to a 2.5% weight, about 1,304 fewer units.", "The current holding is 1,402 shares.",
+              "Holdings of 1,402 remain above the 5% standard weight."]
+    for sentence in hidden:
+        assert without_portfolio_figures(sentence).strip() == PORTFOLIO_WITHHELD
