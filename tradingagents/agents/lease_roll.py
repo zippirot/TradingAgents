@@ -77,8 +77,10 @@ def roll_schedule(schedule, totals, as_of: date, end: date) -> dict | None:
     if not isinstance(schedule, dict) or schedule.get("as_of") != as_of or not isinstance(totals, dict) or end <= as_of:
         return None
     years = schedule.get("years") or {}
-    if not all(str(year) in years for year in range(as_of.year, end.year + 1)):
-        return None  # a year the table does not state is unknown, never zero
+    # A year the table does not state is unknown, never zero. A year that has already ended needs no column.
+    first = as_of.year + (as_of == date(as_of.year, 12, 31))
+    if not all(str(year) in years for year in range(first, end.year + 1)):
+        return None
     rate = implied_rate(years, totals.get("total"), totals.get("interest"), as_of)
     if rate is None:
         return None

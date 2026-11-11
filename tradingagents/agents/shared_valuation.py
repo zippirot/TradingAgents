@@ -20,12 +20,12 @@ from tradingagents.agents.case_reference import (
     render_history_context,
 )
 from tradingagents.agents.evidence_validation import _select_compatible_fact, obligation_checks
-from tradingagents.agents.lease_roll import ASSUMPTIONS, roll_new_leases, roll_schedule
 from tradingagents.agents.retained_kpi_context import lease_maturities
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
 from tradingagents.agents.valuation_cases import (
     MULTIPLE_CONSTRUCTION,
     RevenueCase,
+    carry_leases,
     case_funding,
     obligation_bases,
     price_case,
@@ -143,44 +143,6 @@ def _funding_terms(state):
             "leases": leases if isinstance(leases, list) else []}
 
 
-_FINANCE_CATEGORIES = ("finance_equipment", "finance_leases", "equipment")
-
-
-def _rolled_leases(source_facts, snapshot_date, end, terms) -> dict:
-    """How each lease category is carried from the filing's snapshot to the case's period end, where the filing allows.
-
-    Finance leases and equipment: the filed payment schedule repays principal, so the balance falls. It is used only
-    when the schedule's own present value agrees with the filed balances. Operating leases have no retained schedule
-    and stay as filed; what leases commencing in the period will still owe at the period end is added to them.
-    A category absent here is held as filed, and says so.
-    """
-    terms, carried = terms or {}, {}
-    roll = roll_schedule(terms.get("schedule"), terms.get("schedule_totals"), snapshot_date, end)
-    finance = sum(f.value for f in source_facts
-                  if any(f.metric in _OBLIGATION_METRICS.get(c, ()) for c in _FINANCE_CATEGORIES))
-    if roll is not None and finance > 0 and abs(roll["opening"] - finance) <= finance / 1000:
-        ratio = roll["closing"] / roll["opening"]
-        reason = ("{category} obligations of {filed} as of " + f"{snapshot_date} carried to {end} on the filed payment "
-                  f"schedule: {roll['principal']} of principal repaid by then, at the "
-                  f"{Decimal(repr(roll['rate'])) * 100:.2f}% a year the schedule implies, where "
-                  f"{ASSUMPTIONS['timing']}. No new finance lease or equipment financing is assumed.")
-        for category in _FINANCE_CATEGORIES:
-            carried[category] = {"value": lambda filed, ratio=ratio: (filed * ratio).quantize(Decimal(1)),
-                                 "reason": reason}
-    new = roll_new_leases(terms.get("leases"), snapshot_date, end, roll["rate"] if roll else None)
-    if new is not None and new["liability"] is not None and new["liability"]["central"] > 0:
-        owed = new["liability"]
-        carried["operating_leases"] = {
-            "value": lambda filed, owed=owed: filed + owed["central"],
-            "reason": ("{category} obligations of {filed} as of " + f"{snapshot_date} held as filed, plus "
-                       f"{owed['central']} still owed at {end} on leases commencing {new['commencement']} "
-                       f"({owed['low']} to {owed['high']} across every commencement date in the window). "
-                       f"{ASSUMPTIONS['level'].capitalize()}; {ASSUMPTIONS['spread']}; discounted at the "
-                       "rate the filed finance schedule implies. Their classification is not stated in the filing."),
-        }
-    return carried
-
-
 def _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms=None):
     """Price missing lease perimeters on separate requests with dated filing balances."""
     supplemental = {}
@@ -220,26 +182,24 @@ def _source_bound_lease_requests(request, result, package, outlooks, sensitiviti
         permitted = (obligation_bases(obligations)[basis]
                      if obligations.keys() & {"finance_equipment", "finance_leases", "equipment"}
                      else relevant)
-        rolled = _rolled_leases(source_facts, result.capital_snapshot_date, capital.valuation_date, terms)
-        for category, metrics in _OBLIGATION_METRICS.items():
-            if category in obligations or category not in permitted:
-                continue
-            group = [f for f in source_facts if f.metric in metrics]
-            if group:
-                with localcontext() as ctx:
-                    ctx.prec = 60
-                    filed = sum(f.value for f in group)
-                    carried = rolled.get(category)
-                    obligations[category] = {
-                        "value": str(filed), "fact_ids": [f.fact_id for f in group],
-                        "assumption": "unchanged_from_snapshot",
-                        "reason": (f"{category} obligations as of {result.capital_snapshot_date} held constant "
-                                   f"through {capital.valuation_date}, with no growth or repayment assumed."),
-                    } if carried is None else {
-                        "value": str(carried["value"](filed)), "fact_ids": [f.fact_id for f in group],
-                        "assumption": "estimated",
-                        "reason": carried["reason"].format(category=category, filed=filed),
-                    }
+        groups = {category: [f for f in source_facts if f.metric in metrics]
+                  for category, metrics in _OBLIGATION_METRICS.items()
+                  if category not in obligations and category in permitted}
+        with localcontext() as ctx:
+            ctx.prec = 60
+            filed = {category: sum(f.value for f in group) for category, group in groups.items() if group}
+            rolled = carry_leases(filed, result.capital_snapshot_date, capital.valuation_date, terms)
+            for category, amount in filed.items():
+                carried = rolled.get(category)
+                obligations[category] = {
+                    "value": str(amount), "fact_ids": [f.fact_id for f in groups[category]],
+                    "assumption": "unchanged_from_snapshot",
+                    "reason": (f"{category} obligations as of {result.capital_snapshot_date} held constant "
+                               f"through {capital.valuation_date}, with no growth or repayment assumed."),
+                } if carried is None else {
+                    "value": str(carried["value"]), "fact_ids": [f.fact_id for f in groups[category]],
+                    "assumption": "estimated", "reason": carried["reason"],
+                }
         if obligations.keys() == capital.obligations.keys():
             continue
         try:

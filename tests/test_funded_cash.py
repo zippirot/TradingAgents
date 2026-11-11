@@ -101,29 +101,23 @@ def test_the_case_value_moves_by_exactly_the_completed_cash(monkeypatch):
     assert after["request"]["capital"]["operations_include_new_lease_rent"] is False
 
 
-def _fact(metric, value):
-    from types import SimpleNamespace
-    return SimpleNamespace(metric=metric, value=Decimal(value))
-
-
 def test_lease_balances_are_carried_to_the_period_end_only_when_the_schedule_matches_the_filed_balance():
-    from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
-    from tradingagents.agents.shared_valuation import _rolled_leases
+    from tradingagents.agents.valuation_cases import carry_leases
 
-    finance, operating = sorted(_OBLIGATION_METRICS["finance_leases"])[0], sorted(_OBLIGATION_METRICS["operating_leases"])[0]
-    facts = [_fact(finance, "923599000"), _fact(operating, "666611000")]
-    carried = _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), TERMS)
-    closing = carried["finance_leases"]["value"](Decimal("923599000"))
-    assert Decimal("600000000") < closing < Decimal("923599000")          # principal has been repaid
+    end = date(2027, 12, 31)
+    filed = {"finance_leases": Decimal("736179000"), "equipment": Decimal("187420000"),
+             "operating_leases": Decimal("666611000")}
+    carried = carry_leases(filed, SNAPSHOT, end, TERMS)
+    assert Decimal("400000000") < carried["finance_leases"]["value"] < filed["finance_leases"]   # principal repaid
     assert "carried to 2027-12-31 on the filed payment schedule" in carried["finance_leases"]["reason"]
-    added = carried["operating_leases"]["value"](Decimal("666611000")) - Decimal("666611000")
-    assert added > 0 and "Their classification is not stated in the filing" in carried["operating_leases"]["reason"]
+    assert carried["operating_leases"]["value"] > filed["operating_leases"]
+    assert "Their classification is not stated in the filing" in carried["operating_leases"]["reason"]
     # A filed balance the schedule does not reproduce is held as filed: nothing is carried for it.
-    off = _rolled_leases([_fact(finance, "500000000")], SNAPSHOT, date(2027, 12, 31), TERMS)
-    assert "finance_leases" not in off and "operating_leases" in off
+    off = carry_leases({"finance_equipment": Decimal("500000000"), "operating_leases": Decimal(1)}, SNAPSHOT, end, TERMS)
+    assert "finance_equipment" not in off and "operating_leases" in off
     # A company with no schedule and no lease awaiting commencement gets nothing carried at all.
-    assert _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), {"schedule": None, "leases": []}) == {}
-    assert _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), None) == {}
+    assert carry_leases(filed, SNAPSHOT, end, {"schedule": None, "leases": []}) == {}
+    assert carry_leases(filed, SNAPSHOT, end, None) == {} and carry_leases({}, SNAPSHOT, end, TERMS) == {}
 
 
 def test_the_analyst_is_asked_the_two_questions_and_a_carried_case_may_answer_them():
@@ -136,3 +130,50 @@ def test_the_analyst_is_asked_the_two_questions_and_a_carried_case_may_answer_th
     assert '"operations_include_new_lease_rent": true or false' in prompt
     assert "Funding feasibility remains unassessed" not in prompt
     assert "is not a change to its values" in inspect.getsource(prior_cases)
+
+
+def test_a_question_the_filing_cannot_size_stays_visible_when_the_other_is_resolved():
+    bare = {"schedule": None, "schedule_totals": {}, "leases": [LEASE], "notes": []}
+    funding = funding_check(_capital(after_interest=True, includes_rent=False), SNAPSHOT, None, bare)
+    assert funding["funded"]["decided"] == ["rent"]
+    assert "is deducted" in funding["limit"]
+    assert "lease interest" in funding["limit"] and "could not be sized" in funding["limit"]
+    unreadable = funding_check(_capital(after_interest=False, includes_rent=False), SNAPSHOT, None,
+                               {**bare, "leases": [{"unit": "EUR"}]})
+    assert "rent on leases that commence" in unreadable["limit"] and "could not be sized" in unreadable["limit"]
+
+
+def test_a_case_that_supplies_lease_balances_as_filed_has_them_carried_like_one_that_leaves_them_out():
+    from tradingagents.agents.valuation_cases import carry_leases
+
+    filed = {"finance_equipment": Decimal("923599000"), "operating_leases": Decimal("666611000")}
+    carried = carry_leases(filed, SNAPSHOT, date(2027, 12, 31), TERMS)
+    assert carried["finance_equipment"]["value"] < filed["finance_equipment"]
+    assert carried["operating_leases"]["value"] > filed["operating_leases"]
+    # Finance leases and equipment given separately are scaled together; a partial set is not carried.
+    split = carry_leases({"finance_leases": Decimal("736179000"), "equipment": Decimal("187420000")}, SNAPSHOT,
+                         date(2027, 12, 31), TERMS)
+    assert split["finance_leases"]["value"] + split["equipment"]["value"] == carried["finance_equipment"]["value"]
+    assert "finance_leases" not in carry_leases({"finance_leases": Decimal("736179000")}, SNAPSHOT, date(2027, 12, 31), TERMS)
+
+
+def test_supplied_and_omitted_lease_balances_price_the_same(monkeypatch):
+    """The audit's case: unchanged_from_snapshot lease balances must not stay flat when the schedule can carry them."""
+    import json
+    import os
+
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+    path = os.path.expanduser("~/.tradingagents/logs/DOCN/TradingAgentsStrategy_logs/full_states_log_2026-11-10_6fe6324b.json")
+    if not os.path.exists(path):
+        import pytest
+        pytest.skip("saved run not on this machine")
+    with open(path) as handle:
+        state = json.load(handle)
+    saved = state["shared_valuation_scenarios"]["rows"][0]
+    omitted = prepare_shared_valuation(state, [{"name": saved["name"], "request": saved["request"]}])["rows"][0]
+    supplied = json.loads(json.dumps(omitted["source_bound_sensitivity_requests"]["finance_equipment"]))
+    lease = supplied["capital"]["obligations"]["finance_equipment"]
+    lease.update(value="923599000", assumption="unchanged_from_snapshot", reason="As filed.")
+    priced = prepare_shared_valuation(state, [{"name": saved["name"], "request": supplied}])
+    assert priced["status"] == "available", priced["reasons"]
+    assert priced["rows"][0]["result"]["target"] == omitted["sensitivities"]["finance_equipment"]

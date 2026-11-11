@@ -68,3 +68,10 @@ def test_a_company_with_no_leases_awaiting_commencement_or_unreadable_ones_gets_
                    [{**LEASE, "weighted_average_term_years": "0"}], [{**LEASE, "commencement_end": "2026-01"}],
                    [{**LEASE, "undiscounted_amount": "n/a"}]):
         assert roll_new_leases(leases, AS_OF, END, 0.05) is None
+
+
+def test_a_year_end_snapshot_needs_no_column_for_the_year_that_has_ended():
+    schedule = {"as_of": date(2025, 12, 31), "years": {"2026": Decimal(110), "2027": Decimal(121)}}
+    roll = roll_schedule(schedule, {"total": Decimal(231), "interest": Decimal("-21.2382")}, date(2025, 12, 31),
+                         date(2026, 12, 31))
+    assert roll is not None and roll["paid"] == 110 and roll["rate"] == pytest.approx(0.10, abs=1e-4)

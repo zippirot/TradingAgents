@@ -206,6 +206,46 @@ def funding_bounds(capital, snapshot_date, scheduled, terms, stated=None) -> dic
     return bounds
 
 
+LEASE_FINANCE = ("finance_equipment", "finance_leases", "equipment")
+
+
+def carry_leases(filed: dict, snapshot_date, end, terms) -> dict:
+    """Lease balances as filed, carried to a case's period end where the filing allows: category -> value, reason.
+
+    Finance leases and equipment: the filed payment schedule repays principal, so the balance falls. It is used
+    only when the schedule's own present value agrees with the filed balances given (within 0.1%), so a partial
+    set of categories is never scaled. Operating leases have no retained schedule and stay as filed; what leases
+    commencing in the period will still owe at the period end is added to them. A category absent from the
+    result is held as filed.
+    """
+    terms, carried = terms or {}, {}
+    roll = roll_schedule(terms.get("schedule"), terms.get("schedule_totals"), snapshot_date, end)
+    finance = [c for c in LEASE_FINANCE if c in filed]
+    total = sum(filed[c] for c in finance)
+    if roll is not None and total > 0 and abs(roll["opening"] - total) <= total / 1000:
+        closing, left = (total * roll["closing"] / roll["opening"]).quantize(Decimal(1)), None
+        left = closing
+        for index, category in enumerate(finance):
+            # The last category takes the remainder, so the parts always sum to the carried total.
+            value = left if index == len(finance) - 1 else (filed[category] * closing / total).quantize(Decimal(1))
+            left -= value
+            carried[category] = {"value": value, "reason": (
+                f"{category} obligations of {filed[category]} as of {snapshot_date} carried to {end} on the filed "
+                f"payment schedule: {roll['principal']} of principal repaid by then, at the "
+                f"{Decimal(repr(roll['rate'])) * 100:.2f}% a year the schedule implies, where {ASSUMPTIONS['timing']}. "
+                "No new finance lease or equipment financing is assumed.")}
+    new = roll_new_leases(terms.get("leases"), snapshot_date, end, roll["rate"] if roll else None)
+    if "operating_leases" in filed and new is not None and new["liability"] and new["liability"]["central"] > 0:
+        owed = new["liability"]
+        carried["operating_leases"] = {"value": filed["operating_leases"] + owed["central"], "reason": (
+            f"operating_leases obligations of {filed['operating_leases']} as of {snapshot_date} held as filed, plus "
+            f"{owed['central']} still owed at {end} on leases commencing {new['commencement']} ({owed['low']} to "
+            f"{owed['high']} across every commencement date in the window). {ASSUMPTIONS['level'].capitalize()}; "
+            f"{ASSUMPTIONS['spread']}; discounted at the rate the filed finance schedule implies. Their "
+            "classification is not stated in the filing.")}
+    return carried
+
+
 def funded_cash(capital, snapshot_date, terms) -> dict:
     """What code adds to or takes from a case's closing cash once the case says what its operating cash holds.
 
@@ -221,7 +261,7 @@ def funded_cash(capital, snapshot_date, terms) -> dict:
     roll = roll_schedule(terms.get("schedule"), terms.get("schedule_totals"), snapshot_date, end)
     new = roll_new_leases(terms.get("leases"), snapshot_date, end, roll["rate"] if roll else None)
     stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
-    adjustment, decided, lines = Decimal(0), [], []
+    adjustment, decided, lines, unsized = Decimal(0), [], [], []
     record = {"interest_added_back": None, "rent_deducted": None, "rent_range": None}
     if capital.operations_after_lease_interest is False:
         decided.append("interest")
@@ -235,6 +275,9 @@ def funded_cash(capital, snapshot_date, terms) -> dict:
                      f"scheduled payments is added back ({back / shares:.2f} {currency} a share; the filed schedule "
                      f"implies {Decimal(repr(roll['rate'])) * 100:.2f}% a year, where "
                      f"{ASSUMPTIONS['timing']})")
+    elif capital.operations_after_lease_interest is True and stated > 0:
+        unsized.append("operating cash is stated after lease interest, but the lease interest inside the scheduled "
+                       "payments could not be sized from a filed schedule, so none is added back")
     if capital.operations_include_new_lease_rent is True:
         decided.append("rent")
         lines.append("operating cash is stated after rent on leases that commence in the period")
@@ -250,7 +293,10 @@ def funded_cash(capital, snapshot_date, terms) -> dict:
     elif capital.operations_include_new_lease_rent is False and not terms.get("leases"):
         decided.append("rent")
         lines.append("no lease awaiting commencement was retained from the filing, so no new rent is deducted")
-    return {**record, "adjustment": str(adjustment), "decided": decided, "lines": lines}
+    elif capital.operations_include_new_lease_rent is False:
+        unsized.append("operating cash leaves out rent on leases that commence in the period, but that rent could "
+                       "not be sized from the retained lease terms, so none is deducted")
+    return {**record, "adjustment": str(adjustment), "decided": decided, "lines": lines, "unsized": unsized}
 
 
 def funding_limit(bounds, currency, counts_cash=True, funded=None) -> str:
@@ -274,8 +320,11 @@ def funding_limit(bounds, currency, counts_cash=True, funded=None) -> str:
                      f"{_money(Decimal(item['annual_run_rate']), currency)} a year once all have commenced), by "
                      f"{Decimal(item['per_share_low']):.2f} to {Decimal(item['per_share_high']):.2f} {currency} a share. "
                      "The filing gives no payment schedule, so the actual figure can fall outside this range")
+    unsized = (funded or {}).get("unsized") or []
+    if unsized:
+        computed += "Left open: " + "; ".join(unsized) + ". "
     if not parts:
-        return computed + ("No discounting." if "rent" in decided else FUNDING_LIMIT)
+        return computed + ("No discounting." if "rent" in decided or unsized else FUNDING_LIMIT)
     return (computed + "Not in the case arithmetic, sized from the filing: " + "; ".join(parts)
             + ". The case does not say which applies. No discounting.")
 
@@ -292,7 +341,8 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
     reasons, scheduled = [], None
     years = schedule.get("years") if isinstance(schedule, dict) and schedule.get("as_of") == snapshot_date else None
     # A year the table does not state is unknown, never zero.
-    covered = bool(years) and all(str(year) in years for year in range(snapshot_date.year, end.year + 1))
+    first = snapshot_date.year + (snapshot_date == date(snapshot_date.year, 12, 31))  # an ended year needs no column
+    covered = bool(years) and all(str(year) in years for year in range(first, end.year + 1))
     if years and covered:
         scheduled = Decimal(0)
         for label, amount in years.items():
@@ -342,7 +392,7 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
                else f"Funding {status}: " + " ".join(reasons))
     bounds = funding_bounds(capital, snapshot_date, scheduled, terms, stated) if counts_cash else {}
     funded = funded_cash(capital, snapshot_date, terms) if counts_cash else None
-    return {"status": status, **({"funded": funded} if funded and funded["decided"] else {}), "scheduled_finance_payments": None if scheduled is None else str(scheduled),
+    return {"status": status, **({"funded": funded} if funded and (funded["decided"] or funded["unsized"]) else {}), "scheduled_finance_payments": None if scheduled is None else str(scheduled),
             "stated_finance_payments": str(stated), "maturing_note_principal": str(principal),
             "reasons": reasons, "summary": summary, "bounds": bounds,
             "limit": funding_limit(bounds, currency, counts_cash, funded)}
@@ -414,7 +464,12 @@ def price_case(request, package, outlooks, terms=None):
         # Cash as the case stated it, completed by code where the case says what its operating cash holds.
         funded = funded_cash(capital, cash.period_end, terms)
         closing_cash = capital.cash.value + Decimal(funded["adjustment"])
-        net = {basis: sum(obligations[k].value for k in cats) - closing_cash
+        # A lease balance supplied as filed is carried to the period end like one the case leaves out.
+        carried = carry_leases({k: v.value for k, v in obligations.items()
+                                if k != "borrowings" and v.assumption == "unchanged_from_snapshot"},
+                               cash.period_end, capital.valuation_date, terms)
+        owed = {k: carried[k]["value"] if k in carried else v.value for k, v in obligations.items()}
+        net = {basis: sum(owed[k] for k in cats) - closing_cash
                for basis, cats in bases.items() if set(cats) <= components.keys()}
         equity = capitalized if request.multiple_basis == "equity" else capitalized - net[request.multiple_basis]
         if equity <= 0:
@@ -429,6 +484,8 @@ def price_case(request, package, outlooks, terms=None):
             assumptions.append(f"share change ({change_label}): {change.shares}. Reason: {change.reason}")
         for change in capital.cash_changes:
             assumptions.append(f"cash change ({change.source}): {change.amount}. Reason: {change.reason}")
+        for category, item in carried.items():
+            assumptions.append(f"{category} carried by code: {item['value']}. {item['reason']}")
         if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):
             assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
                                f"{Decimal(funded['adjustment']):+}). " + "; ".join(funded["lines"]) + ".")
