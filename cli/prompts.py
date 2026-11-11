@@ -239,6 +239,7 @@ _OPENROUTER_PINNED = [
     ("DeepSeek V4 Pro", "deepseek/deepseek-v4-pro"),
     ("GPT-6.1 Sol", "openai/gpt-6.1-sol"),
     ("GPT-6.1 Terra Pro", "openai/gpt-6.1-terra-pro"),
+    ("Muse Spark 1.3 Contributor", "meta/muse-spark-1.3-contributor"),
 ]
 
 

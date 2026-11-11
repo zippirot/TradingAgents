@@ -141,8 +141,9 @@ def test_requested_models_stay_visible_once_without_changing_default(mode, live)
         assert prompts.select_openrouter_model(mode, default=saved) == "openai/gpt-6.1-sol"
 
     values = [c.value for c in captured["choices"]]
-    pinned = ["anthropic/claude-opus-5.5", "deepseek/deepseek-v4-pro", "openai/gpt-6.1-sol", "openai/gpt-6.1-terra-pro"]
-    assert values[:4] == pinned
+    pinned = ["anthropic/claude-opus-5.5", "deepseek/deepseek-v4-pro", "openai/gpt-6.1-sol", "openai/gpt-6.1-terra-pro",
+              "meta/muse-spark-1.3-contributor"]
+    assert values[:5] == pinned
     assert all(values.count(mid) == 1 for mid in pinned)
     assert "custom" in values
     if live:
