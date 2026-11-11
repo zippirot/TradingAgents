@@ -131,6 +131,17 @@ def _historical_period_error(claim, packages):
     return None
 
 
+def _same_block(known, block):
+    """One block seen in two views. A view cut short by the excerpt budget holds a prefix of the full text."""
+    if known is None or known == block:
+        return block
+    longer, shorter = (known, block) if len(known.text) >= len(block.text) else (block, known)
+    if (shorter.truncated and longer.text.startswith(shorter.text)
+            and shorter.model_copy(update={"text": longer.text, "truncated": longer.truncated}) == longer):
+        return longer
+    raise ValueError("conflicting document metadata: block text or attributes")
+
+
 def collapse_quote_packages(packages):
     """Merge repeat retrievals of one immutable document, rejecting conflicts.
 
@@ -165,9 +176,7 @@ def collapse_quote_packages(packages):
                     if block.locator in seen:
                         raise ValueError("conflicting document metadata: duplicate block locator")
                     seen.add(block.locator)
-                    if block.locator in by_locator and by_locator[block.locator] != block:
-                        raise ValueError("conflicting document metadata: block text or attributes")
-                    by_locator[block.locator] = block
+                    by_locator[block.locator] = _same_block(by_locator.get(block.locator), block)
             if all(re.fullmatch(r"block-\d+", loc) for loc in by_locator):
                 blocks = tuple(sorted(by_locator.values(), key=_number))
             else:
