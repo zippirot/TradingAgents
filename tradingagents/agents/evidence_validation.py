@@ -334,10 +334,15 @@ def _acquisition_scope(state, selected_analysts):
     }
 
 
-def _with_filed_liabilities(package):
-    """The package with borrowings and leases read from the latest balance sheet's own filing, or unchanged."""
+def _with_filed_statements(package, *, liabilities: bool, equity: bool):
+    """The package with what the latest balance sheet's own filing establishes, or unchanged.
+
+    ``liabilities`` adds the filed liabilities list with borrowings and leases; ``equity`` adds the filed
+    reconciliation of stockholders' equity. One filing is read, in at most three requests.
+    """
     from tradingagents.dataflows.errors import VendorError
     from tradingagents.dataflows.face_liabilities import with_face_liabilities
+    from tradingagents.dataflows.filed_equity import with_filed_equity
     from tradingagents.dataflows.vendors.sec_instance import filed_statement_data
     from tradingagents.operational_capture import record_operation
 
@@ -351,10 +356,13 @@ def _with_filed_liabilities(package):
         return package
     try:
         filed = filed_statement_data(package.cik, source.accession)
-        widened, _notes = with_face_liabilities(
-            package, filed["facts"], filed["calculation"], url=filed["url"], content_hash=filed["content_hash"],
-            accession=source.accession, form=source.form, filed_date=source.filed_date,
-            retrieved_at=filed["retrieved_at"])
+        where = {"url": filed["url"], "content_hash": filed["content_hash"], "accession": source.accession,
+                 "form": source.form, "filed_date": source.filed_date, "retrieved_at": filed["retrieved_at"]}
+        widened = package
+        if liabilities:
+            widened, _notes = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
+        if equity:
+            widened, _notes = with_filed_equity(widened, filed["facts"], filed["structure"], **where)
     except (VendorError, ValidationError, ValueError):
         record_operation("vendor_unavailable", scope="SEC filed instance")
         return package
@@ -424,10 +432,12 @@ def create_source_acquisition(selected_analysts):
                         {**state, **update}, package, disclosures, record["disclosure_error"],
                         rpo_comparison=record["rpo_comparison"], source_only=True,
                     )
-                    if any(check["code"] == "obligation_perimeter" and check["status"] != "pass"
-                           for check in prepared["source_checks"]):
-                        # Tagged totals did not give the perimeter: read the filer's own liabilities list.
-                        widened = _with_filed_liabilities(package)
+                    lacking = {check["code"] for check in prepared["source_checks"] if check["status"] != "pass"}
+                    if lacking & {"obligation_perimeter", "equity_movement"}:
+                        # Tagged totals and the filing's tables did not establish these: read the filer's own
+                        # structured data for the same filing.
+                        widened = _with_filed_statements(package, liabilities="obligation_perimeter" in lacking,
+                                                         equity="equity_movement" in lacking)
                         if widened is not package:
                             package = widened
                             record["raw_financial_evidence"] = package.model_dump(mode="json")
@@ -1036,6 +1046,12 @@ def filing_accounting_evidence(package, disclosures):
             selected.complete,
             extraction.rounding_quantum_by_fact,
         )
+    if equity.status != "pass":
+        from tradingagents.dataflows.filed_equity import check_filed_equity
+
+        filed_equity = check_filed_equity(merged)
+        if filed_equity is not None:
+            equity = filed_equity
     from tradingagents.agents.accounting_checks import check_adjusted_bridge
 
     adjusted = [

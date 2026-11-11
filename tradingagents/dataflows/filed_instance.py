@@ -128,6 +128,64 @@ def parse_calculation(raw: bytes) -> dict[str, dict[str, tuple[tuple[str, Decima
 
 
 @dataclass(frozen=True)
+class Structure:
+    """What the filing says about its own tags: declared sums, which side each tag sits on, and where it is shown."""
+    calculation: dict[str, dict[str, tuple[tuple[str, Decimal], ...]]]
+    balance: dict[str, str]                       # concept -> "credit" or "debit"
+    presentation: dict[str, frozenset[str]]       # concept -> statement and note roles that show it
+    statements: dict[str, str]                    # role -> its title, for the primary statements only
+    titles: dict[str, str]                        # role -> its title, for every statement and note
+
+
+def parse_structure(raw: bytes) -> Structure:
+    """Read SEC's ``MetaLinks.json`` for one filing: the same linkbases, already resolved per tag."""
+    import json
+
+    if len(raw) > MAX_BYTES:
+        raise InstanceError("filing structure exceeds the size limit")
+    try:
+        instances = json.loads(raw)["instance"]
+        (body,) = instances.values()
+        tags, reports = body["tag"], body["report"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise InstanceError("filing structure is not readable or covers more than one document") from exc
+    calculation, balance, presentation = {}, {}, {}
+    for key, tag in tags.items():
+        concept = key.replace("_", ":", 1)
+        if tag.get("crdr") in ("credit", "debit"):
+            balance[concept] = tag["crdr"]
+        presentation[concept] = frozenset(tag.get("presentation") or ())
+        for role, arc in (tag.get("calculation") or {}).items():
+            parent = (arc or {}).get("parentTag")
+            if not parent:
+                continue
+            try:
+                weight, order = Decimal(str(arc.get("weight", 1))), Decimal(str(arc.get("order", 0)))
+            except InvalidOperation:
+                continue
+            calculation.setdefault(role, {}).setdefault(parent.replace("_", ":", 1), []).append((order, concept, weight))
+    resolved = {role: {parent: tuple((child, weight) for _, child, weight in sorted(children, key=lambda row: (row[0], row[1])))
+                       for parent, children in tree.items()} for role, tree in calculation.items()}
+    statements = {report["role"]: str(report.get("longName") or "") for report in reports.values()
+                  if report.get("groupType") == "statement" and not report.get("subGroupType") and report.get("role")}
+    titles = {report["role"]: str(report.get("longName") or "") for report in reports.values() if report.get("role")}
+    return Structure(resolved, balance, presentation, statements, titles)
+
+
+def most_precise(facts):
+    """One figure from repeats of the same fact: the least rounded, or None when equally precise repeats differ.
+
+    A filing often repeats a balance in running text rounded to billions; that is the same fact, less exactly.
+    """
+    facts = list(facts)
+    if not facts:
+        return None
+    finest = max((fact.decimals if fact.decimals is not None else 10**6) for fact in facts)
+    best = [fact for fact in facts if (fact.decimals if fact.decimals is not None else 10**6) == finest]
+    return best[0] if len({fact.value for fact in best}) == 1 else None
+
+
+@dataclass(frozen=True)
 class Line:
     concept: str
     value: Decimal
@@ -147,20 +205,20 @@ def _undimensioned(facts, end, unit="USD"):
     sum of that axis's members. The declared sum above it is then checked, so a split that overlaps or
     omits a member fails rather than passing as a total.
     """
-    values, split = {}, {}
+    repeats, split = {}, {}
     for fact in facts:
         if fact.end != end or fact.start is not None or fact.unit != unit:
             continue
         if not fact.dimensions:
-            known = values.get(fact.concept)
-            if known is not None and known.value != fact.value:
-                raise InstanceError(f"{fact.concept} is stated twice with different values at {end}")
-            values[fact.concept] = fact
+            repeats.setdefault(fact.concept, []).append(fact)
         elif len(fact.dimensions) == 1:
             axis, member = fact.dimensions[0]
             split.setdefault(fact.concept, {}).setdefault(axis, {})[member] = fact
+    # A concept whose equally precise repeats disagree is left out, so any declared sum that needs it fails.
+    values = {concept: best for concept, group in repeats.items() if (best := most_precise(group)) is not None}
+    split = {concept: axes for concept, axes in split.items() if concept not in repeats}
     for concept, axes in split.items():
-        if concept in values or len(axes) != 1:
+        if len(axes) != 1:
             continue
         members = list(next(iter(axes.values())).values())
         decimals = [fact.decimals for fact in members]
