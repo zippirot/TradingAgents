@@ -5,9 +5,10 @@ from datetime import date
 from decimal import Decimal, localcontext
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_serializer, model_validator
 
 from tradingagents.agents.accounting_checks import validate_obligation_category
+from tradingagents.agents.lease_roll import ASSUMPTIONS, roll_new_leases, roll_schedule
 from tradingagents.agents.valuation import (
     DecisionUse,
     ForecastAssumption,
@@ -59,6 +60,19 @@ class CaseCapital(_Record):
     obligations: dict[str, CapitalValue]
     share_changes: tuple[ShareChange, ...] = Field(default=(), max_length=12)
     cash_changes: tuple[CashChange, ...] = Field(default=(), max_length=12)
+    # What the "operations" cash change holds. Stated, code completes the cash bridge; left out (older
+    # requests), the two questions stay open beside the case as before.
+    operations_after_lease_interest: bool | None = None
+    operations_include_new_lease_rent: bool | None = None
+
+    @model_serializer(mode="wrap")
+    def _unstated_stays_absent(self, handler):
+        """A request that does not answer the two questions keeps the record shape it always had."""
+        record = handler(self)
+        for key in ("operations_after_lease_interest", "operations_include_new_lease_rent"):
+            if record.get(key) is None:
+                record.pop(key, None)
+        return record
 
 
 class RevenueCase(_Record):
@@ -192,26 +206,77 @@ def funding_bounds(capital, snapshot_date, scheduled, terms, stated=None) -> dic
     return bounds
 
 
-def funding_limit(bounds, currency, counts_cash=True) -> str:
-    """What the funding check leaves outside the case arithmetic, with the filing's bounds where it gives them."""
-    if not counts_cash or not bounds:
+def funded_cash(capital, snapshot_date, terms) -> dict:
+    """What code adds to or takes from a case's closing cash once the case says what its operating cash holds.
+
+    Interest: when operating cash is already after lease interest, the scheduled payments the case deducts
+    carry that interest a second time, so the interest part of those payments is added back. The split of
+    payments into interest and principal comes from the filed schedule at its own implied rate.
+    Rent: when operating cash leaves out rent on leases that commence in the period, that rent is deducted,
+    at the central figure for commencement spread evenly across the filed window.
+    A question the case does not answer, or that the filing cannot size, stays open and changes nothing.
+    """
+    terms, end, currency = terms or {}, capital.valuation_date, capital.currency
+    shares = capital.closing_shares.value
+    roll = roll_schedule(terms.get("schedule"), terms.get("schedule_totals"), snapshot_date, end)
+    new = roll_new_leases(terms.get("leases"), snapshot_date, end, roll["rate"] if roll else None)
+    stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
+    adjustment, decided, lines = Decimal(0), [], []
+    record = {"interest_added_back": None, "rent_deducted": None, "rent_range": None}
+    if capital.operations_after_lease_interest is False:
+        decided.append("interest")
+        lines.append("operating cash is stated before lease interest, so the scheduled payments carry that interest once")
+    elif capital.operations_after_lease_interest is True and roll is not None and stated > 0 and roll["paid"] > 0:
+        back = (roll["interest"] * min(stated, roll["paid"]) / roll["paid"]).quantize(Decimal(1))
+        adjustment += back
+        decided.append("interest")
+        record["interest_added_back"] = str(back)
+        lines.append(f"operating cash is stated after lease interest, so {_money(back, currency)} of interest inside the "
+                     f"scheduled payments is added back ({back / shares:.2f} {currency} a share; the filed schedule "
+                     f"implies {Decimal(repr(roll['rate'])) * 100:.2f}% a year, where "
+                     f"{ASSUMPTIONS['timing']})")
+    if capital.operations_include_new_lease_rent is True:
+        decided.append("rent")
+        lines.append("operating cash is stated after rent on leases that commence in the period")
+    elif capital.operations_include_new_lease_rent is False and new is not None:
+        rent = new["rent"]
+        adjustment -= rent["central"]
+        decided.append("rent")
+        record["rent_deducted"], record["rent_range"] = str(rent["central"]), [str(rent["low"]), str(rent["high"])]
+        lines.append(f"operating cash leaves out rent on leases that commence {new['commencement']}, so "
+                     f"{_money(rent['central'], currency)} is deducted ({rent['central'] / shares:.2f} {currency} a share; "
+                     f"{rent['low'] / shares:.2f} to {rent['high'] / shares:.2f} across every commencement date in the "
+                     f"window; {ASSUMPTIONS['level']}, and {ASSUMPTIONS['spread']})")
+    elif capital.operations_include_new_lease_rent is False and not terms.get("leases"):
+        decided.append("rent")
+        lines.append("no lease awaiting commencement was retained from the filing, so no new rent is deducted")
+    return {**record, "adjustment": str(adjustment), "decided": decided, "lines": lines}
+
+
+def funding_limit(bounds, currency, counts_cash=True, funded=None) -> str:
+    """What code completed in the case's cash, then what stays outside the arithmetic, sized where the filing allows."""
+    if not counts_cash:
         return FUNDING_LIMIT
+    decided = set((funded or {}).get("decided") or ())
+    computed = "Computed in the case arithmetic: " + "; ".join(funded["lines"]) + ". " if decided else ""
     parts = []
-    if "interest" in bounds:
+    if "interest" in bounds and "interest" not in decided:
         item = bounds["interest"]
         parts.append(f"if projected operating cash flow is already after lease interest, the finance payments the case "
                      f"deducts count that interest twice and the case is too low by at most "
                      f"{Decimal(item['per_share_maximum']):.2f} {currency} a share (all imputed interest remaining on the "
                      f"schedule), about {Decimal(item['per_share_estimate']):.2f} {currency} if interest falls evenly "
                      f"across the payments, an assumption the filing does not state")
-    if "rent" in bounds:
+    if "rent" in bounds and "rent" not in decided:
         item = bounds["rent"]
         parts.append(f"if it leaves out rent on leases that have not commenced ({item['commencement']}), the case is too "
                      f"high; if payments were level over the weighted-average term (about "
                      f"{_money(Decimal(item['annual_run_rate']), currency)} a year once all have commenced), by "
                      f"{Decimal(item['per_share_low']):.2f} to {Decimal(item['per_share_high']):.2f} {currency} a share. "
                      "The filing gives no payment schedule, so the actual figure can fall outside this range")
-    return ("Not in the case arithmetic, sized from the filing: " + "; ".join(parts)
+    if not parts:
+        return computed + ("No discounting." if "rent" in decided else FUNDING_LIMIT)
+    return (computed + "Not in the case arithmetic, sized from the filing: " + "; ".join(parts)
             + ". The case does not say which applies. No discounting.")
 
 
@@ -276,10 +341,11 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
                "are stated and maturing notes are accounted for." if status == "assessed"
                else f"Funding {status}: " + " ".join(reasons))
     bounds = funding_bounds(capital, snapshot_date, scheduled, terms, stated) if counts_cash else {}
-    return {"status": status, "scheduled_finance_payments": None if scheduled is None else str(scheduled),
+    funded = funded_cash(capital, snapshot_date, terms) if counts_cash else None
+    return {"status": status, **({"funded": funded} if funded and funded["decided"] else {}), "scheduled_finance_payments": None if scheduled is None else str(scheduled),
             "stated_finance_payments": str(stated), "maturing_note_principal": str(principal),
             "reasons": reasons, "summary": summary, "bounds": bounds,
-            "limit": funding_limit(bounds, currency, counts_cash)}
+            "limit": funding_limit(bounds, currency, counts_cash, funded)}
 
 
 def case_funding(request, package, terms):
@@ -345,7 +411,10 @@ def price_case(request, package, outlooks, terms=None):
     with localcontext() as ctx:
         ctx.prec = 60
         capitalized = request.forecast.value * request.multiple
-        net = {basis: sum(obligations[k].value for k in cats) - capital.cash.value
+        # Cash as the case stated it, completed by code where the case says what its operating cash holds.
+        funded = funded_cash(capital, cash.period_end, terms)
+        closing_cash = capital.cash.value + Decimal(funded["adjustment"])
+        net = {basis: sum(obligations[k].value for k in cats) - closing_cash
                for basis, cats in bases.items() if set(cats) <= components.keys()}
         equity = capitalized if request.multiple_basis == "equity" else capitalized - net[request.multiple_basis]
         if equity <= 0:
@@ -360,6 +429,9 @@ def price_case(request, package, outlooks, terms=None):
             assumptions.append(f"share change ({change_label}): {change.shares}. Reason: {change.reason}")
         for change in capital.cash_changes:
             assumptions.append(f"cash change ({change.source}): {change.amount}. Reason: {change.reason}")
+        if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):
+            assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
+                               f"{Decimal(funded['adjustment']):+}). " + "; ".join(funded["lines"]) + ".")
         result = TargetResult(status="supported", method="revenue_case", target=equity / capital.closing_shares.value,
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
             shares_outstanding=capital.closing_shares.value, multiple=request.multiple,
