@@ -168,3 +168,7 @@ This replaces the plan's rule that a narrower total leaves the gate unavailable,
 - **Valuation.** A case may use the borrowings basis with borrowings the filer states together with its finance leases; the case says so. Wider bases are available only where their categories are stated. Share counts come from the balance date as the filing states them (the balance-sheet count, the one-class count along a single axis, a cover count dated the balance date, or shares issued less treasury shares as a replayable derivation).
 - **Unchanged.** A missing tag is never treated as zero. Nothing is carried from another date. DOCN's path and results are unchanged. Banks, foreign filers and multi-class issuers remain out of scope.
 - **Known limitation, deferred.** The funding check reports "unassessed" for these filers: the lease payment schedule reader built for DOCN does not read a large filer's lease maturity table.
+
+## Audit declaration
+
+- Build size: extra medium
