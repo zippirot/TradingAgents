@@ -525,6 +525,111 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
             "limit": funding_limit(bounds, currency, counts_cash, funded)}
 
 
+STATEMENT = "funded statement: "
+_LINE_NAMES = {"borrowings": "borrowings", "finance_equipment": "finance leases and equipment",
+               "finance_leases": "finance leases", "equipment": "equipment financing",
+               "operating_leases": "operating leases"}
+
+
+def _signed(value, currency):
+    return ("+" if value >= 0 else "-") + _money(abs(value), currency)
+
+
+def _maturing_notes(terms, snapshot_date, end):
+    """Retained notes whose principal falls due inside the period: (name, amount, date)."""
+    found = []
+    for note in (terms or {}).get("notes") or ():
+        if not isinstance(note, dict) or not isinstance(note.get("name"), str):
+            continue
+        try:
+            matures = date.fromisoformat(str(note.get("maturity_date")))
+            scale = _NOTE_SCALE.get(note.get("principal_unit"))
+            if scale is None or not snapshot_date < matures <= end:
+                continue
+            found.append((note["name"][:80], Decimal(str(note.get("principal_outstanding"))) * scale, matures))
+        except (ValueError, ArithmeticError):
+            continue
+    return found
+
+
+def funded_statement(capital, snapshot_date, opening, funded, carried, settled, basis, capitalized, net, terms,
+                     unstated=()) -> list[str]:
+    """One statement per case: each balance from the filing to the period end, and who supplied each step.
+
+    `opening` holds the filed snapshot balances; `net` is the basis's net obligations before any converted
+    debt is removed (None on an equity basis). Nothing here changes a value: every figure is one the case
+    arithmetic already used, laid out so a reader can see what is filed, what the analyst assumes and what
+    code computes under a stated assumption.
+    """
+    currency, end = capital.currency, capital.valuation_date
+    counted = set(obligation_bases(capital.obligations).get(basis, ())) if basis != "equity" else set()
+    lines = [f"from the {snapshot_date} filing to {end}. Each line gives the opening balance as filed, what the "
+             "analyst assumes, what code computes under a stated assumption, and the closing balance."]
+    # Cash.
+    stated = [f"{c.source.replace('_', ' ')} {_signed(c.amount, currency)}" for c in capital.cash_changes]
+    code = []
+    if funded.get("interest_added_back"):
+        code.append(f"lease interest already inside operating cash added back {_signed(Decimal(funded['interest_added_back']), currency)}")
+    if funded.get("rent_deducted"):
+        code.append(f"rent on leases that commence deducted {_signed(-Decimal(funded['rent_deducted']), currency)}")
+    closing_cash = capital.cash.value + Decimal(funded["adjustment"])
+    lines.append(f"cash: opening {_money(opening['cash'], currency)} (filed); analyst: "
+                 + ("; ".join(stated) if stated else "no change stated") + "; code: "
+                 + ("; ".join(code) if code else "no change") + f"; closing {_money(closing_cash, currency)}"
+                 + ("" if basis != "equity" else "; this equity basis does not use cash") + ".")
+    # Obligations.
+    for category, item in capital.obligations.items():
+        start, analyst, code, closing = opening[category], "no change stated", [], item.value
+        if item.assumption == "estimated" and item.value != start:
+            analyst = f"closing set to {_money(item.value, currency)} ({_signed(item.value - start, currency)})"
+        elif item.assumption == "estimated":
+            analyst = "closing estimated at the filed balance"
+        if category in carried:
+            closing = carried[category]["value"]
+            how = ("the filed payment schedule" if category in LEASE_FINANCE
+                   else "leases that commence in the period added")
+            code.append(f"carried to the period end on {how} {_signed(closing - item.value, currency)}")
+        if category == "borrowings" and category in counted and settled["debt_removed"]:
+            closing -= settled["debt_removed"]
+            code.append(f"converted notes leave borrowings {_signed(-settled['debt_removed'], currency)}")
+        lines.append(f"{_LINE_NAMES.get(category, category)}: opening {_money(start, currency)} (filed); analyst: "
+                     f"{analyst}; code: " + ("; ".join(code) if code else "no change")
+                     + f"; closing {_money(closing, currency)}"
+                     + ("." if category in counted else
+                        f"; outside this case's {basis.replace('_', ' ')} basis, used in the sensitivities only."))
+    # Shares.
+    stated = [f"{c.source} {'+' if c.shares >= 0 else '-'}{abs(c.shares):,.0f}" for c in capital.share_changes]
+    added = settled["shares"] - capital.closing_shares.value
+    lines.append(f"shares: opening {opening['closing_shares']:,.0f} (filed); analyst: "
+                 + ("; ".join(stated) if stated else "no change stated") + "; code: "
+                 + (f"notes converted, net of any capped call +{added:,.0f}" if added else "no change")
+                 + f"; closing {settled['shares']:,.0f}.")
+    # Value.
+    if basis == "equity":
+        lines.append(f"value: revenue times the multiple is {_money(capitalized, currency)} of equity value, over "
+                     f"{settled['shares']:,.0f} shares, {settled['value']:.2f} a share.")
+    else:
+        owed = net - settled["debt_removed"]
+        lines.append(f"value: revenue times the multiple is {_money(capitalized, currency)}; less net obligations of "
+                     f"{_signed(owed, currency)} (the closing {', '.join(_LINE_NAMES.get(c, c) for c in capital.obligations if c in counted)} "
+                     f"above less closing cash); equity value {_money(capitalized - owed, currency)} over "
+                     f"{settled['shares']:,.0f} shares, {settled['value']:.2f} a share.")
+    # What the filing schedules inside the period and the case does not state.
+    open_items = [str(reason) for reason in unstated]
+    filed_debt, owed_debt = opening.get("borrowings"), capital.obligations.get("borrowings")
+    dealt = (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
+             + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
+    for name, amount, matures in _maturing_notes(terms, snapshot_date, end):
+        if dealt < amount and filed_debt is not None and owed_debt is not None and owed_debt.value >= filed_debt:
+            open_items.append(f"{name}: {_money(amount, currency)} of principal falls due {matures}, inside the period. "
+                              "The case keeps both the debt and the cash that would repay it, so net obligations are "
+                              "the same either way; closing cash and borrowings above are each higher by up to that "
+                              "amount than after repayment.")
+    lines.append("not stated by the case: " + " ".join(open_items) if open_items else
+                 "nothing the filing schedules inside the period is left unstated by the case.")
+    return [STATEMENT + line for line in lines]
+
+
 def case_funding(request, package, terms):
     """The funding check for a validated revenue case, read against its own snapshot facts."""
     capital = request.capital
@@ -653,6 +758,11 @@ def price_case(request, package, outlooks, terms=None):
         if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):
             assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
                                f"{Decimal(funded['adjustment']):+}). " + "; ".join(funded["lines"]) + ".")
+        funding = case_funding(request, package, terms)
+        assumptions.extend(funded_statement(
+            capital, cash.period_end, {label: sum(f.value for f in facts) for label, facts in refs.items()},
+            funded, carried, settled, request.multiple_basis, capitalized, net.get(request.multiple_basis), terms,
+            unstated=funding["reasons"]))
         result = TargetResult(status="supported", method="revenue_case", target=settled["value"],
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
             shares_outstanding=settled["shares"], multiple=request.multiple,
@@ -661,6 +771,6 @@ def price_case(request, package, outlooks, terms=None):
             multiple_assumption_date=request.multiple_assumption_date,
             valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
             accounting_basis=request.forecast.basis, assumptions=tuple(assumptions),
-            warnings=(*warnings, "{summary} {limit}".format(**case_funding(request, package, terms))),
+            warnings=(*warnings, "{summary} {limit}".format(**funding)),
             decision_use=DecisionUse(classification="forward_scenario", suitability="conditional", final_target_eligible=True))
         return result, sensitivities
