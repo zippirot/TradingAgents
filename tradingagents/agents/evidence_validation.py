@@ -422,6 +422,11 @@ def create_source_acquisition(selected_analysts):
                             else f"SEC filing unavailable ({type(exc).__name__})")
                         disclosures = None
                     if disclosures is not None:
+                        # Every current report in the period that was not selected, with its items and reason.
+                        left_out = sec_documents.unselected_for(disclosures.cik, scope["as_of"])
+                        if left_out:
+                            record["unselected_filings"] = list(left_out)
+                    if disclosures is not None:
                         from tradingagents.agents.kpi_comparisons import retrieve_rpo_comparison
 
                         record["rpo_comparison"] = retrieve_rpo_comparison(scope["ticker"], disclosures)
@@ -1214,6 +1219,20 @@ def disclosure_coverage_check(package, disclosures, error=None):
     # omitted filings/exhibits remain critical.
     informational = ("Document text limit reached", "Older submissions archive not retrieved")
     critical = [gap for gap in disclosures.gaps if not any(text in gap for text in informational)]
+    # A notice withdrawing reliance on issued statements covers a report issued before it. It stands until
+    # an amended report for the same period is filed after it. A notice issued before the scored report
+    # cannot cover that report.
+    issued = min(doc.filing.filed_date for doc in primary)
+    for doc in disclosures.documents:
+        notice = doc.filing
+        if not notice.form.startswith("8-K") or "4.02" not in notice.items or notice.filed_date < issued:
+            continue
+        restated = any(other.filing.form in {"10-Q/A", "10-K/A"} and other.filing.report_date == end
+                       and other.filing.filed_date >= notice.filed_date for other in disclosures.documents)
+        if not restated:
+            critical.append(
+                f"{notice.accession}: Item 4.02 non-reliance notice filed {notice.filed_date}, after the report for "
+                f"{end} was issued, and no amended report for {end} is on file")
     return {
         "code": code,
         "status": "unavailable" if critical else "pass",

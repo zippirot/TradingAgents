@@ -166,6 +166,28 @@ def _filing_rows(data: dict, cik: str, as_of: str, *, include_prospectus=False):
     return rows, gaps
 
 
+# Current-report items that can bear on the accounting evidence: earnings, financing, agreements, other
+# events, and Item 4.02 (non-reliance on previously issued financial statements).
+_EVENT_ITEMS = ("2.02", "2.03", "1.01", "3.02", "8.01", "4.02")
+
+
+def unselected_events(data: dict, cik: str, as_of: str, selected) -> list[str]:
+    """Every current report since the latest quarter that was not selected, by accession, items and reason."""
+    rows, _ = _filing_rows(data, cik, as_of)
+    quarterly = [r.report_date for r in selected if r.form == "10-Q" and r.report_date]
+    baseline = max(quarterly, default=max((r.report_date for r in selected if r.report_date), default=None))
+    chosen = {r.accession for r in selected}
+    out = []
+    for row in sorted(rows, key=lambda r: (r.filed_date, r.accession)):
+        if not row.form.startswith("8-K") or row.accession in chosen or (baseline and row.filed_date < baseline):
+            continue
+        reason = ("item codes outside earnings, financing, agreements, other events and non-reliance"
+                  if row.items and not any(item in row.items for item in _EVENT_ITEMS) else "filing count limit")
+        out.append(f"{row.accession} {row.form} items {row.items or 'none stated'} filed {row.filed_date}: "
+                   f"not selected; {reason}")
+    return out
+
+
 def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
     """Select annual/quarterly baselines and subsequent relevant 8-Ks."""
     cutoff = date.fromisoformat(as_of)
@@ -196,7 +218,7 @@ def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
         if r.form.startswith("8-K")
         and r.filed_date >= baseline
         and (
-            not r.items or any(item in r.items for item in ("2.02", "2.03", "1.01", "3.02", "8.01"))
+            not r.items or any(item in r.items for item in _EVENT_ITEMS)
         )
     ]
     selected.extend(events)
@@ -211,6 +233,10 @@ def select_filings(data: dict, cik: str, as_of: str, limit: int = 6):
         statements = [r for r in selected if not r.form.startswith("8-K")]
         events = [r for r in selected if r.form.startswith("8-K")]
         reserved = {}
+        # A notice withdrawing reliance on issued statements is never crowded out: every one is kept.
+        reserved["non-reliance"] = [r for r in events if "4.02" in r.items]
+        if not reserved["non-reliance"]:
+            del reserved["non-reliance"]
         for category, item_codes in (
             ("earnings", ("2.02",)),
             ("financing", ("2.03", "1.01", "3.02")),
@@ -747,6 +773,35 @@ def _model_package_gap(gap: str) -> str:
     return gap
 
 
+def _indexed_exhibits(client, filing) -> list[str]:
+    """Exhibit documents of an 8-K from its filing index: every page in the submission but the cover.
+
+    An 8-K submission holds its cover page and its exhibits. Release-like names come first so the
+    two-exhibit allowance reaches the earnings release before a slide deck.
+    """
+    base = filing.url.rsplit("/", 1)[0]
+    cover = filing.url.rsplit("/", 1)[-1]
+    try:
+        items = json.loads(client.fetch(f"{base}/index.json")["text"])["directory"]["item"]
+    except (VendorUnavailableError, ValueError, KeyError, TypeError):
+        return []
+    names = [item.get("name", "") for item in items if isinstance(item, dict)]
+    pages = [name for name in names if name.lower().endswith((".htm", ".html")) and name != cover
+             and not re.fullmatch(r"R\d+\.htm", name) and "-index" not in name]
+    pages.sort(key=lambda name: not re.search(r"release|ex-?99|press|earnings", name, re.I))
+    return [f"{base}/{name}" for name in pages]
+
+
+# Current reports the latest package did not select, per issuer and cutoff. Kept beside the package rather
+# than inside it: the package's shape is part of saved results' fingerprints.
+_UNSELECTED: dict[tuple[str, str], tuple[str, ...]] = {}
+
+
+def unselected_for(cik: str, as_of_date: str) -> tuple[str, ...]:
+    """Current reports in the period that the package built for this issuer and cutoff did not select."""
+    return _UNSELECTED.get((cik, as_of_date), ())
+
+
 def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     cutoff = date.fromisoformat(as_of_date)
     cik = cik_for(ticker)
@@ -755,9 +810,14 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     client = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
-        filings, gaps = select_filings(json.loads(metadata["text"]), cik, as_of_date)
+        submissions = json.loads(metadata["text"])
+        filings, gaps = select_filings(submissions, cik, as_of_date)
     except ValueError as exc:
         raise VendorUnavailableError("Unreadable SEC submissions JSON") from exc
+    try:
+        _UNSELECTED[(cik, as_of_date)] = tuple(unselected_events(submissions, cik, as_of_date, filings))
+    except VendorUnavailableError:
+        _UNSELECTED.pop((cik, as_of_date), None)
     documents, remaining = [], 120000
     latest_earnings = max(
         (filing for filing in filings if filing.form.startswith("8-K") and "2.02" in filing.items),
@@ -782,22 +842,25 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
             if url in seen:
                 continue
             seen.add(url)
-            if remaining <= 0:
-                gaps.append(
-                    f"{filing.accession}: Package text limit 120000 reached; {url} omitted"
-                )
-                continue
             try:
                 source = client.fetch(url)
                 # The primary 8-K supplies exhibit links; its release needs a
                 # separate allocation. Keep the existing per-document ceiling.
                 is_latest_primary = filing == latest_earnings and url == filing.url
                 available_chars = min(4000 if is_latest_primary else 40000, remaining)
-                blocks, links, extraction_gaps = extract_sections(
-                    source["text"], max_chars=available_chars,
-                    prioritize_guidance=filing == latest_earnings and not is_latest_primary,
-                )
-                if available_chars < 40000 and any(block.truncated for block in blocks):
+                if available_chars <= 0:
+                    # The excerpt budget bounds what agents read, not what is covered: the filing is still
+                    # retrieved, hashed and read for its exhibits, and is recorded with no excerpt.
+                    _unused, links, _unused_gaps = extract_sections(source["text"], max_chars=4000)
+                    blocks, extraction_gaps = [], [
+                        "Document text limit reached; package text limit 120000 reached; "
+                        "retrieved and recorded with no excerpt"]
+                else:
+                    blocks, links, extraction_gaps = extract_sections(
+                        source["text"], max_chars=available_chars,
+                        prioritize_guidance=filing == latest_earnings and not is_latest_primary,
+                    )
+                if 0 < available_chars < 40000 and any(block.truncated for block in blocks):
                     extraction_gaps.append(
                         "Document text limit reached; package remaining "
                         f"{available_chars} characters; full source section/table not retained"
@@ -839,6 +902,9 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                     exhibits = list(dict.fromkeys(
                         url for url, _, _ in exhibit_links if url and url != filing.url
                     ))
+                    if "2.02" in filing.items and not exhibits:
+                        # The cover page names its exhibits in many ways. The filing's own index lists them.
+                        exhibits = _indexed_exhibits(client, filing)
                     pending.extend(exhibits[:2])
                     if len(exhibits) > 2:
                         gaps.append(f"{filing.accession}: exhibit count limit reached")
@@ -846,7 +912,8 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                         gaps.append(f"{filing.accession}: earnings exhibit unavailable")
             except VendorUnavailableError as exc:
                 gaps.append(f"{filing.accession}: {exc}")
-        if pending or len(documents) >= 8:
+        if pending:
+            # Reported only when a document was actually left out, not when the last one exactly filled the cap.
             gaps.append("Document count limit reached; coverage incomplete")
     return DisclosurePackage(
         cik=cik,

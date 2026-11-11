@@ -604,20 +604,24 @@ def _bounded_package_case(monkeypatch, payloads):
     return filings, calls
 
 
-def test_package_exhaustion_omits_visible_later_filing_with_budget_reason(monkeypatch):
+def test_package_exhaustion_records_a_later_filing_with_no_excerpt_instead_of_dropping_it(monkeypatch):
+    """The excerpt budget bounds what agents read, not what is covered (large-filer plan L4).
+
+    Before: the later filing was never fetched and its omission stopped disclosure coverage.
+    """
     filings, calls = _bounded_package_case(
         monkeypatch,
         ["<p>" + "x" * 40000 + "</p>"] * 3
         + ["<p>Visible Microsoft 8-K debt offering.</p>"],
     )
     package = docs.get_filing_evidence("DOCN", "2026-11-06")
-    assert len(package.documents) == 3
-    assert all(sum(len(block.text) for block in doc.blocks) == 40000 for doc in package.documents)
-    assert not any(doc.filing.accession == filings[-1].accession for doc in package.documents)
-    assert not any(url == filings[-1].url for url in calls)
+    assert len(package.documents) == 4
+    assert all(sum(len(block.text) for block in doc.blocks) == 40000 for doc in package.documents[:3])
+    late = next(doc for doc in package.documents if doc.filing.accession == filings[-1].accession)
+    assert late.blocks == () and late.content_hash and any(url == filings[-1].url for url in calls)
     assert any(filings[-1].accession in gap and "package text limit" in gap.lower()
-               for gap in package.gaps)
-    assert not any("no usable visible sections" in gap.lower() for gap in package.gaps)
+               and "retrieved and recorded with no excerpt" in gap for gap in package.gaps)
+    assert not any("omitted" in gap.lower() or "no usable visible sections" in gap.lower() for gap in package.gaps)
     from datetime import date
     from types import SimpleNamespace
 
@@ -627,7 +631,7 @@ def test_package_exhaustion_omits_visible_later_filing_with_budget_reason(monkey
         cik=package.cik, as_of=package.as_of,
         facts=(SimpleNamespace(metric="Total Assets", value=1, period_end=date(2026, 9, 30)),),
     )
-    assert disclosure_coverage_check(financial, package)["status"] == "unavailable"
+    assert disclosure_coverage_check(financial, package)["status"] == "pass"
 
 
 def test_small_remaining_package_budget_labels_partial_table_not_empty_html(monkeypatch):
