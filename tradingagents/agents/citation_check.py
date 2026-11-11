@@ -99,6 +99,8 @@ def _add_prompt_only_facts(state: Mapping, values: dict) -> None:
             values[label] = [(number, str(fact.get('unit') or ''))]
 
 
+_NEGATIVE_WORD = re.compile(r'(?i)\b(?:loss(?:es)?|deficit|outflows?|payments?|paid|repaid|used|spent|negative|'
+                            r'decline[ds]?|decreased?|fell|down)\b')
 _LOCATOR = re.compile(r'(?<![A-Za-z0-9])(?:[FCKDS]\d+)?/?\b(?:blocks?|inline-fact-f|row|column)[- ]?\d+'
                       r'(?:\s*(?:,|and)\s*\d+)*', re.I)
 
@@ -187,7 +189,11 @@ def check_pm_citations(state: Mapping) -> dict:
                         unresolved.append(label)
                     continue
                 checked += 1
-                if label in explained or any(_matches(stated, value, unit) for value, unit in options):
+                # A loss or outflow is stated as a positive amount beside the word that carries its sign.
+                signed = _NEGATIVE_WORD.search(sentence) is not None
+                if label in explained or any(_matches(stated, value, unit) or (
+                        signed and isinstance(value, Decimal) and value < 0 and _matches(stated, -value, unit))
+                                             for value, unit in options):
                     matched += 1
                 else:
                     mismatches.append({

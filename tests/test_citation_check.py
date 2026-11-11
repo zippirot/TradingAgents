@@ -173,3 +173,13 @@ def test_a_block_locator_inside_a_citation_is_not_a_figure_to_match():
     assert result["mismatches"] == []
     stated = check_pm_citations(_state("Revenue was $322.2 million (F46/block-12)."))
     assert (stated["matched"], stated["checked"]) == (0, 1)        # a real figure beside a locator is still checked
+
+
+def test_a_loss_stated_as_a_positive_amount_matches_its_negative_canonical_value():
+    """Run 9149f33b: 'net loss $42.609 million (F35)' was counted as a mismatch against -42609000."""
+    brief = BRIEF.replace("- [C2]", "- [F35] Net Income: -42609000 USD; 2026-09-30; source S1\n- [C2]")
+    loss = check_pm_citations({**_state("Q3 net loss was $42.609 million (F35)."), "canonical_financial_context": brief})
+    assert (loss["matched"], loss["checked"]) == (1, 1)
+    # Without a word that carries the sign, a positive figure for a negative fact is still a mismatch.
+    gain = check_pm_citations({**_state("Q3 net income was $42.609 million (F35)."), "canonical_financial_context": brief})
+    assert (gain["matched"], gain["checked"]) == (0, 1)

@@ -549,7 +549,8 @@ def _reply_text(reply):
 BRIDGE_ASKED = "cash_bridge"
 _BRIDGE_DECLINED = ("Cash bridge request: the analyst did not state operating cash flow and capital spending when "
                     "asked once; the cases stand as submitted.")
-_BRIDGE_FIELDS = ("cash", "cash_changes", "operations_after_lease_interest", "operations_include_new_lease_rent")
+_BRIDGE_FIELDS = ("cash", "cash_changes", "cash_model", "operations_after_lease_interest",
+                  "operations_include_new_lease_rent")
 
 
 def _lacks_bridge(item) -> bool:
@@ -559,7 +560,7 @@ def _lacks_bridge(item) -> bool:
         return False
     capital = request.get("capital") if isinstance(request.get("capital"), dict) else {}
     sources = {change.get("source") for change in capital.get("cash_changes") or () if isinstance(change, dict)}
-    return not {"operations", "capex"} <= sources
+    return not isinstance(capital.get("cash_model"), dict) and not {"operations", "capex"} <= sources
 
 
 def _outside_bridge(item):
@@ -589,13 +590,16 @@ def _request_cash_bridge(state, llm, shape, record, report):
         "Your valuation cases price, but these state no operating cash flow or no capital spending between the "
         "balance-sheet date and the valuation date, so their closing cash is not a forecast: "
         + "; ".join(asked) + ". Return only one corrected ```valuation_scenarios fenced block and nothing else. "
-        'In each of those cases add to capital "cash_changes" an "operations" entry (your forecast of operating cash '
-        'flow over that whole period, before finance-lease and equipment payments and before capital spending) and a '
-        'negative "capex" entry (cash capital spending over the same period), each with a one-sentence reason from '
-        'the evidence; set "operations_after_lease_interest" and "operations_include_new_lease_rent"; set cash '
-        '"value" to the snapshot cash plus the sum of your cash_changes with "assumption":"estimated". Leave out '
-        "finance_payments and the repayment of a note that falls due in the period: code deducts the filed payment "
-        "schedule and repays such a note itself. Change nothing else: keep every name, forecast, multiple, basis, "
+        'In each of those cases add to capital "cash_model":{"operating_cash_margin":"<fraction of revenue, e.g. '
+        '0.30>","operating_cash_reason":"<why, against the filed margin>","capex_rate":"<fraction of revenue>",'
+        '"capex_reason":"<why, against the filed rate>"}: operating cash flow before finance-lease and equipment '
+        "payments, and cash capital spending, each as a share of revenue you expect over that period. Give each case "
+        "the rates that fit its own story; a slower-growth case need not earn the base case's margin. Do not give "
+        'amounts and do not choose rates to make cash come out at any figure: code applies the rates to each case\'s '
+        'revenue. Set "operations_after_lease_interest" and "operations_include_new_lease_rent" for the margin you '
+        "give. Leave cash and cash_changes as they are, and leave out finance_payments and the repayment of a note "
+        "that falls due in the period: code deducts the filed payment schedule and repays such a note itself. Change "
+        "nothing else: keep every name, forecast, multiple, basis, "
         "share count, obligation, fact ID and rationale exactly as you wrote it. Do not add or remove cases."
         "\n\nRequired shape:" + shape + "\n\nYour original block:\n```valuation_scenarios\n" + original + "\n```"
     )

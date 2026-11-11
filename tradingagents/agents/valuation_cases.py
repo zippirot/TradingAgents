@@ -73,6 +73,18 @@ class CashChange(_Record):
         return record
 
 
+class CashModel(_Record):
+    """Operating cash flow and cash capital spending as shares of the case's own revenue.
+
+    Code turns the rates into amounts over the months between the filed balance sheet and the valuation date,
+    so a case with more revenue has more of both and no amount can be chosen to make cash come out even.
+    """
+    operating_cash_margin: Decimal = Field(gt=-1, lt=1, max_digits=8)
+    operating_cash_reason: str = Field(min_length=1, max_length=600)
+    capex_rate: Decimal = Field(ge=0, lt=1, max_digits=8)
+    capex_reason: str = Field(min_length=1, max_length=600)
+
+
 class CaseCapital(_Record):
     valuation_date: date
     currency: str = Field(min_length=3, max_length=3)
@@ -85,15 +97,23 @@ class CaseCapital(_Record):
     # requests), the two questions stay open beside the case as before.
     operations_after_lease_interest: bool | None = None
     operations_include_new_lease_rent: bool | None = None
+    cash_model: CashModel | None = None
 
     @model_serializer(mode="wrap")
     def _unstated_stays_absent(self, handler):
         """A request that does not answer the two questions keeps the record shape it always had."""
         record = handler(self)
-        for key in ("operations_after_lease_interest", "operations_include_new_lease_rent"):
+        for key in ("operations_after_lease_interest", "operations_include_new_lease_rent", "cash_model"):
             if record.get(key) is None:
                 record.pop(key, None)
         return record
+
+    @model_validator(mode="after")
+    def _one_statement_of_operating_cash(self):
+        if self.cash_model is not None and any(c.source in ("operations", "capex") for c in self.cash_changes):
+            raise ValueError("State operating cash and capital spending as cash_model rates or as cash_changes "
+                             "amounts, not both")
+        return self
 
 
 class RevenueCase(_Record):
@@ -399,7 +419,87 @@ def scheduled_payments(terms, snapshot_date, end):
 
 def states_operations(capital) -> bool:
     """Whether the case gives operating cash flow. Code completes a bridge only from that starting point."""
-    return any(c.source == "operations" for c in capital.cash_changes)
+    return capital.cash_model is not None or any(c.source == "operations" for c in capital.cash_changes)
+
+
+def bridge_revenue(package, snapshot_date, forecast, currency):
+    """Revenue between the filed balance sheet and the forecast's period end, and how it was put together.
+
+    Before the forecast period starts, revenue runs at the latest reported quarter's daily rate; with no such
+    quarter in the evidence, at the forecast's own rate. Both are stated assumptions, not filed figures.
+    """
+    span = (forecast.period_end - forecast.period_start).days + 1
+    if snapshot_date >= forecast.period_start:
+        left = max((forecast.period_end - snapshot_date).days, 0)
+        return forecast.value * left / span, "the case's forecast rate for the rest of its period"
+    stub = (forecast.period_start - snapshot_date).days - 1
+    quarter = None
+    for fact in package.facts:
+        if (fact.metric == "Revenue" and fact.period_end == snapshot_date and fact.period_start is not None
+                and fact.basis == "US-GAAP" and fact.unit == currency and fact.value is not None and fact.value > 0
+                and 80 <= (fact.period_end - fact.period_start).days + 1 <= 100):
+            quarter = fact
+    last_stub_day = date.fromordinal(forecast.period_start.toordinal() - 1)
+    if quarter is None:
+        return forecast.value * (stub + span) / span, "the case's forecast rate throughout"
+    days = (quarter.period_end - quarter.period_start).days + 1
+    return (quarter.value * stub / days + forecast.value,
+            f"the latest reported quarter's rate to {last_stub_day}, then the case's forecast")
+
+
+def model_flows(capital, revenue):
+    """Operating cash and capital spending the case's rates give on that revenue, or None without rates."""
+    model = capital.cash_model
+    if model is None or revenue is None:
+        return None
+    return {"operations": (model.operating_cash_margin * revenue).quantize(Decimal(1)),
+            "capex": (model.capex_rate * revenue).quantize(Decimal(1))}
+
+
+def filed_cash_rates(package, snapshot_date, currency):
+    """What operating cash flow and cash capital spending were as shares of revenue in the latest filed period."""
+    found = {}
+    for fact in package.facts:
+        if (fact.period_end == snapshot_date and fact.period_start is not None and fact.basis == "US-GAAP"
+                and fact.unit == currency and fact.value is not None):
+            found.setdefault((fact.period_start, fact.metric), fact.value)
+    for start in sorted({start for start, _ in found}):       # the longest period ending at the snapshot first
+        revenue, cash = found.get((start, "Revenue")), found.get((start, "Operating Cash Flow"))
+        capex = found.get((start, "Capital Expenditure"))
+        if revenue and revenue > 0 and cash is not None and capex is not None:
+            spent = abs(capex) + abs(found.get((start, "Software Development Payments"), Decimal(0)))
+            return {"operating_cash_margin": cash / revenue, "capex_rate": spent / revenue,
+                    "period": f"{start} to {snapshot_date}"}
+    return None
+
+
+def cash_model_line(capital, flows, revenue, how, filed, snapshot_date) -> str | None:
+    """One sentence on the case's operating cash and capital spending against the filed rates."""
+    currency, end = capital.currency, capital.valuation_date
+    if revenue is None or revenue <= 0:
+        return None
+    base = f"the {_money(revenue, currency)} of revenue between {snapshot_date} and {end} ({how})"
+    history = ("" if filed is None else
+               f" In the filed period {filed['period']} they were {filed['operating_cash_margin'] * 100:.1f}% and "
+               f"{filed['capex_rate'] * 100:.1f}% (cash capital spending and software).")
+    if flows is not None:
+        model = capital.cash_model
+        return (f"cash model: the analyst's operating cash margin of {model.operating_cash_margin * 100:.1f}% and "
+                f"capital spending rate of {model.capex_rate * 100:.1f}%, applied by code to {base}, give operating "
+                f"cash of {_signed(flows['operations'], currency)} and capital spending of "
+                f"{_signed(-flows['capex'], currency)}.{history} Reasons (unvalidated): "
+                f"{model.operating_cash_reason} {model.capex_reason}")
+    operations = sum(c.amount for c in capital.cash_changes if c.source == "operations")
+    capex = -sum(c.amount for c in capital.cash_changes if c.source == "capex")
+    if not any(c.source in ("operations", "capex") for c in capital.cash_changes):
+        return None
+    line = (f"cash model: the case states amounts, not rates. Operating cash of {_signed(operations, currency)} is "
+            f"{operations / revenue * 100:.1f}% of {base}; capital spending of {_signed(-capex, currency)} is "
+            f"{capex / revenue * 100:.1f}%.{history}")
+    if len(capital.cash_changes) >= 2 and sum(c.amount for c in capital.cash_changes) == 0:
+        line += (" The stated cash changes sum to zero, so cash before code's steps equals the filed balance: the "
+                 "amounts balance one another and are not an independent forecast.")
+    return line
 
 
 def applied_payments(capital, scheduled) -> Decimal:
@@ -571,10 +671,14 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
                            f"Scheduled finance and equipment payments are {_money(scheduled, currency)} through {end}; "
                            f"the case states {_money(stated, currency)}."))
     status = "unassessed" if scheduled is None else ("partial" if reasons else "assessed")
-    summary = (f"Funding assessed: scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
+    summary = (f"Scheduled payments covered: finance and equipment payments of {_money(scheduled, currency)} through {end} "
                + ("are deducted by code from the filed schedule" if by_code else "are stated")
                + " and maturing notes are accounted for." if status == "assessed"
                else f"Funding {status}: " + " ".join(reasons))
+    # What the schedule covers is filed; what the business earns and spends is not.
+    summary += (" Operating cash flow and capital spending are the analyst's assumptions, not filed figures or guidance."
+                if capital.cash_model is not None or any(c.source in ("operations", "capex") for c in capital.cash_changes)
+                else " The case states no operating cash flow or capital spending.")
     bounds = funding_bounds(capital, snapshot_date, scheduled, terms, stated) if counts_cash else {}
     funded = funded_cash(capital, snapshot_date, terms) if counts_cash else None
     return {"status": status, **({"funded": funded} if funded and (funded["decided"] or funded["unsized"]) else {}), "scheduled_finance_payments": None if scheduled is None else str(scheduled),
@@ -611,7 +715,7 @@ def _maturing_notes(terms, snapshot_date, end):
 
 
 def funded_statement(capital, snapshot_date, opening, funded, carried, settled, basis, capitalized, net, terms,
-                     unstated=(), repaid=Decimal(0)) -> list[str]:
+                     unstated=(), repaid=Decimal(0), flows=None) -> list[str]:
     """One statement per case: each balance from the filing to the period end, and who supplied each step.
 
     `opening` holds the filed snapshot balances; `net` is the basis's net obligations before any converted
@@ -625,6 +729,9 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
              "analyst assumes, what code computes under a stated assumption, and the closing balance."]
     # Cash.
     stated = [f"{c.source.replace('_', ' ')} {_signed(c.amount, currency)}" for c in capital.cash_changes]
+    if flows is not None:
+        stated += [f"operations {_signed(flows['operations'], currency)} and capex {_signed(-flows['capex'], currency)} "
+                   "(the analyst's rates, applied by code to the case's revenue)"]
     code = []
     if funded.get("payments_applied"):
         code.append(f"scheduled finance and equipment payments deducted {_signed(-Decimal(funded['payments_applied']), currency)}")
@@ -635,6 +742,8 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
     if funded.get("rent_deducted"):
         code.append(f"rent on leases that commence deducted {_signed(-Decimal(funded['rent_deducted']), currency)}")
     closing_cash = capital.cash.value + Decimal(funded["adjustment"]) - repaid
+    if flows is not None:
+        closing_cash += flows["operations"] - flows["capex"]
     lines.append(f"cash: opening {_money(opening['cash'], currency)} (filed); analyst: "
                  + ("; ".join(stated) if stated else "no change stated") + "; code: "
                  + ("; ".join(code) if code else "no change") + f"; closing {_money(closing_cash, currency)}"
@@ -784,6 +893,11 @@ def price_case(request, package, outlooks, terms=None):
         # Cash as the case stated it, completed by code where the case says what its operating cash holds.
         funded = funded_cash(capital, cash.period_end, terms)
         closing_cash = capital.cash.value + Decimal(funded["adjustment"])
+        # Operating cash and capital spending given as rates become amounts on this case's own revenue.
+        between, how = bridge_revenue(package, cash.period_end, request.forecast, capital.currency)
+        flows = model_flows(capital, between)
+        if flows is not None:
+            closing_cash += flows["operations"] - flows["capex"]
         # A lease balance supplied as filed is carried to the period end like one the case leaves out.
         carried = carry_leases({k: v.value for k, v in obligations.items()
                                 if k != "borrowings" and v.assumption == "unchanged_from_snapshot"},
@@ -849,9 +963,13 @@ def price_case(request, package, outlooks, terms=None):
             assumptions.append("convertible notes: not applicable; none is outstanding at the period end.")
         if settled["lines"]:
             assumptions.append("convertible notes: " + CONVERSION + " A capped call covering notes already repurchased is not valued.")
-        if request.multiple_basis != "equity" and (Decimal(funded["adjustment"]) or repaid):
+        modelled = cash_model_line(capital, flows, between, how,
+                                   filed_cash_rates(package, cash.period_end, capital.currency), cash.period_end)
+        if modelled and request.multiple_basis != "equity":
+            assumptions.append(modelled)
+        if request.multiple_basis != "equity" and (Decimal(funded["adjustment"]) or repaid or flows):
             assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
-                               f"{Decimal(funded['adjustment']) - repaid:+}). " + "; ".join(
+                               f"{closing_cash - capital.cash.value:+}). " + "; ".join(
                                    [*funded["lines"], *([f"{' and '.join(repaid_names)} falling due inside the period "
                                                          f"repaid from cash, {_money(repaid, capital.currency)}, and "
                                                          "removed from borrowings"] if repaid else [])]) + ".")
@@ -859,7 +977,7 @@ def price_case(request, package, outlooks, terms=None):
         assumptions.extend(funded_statement(
             capital, cash.period_end, {label: sum(f.value for f in facts) for label, facts in refs.items()},
             funded, carried, settled, request.multiple_basis, capitalized, net.get(request.multiple_basis), terms,
-            unstated=funding["reasons"], repaid=repaid))
+            unstated=funding["reasons"], repaid=repaid, flows=flows))
         result = TargetResult(status="supported", method="revenue_case", target=settled["value"],
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
             shares_outstanding=settled["shares"], multiple=request.multiple,

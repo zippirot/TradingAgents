@@ -78,3 +78,24 @@ Checks: full suite 4,610 passed, ruff clean. `replay_stage3` on runs b7396f4f an
 cash +900M and capex -400M added by hand: funding "assessed", payments -320.5M and note repayment -312.3M
 applied by code, statement ends "nothing the filing schedules inside the period is left unstated", value 98.86
 to 99.94. Not independently audited. Not proven until a live run: whether the analyst answers the request.
+
+## Follow-up after run 9149f33b: rates, not amounts (ran)
+
+Run 9149f33b (Terra) met the new instruction with plug figures: operating cash +500.0M, capex -179.5M and
+finance payments -320.5M in every case, chosen to net to zero, and the cases were labelled "Funding assessed".
+Approved by the user on 2026-11-11:
+
+| Item | Change | Where |
+|---|---|---|
+| Rates | A case gives `cash_model`: operating cash margin and capital spending rate with reasons. Code applies them to that case's revenue from the filed balance sheet to the valuation date (latest reported quarter's rate before the forecast period, then the forecast). Rates and amounts for the same thing are refused. Amounts are still read, for saved runs. | `agents/valuation_cases.py` (`CashModel`, `bridge_revenue`, `model_flows`, `price_case`) |
+| Filed comparison | Each case prints its rates beside the filed operating cash margin and capital spending rate. Amounts that sum to zero are said to balance one another and not to be a forecast. | `filed_cash_rates`, `cash_model_line` |
+| Label | "Funding assessed" is gone: the summary reads "Scheduled payments covered" and says operating cash and capital spending are the analyst's assumptions; the card reads "scheduled payments covered, operating cash assumed". | `funding_check`, `scenario_decision.render` |
+| Prompts | The analyst is asked for rates, told code deducts scheduled payments and repays a maturing note, and the one-time request asks for rates. | `analysts/fundamentals_analyst.py`, `shared_valuation._request_cash_bridge` |
+| Citation check | A loss stated as a positive amount matches its negative canonical value when the sentence carries the sign in a word. | `agents/citation_check.py` |
+
+Checks: full suite 4,618 passed, ruff clean. Replay: runs b7396f4f, fe8979c2 and 9149f33b reprice to the same
+values. On 9149f33b the new line reads "Operating cash of +500.0M USD is 22.2% of ... revenue ...; capital
+spending ... is 8.0%. In the filed period 2025-10-01 to 2026-09-30 they were 34.0% and 14.0% ... the amounts
+balance one another and are not an independent forecast." Dry run of rates on its three cases (30/22/33% and
+13/13/14%): operating cash +675.4M, +444.7M and +782.5M, values 98.98, 57.81 and 139.09. Not independently
+audited. Not proven until a live run: whether the analyst gives rates and reasons them.

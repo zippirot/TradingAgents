@@ -40,7 +40,7 @@ def test_case_stating_scheduled_payments_and_note_repayment_is_assessed():
     assert funding["status"] == "assessed" and funding["reasons"] == []
     assert funding["scheduled_finance_payments"] == "320400000" and funding["stated_finance_payments"] == "320400000"
     assert funding["maturing_note_principal"] == "312322000"
-    assert funding["summary"].startswith("Funding assessed: ")
+    assert funding["summary"].startswith("Scheduled payments covered: ")
     assert "not commenced" in funding["limit"]
 
 

@@ -393,8 +393,11 @@ def render(summary) -> list[str]:
         today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""
         if case.get("annual_return") is not None:
             today += f", {Decimal(case['annual_return']) * 100:+.1f}% a year from the close"
-        lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}{today}; funding "
-                     f"{case['funding']}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
+        # "Assessed" covered the filed schedule only; the operating cash in a case is always an assumption.
+        funding = {"assessed": "scheduled payments covered, operating cash assumed"}.get(
+            case["funding"], f"funding {case['funding']}")
+        lines.append(f"- {case['role']} — {case['name']}: {_money(case['price'], case['unit'])}{today}; "
+                     f"{funding}; {position}; {stance}{flag}. Reason (unvalidated): {case['reason']}")
     if summary["range"] is None:
         lines.append("All priced cases were rejected; no conditional range is stated and the rating is a research opinion.")
         # A value today printed above is never left without the assumption behind it.
