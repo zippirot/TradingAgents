@@ -1245,9 +1245,11 @@ def disclosure_coverage_check(package, disclosures, error=None):
     # issued before every report in the package cannot cover any of them.
     sources = {s.source_id: s for s in getattr(package, "sources", ())}
 
-    def scored_accessions(period_end):
-        return {sources[i].accession for f in package.facts if f.metric == "Total Assets" and f.value is not None
-                and f.period_end == period_end for i in getattr(f, "source_ids", ()) if i in sources}
+    def scored_accessions(period_end=None):
+        """The filings the scored figures come from: every figure, or those for one period end."""
+        return {sources[i].accession for f in package.facts if f.value is not None
+                and (period_end is None or f.period_end == period_end)
+                for i in getattr(f, "source_ids", ()) if i in sources}
 
     reports = [doc.filing for doc in disclosures.documents if doc.filing.form in {"10-Q", "10-K"}]
     for doc in disclosures.documents:
@@ -1261,7 +1263,9 @@ def disclosure_coverage_check(package, disclosures, error=None):
             amended = {other.filing.accession for other in disclosures.documents
                        if other.filing.form == report.form + "/A" and other.filing.report_date == report.report_date
                        and other.filing.filed_date >= notice.filed_date}
-            if not amended & scored_accessions(report.report_date):
+            # Corrected only when figures for the period come from the amendment and no scored figure, for any
+            # statement, still comes from the withdrawn report.
+            if not amended & scored_accessions(report.report_date) or report.accession in scored_accessions():
                 uncorrected.append(report)
         if uncorrected:
             named = ", ".join(f"{r.form} for {r.report_date}" for r in uncorrected)

@@ -30,6 +30,11 @@ _EQUITY_TITLE = re.compile(r"equity|shareholders|stockholders|deficit|capital", 
 _NOT_EQUITY_TITLE = re.compile(r"balance sheet|financial position|financial condition|parenthetical|income|operations|"
                                r"cash flow|earnings", re.I)
 TOTAL = "total"
+# Tags that exist only where someone other than the parent owns part of the group. The consolidated totals
+# ("...IncludingPortionAttributableToNoncontrollingInterest") are filed by every filer and are not evidence.
+_OUTSIDE = re.compile(r"^MinorityInterest|^NoncontrollingInterest|RedeemableNoncontrollingInterest|"
+                      r"(?<!IncludingPortion)AttributableToNoncontrollingInterest")
+_OUTSIDE_MEMBER = re.compile(r"Noncontrolling|MinorityInterest")
 
 
 @dataclass(frozen=True)
@@ -212,12 +217,18 @@ def with_filed_equity(package, facts, structure, *, url, content_hash, accession
         return package, [f"filed equity reconciliation not established: {exc}"]
     owner = forward.total_concept
     if forward.closing not in {f.value for f in _same_owner(package, owner, end)}:
-        # Consolidated and parent equity are one figure for a filer with no outside interest. Where the
-        # filing states no noncontrolling balance at either date, the same value under the parent's tag is
-        # the same owner's equity; with any such balance it is not.
+        # Consolidated and parent equity are one figure only for a filer with no outside interest over the
+        # whole period. A missing balance tag does not show that: the interest may be filed as a component
+        # of equity, through its share of income, or only as a smaller parent balance at the opening date.
         before = forward.start - timedelta(days=1)
-        outside = any(f.concept == "us-gaap:MinorityInterest" and f.start is None and f.end in (before, end)
-                      and f.unit == "USD" and f.value != 0 for f in facts)
+        parent = _TOTALS[1]
+        live = [f for f in facts if f.unit == "USD" and f.value != 0
+                and (f.end in (before, end) if f.start is None else before < f.end <= end)]
+        outside = any(_OUTSIDE.search(f.name) or any(_OUTSIDE_MEMBER.search(member) for _, member in f.dimensions)
+                      for f in live)
+        for when, total in ((before, forward.opening), (end, forward.closing)):
+            outside = outside or any(f.concept == parent and f.start is None and f.end == when and not f.dimensions
+                                     and f.value != total for f in live)
         parent = _TOTALS[1]
         if (owner == _TOTALS[0] and not outside
                 and forward.closing in {f.value for f in _same_owner(package, parent, end)}):

@@ -163,3 +163,16 @@ Not recomputed: lease balances, the investing section, share counts and disclosu
 6. Filing and document count limits (COST).
 7. Lease payment schedule for large filers, so the funding check is assessed rather than "unassessed".
 8. A fresh cohort is needed to validate any of the above; this one is spent.
+
+## Second independent audit (run 76f4bbfd, range `5e8547bd..51bc0168`)
+
+Not cleared: three High, one Medium. Each High was reproduced with a failing test before the fix (`tests/test_large_filer_audit_closure.py`, `test_r1`–`test_r3`).
+
+| Finding | Fix |
+|---|---|
+| An amended balance sheet alone cleared a non-reliance notice | Cleared only when the period's figures come from the amendment and no scored figure still comes from the withdrawn report |
+| Lines beneath a declared subtotal the filer did not file were never read | Both walkers descend through an unfiled subtotal |
+| Consolidated equity relabelled as the parent's on a missing `MinorityInterest` tag | Requires no outside interest shown in any form over the period, and equal parent balances where filed |
+| (Medium) A notice blocks every earlier report, not only the periods it names | Not changed: fails safe, and reading stated periods means interpreting free text. Follow-up |
+
+After the fixes: 4,672 passed, 10 skipped; ruff clean; all 31 companies re-scored offline with every check identical to the previous run apart from timing (14 of 30 large companies at 7/7, DOCN identical). None of the three faults was exercised by a cohort company. No third independent pass has been run on these fixes.

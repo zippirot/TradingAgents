@@ -280,6 +280,10 @@ def liability_lines(facts, calculation, end: date) -> tuple[tuple[Line, ...], De
             lines.append(Line(concept, fact.value * sign, fact.decimals, path))
         elif concept in values.unreadable:
             raise InstanceError(f"{concept} is filed but not readable as a consolidated figure")
+        else:
+            # A subtotal the filer declares but did not file: the lines beneath it are still the filer's lines.
+            for child, weight in children or ():
+                walk(child, (*path, concept), sign * weight)
 
     for root in roots:
         walk(root, (), Decimal(1))
@@ -335,6 +339,10 @@ def cash_flow_lines(facts, calculation, start: date, end: date, roots) -> tuple[
             lines.append(Line(concept, values[concept].value * sign, values[concept].decimals, path))
         elif concept in values.unreadable:
             raise InstanceError(f"{concept} is filed but not readable as a consolidated figure")
+        else:
+            # A subtotal the filer declares but did not file: the lines beneath it are still the filer's lines.
+            for child, weight in children or ():
+                walk(child, (*path, concept), sign * weight)
 
     walk(root, (), Decimal(1))
     if not lines:

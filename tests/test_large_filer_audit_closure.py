@@ -157,3 +157,51 @@ def test_a_financing_line_for_financed_property_and_equipment_is_not_missed():
         assert financing_principal(package, P_START, END) == {}
         check = cash_flow_checks(package)[1]
         assert check["status"] == "unavailable" and name in check["message"]
+
+
+# ---- second audit, run 76f4bbfd ----
+
+def test_r1_an_amended_balance_sheet_does_not_clear_a_notice_while_other_figures_come_from_the_withdrawn_report():
+    notice = _document("8-K", date(2026, 9, 10), date(2026, 9, 10), "0001582961-26-000009", "4.02")
+    amended = _document("10-Q/A", date(2026, 9, 25), N_END, "0001582961-26-000011")
+    corrected = _scored("0001582961-26-000011")
+    income = FinancialFact(fact_id="b", metric="Net Income", value=Decimal(1), unit="USD", cik=N_CIK,
+                           period_start=date(2026, 4, 1), period_end=N_END, as_of=N_CUT, source_ids=("o",), locator="x")
+    original = corrected.sources[0].model_copy(update={"source_id": "o", "accession": QUARTER[3]})
+    mixed = EvidencePackage(cik=N_CIK, as_of=N_CUT, facts=(*corrected.facts, income), sources=(*corrected.sources, original))
+    blocked = _coverage(mixed, _document(*QUARTER), notice, amended)
+    assert blocked["status"] == "unavailable" and "0001582961-26-000009" in blocked["message"]
+    assert _coverage(corrected, _document(*QUARTER), notice, amended)["status"] == "pass"
+
+
+def test_r2_lines_filed_beneath_a_subtotal_the_filer_did_not_file_are_still_read():
+    from tradingagents.dataflows.filed_instance import financing_lines
+
+    tree = {FIN: ["us-gaap:RepaymentsOfLongTermDebt", "us-gaap:PaymentsOfDividends", "co:EquipmentFinancingNet"],
+            "co:EquipmentFinancingNet": ["co:ProceedsFromEquipmentFinancing", "co:RepaymentsOfEquipmentFinancing"]}
+    filed = [(FIN, -500), ("us-gaap:RepaymentsOfLongTermDebt", -350), ("us-gaap:PaymentsOfDividends", -150),
+             ("co:ProceedsFromEquipmentFinancing", 75), ("co:RepaymentsOfEquipmentFinancing", -75)]
+    lines, _ = financing_lines(parse_instance(_flow_instance(filed)), parse_calculation(calculation(tree)), P_START, END)
+    assert {"co:ProceedsFromEquipmentFinancing", "co:RepaymentsOfEquipmentFinancing"} <= {line.concept for line in lines}
+    package, _ = with_financing_lines(_package(*FLOW_BASE), parse_instance(_flow_instance(filed)),
+                                      parse_calculation(calculation(tree)), **WHERE)
+    assert "equipment" not in financing_principal(package, P_START, END)
+
+
+def test_r3_consolidated_equity_is_not_the_parents_where_the_filing_shows_an_outside_interest_another_way():
+    from tests.test_filed_equity import WHERE as EQUITY_WHERE, _package as equity_package
+    from tradingagents.dataflows.filed_equity import with_filed_equity
+
+    name = "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"
+    rows = [r(name, 1000, "open"), r(name, 1130, "close"), r("NetIncomeLoss", 200),
+            r("DividendsCommonStockCash", 50), r("StockRepurchasedAndRetiredDuringPeriodValue", 20)]
+    structure = _structure({**dict(_structure().balance), f"us-gaap:{name}": "credit"})
+    # The parent's opening equity is filed and is smaller than consolidated equity: an outside interest existed.
+    _, notes = with_filed_equity(equity_package(), _instance([*rows, r("StockholdersEquity", 940, "open")]),
+                                 structure, **EQUITY_WHERE)
+    assert "same ownership basis" in notes[0]
+    # An outside interest shown only as a component of equity, or only through its share of income.
+    for shown in (r(name, 60, "open", "us-gaap:NoncontrollingInterestMember"),
+                  r("NetIncomeLossAttributableToNoncontrollingInterest", 5)):
+        _, notes = with_filed_equity(equity_package(), _instance([*rows, shown]), structure, **EQUITY_WHERE)
+        assert notes and "same ownership basis" in notes[0]
