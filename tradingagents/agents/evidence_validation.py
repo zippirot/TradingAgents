@@ -354,21 +354,41 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bo
     source = next((sources[i] for i in latest.source_ids if sources[i].accession), None)
     if source is None:
         return package
+    notes = []
+    widened = package
     try:
         filed = filed_statement_data(package.cik, source.accession)
         where = {"url": filed["url"], "content_hash": filed["content_hash"], "accession": source.accession,
                  "form": source.form, "filed_date": source.filed_date, "retrieved_at": filed["retrieved_at"]}
-        widened = package
         if liabilities:
-            widened, _notes = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
+            widened, why = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
+            notes += why
         if equity:
-            widened, _notes = with_filed_equity(widened, filed["facts"], filed["structure"], **where)
+            widened, why = with_filed_equity(widened, filed["facts"], filed["structure"], **where)
+            notes += why
         if cash:
-            widened, _notes = with_financing_lines(widened, filed["facts"], filed["calculation"], **where)
-    except (VendorError, ValidationError, ValueError):
+            widened, why = with_financing_lines(widened, filed["facts"], filed["calculation"], **where)
+            notes += why
+    except (VendorError, ValidationError, ValueError) as exc:
         record_operation("vendor_unavailable", scope="SEC filed instance")
+        widened = package
+        notes = [f"the filing's structured data could not be retrieved or read ({type(exc).__name__})"]
+    if not notes and len(widened.facts) == len(package.facts):
         return package
-    return widened if len(widened.facts) != len(package.facts) else package
+    # What was looked for and not established is kept with the evidence, so a REVIEW names the real reason.
+    stated = tuple(f"{FILED_NOTE} {source.form} {source.accession} for {latest.period_end}: {note}" for note in notes)
+    return EvidencePackage(cik=widened.cik, as_of=widened.as_of, scope=widened.scope, facts=widened.facts,
+                           sources=widened.sources, warnings=(*widened.warnings, *stated))
+
+
+FILED_NOTE = "Filed statements,"
+
+
+def _filed_notes(package, *words) -> str:
+    """The recorded reasons the filing's own data did not establish something, for the named subject."""
+    found = [w.split(": ", 1)[-1] for w in package.warnings
+             if w.startswith(FILED_NOTE) and any(word in w for word in words)]
+    return "; ".join(dict.fromkeys(found))
 
 
 def create_source_acquisition(selected_analysts):
@@ -1060,6 +1080,8 @@ def filing_accounting_evidence(package, disclosures):
         filed_equity = check_filed_equity(merged)
         if filed_equity is not None:
             equity = filed_equity
+        elif why := _filed_notes(package, "equity"):
+            equity = equity.model_copy(update={"message": f"{equity.message}; {why}"})
     from tradingagents.agents.accounting_checks import check_adjusted_bridge
 
     adjusted = [
@@ -1337,9 +1359,31 @@ def obligation_checks(package, source_precision=None):
         "Noncurrent Operating Lease Liabilities",
     )
     cash = selected("Cash and Equivalents")
-    return calculate_obligations(
+    results = calculate_obligations(
         package, groups, cash.fact_id if cash else "missing-unrestricted-cash", settled=settled
     )
+    generic = "required obligation category unavailable"
+    if end is None or not any(r.status != "pass" and r.message.startswith(generic) for r in results):
+        return results
+    # Say what was looked for and where, so a REVIEW gives the actual reason.
+    filed = next((s for s in package.sources if s.source_id.startswith("sec-instance-")), None)
+    out = []
+    for result, categories in zip(results, (("borrowings",), ("borrowings", "finance_leases", "equipment"),
+                                            ("borrowings", "finance_leases", "equipment", "operating_leases")), strict=True):
+        if result.status == "pass" or not result.message.startswith(generic):
+            out.append(result)
+            continue
+        missing = [c.replace("_", " ") for c in categories if c not in settled and not groups.get(c)
+                   and not (c in ("finance_leases", "equipment") and groups.get("finance_equipment"))]
+        if has_face_inventory(package, end) and filed is not None:
+            detail = (f"{', '.join(missing)} not stated in the {filed.form} for {end} ({filed.accession}): its filed "
+                      "liabilities list adds up without a separate line, so any amount sits within other liabilities; "
+                      "no figure is assumed")
+        else:
+            why = _filed_notes(package, "liabilities", "borrowings", "structured data")
+            detail = f"{', '.join(missing)} not established from tagged totals" + (f"; {why}" if why else "")
+        out.append(result.model_copy(update={"message": f"{generic}: {detail}"}))
+    return tuple(out)
 
 
 def _duration_at(package, metric, start, end, source_precision=None):
@@ -1522,6 +1566,8 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
             "Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
             + (f" ({', '.join(missing)} not stated for the period)" if settled else "")
         )
+        if why := _filed_notes(package, "financing"):
+            reasons.append(why)
         unread = equipment_like_financing(package, start, end)
         if unread and not equipment_known:
             reasons.append("a filed financing line reads like equipment financing and is not classified: " + ", ".join(unread))

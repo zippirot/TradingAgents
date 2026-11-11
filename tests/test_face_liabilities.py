@@ -134,7 +134,8 @@ def test_borrowings_are_the_borrowing_lines_and_the_perimeter_states_what_is_not
     bare, _ = _widen(_package(*BASE))
     statuses = obligation_checks(bare)
     assert [r.status for r in statuses] == ["pass", "unavailable", "unavailable"]
-    assert "(finance leases)" in statuses[1].message and "operating leases" in statuses[2].message
+    assert "finance leases not stated in the 10-Q for 2026-09-30 (0000789019-26-000001)" in statuses[1].message
+    assert "finance leases, operating leases not stated" in statuses[2].message and "no figure is assumed" in statuses[2].message
     # A forged borrowings figure fails the replay.
     forged = tuple(f.model_copy(update={"value": Decimal(1)}) if f.metric == "Total Borrowings" else f for f in package.facts)
     assert validate_calculation_lineage(EvidencePackage(cik=CIK, as_of=CUT, facts=forged, sources=package.sources)) != []

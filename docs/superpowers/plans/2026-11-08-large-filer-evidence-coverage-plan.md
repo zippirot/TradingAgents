@@ -153,3 +153,8 @@ Applied when the build started from staging `9942114f`. The free acquisition ste
 - **Non-SEC sources are refused by the scorer** in both capture and replay, and never stored.
 - **Paid runs** remain unapproved. Proposal when reached: one debate round rather than three (measured 2026-11-11: about 39% fewer tokens at the same scored quality on DOCN).
 - **Estimate.** L6 adds roughly 4–8 hours to the 30–45 hour range. Recommended model in Claude Code: Claude Fable 5.2 (`claude-fable-5-2`), medium effort.
+
+## Amendment 2 (2026-11-11, before any held-out result is opened)
+
+- **Capture scope starts at the earlier of the latest 10-K's filing date and the latest 10-Q's period end.** Production selects current reports from the latest quarterly report's period end. For an issuer whose latest periodic report is its 10-K (CSCO, PANW), that date precedes the 10-K's filing date, so the plan's scope ("from the latest eligible 10-K") left out filings the reader legitimately requests; CSCO's development replay missed one. The wider scope is applied by script to all 30 issuers and DOCN without displaying content, and the scope rule for automated fills is unchanged otherwise.
+- **Design recorded (L1–L3).** Where tagged totals do not establish a check, the reader uses the filing's own XBRL instance and SEC's structure file for that filing (declared sums, each tag's balance type, where each tag is shown). Liabilities, financing cash flows and the equity reconciliation are each accepted only when the filer's declared arithmetic holds at the filed figures. The alternative considered, more per-tag mappings from `companyfacts`, cannot see dimensioned facts or prove a list complete.

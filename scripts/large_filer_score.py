@@ -202,7 +202,7 @@ def capture_index(tickers, as_of, store_dir, pause=0.15):
     skipped = json.loads(skipped_path.read_text()) if skipped_path.exists() else {}
 
     def fetch(url):
-        if url in store.manifest:
+        if url in store.manifest and store.manifest[url]["status"] == 200:
             return store.get(url)
         time.sleep(pause)
         response = requests.get(url, headers={"User-Agent": _user_agent()}, timeout=120)
@@ -221,7 +221,13 @@ def capture_index(tickers, as_of, store_dir, pause=0.15):
         rows = [(form, filed, accession) for form, filed, accession in
                 zip(recent["form"], recent["filingDate"], recent["accessionNumber"], strict=True) if filed <= as_of]
         annual = max((filed for form, filed, _ in rows if form == "10-K"), default=None)
-        wanted = [row for row in rows if row[0] in _FORMS and annual is not None and row[1] >= annual]
+        # Production selects current reports from the latest quarterly report's period end, which can precede
+        # the latest annual report's filing date (plan Amendment 2).
+        reports = dict(zip(recent["accessionNumber"], recent["reportDate"], strict=True))
+        quarter = max((reports[accession] for form, _, accession in rows if form == "10-Q" and reports[accession]),
+                      default=None)
+        since = min(date for date in (annual, quarter) if date) if (annual or quarter) else None
+        wanted = [row for row in rows if row[0] in _FORMS and since is not None and row[1] >= since]
         documents = failures = 0
         for _form, _filed, accession in wanted:
             base = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession.replace('-', '')}"
