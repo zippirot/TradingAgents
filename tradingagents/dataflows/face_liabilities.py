@@ -12,7 +12,7 @@ import json
 import re
 from decimal import Decimal
 
-from tradingagents.dataflows.filed_instance import InstanceError, liability_lines
+from tradingagents.dataflows.filed_instance import InstanceError, financing_lines, liability_lines
 from tradingagents.dataflows.financial_evidence import (
     EvidencePackage,
     FinancialFact,
@@ -133,7 +133,7 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
     source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
     source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date,
                           retrieved_at=retrieved_at, content_hash=content_hash,
-                          locator="filed XBRL instance and calculation linkbase", accession=accession, form=form)
+                          locator="filed XBRL instance and filing structure", accession=accession, form=form)
 
     def filed(metric, value, locator):
         identity = hashlib.sha256(json.dumps([package.cik, metric, str(value), str(end), source_id]).encode()).hexdigest()
@@ -163,8 +163,9 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
                 added.append(filed(metric, next(iter(values)), f"us-gaap:{name} at {end} in the filed instance"))
     existing = {f.fact_id for f in package.facts}
     added = [f for f in added if f.fact_id not in existing]
+    sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
     return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
-                           facts=(*package.facts, *added), sources=(*package.sources, source)), notes
+                           facts=(*package.facts, *added), sources=sources), notes
 
 
 def equipment_presented(package: EvidencePackage, end) -> bool:
@@ -176,3 +177,90 @@ def equipment_presented(package: EvidencePackage, end) -> bool:
 def has_face_inventory(package: EvidencePackage, end) -> bool:
     return any(f.origin == "derived" and f.formula_id == BORROWINGS_FORMULA and f.period_end == end
                for f in package.facts)
+
+
+# ---- financing cash flows for the period: the same reading, for principal paid ----
+
+FINANCING = "Cash Flow Financing Line ["
+_LEASE_PRINCIPAL = frozenset({"FinanceLeasePrincipalPayments", "RepaymentsOfLongTermCapitalLeaseObligations"})
+_DEBT_WITH_LEASE_PRINCIPAL = frozenset({"RepaymentsOfDebtAndCapitalLeaseObligations",
+                                        "RepaymentsOfLongTermDebtAndCapitalSecurities"})
+_EQUIPMENT_PRINCIPAL = re.compile(r"EquipmentFinanc|Financing(?:Obligation|Arrangement)|VendorFinanc|SupplierFinanc", re.I)
+
+
+def _statement_period(package):
+    """The filed cash-flow period ending at the latest balance date: the longest reported one."""
+    balances = [f for f in package.facts if f.metric == "Total Assets" and f.value is not None and f.period_start is None]
+    end = max((f.period_end for f in balances), default=None)
+    starts = [f.period_start for f in package.facts if f.metric == "Operating Cash Flow" and f.origin == "reported"
+              and f.value is not None and f.period_start is not None and f.period_end == end]
+    return (min(starts), end) if starts else (None, end)
+
+
+def with_financing_lines(package: EvidencePackage, facts, calculation, *, url: str, content_hash: str,
+                         accession: str, form: str, filed_date, retrieved_at) -> tuple[EvidencePackage, list[str]]:
+    """The package with the filed financing lines for the statement period and any finance-lease principal."""
+    start, end = _statement_period(package)
+    if start is None:
+        return package, ["no filed cash-flow period"]
+    totals = [f for f in package.facts if f.metric == "Financing Cash Flow" and f.value is not None
+              and f.period_start == start and f.period_end == end]
+    try:
+        lines, stated = financing_lines(facts, calculation, start, end)
+    except InstanceError as exc:
+        return package, [f"filed financing sum not established: {exc}"]
+    if not any(f.value == stated for f in totals) or sum((line.value for line in lines), Decimal(0)) != stated:
+        return package, [f"filed financing lines do not add up to financing cash flow for {start} to {end}"]
+    source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
+    source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date,
+                          retrieved_at=retrieved_at, content_hash=content_hash,
+                          locator="filed XBRL instance and filing structure", accession=accession, form=form)
+
+    def filed(metric, value, locator):
+        identity = hashlib.sha256(json.dumps([package.cik, metric, str(value), str(start), str(end), source_id]).encode()).hexdigest()
+        return FinancialFact(fact_id=identity, metric=metric, value=value, unit="USD", cik=package.cik, period_start=start,
+                             period_end=end, as_of=package.as_of, source_ids=(source_id,), locator=locator)
+
+    added = [filed(f"{FINANCING}{line.concept}]", line.value, f"{line.concept} for {start} to {end}, signed as cash")
+             for line in lines]
+    have = any(f.metric == "Finance Lease Principal Payments" and f.value is not None and f.period_start == start
+               and f.period_end == end for f in package.facts)
+    if not have:
+        stated_principal = {fact.value for fact in facts if fact.concept == "us-gaap:FinanceLeasePrincipalPayments"
+                            and (fact.start, fact.end) == (start, end) and not fact.dimensions and fact.unit == "USD"}
+        if len(stated_principal) == 1:
+            added.append(filed("Finance Lease Principal Payments", abs(next(iter(stated_principal))),
+                               f"us-gaap:FinanceLeasePrincipalPayments for {start} to {end} in the filed instance"))
+    existing = {f.fact_id for f in package.facts}
+    added = [f for f in added if f.fact_id not in existing]
+    sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
+    return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
+                           facts=(*package.facts, *added), sources=sources), []
+
+
+def financing_principal(package: EvidencePackage, start, end) -> dict[str, str]:
+    """What a complete filed financing list settles about principal paid over the period, with the basis.
+
+    Empty unless the package holds financing lines that add up to financing cash flow for exactly this
+    period. A period-end balance never settles what was paid during the period; only this list does.
+    """
+    lines = [f for f in package.facts if f.metric.startswith(FINANCING) and f.value is not None
+             and f.period_start == start and f.period_end == end]
+    totals = {f.value for f in package.facts if f.metric == "Financing Cash Flow" and f.value is not None
+              and f.period_start == start and f.period_end == end}
+    if not lines or sum((f.value for f in lines), Decimal(0)) not in totals:
+        return {}
+    names = [f.metric[len(FINANCING):-1].split(":", 1)[-1] for f in lines]
+    settled = {}
+    if not any(_EQUIPMENT_PRINCIPAL.search(name) for name in names):
+        settled["equipment"] = "not presented in the filed financing cash flows for the period"
+    if any(name in _DEBT_WITH_LEASE_PRINCIPAL for name in names) and not any(name in _LEASE_PRINCIPAL for name in names):
+        settled["finance_leases"] = "within debt repayments as the filer states them"
+    return settled
+
+
+def equipment_like_financing(package: EvidencePackage, start, end) -> list[str]:
+    """Financing lines for the period that read like equipment financing and that code does not classify."""
+    return sorted(f.metric[len(FINANCING):-1] for f in package.facts
+                  if f.metric.startswith(FINANCING) and f.period_start == start and f.period_end == end
+                  and _EQUIPMENT_PRINCIPAL.search(f.metric[len(FINANCING):-1].split(":", 1)[-1]))

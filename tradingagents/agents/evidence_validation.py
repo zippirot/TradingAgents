@@ -334,14 +334,14 @@ def _acquisition_scope(state, selected_analysts):
     }
 
 
-def _with_filed_statements(package, *, liabilities: bool, equity: bool):
+def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bool = False):
     """The package with what the latest balance sheet's own filing establishes, or unchanged.
 
     ``liabilities`` adds the filed liabilities list with borrowings and leases; ``equity`` adds the filed
     reconciliation of stockholders' equity. One filing is read, in at most three requests.
     """
     from tradingagents.dataflows.errors import VendorError
-    from tradingagents.dataflows.face_liabilities import with_face_liabilities
+    from tradingagents.dataflows.face_liabilities import with_face_liabilities, with_financing_lines
     from tradingagents.dataflows.filed_equity import with_filed_equity
     from tradingagents.dataflows.vendors.sec_instance import filed_statement_data
     from tradingagents.operational_capture import record_operation
@@ -363,6 +363,8 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool):
             widened, _notes = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
         if equity:
             widened, _notes = with_filed_equity(widened, filed["facts"], filed["structure"], **where)
+        if cash:
+            widened, _notes = with_financing_lines(widened, filed["facts"], filed["calculation"], **where)
     except (VendorError, ValidationError, ValueError):
         record_operation("vendor_unavailable", scope="SEC filed instance")
         return package
@@ -433,11 +435,12 @@ def create_source_acquisition(selected_analysts):
                         rpo_comparison=record["rpo_comparison"], source_only=True,
                     )
                     lacking = {check["code"] for check in prepared["source_checks"] if check["status"] != "pass"}
-                    if lacking & {"obligation_perimeter", "equity_movement"}:
+                    if lacking & {"obligation_perimeter", "equity_movement", "cash_flow_perimeter"}:
                         # Tagged totals and the filing's tables did not establish these: read the filer's own
                         # structured data for the same filing.
                         widened = _with_filed_statements(package, liabilities="obligation_perimeter" in lacking,
-                                                         equity="equity_movement" in lacking)
+                                                         equity="equity_movement" in lacking,
+                                                         cash="cash_flow_perimeter" in lacking)
                         if widened is not package:
                             package = widened
                             record["raw_financial_evidence"] = package.model_dump(mode="json")
@@ -1473,6 +1476,17 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
             "Equipment acquisition payments lack a verified gross acquisition/proceeds bridge; "
             "acquisition is not financing principal"
         )
+    from tradingagents.dataflows.face_liabilities import (
+        equipment_like_financing,
+        financing_principal,
+    )
+
+    # A complete filed list of the period's financing cash flows settles a category it does not present.
+    settled = financing_principal(package, start, end) if combined is None else {}
+    if lease is not None:
+        settled.pop("finance_leases", None)
+    if equipment is not None:
+        settled.pop("equipment", None)
     principal = [combined] if combined else [f for f in (lease, equipment) if f is not None]
     if (
         combined
@@ -1481,10 +1495,17 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
         and not _sum_matches(package, combined, (lease, equipment), source_precision)
     ):
         reasons.append("Combined principal conflicts with separately reported components")
-    if combined is None and (lease is None or equipment is None):
+    lease_known, equipment_known = lease is not None or "finance_leases" in settled, equipment is not None or "equipment" in settled
+    if combined is None and not (lease_known and equipment_known):
+        missing = [name for name, known in (("finance-lease principal", lease_known), ("equipment principal", equipment_known))
+                   if not known]
         reasons.append(
             "Lease/equipment principal cash-flow coverage unavailable; closing balances do not establish payments during the period"
+            + (f" ({', '.join(missing)} not stated for the period)" if settled else "")
         )
+        unread = equipment_like_financing(package, start, end)
+        if unread and not equipment_known:
+            reasons.append("a filed financing line reads like equipment financing and is not classified: " + ", ".join(unread))
     # Core capex is mandatory. Unknown optional components are never supplied as zero.
     capex_ids = tuple(f.fact_id for f in (capex, software) if f is not None)
     results = calculate_cash_generation(
@@ -1496,14 +1517,15 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
     )
     if results[0].status != "pass":
         reasons.append(results[0].message)
-    if (combined or (lease is not None and equipment is not None)) and results[1].status != "pass":
+    if (combined or principal) and (combined or (lease_known and equipment_known)) and results[1].status != "pass":
         reasons.append(results[1].message)
     check = {
         "code": "cash_flow_perimeter",
         "status": "unavailable" if reasons else "pass",
         "message": "; ".join(dict.fromkeys(reasons))
         if reasons
-        else "Enumerated cash capital spending and explicitly classified lease/equipment principal are separate measures",
+        else "Enumerated cash capital spending and explicitly classified lease/equipment principal are separate measures"
+             + "".join(f"; {name.replace('_', ' ')} principal {basis}" for name, basis in sorted(settled.items())),
     }
     if financed_bridge is not None:
         results = (*results, financed_bridge)

@@ -198,8 +198,8 @@ _EQUITY_SIDE = re.compile(
     r"TemporaryEquity|RedeemableNoncontrollingInterest|.*Redeemable.*|.*TemporaryEquity.*|.*Mezzanine.*)")
 
 
-def _undimensioned(facts, end, unit="USD"):
-    """Each concept's consolidated figure at ``end``.
+def _undimensioned(facts, end, unit="USD", start=None):
+    """Each concept's consolidated figure at ``end``, or over ``start`` to ``end`` when a period is given.
 
     A face line some filers state only split along one axis (a debt line by business, say) is taken as the
     sum of that axis's members. The declared sum above it is then checked, so a split that overlaps or
@@ -207,7 +207,7 @@ def _undimensioned(facts, end, unit="USD"):
     """
     repeats, split = {}, {}
     for fact in facts:
-        if fact.end != end or fact.start is not None or fact.unit != unit:
+        if fact.end != end or fact.start != start or fact.unit != unit:
             continue
         if not fact.dimensions:
             repeats.setdefault(fact.concept, []).append(fact)
@@ -222,7 +222,7 @@ def _undimensioned(facts, end, unit="USD"):
             continue
         members = list(next(iter(axes.values())).values())
         decimals = [fact.decimals for fact in members]
-        values[concept] = InstanceFact(concept, sum((fact.value for fact in members), Decimal(0)), unit, None, end, (),
+        values[concept] = InstanceFact(concept, sum((fact.value for fact in members), Decimal(0)), unit, start, end, (),
                                        None if None in decimals else min(decimals))
     return values
 
@@ -285,3 +285,37 @@ def _check(values, parent, children):
     residual = sum((fact.value * weight for fact, weight in present), Decimal(0)) - stated.value
     if abs(residual) > _tolerance(stated, [fact for fact, _ in present]):
         raise InstanceError(f"declared sum for {parent} does not hold at the filed figures (residual {residual})")
+
+
+_FINANCING = ("us-gaap:NetCashProvidedByUsedInFinancingActivities",
+              "us-gaap:NetCashProvidedByUsedInFinancingActivitiesContinuingOperations")
+
+
+def financing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[Line, ...], Decimal]:
+    """Every financing cash-flow line the filer declares for ``start`` to ``end``, signed as cash, and their total.
+
+    The same reading as ``liability_lines``: the filer's declared sum, walked to its leaves and checked
+    against the filed figures.
+    """
+    values = _undimensioned(facts, end, start=start)
+    for tree in calculation.values():
+        root = next((concept for concept in _FINANCING if concept in tree and concept in values), None)
+        if root is not None:
+            break
+    else:
+        raise InstanceError("no declared sum for financing cash flows was found")
+    lines = []
+
+    def walk(concept, path, sign):
+        children = tree.get(concept)
+        if children and concept in values:
+            _check(values, concept, children)
+            for child, weight in children:
+                walk(child, (*path, concept), sign * weight)
+        elif concept in values:
+            lines.append(Line(concept, values[concept].value * sign, values[concept].decimals, path))
+
+    walk(root, (), Decimal(1))
+    if not lines:
+        raise InstanceError("the declared financing sum has no filed lines")
+    return tuple(lines), values[root].value

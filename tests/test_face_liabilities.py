@@ -9,12 +9,18 @@ from decimal import Decimal
 import pytest
 
 from tradingagents.agents.accounting_checks import calculate_obligations
-from tradingagents.agents.evidence_validation import obligation_checks, validate_calculation_lineage
+from tradingagents.agents.evidence_validation import (
+    cash_flow_checks,
+    obligation_checks,
+    validate_calculation_lineage,
+)
 from tradingagents.dataflows.face_liabilities import (
     COMBINED_BORROWINGS,
     classify,
     derive_face_borrowings,
+    financing_principal,
     with_face_liabilities,
+    with_financing_lines,
 )
 from tradingagents.dataflows.filed_instance import (
     InstanceError,
@@ -170,3 +176,75 @@ def test_a_category_cannot_be_both_stated_and_settled():
     results = calculate_obligations(package, groups, "f-Cash and Equivalents", settled={"equipment": "not presented"})
     assert [r.status for r in results] == ["pass", "unavailable", "unavailable"]
     assert [r.status for r in calculate_obligations(package, groups, "f-Cash and Equivalents")] == ["pass"] * 3
+
+
+# ---- L3: principal paid over the period, from the filed financing cash flows ----
+
+P_START = date(2026, 1, 1)
+
+
+def _flow_instance(lines, extra=""):
+    facts = "".join(f'<{name} contextRef="ytd" unitRef="usd" decimals="0">{value}</{name}>' for name, value in lines)
+    context = (f'<context id="ytd"><entity><identifier scheme="x">1</identifier></entity><period>'
+               f'<startDate>{P_START}</startDate><endDate>{END}</endDate></period></context>')
+    return instance([], context + facts + extra)
+
+
+def _flow(metric, value):
+    return FinancialFact(fact_id=f"f-{metric}", metric=metric, value=Decimal(value), unit="USD", cik=CIK,
+                         period_start=P_START, period_end=END, as_of=CUT, source_ids=("s",), locator="us-gaap/x")
+
+
+FLOW_BASE = (*BASE, _flow("Operating Cash Flow", 900), _flow("Capital Expenditure", 300), _flow("Financing Cash Flow", -500))
+FIN = "us-gaap:NetCashProvidedByUsedInFinancingActivities"
+WHERE = {"url": "https://www.sec.gov/Archives/edgar/data/789019/1/x_htm.xml", "content_hash": "1" * 64,
+         "accession": "0000789019-26-000001", "form": "10-Q", "filed_date": date(2026, 10, 28),
+         "retrieved_at": datetime(2026, 11, 11, tzinfo=UTC)}
+
+
+def _flows(children, filed, package=FLOW_BASE, extra=""):
+    tree = calculation({FIN: children})
+    return with_financing_lines(_package(*package), parse_instance(_flow_instance([(FIN, -500), *filed], extra)),
+                                parse_calculation(tree), **WHERE)
+
+
+def test_a_complete_financing_list_settles_equipment_principal_for_that_period_only():
+    children = ["us-gaap:RepaymentsOfLongTermDebt", "us-gaap:PaymentsOfDividends", "us-gaap:FinanceLeasePrincipalPayments"]
+    # The linkbase weights outflows as subtractions in real filings; here each figure is filed as signed cash.
+    package, notes = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -300), ("us-gaap:PaymentsOfDividends", -150),
+                                       ("us-gaap:FinanceLeasePrincipalPayments", -50)])
+    assert notes == [] and financing_principal(package, P_START, END) == {
+        "equipment": "not presented in the filed financing cash flows for the period"}
+    assert financing_principal(package, date(2026, 7, 1), END) == {}           # another period is not settled by this one
+    _results, check, _warnings = cash_flow_checks(package)
+    assert check["status"] == "pass" and check["message"].endswith(
+        "equipment principal not presented in the filed financing cash flows for the period")
+    lease = next(f for f in package.facts if f.metric == "Finance Lease Principal Payments")
+    assert lease.value == 50 and (lease.period_start, lease.period_end) == (P_START, END)
+
+
+def test_without_lease_principal_for_the_period_the_check_stays_unavailable_and_says_so():
+    children = ["us-gaap:RepaymentsOfLongTermDebt", "us-gaap:PaymentsOfDividends"]
+    package, _ = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -350), ("us-gaap:PaymentsOfDividends", -150)])
+    _results, check, _warnings = cash_flow_checks(package)
+    assert check["status"] == "unavailable" and "(finance-lease principal not stated for the period)" in check["message"]
+    # Lease principal the filer states inside its debt repayments is settled by that statement.
+    combined, _ = _flows(["us-gaap:RepaymentsOfDebtAndCapitalLeaseObligations", "us-gaap:PaymentsOfDividends"],
+                         [("us-gaap:RepaymentsOfDebtAndCapitalLeaseObligations", -350), ("us-gaap:PaymentsOfDividends", -150)])
+    assert cash_flow_checks(combined)[1]["status"] == "pass"
+    assert "finance leases principal within debt repayments as the filer states them" in cash_flow_checks(combined)[1]["message"]
+
+
+def test_a_list_that_does_not_add_up_or_carries_an_equipment_like_line_settles_nothing():
+    children = ["us-gaap:RepaymentsOfLongTermDebt", "us-gaap:PaymentsOfDividends"]
+    short, notes = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -300), ("us-gaap:PaymentsOfDividends", -150)])
+    assert "not established" in notes[0] and financing_principal(short, P_START, END) == {}
+    mismatch, notes = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -350), ("us-gaap:PaymentsOfDividends", -150)],
+                             package=(*FLOW_BASE[:-1], _flow("Financing Cash Flow", -499)))
+    assert "do not add up" in notes[0]
+    odd = ["us-gaap:RepaymentsOfLongTermDebt", "co:PaymentsToAcquireEquipmentFinancingActivities", "us-gaap:FinanceLeasePrincipalPayments"]
+    package, _ = _flows(odd, [("us-gaap:RepaymentsOfLongTermDebt", -300), ("co:PaymentsToAcquireEquipmentFinancingActivities", -150),
+                              ("us-gaap:FinanceLeasePrincipalPayments", -50)])
+    assert financing_principal(package, P_START, END) == {}
+    check = cash_flow_checks(package)[1]
+    assert check["status"] == "unavailable" and "co:PaymentsToAcquireEquipmentFinancingActivities" in check["message"]
