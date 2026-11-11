@@ -864,7 +864,8 @@ def price_case(request, package, outlooks, terms=None):
     if len(refs["closing_shares"]) != 1 or len(refs["cash"]) != 1:
         raise ValueError("Closing shares and cash each require one corresponding reported snapshot fact")
     shares, cash = refs["closing_shares"][0], refs["cash"][0]
-    if (shares.metric != "Common Shares Outstanding" or shares.unit != "shares" or shares.origin != "reported"
+    counted = shares.origin == "reported" or shares.formula_id == "shares_issued_less_treasury_v1"
+    if (shares.metric != "Common Shares Outstanding" or shares.unit != "shares" or not counted
             or shares.value <= 0 or capital.closing_shares.value <= 0 or cash.metric != "Cash and Equivalents"):
         raise ValueError("Closing shares require actual common shares outstanding; cash requires unrestricted cash")
     ids = [i for v in values.values() for i in v.fact_ids]
@@ -883,6 +884,9 @@ def price_case(request, package, outlooks, terms=None):
         validate_obligation_category(category, refs[category])
     if "borrowings" in components:
         _borrowings_complete(package, components["borrowings"])
+        if any(f.metric == "Total Borrowings Including Finance Leases" for f in refs["borrowings"]):
+            warnings.append("Borrowings are as the filing presents them: the filer states its debt together with its "
+                            "finance leases, so this basis includes them.")
     for basis, categories in bases.items():
         missing = set(categories) - components.keys()
         if missing:

@@ -12,12 +12,18 @@ import json
 import re
 from decimal import Decimal
 
-from tradingagents.dataflows.filed_instance import InstanceError, financing_lines, liability_lines
+from tradingagents.dataflows.filed_instance import (
+    InstanceError,
+    financing_lines,
+    investing_lines,
+    liability_lines,
+)
 from tradingagents.dataflows.financial_evidence import (
     EvidencePackage,
     FinancialFact,
     SourceRecord,
     _derived,
+    derive_shares_outstanding,
 )
 
 FACE = "Balance Sheet Liability ["
@@ -161,11 +167,49 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
             values = consolidated.get(name, set())
             if len(values) == 1:
                 added.append(filed(metric, next(iter(values)), f"us-gaap:{name} at {end} in the filed instance"))
+    if "Common Shares Outstanding" not in known:
+        added += _filed_shares(facts, end, filed)
     existing = {f.fact_id for f in package.facts}
     added = [f for f in added if f.fact_id not in existing]
     sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
     return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
                            facts=(*package.facts, *added), sources=sources), notes
+
+
+def _filed_shares(facts, end, filed) -> list[FinancialFact]:
+    """Common shares outstanding at the balance date as the filing states them, when no tagged total gave them.
+
+    In order: the balance-sheet count; that count where the filer states it for its one class along a
+    single axis; the cover-page count when it is dated the balance date itself; shares issued less treasury
+    shares. A cover count dated later is another date and is not used.
+    """
+    def shares(concept, dimensioned=False):
+        rows = [f for f in facts if f.concept == concept and f.start is None and f.end == end and f.unit == "shares"
+                and (len(f.dimensions) == 1 if dimensioned else not f.dimensions)]
+        if dimensioned and len({f.dimensions for f in rows}) != 1:
+            return None
+        values = {f.value for f in rows}
+        return next(iter(values)) if len(values) == 1 else None
+
+    def fact(metric, value, locator):
+        made = filed(metric, value, locator)
+        return made.model_copy(update={"unit": "shares"})
+
+    for concept, dimensioned, how in (("us-gaap:CommonStockSharesOutstanding", False, "in the filed instance"),
+                                      ("us-gaap:CommonStockSharesOutstanding", True, "for the filer's one class, in the filed instance"),
+                                      ("dei:EntityCommonStockSharesOutstanding", False, "on the cover, dated the balance date")):
+        value = shares(concept, dimensioned)
+        if value is not None and value > 0:
+            return [fact("Common Shares Outstanding", value, f"{concept} at {end} {how}")]
+    issued, treasury = shares("us-gaap:CommonStockSharesIssued"), shares("us-gaap:TreasuryStockCommonShares")
+    if issued is None or treasury is None:
+        return []
+    parts = [fact("Common Shares Issued", issued, f"us-gaap:CommonStockSharesIssued at {end} in the filed instance"),
+             fact("Treasury Shares", treasury, f"us-gaap:TreasuryStockCommonShares at {end} in the filed instance")]
+    try:
+        return [*parts, derive_shares_outstanding(tuple(parts))]
+    except ValueError:
+        return []
 
 
 def equipment_presented(package: EvidencePackage, end) -> bool:
@@ -182,6 +226,10 @@ def has_face_inventory(package: EvidencePackage, end) -> bool:
 # ---- financing cash flows for the period: the same reading, for principal paid ----
 
 FINANCING = "Cash Flow Financing Line ["
+INVESTING = "Cash Flow Investing Line ["
+# Purchases of property, plant and equipment as filers tag the one capital-spending line.
+_CAPITAL_SPENDING = frozenset({"PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets",
+                               "PaymentsToAcquireOtherPropertyPlantAndEquipment", "PaymentsToAcquireOtherProductiveAssets"})
 _LEASE_PRINCIPAL = frozenset({"FinanceLeasePrincipalPayments", "RepaymentsOfLongTermCapitalLeaseObligations"})
 _DEBT_WITH_LEASE_PRINCIPAL = frozenset({"RepaymentsOfDebtAndCapitalLeaseObligations",
                                         "RepaymentsOfLongTermDebtAndCapitalSecurities"})
@@ -231,11 +279,41 @@ def with_financing_lines(package: EvidencePackage, facts, calculation, *, url: s
         if len(stated_principal) == 1:
             added.append(filed("Finance Lease Principal Payments", abs(next(iter(stated_principal))),
                                f"us-gaap:FinanceLeasePrincipalPayments for {start} to {end} in the filed instance"))
+    # The investing section, read the same way: it shows where capital spending is stated and what is not.
+    notes = []
+    try:
+        invested, invested_total = investing_lines(facts, calculation, start, end)
+        stated_investing = {f.value for f in package.facts if f.metric == "Investing Cash Flow" and f.value is not None
+                            and f.period_start == start and f.period_end == end}
+        if invested_total in stated_investing and sum((line.value for line in invested), Decimal(0)) == invested_total:
+            added += [filed(f"{INVESTING}{line.concept}]", line.value,
+                            f"{line.concept} for {start} to {end}, signed as cash") for line in invested]
+            spending = [line for line in invested if line.concept.split(":", 1)[-1] in _CAPITAL_SPENDING]
+            have_capex = any(f.metric == "Capital Expenditure" and f.value is not None and f.period_start == start
+                             and f.period_end == end for f in package.facts)
+            if not have_capex and len(spending) == 1 and spending[0].value <= 0:
+                added.append(filed("Capital Expenditure", -spending[0].value,
+                                   f"{spending[0].concept} for {start} to {end} in the filed investing cash flows"))
+        else:
+            notes.append(f"filed investing lines do not add up to investing cash flow for {start} to {end}")
+    except InstanceError as exc:
+        notes.append(f"filed investing sum not established: {exc}")
     existing = {f.fact_id for f in package.facts}
     added = [f for f in added if f.fact_id not in existing]
     sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
     return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
-                           facts=(*package.facts, *added), sources=sources), []
+                           facts=(*package.facts, *added), sources=sources), notes
+
+
+def investing_names(package: EvidencePackage, start, end) -> list[str] | None:
+    """Names of the filed investing lines for exactly this period when they add up to investing cash flow, else None."""
+    lines = [f for f in package.facts if f.metric.startswith(INVESTING) and f.value is not None
+             and f.period_start == start and f.period_end == end]
+    totals = {f.value for f in package.facts if f.metric == "Investing Cash Flow" and f.value is not None
+              and f.period_start == start and f.period_end == end}
+    if not lines or sum((f.value for f in lines), Decimal(0)) not in totals:
+        return None
+    return [f.metric[len(INVESTING):-1].split(":", 1)[-1] for f in lines]
 
 
 def financing_principal(package: EvidencePackage, start, end) -> dict[str, str]:
@@ -264,3 +342,20 @@ def equipment_like_financing(package: EvidencePackage, start, end) -> list[str]:
     return sorted(f.metric[len(FINANCING):-1] for f in package.facts
                   if f.metric.startswith(FINANCING) and f.period_start == start and f.period_end == end
                   and _EQUIPMENT_PRINCIPAL.search(f.metric[len(FINANCING):-1].split(":", 1)[-1]))
+
+
+def other_liabilities(package: EvidencePackage, end) -> Decimal | None:
+    """The filed liability lines that are neither borrowings nor leases, summed: where an unstated lease would sit."""
+    lines = [f for f in package.facts if f.metric.startswith(FACE) and f.period_end == end and f.value is not None]
+    if not lines:
+        return None
+    return sum((f.value for f in lines if classify(_concept(f)) == "other"), Decimal(0))
+
+
+def financing_list_complete(package: EvidencePackage, start, end) -> bool:
+    """Whether the package holds financing lines that add up to financing cash flow for exactly this period."""
+    lines = [f for f in package.facts if f.metric.startswith(FINANCING) and f.value is not None
+             and f.period_start == start and f.period_end == end]
+    totals = {f.value for f in package.facts if f.metric == "Financing Cash Flow" and f.value is not None
+              and f.period_start == start and f.period_end == end}
+    return bool(lines) and sum((f.value for f in lines), Decimal(0)) in totals

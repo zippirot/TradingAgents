@@ -268,7 +268,9 @@ def _forecast(assumption, package, metric, unit, basis, outlooks, *, baseline: D
 
 def _borrowings_complete(package, ids):
     metrics = {_fact(package, identifier).metric for identifier in ids}
-    if metrics == {"Total Borrowings"}:
+    # A sourced total, including one the filer states together with its finance leases: the case then values
+    # borrowings as the filing presents them, and price_case says so beside the case.
+    if metrics in ({"Total Borrowings"}, {"Total Borrowings Including Finance Leases"}):
         return
     long_term = {"Long-term Borrowings (including current)"}
     split_long_term = {"Current Long-term Borrowings", "Noncurrent Long-term Borrowings"}

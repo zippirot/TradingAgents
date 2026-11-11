@@ -12,6 +12,7 @@ from tradingagents.agents.accounting_checks import calculate_obligations
 from tradingagents.agents.evidence_validation import (
     cash_flow_checks,
     obligation_checks,
+    obligation_verdict,
     validate_calculation_lineage,
 )
 from tradingagents.dataflows.face_liabilities import (
@@ -37,7 +38,7 @@ def instance(lines, extra=""):
     """A small filed instance: undimensioned balances at END, plus anything in ``extra``."""
     facts = "".join(f'<{name} contextRef="now" unitRef="usd" decimals="0">{value}</{name}>' for name, value in lines)
     return f"""<xbrl xmlns="http://www.xbrl.org/2003/instance" xmlns:us-gaap="http://fasb.org/us-gaap/2026"
-      xmlns:co="http://example.com/2026" xmlns:xbrldi="http://xbrl.org/2006/xbrldi">
+      xmlns:co="http://example.com/2026" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:dei="http://xbrl.sec.gov/dei/2026">
       <context id="now"><entity><identifier scheme="x">1</identifier></entity><period><instant>{END}</instant></period></context>
       <context id="old"><entity><identifier scheme="x">1</identifier></entity><period><instant>2025-12-31</instant></period></context>
       <context id="seg_a"><entity><identifier scheme="x">1</identifier><segment>
@@ -214,7 +215,7 @@ def test_a_complete_financing_list_settles_equipment_principal_for_that_period_o
     # The linkbase weights outflows as subtractions in real filings; here each figure is filed as signed cash.
     package, notes = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -300), ("us-gaap:PaymentsOfDividends", -150),
                                        ("us-gaap:FinanceLeasePrincipalPayments", -50)])
-    assert notes == [] and financing_principal(package, P_START, END) == {
+    assert not any("financing" in note for note in notes) and financing_principal(package, P_START, END) == {
         "equipment": "not presented in the filed financing cash flows for the period"}
     assert financing_principal(package, date(2026, 7, 1), END) == {}           # another period is not settled by this one
     _results, check, _warnings = cash_flow_checks(package)
@@ -224,16 +225,66 @@ def test_a_complete_financing_list_settles_equipment_principal_for_that_period_o
     assert lease.value == 50 and (lease.period_start, lease.period_end) == (P_START, END)
 
 
-def test_without_lease_principal_for_the_period_the_check_stays_unavailable_and_says_so():
+def test_lease_principal_not_stated_in_a_complete_period_list_is_reported_and_no_figure_is_assumed():
+    """User decision 2026-11-11 (plan Amendment 3): pass on what the filing presents."""
     children = ["us-gaap:RepaymentsOfLongTermDebt", "us-gaap:PaymentsOfDividends"]
     package, _ = _flows(children, [("us-gaap:RepaymentsOfLongTermDebt", -350), ("us-gaap:PaymentsOfDividends", -150)])
-    _results, check, _warnings = cash_flow_checks(package)
-    assert check["status"] == "unavailable" and "(finance-lease principal not stated for the period)" in check["message"]
+    results, check, _warnings = cash_flow_checks(package)
+    assert check["status"] == "pass" and "finance leases principal not stated for the period" in check["message"]
+    assert "no figure is assumed" in check["message"]
+    assert results[0].status == "pass" and results[1].status == "unavailable"      # no principal figure was invented
+    assert not any(f.metric == "Finance Lease Principal Payments" for f in package.facts)
     # Lease principal the filer states inside its debt repayments is settled by that statement.
     combined, _ = _flows(["us-gaap:RepaymentsOfDebtAndCapitalLeaseObligations", "us-gaap:PaymentsOfDividends"],
                          [("us-gaap:RepaymentsOfDebtAndCapitalLeaseObligations", -350), ("us-gaap:PaymentsOfDividends", -150)])
     assert cash_flow_checks(combined)[1]["status"] == "pass"
     assert "finance leases principal within debt repayments as the filer states them" in cash_flow_checks(combined)[1]["message"]
+    # Without a financing list that adds up, the old rule stands.
+    assert cash_flow_checks(_package(*FLOW_BASE))[1]["status"] == "unavailable"
+
+
+def test_obligations_pass_on_borrowings_from_a_list_that_adds_up_and_say_what_is_not_stated():
+    bare, _ = _widen(_package(*BASE))
+    results = obligation_checks(bare)
+    assert [r.status for r in results] == ["pass", "unavailable", "unavailable"]       # the wider perimeters stay unavailable
+    verdict = obligation_verdict(bare, results)
+    assert verdict["status"] == "pass" and verdict["message"].startswith("Obligations as the filing presents them: borrowings established")
+    assert "Finance leases, operating leases not stated in the 10-Q for 2026-09-30 (0000789019-26-000001)" in verdict["message"]
+    assert "no figure is assumed" in verdict["message"] and "other liability lines, which total 550 USD" in verdict["message"]
+    # No list that adds up: nothing passes on borrowings alone.
+    tagged = _package(*BASE, _fact("Long-term Borrowings (including current)", 450), _fact("Short-term Borrowings", 0))
+    plain = obligation_checks(tagged)
+    assert plain[0].status == "pass" and obligation_verdict(tagged, plain)["status"] == "unavailable"
+    # A debt-like line code does not understand leaves borrowings unestablished, so the check does not pass.
+    tree = {"us-gaap:Liabilities": ["us-gaap:LongTermDebtNoncurrent", "co:VendorFinancingObligationCurrent"]}
+    filed = [("us-gaap:Liabilities", 1000), ("us-gaap:LongTermDebtNoncurrent", 400), ("co:VendorFinancingObligationCurrent", 600)]
+    odd, _ = _widen(_package(*BASE), lines=filed, tree=tree)
+    assert obligation_verdict(odd, obligation_checks(odd))["status"] == "unavailable"
+    # Everything stated: the verdict is the widest perimeter, as before.
+    leases = ('<us-gaap:FinanceLeaseLiability contextRef="now" unitRef="usd" decimals="0">70</us-gaap:FinanceLeaseLiability>'
+              '<us-gaap:OperatingLeaseLiability contextRef="now" unitRef="usd" decimals="0">30</us-gaap:OperatingLeaseLiability>')
+    full, _ = _widen(_package(*BASE), extra=leases)
+    assert obligation_verdict(full, obligation_checks(full))["message"].startswith("Declared dated obligation perimeter")
+
+
+INV = "us-gaap:NetCashProvidedByUsedInInvestingActivities"
+
+
+def test_the_investing_list_gives_capital_spending_and_shows_what_is_not_separately_presented():
+    tree = calculation({FIN: ["us-gaap:RepaymentsOfLongTermDebt"],
+                        INV: ["us-gaap:PaymentsToAcquireOtherPropertyPlantAndEquipment", "us-gaap:PaymentsToAcquireEquipmentOnLease"]})
+    filed = [(FIN, -500), ("us-gaap:RepaymentsOfLongTermDebt", -500), (INV, -400),
+             ("us-gaap:PaymentsToAcquireOtherPropertyPlantAndEquipment", -300), ("us-gaap:PaymentsToAcquireEquipmentOnLease", -100)]
+    base = (*BASE, _flow("Operating Cash Flow", 900), _flow("Financing Cash Flow", -500), _flow("Investing Cash Flow", -400),
+            _flow("Equipment on Lease Payments", 100))
+    package, notes = with_financing_lines(_package(*base), parse_instance(_flow_instance(filed)), parse_calculation(tree), **WHERE)
+    capex = next(f for f in package.facts if f.metric == "Capital Expenditure")
+    assert notes == [] and capex.value == 300 and "PaymentsToAcquireOtherPropertyPlantAndEquipment" in capex.locator
+    _results, check, warnings = cash_flow_checks(package)
+    assert check["status"] == "pass" and any("equipment leased to others" in w for w in warnings)
+    # The same payments with no investing list that adds up keep the original block.
+    _results, blocked, _ = cash_flow_checks(_package(*base, _flow("Capital Expenditure", 300)))
+    assert blocked["status"] == "unavailable" and "gross acquisition/proceeds bridge" in blocked["message"]
 
 
 def test_a_list_that_does_not_add_up_or_carries_an_equipment_like_line_settles_nothing():
@@ -249,3 +300,37 @@ def test_a_list_that_does_not_add_up_or_carries_an_equipment_like_line_settles_n
     assert financing_principal(package, P_START, END) == {}
     check = cash_flow_checks(package)[1]
     assert check["status"] == "unavailable" and "co:PaymentsToAcquireEquipmentFinancingActivities" in check["message"]
+
+
+# ---- share counts and valuation for filers read this way ----
+
+def _shares(extra):
+    package, _ = _widen(_package(*BASE), extra=extra)
+    return [f for f in package.facts if f.metric == "Common Shares Outstanding"], package
+
+
+def _share_fact(concept, value, context="now", unit="sh"):
+    return f'<{concept} contextRef="{context}" unitRef="{unit}" decimals="0">{value}</{concept}>'
+
+
+UNIT = '<unit id="sh"><measure>shares</measure></unit>'
+
+
+def test_shares_come_from_the_balance_date_as_the_filing_states_them():
+    (direct,), _ = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 900))
+    assert direct.value == 900 and direct.unit == "shares" and direct.origin == "reported"
+    (one_class,), _ = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 880, "seg_a"))
+    assert one_class.value == 880
+    (derived,), package = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesIssued", 1000)
+                                  + _share_fact("us-gaap:TreasuryStockCommonShares", 150))
+    assert derived.value == 850 and derived.formula_id == "shares_issued_less_treasury_v1"
+    assert validate_calculation_lineage(package) == []
+    # A cover count dated after the balance date is another date; two classes along one axis are not one count.
+    assert _shares(UNIT + _share_fact("dei:EntityCommonStockSharesOutstanding", 870, "old"))[0] == []
+    assert _shares(UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 500, "seg_a")
+                   + _share_fact("us-gaap:CommonStockSharesOutstanding", 400, "seg_b"))[0] == []
+    # A tagged count already in the package is left alone.
+    held = _package(*BASE, FinancialFact(fact_id="sh", metric="Common Shares Outstanding", value=Decimal(7), unit="shares",
+                                         cik=CIK, period_end=END, as_of=CUT, source_ids=("s",), locator="us-gaap/x"))
+    kept, _ = _widen(held, extra=UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 900))
+    assert [f.value for f in kept.facts if f.metric == "Common Shares Outstanding"] == [7]

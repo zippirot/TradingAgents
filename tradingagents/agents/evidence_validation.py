@@ -141,6 +141,9 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     expected = derive_ttm(inputs)
                 elif fact.formula_id == "liabilities_and_equity_less_equity_v1":
                     expected = derive_total_liabilities(tuple(inputs))
+                elif fact.formula_id == "shares_issued_less_treasury_v1":
+                    from tradingagents.dataflows.financial_evidence import derive_shares_outstanding
+                    expected = derive_shares_outstanding(tuple(inputs))
                 elif fact.formula_id == "face_borrowings_v1":
                     from tradingagents.dataflows.face_liabilities import derive_face_borrowings
                     expected = derive_face_borrowings(tuple(inputs))
@@ -698,13 +701,7 @@ def assess_financial_package(
             )
     obligations = obligation_checks(package, source_precision)
     calculations.extend(obligations)
-    checks.append(
-        {
-            "code": "obligation_perimeter",
-            "status": obligations[-1].status,
-            "message": obligations[-1].message,
-        }
-    )
+    checks.append(obligation_verdict(package, obligations))
     cash_results, cash_check, cash_warnings = cash_flow_checks(
         package, disclosures, source_precision, extraction=extraction
     )
@@ -1386,6 +1383,42 @@ def obligation_checks(package, source_precision=None):
     return tuple(out)
 
 
+def obligation_verdict(package, obligations) -> dict:
+    """The obligations check from the three perimeters.
+
+    The widest perimeter passing is the check passing, as before. Otherwise the check passes on what the
+    filing presents: borrowings established from the filer's own liabilities list, which adds up, with any
+    lease category the filing does not state reported as not stated. No lease figure is assumed, the wider
+    perimeters stay unavailable, and the message says where an unstated amount would sit and how large that
+    line is. Anything else missing, or no list that adds up, leaves the check unavailable.
+    """
+    from tradingagents.dataflows.face_liabilities import has_face_inventory, other_liabilities
+
+    widest = obligations[-1]
+    verdict = {"code": "obligation_perimeter", "status": widest.status, "message": widest.message}
+    end = max((f.period_end for f in package.facts if f.metric == "Total Assets" and f.value is not None), default=None)
+    if widest.status == "pass" or end is None or not has_face_inventory(package, end):
+        return verdict
+    established = next((r for r in obligations[:2] if r.status == "pass"), None)
+    marker = "required obligation category unavailable: "
+    if established is None or not widest.message.startswith(marker) or " not stated in the " not in widest.message:
+        return verdict
+    missing = widest.message[len(marker):].split(" not stated in the ", 1)[0].split(", ")
+    if not set(missing) <= {"finance leases", "operating leases"}:
+        return verdict
+    filed = next((s for s in package.sources if s.source_id.startswith("sec-instance-")), None)
+    other = other_liabilities(package, end)
+    scope = ("borrowings, with finance leases as the filer states them," if "finance_equipment" in established.method
+             else "borrowings")
+    return {"code": "obligation_perimeter", "status": "pass", "message": (
+        f"Obligations as the filing presents them: {scope} established from the filed liabilities list, which adds "
+        f"up to total liabilities. {', '.join(missing).capitalize()} not stated in the "
+        f"{filed.form if filed else 'filing'} for {end}"
+        + (f" ({filed.accession})" if filed else "")
+        + "; no figure is assumed and the wider perimeters are unavailable. Any such amount sits within the other "
+        f"liability lines, which total {other:,.0f} {established.unit or ''}".rstrip() + ".")}
+
+
 def _duration_at(package, metric, start, end, source_precision=None):
     candidates = [
         f
@@ -1440,6 +1473,12 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
         calculate_cash_generation,
         cash_statement_reconciliations,
         check_financed_equipment_bridge,
+    )
+    from tradingagents.dataflows.face_liabilities import (
+        equipment_like_financing,
+        financing_list_complete,
+        financing_principal,
+        investing_names,
     )
 
     end = max(
@@ -1496,7 +1535,14 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
             text,
             re.I,
         ):
-            reasons.append("Disclosed software capitalization lacks a compatible cash amount")
+            invested = investing_names(package, start, end)
+            if invested is not None and not any("software" in name.lower() for name in invested):
+                # The filed investing cash flows add up and carry no software line: the cash is not stated
+                # separately, so it is within the capital spending line. Nothing is added or assumed.
+                warnings.append("Capitalized software is not separately presented in the filed investing cash flows "
+                                "for the period; any cash amount is within the capital spending line.")
+            else:
+                reasons.append("Disclosed software capitalization lacks a compatible cash amount")
     acquisition = lookup("Equipment Financing Acquisition Payments")
     proceeds = lookup("Equipment Financing Proceeds")
     financed_bridge = None
@@ -1534,13 +1580,21 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
             source_precision,
         )
     )
-    if unclassified and unclassified.value != 0 and not acquisition_classified:
+    lessor_purchases = bool(
+        unclassified and unclassified.value != 0 and not acquisition_classified
+        and "PaymentsToAcquireEquipmentOnLease" in (investing_names(package, start, end) or ())
+        and "equipment" in financing_principal(package, start, end))
+    if lessor_purchases:
+        # Filed as an investing line in a list that adds up, with no equipment financing among the period's
+        # financing cash flows: purchases of equipment leased to others, not financing principal.
+        warnings.append("Payments for equipment leased to others are a filed investing outflow, separate from "
+                        "capital spending and from lease or equipment financing principal.")
+    elif unclassified and unclassified.value != 0 and not acquisition_classified:
         reasons.append(
             "Equipment acquisition payments lack a verified gross acquisition/proceeds bridge; "
             "acquisition is not financing principal"
         )
     from tradingagents.dataflows.face_liabilities import (
-        equipment_like_financing,
         financing_principal,
     )
 
@@ -1559,6 +1613,14 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
     ):
         reasons.append("Combined principal conflicts with separately reported components")
     lease_known, equipment_known = lease is not None or "finance_leases" in settled, equipment is not None or "equipment" in settled
+    # As the filing presents it: a complete financing list for the period that states no finance-lease
+    # principal. Nothing is assumed; the amount, if any, is within the other financing lines.
+    unstated_lease = (combined is None and not lease_known and equipment_known
+                      and financing_list_complete(package, start, end))
+    if unstated_lease:
+        settled["finance_leases"] = ("not stated for the period; any amount is within the other filed "
+                                     "financing lines and no figure is assumed")
+        lease_known = True
     if combined is None and not (lease_known and equipment_known):
         missing = [name for name, known in (("finance-lease principal", lease_known), ("equipment principal", equipment_known))
                    if not known]

@@ -474,6 +474,24 @@ def derive_total_liabilities(inputs: tuple[FinancialFact, ...]) -> FinancialFact
     return _derived(inputs, None, total.period_end, value, TOTAL_LIABILITIES_FORMULA, metric="Total Liabilities")
 
 
+SHARES_FORMULA = "shares_issued_less_treasury_v1"
+
+
+def derive_shares_outstanding(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
+    """Common shares outstanding for a filer that states shares issued and treasury shares but no outstanding count."""
+    if len(inputs) != 2:
+        raise ValueError("shares outstanding needs shares issued and treasury shares")
+    issued, treasury = inputs
+    if (issued.metric, treasury.metric) != ("Common Shares Issued", "Treasury Shares"):
+        raise ValueError("shares outstanding inputs have the wrong roles")
+    if any(f.origin != "reported" or f.value is None or f.period_start is not None or f.unit != "shares" for f in inputs):
+        raise ValueError("shares outstanding needs reported share balances")
+    if len({(f.cik, f.basis, f.as_of, f.period_end) for f in inputs}) != 1 or treasury.value < 0 or issued.value <= treasury.value:
+        raise ValueError("incompatible or implausible share balances")
+    return _derived(inputs, None, issued.period_end, issued.value - treasury.value, SHARES_FORMULA,
+                    metric="Common Shares Outstanding")
+
+
 def derive_cash_outflow(reported: FinancialFact) -> FinancialFact:
     """Convert an explicitly classified signed payment to its gross magnitude."""
     if (

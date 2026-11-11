@@ -291,19 +291,23 @@ _FINANCING = ("us-gaap:NetCashProvidedByUsedInFinancingActivities",
               "us-gaap:NetCashProvidedByUsedInFinancingActivitiesContinuingOperations")
 
 
-def financing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[Line, ...], Decimal]:
-    """Every financing cash-flow line the filer declares for ``start`` to ``end``, signed as cash, and their total.
+_INVESTING = ("us-gaap:NetCashProvidedByUsedInInvestingActivities",
+              "us-gaap:NetCashProvidedByUsedInInvestingActivitiesContinuingOperations")
+
+
+def cash_flow_lines(facts, calculation, start: date, end: date, roots) -> tuple[tuple[Line, ...], Decimal]:
+    """Every line the filer declares under one cash-flow section for ``start`` to ``end``, signed as cash.
 
     The same reading as ``liability_lines``: the filer's declared sum, walked to its leaves and checked
     against the filed figures.
     """
     values = _undimensioned(facts, end, start=start)
     for tree in calculation.values():
-        root = next((concept for concept in _FINANCING if concept in tree and concept in values), None)
+        root = next((concept for concept in roots if concept in tree and concept in values), None)
         if root is not None:
             break
     else:
-        raise InstanceError("no declared sum for financing cash flows was found")
+        raise InstanceError("no declared sum for this cash-flow section was found")
     lines = []
 
     def walk(concept, path, sign):
@@ -317,5 +321,15 @@ def financing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[L
 
     walk(root, (), Decimal(1))
     if not lines:
-        raise InstanceError("the declared financing sum has no filed lines")
+        raise InstanceError("the declared cash-flow sum has no filed lines")
     return tuple(lines), values[root].value
+
+
+def financing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[Line, ...], Decimal]:
+    """Every financing cash-flow line the filer declares for the period, and their total."""
+    return cash_flow_lines(facts, calculation, start, end, _FINANCING)
+
+
+def investing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[Line, ...], Decimal]:
+    """Every investing cash-flow line the filer declares for the period, and their total."""
+    return cash_flow_lines(facts, calculation, start, end, _INVESTING)
