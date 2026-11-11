@@ -56,11 +56,14 @@ Plan: `docs/superpowers/plans/2026-11-08-large-filer-evidence-coverage-plan.md` 
 
 **Why the rest stop.** Borrowings are established for all ten. Nine stop because the filing scored (a 10-Q for seven, a 10-K for PANW and CSCO) states no finance-lease or operating-lease balance, or no finance-lease principal paid in the period; the plan forbids assuming a figure. Others: CAT's equipment-on-lease (lessor) payments have no verified bridge; INTC has a filer-specific financing line for equipment purchases that code does not classify; PANW discloses capitalised software without a matching cash amount; LLY's 10-Q gives no opening equity balance.
 
-## Open decision before the candidate is frozen
+## Decision and freeze
 
-The held-out verdict needs at least 5 of 20 newly at 7/7. On the development evidence the plan's strict rule would pass about one company in ten. The rule and its alternatives are the user's decision; nothing has been loosened.
+The user chose to pass on what the filing presents (plan Amendment 3). Frozen before any held-out result was opened:
 
-## Not yet done
-
-Decision above; final frozen score; live timing pass; held-out verdict; recomputation sample; independent audit; DOCN deterministic-section comparison. Paid runs are not approved.
+- Candidate production code and scorer: `a57111f5a47f74b6e1a9a94930564698a1128524`. Cohort, cutoff and inputs as frozen above; capture scope per Amendment 2; no replay miss and no automated fill was needed for any of the 31 issuers.
+- Sealed files, by SHA-256: baseline held-out `d22afbfceed21efb`, final held-out `3532504650d09a01`.
+- Development group, final score: MSFT, CAT, WMT, PANW, RTX, JNJ, LRCX and CSCO at 7/7 (8 of 10, from 0); INTC 6/7 (a filer-specific financing line for equipment purchases is not classified); LLY 6/7 (its 10-Q gives no opening equity balance). DOCN 7/7, unchanged.
+- DOCN regression: everything the acquisition step produces from the code under test (facts, source checks, calculations, canonical context) is identical between `9942114f` and the candidate on the same frozen inputs. Fields that differ between two runs of the same code (timestamps, live non-SEC sources) were excluded; the required-return field differed only because one checkout has a FRED key in its environment.
+- Live timing on the candidate, free SEC only, all 31 issuers: slowest 12.9 seconds, most requests 30, no request or time budget exhausted.
+- Not done: the pre-freeze paid MSFT run through the real app (paid runs are not approved). The offline score therefore stands without a live route confirmation.
 
