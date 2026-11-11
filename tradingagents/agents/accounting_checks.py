@@ -293,6 +293,7 @@ def check_equity_rollforward(
 _OBLIGATION_METRICS = {
     "borrowings": {
         "Total Borrowings",
+        "Total Borrowings Including Finance Leases",
         "Long-term Borrowings (including current)",
         "Current Long-term Borrowings",
         "Noncurrent Long-term Borrowings",
@@ -343,12 +344,18 @@ def validate_obligation_category(category, group):
             raise ValueError("current/noncurrent coverage incomplete")
 
 
-def calculate_obligations(package, components_by_category, cash_id):
+def calculate_obligations(package, components_by_category, cash_id, *, settled=None):
     """Three dated net perimeters; an absent category is never an inferred zero.
 
     A filed combined finance/equipment amount may replace both separate
     categories. It is never decomposed by an invented residual.
+
+    ``settled`` names categories the filing settles without a separate figure, each with its basis: a
+    category the filed liabilities list does not present, or finance leases the filer states inside its
+    borrowings. Such a category adds nothing and its basis is stated in the result. Borrowings that
+    include finance leases cannot give the borrowings-only perimeter.
     """
+    settled = dict(settled or {})
     outputs = []
     for categories, method in [
         (("borrowings",), "borrowings_less_cash_v1"),
@@ -383,9 +390,18 @@ def calculate_obligations(package, components_by_category, cash_id):
                 raise ValueError(
                     "combined finance/equipment amount overlaps separately declared categories"
                 )
-            if any(not components_by_category.get(c) for c in categories):
+            if categories == ("borrowings",) and "finance_leases" in settled and settled["finance_leases"].startswith("within"):
+                raise ValueError("borrowings are stated together with finance leases; no borrowings-only total")
+            if any(c in settled and components_by_category.get(c) for c in categories):
+                raise ValueError("a category is both stated and settled without a figure")
+            stated = [f"{c.replace('_', ' ')} {settled[c]}" for c in categories if c in settled and c != "borrowings"]
+            categories = tuple(c for c in categories if c not in settled or c == "borrowings")
+            ids = (*(i for c in categories for i in components_by_category.get(c, ())), cash_id)
+            missing = [c.replace("_", " ") for c in categories if not components_by_category.get(c)]
+            if missing:
                 raise ValueError(
                     "required obligation category unavailable; explicit sourced zero required for absence"
+                    + (f" ({', '.join(missing)})" if settled else "")
                 )
             facts = _facts(package, ids)
             _same(facts)
@@ -408,7 +424,8 @@ def calculate_obligations(package, components_by_category, cash_id):
                     unit=facts[0].unit,
                     input_fact_ids=ids,
                     reason_code="calculated",
-                    message="Declared dated obligation perimeter; excludes undisclosed categories",
+                    message="Declared dated obligation perimeter; excludes undisclosed categories"
+                            + ("; " + "; ".join(stated) if stated else ""),
                 )
             )
         except (ValueError, ArithmeticError) as exc:

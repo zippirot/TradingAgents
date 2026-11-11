@@ -141,6 +141,9 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     expected = derive_ttm(inputs)
                 elif fact.formula_id == "liabilities_and_equity_less_equity_v1":
                     expected = derive_total_liabilities(tuple(inputs))
+                elif fact.formula_id == "face_borrowings_v1":
+                    from tradingagents.dataflows.face_liabilities import derive_face_borrowings
+                    expected = derive_face_borrowings(tuple(inputs))
                 else:
                     raise ValueError("unsupported formula")
                 if expected != fact:
@@ -331,6 +334,33 @@ def _acquisition_scope(state, selected_analysts):
     }
 
 
+def _with_filed_liabilities(package):
+    """The package with borrowings and leases read from the latest balance sheet's own filing, or unchanged."""
+    from tradingagents.dataflows.errors import VendorError
+    from tradingagents.dataflows.face_liabilities import with_face_liabilities
+    from tradingagents.dataflows.vendors.sec_instance import filed_statement_data
+    from tradingagents.operational_capture import record_operation
+
+    balances = [f for f in package.facts if f.metric == "Total Assets" and f.value is not None and f.period_start is None]
+    if not balances:
+        return package
+    latest = max(balances, key=lambda f: f.period_end)
+    sources = {s.source_id: s for s in package.sources}
+    source = next((sources[i] for i in latest.source_ids if sources[i].accession), None)
+    if source is None:
+        return package
+    try:
+        filed = filed_statement_data(package.cik, source.accession)
+        widened, _notes = with_face_liabilities(
+            package, filed["facts"], filed["calculation"], url=filed["url"], content_hash=filed["content_hash"],
+            accession=source.accession, form=source.form, filed_date=source.filed_date,
+            retrieved_at=filed["retrieved_at"])
+    except (VendorError, ValidationError, ValueError):
+        record_operation("vendor_unavailable", scope="SEC filed instance")
+        return package
+    return widened if len(widened.facts) != len(package.facts) else package
+
+
 def create_source_acquisition(selected_analysts):
     """Acquire one source vintage before analyst fan-out; never authorize publication."""
     from tradingagents.dataflows.errors import NoMarketDataError, VendorError
@@ -394,6 +424,17 @@ def create_source_acquisition(selected_analysts):
                         {**state, **update}, package, disclosures, record["disclosure_error"],
                         rpo_comparison=record["rpo_comparison"], source_only=True,
                     )
+                    if any(check["code"] == "obligation_perimeter" and check["status"] != "pass"
+                           for check in prepared["source_checks"]):
+                        # Tagged totals did not give the perimeter: read the filer's own liabilities list.
+                        widened = _with_filed_liabilities(package)
+                        if widened is not package:
+                            package = widened
+                            record["raw_financial_evidence"] = package.model_dump(mode="json")
+                            prepared = assess_financial_package(
+                                {**state, **update}, package, disclosures, record["disclosure_error"],
+                                rpo_comparison=record["rpo_comparison"], source_only=True,
+                            )
                     record["source_checks"] = prepared.pop("source_checks")
                     update.update(prepared)
             except (VendorError, ValidationError, ValueError) as exc:
@@ -1202,8 +1243,19 @@ def obligation_checks(package, source_precision=None):
             return identifiers(total)
         return identifiers(current, noncurrent) if current and noncurrent else ()
 
-    groups = {}
+    from tradingagents.dataflows.face_liabilities import (
+        COMBINED_BORROWINGS,
+        equipment_presented,
+        has_face_inventory,
+    )
+
+    groups, settled = {}, {}
     total = selected("Total Borrowings")
+    combined_borrowings = selected(COMBINED_BORROWINGS) if total is None else None
+    if combined_borrowings is not None:
+        # The filer states its debt together with its finance leases; the two are one sourced figure.
+        total = combined_borrowings
+        settled["finance_leases"] = "within borrowings as the filer states them"
     long_term = total_or_components(
         "Long-term Borrowings (including current)",
         "Current Long-term Borrowings",
@@ -1234,8 +1286,13 @@ def obligation_checks(package, source_precision=None):
             if not _sum_matches(package, combined, parts, source_precision):
                 groups["finance_equipment"] = ()
     else:
-        groups["finance_leases"] = finance
+        if "finance_leases" not in settled:
+            groups["finance_leases"] = finance
         groups["equipment"] = identifiers(equipment)
+        if equipment is None and end is not None and has_face_inventory(package, end) \
+                and not equipment_presented(package, end):
+            # The filed liabilities list adds up and carries no equipment-financing line.
+            settled["equipment"] = "not presented in the filed liabilities list"
     groups["operating_leases"] = total_or_components(
         "Operating Lease Liabilities",
         "Current Operating Lease Liabilities",
@@ -1243,7 +1300,7 @@ def obligation_checks(package, source_precision=None):
     )
     cash = selected("Cash and Equivalents")
     return calculate_obligations(
-        package, groups, cash.fact_id if cash else "missing-unrestricted-cash"
+        package, groups, cash.fact_id if cash else "missing-unrestricted-cash", settled=settled
     )
 
 

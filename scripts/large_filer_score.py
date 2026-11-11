@@ -180,6 +180,76 @@ def run(mode, tickers, as_of, store_dir, out):
     return payload
 
 
+_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "8-K/A")
+_TEXT = (".htm", ".html", ".txt", ".xml", ".xsd", ".json")
+
+
+def capture_index(tickers, as_of, store_dir, pause=0.15):
+    """Save every text document in the index of each periodic and current report since the latest 10-K.
+
+    The final code may request documents the baseline reader never did; they must already be in the store.
+    Nothing is parsed or printed beyond counts. Images, archives, the rendered viewer pages (R*.htm) and
+    the whole-submission text file are listed in the manifest as skipped, not downloaded.
+    """
+    import re
+
+    import requests
+
+    from tradingagents.dataflows.vendors.sec_edgar import _user_agent, cik_for
+
+    store, receipts = Store(store_dir), []
+    skipped_path = Path(store_dir) / "index_skipped.json"
+    skipped = json.loads(skipped_path.read_text()) if skipped_path.exists() else {}
+
+    def fetch(url):
+        if url in store.manifest:
+            return store.get(url)
+        time.sleep(pause)
+        response = requests.get(url, headers={"User-Agent": _user_agent()}, timeout=120)
+        store.put(url, response.status_code, {"Content-Type": response.headers.get("Content-Type", "")},
+                  response.content)
+        return store.get(url)
+
+    real = requests.get
+    for ticker in tickers:
+        requests.get = Transport(store, live=real)           # the ticker map and submissions go through the store
+        try:
+            cik = int(cik_for(ticker))
+        finally:
+            requests.get = real
+        recent = fetch(f"https://data.sec.gov/submissions/CIK{cik:010d}.json").json()["filings"]["recent"]
+        rows = [(form, filed, accession) for form, filed, accession in
+                zip(recent["form"], recent["filingDate"], recent["accessionNumber"], strict=True) if filed <= as_of]
+        annual = max((filed for form, filed, _ in rows if form == "10-K"), default=None)
+        wanted = [row for row in rows if row[0] in _FORMS and annual is not None and row[1] >= annual]
+        documents = failures = 0
+        for _form, _filed, accession in wanted:
+            base = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession.replace('-', '')}"
+            try:
+                listing = fetch(f"{base}/index.json").json()["directory"]["item"]
+            except Exception:  # noqa: BLE001 - recorded, never guessed
+                failures += 1
+                continue
+            for item in listing:
+                name = item.get("name", "")
+                url = f"{base}/{name}"
+                whole = name == f"{accession}.txt"
+                if not name.lower().endswith(_TEXT) or re.fullmatch(r"R\d+\.htm", name) or whole:
+                    skipped[url] = "whole submission" if whole else "viewer page or binary"
+                    continue
+                try:
+                    if fetch(url).status_code == 200:
+                        documents += 1
+                    else:
+                        failures += 1
+                except Exception:  # noqa: BLE001
+                    failures += 1
+        skipped_path.write_text(json.dumps(skipped, indent=0, sort_keys=True))
+        receipts.append({"ticker": ticker, "filings": len(wanted), "documents": documents, "failures": failures})
+        print(f"{ticker}: filings={len(wanted)} documents={documents} failures={failures}", flush=True)
+    return receipts
+
+
 def _revision():
     import subprocess
     try:
@@ -191,13 +261,16 @@ def _revision():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("capture", "score"))
+    parser.add_argument("mode", choices=("capture", "score", "capture-index"))
     parser.add_argument("--tickers", required=True, help="comma-separated")
     parser.add_argument("--as-of", required=True)
     parser.add_argument("--store", required=True, help="private directory for raw SEC responses")
     parser.add_argument("--out")
     parser.add_argument("--quiet", action="store_true", help="print only a completion receipt (sealed groups)")
     args = parser.parse_args(argv)
+    if args.mode == "capture-index":
+        capture_index([t.strip().upper() for t in args.tickers.split(",") if t.strip()], args.as_of, args.store)
+        return 0
     payload = run(args.mode, [t.strip().upper() for t in args.tickers.split(",") if t.strip()], args.as_of,
                   args.store, args.out)
     for row in payload["results"]:
