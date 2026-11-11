@@ -108,9 +108,50 @@ The tool's first run disagreed for three companies. Each was a fault in the tool
 
 Auditor sample, drawn after the scores as the first five by SHA-256 of `large-filer-audit-2026-11-11:` plus ticker: MU, RTX, CAT, MRK, HD. Their printed lines are in `recheck-auditor-sample.json`.
 
-## Offline acceptance
+## Offline acceptance of the frozen candidate `a57111f5`: failed on the wrong-pass rule
 
-Pass on the numerical criterion, the recomputation and the DOCN regression, with these stated limits: the sampling method was fixed late (mitigated by checking every new pass); development gains exceed held-out gains by 45 points; no live run through the real app has been made, so delivery of a decision for a large filer is unverified.
+The numerical criterion was met, but the plan fails a candidate for any confirmed wrong new pass, and one was found after the first write-up of this section:
+
+- **NVDA's cash-flow pass was wrong.** Its financing cash flows include `nvda:PaymentsForFinancedPropertyPlantAndEquipmentAndIntangibleAssetsFinancingActivities`. The reader's name rule for equipment financing did not match it, so it reported equipment principal as "not presented" and the check passed. INTC, with a similar filer-specific line, had been stopped correctly.
+- Correct new passes at `a57111f5`: six held-out companies (AAPL, MU, ORCL, MRK, HD, PM), still above the floor of five, and eight development companies.
+- The error was found by the second version of the recomputation tool (below), not by the first version and not by the independent audit.
+
+An earlier revision of this section declared a pass. That was premature: the recomputation then in hand reused the readers' own line selection, borrowing classification and signs, so it could not have caught this.
+
+## Independent audit and closure
+
+Run `27d78f8f` (GPT-6 Astra, 30 turns, $1.46, completed) on `9942114f..5e8547bd`: not cleared. It read the frozen diff and records only; it ran nothing. Each finding was reproduced with a failing test before any change (`tests/test_large_filer_audit_closure.py`).
+
+| # | Finding | Disposition | Correction |
+|---|---|---|---|
+| 1 High | Any amendment for the period cleared an Item 4.02 notice; a notice between the annual and quarterly report was treated as unrelated | Confirmed (ran) | A notice covers every periodic report in the package issued on or before it, and stands until the figures scored for that report's period come from an amended report filed after the notice |
+| 2 High | A declared financing line that is filed but unreadable was dropped, so offsetting lines could leave a "complete" list | Confirmed (ran) | A declared line that is filed for the period or date but has no readable consolidated figure makes the list incomplete, for liabilities and cash flows alike |
+| 3 High | Equity could be reconciled on the parent's equity for a filer with outside interests; the package did not keep whose equity was reconciled | Confirmed (ran) | Ownership is settled before arithmetic: with any noncontrolling balance only consolidated equity may be the total. The reconciled total's concept is kept in the package and matched to the balance sheet's equity on the same basis; the two coincide only where no outside interest is filed |
+| 4 High | A share count split along any single axis could become the company's count | Confirmed (ran; the builder's own test had used a segment axis) | Only the class-of-stock axis qualifies, after the undimensioned count and a cover count dated the balance date |
+| 5 High | Pass declared before the correctness checks were established; the recomputation reused production choices; sample not blind | Confirmed in substance | Section above withdrawn. Recomputation rebuilt (below). A blind reconstruction by a second party was not done and is stated as a limit |
+| 6 Medium | The share-class screen counted cover contexts without reading their dimensions or the registered securities | Confirmed as a weakness of the rule; no effect found | All 30 selected issuers were checked afterwards: one undimensioned cover count and one common stock title each (ABBV lists the same class on two exchanges). The selection stands; the rule should read dimensions before any reuse |
+| 7 Medium | Two misleading REVIEW reasons left open (PG, AMAT) | Confirmed (ran) | Missing unrestricted cash and disagreeing borrowings totals are now named as the cause |
+
+Effect of the corrections on the frozen inputs, as regression evidence only: NVDA's cash-flow check goes from pass to unavailable, naming the line. No other status changes. JNJ's equity check first went to unavailable under the ownership rule and returns to pass under the rule's own exception (no noncontrolling balance is filed, so consolidated and parent equity are one figure). DOCN: unchanged, 7/7 with 11 requests and identical facts, checks, calculations and canonical context.
+
+## Recomputation, second version
+
+`recheck.py` was rebuilt so that it shares neither inputs nor choices with the readers, except the list of equity components and movements, whose membership and arithmetic it checks:
+
+- figures from the primary filing document as printed, with the sign taken from how the number is printed (parentheses or a minus), not from the tag;
+- structure from the filing's own linkbase files, read by the tool's parser, not from SEC's structure file;
+- its own name rule for borrowings and for equipment-like financing lines.
+
+On the 14 companies that pass on the corrected code (eight development, six held out): the declared liability lines add up to printed total liabilities and that total equals the reader's; the tool's borrowings equal the reader's; printed opening equity plus printed movements equals printed closing equity for every component, and every movement used is listed in the statement of equity; the declared financing lines add up to the printed total and the tool finds no equipment-like financing line. For NVDA it finds the line named above. Results: `recheck-results.json`; printed lines for MU, RTX, CAT, MRK and HD: `recheck-auditor-sample.json`.
+
+Not recomputed: lease balances, the investing section, share counts and disclosure coverage. No second party has reconstructed any check blind.
+
+## Status of the corrected code
+
+- Full suite: 4,669 passed, 10 skipped (private inputs absent), 1 deselected; `ruff check .` clean.
+- On the frozen inputs: development 8 of 10 at 7/7, held out 6 of 20, DOCN unchanged.
+- This cohort has been opened and has driven corrections. It verifies them as regression evidence; it cannot validate the corrected code as generalising. That needs a fresh cohort.
+- No live run through the real app has been made.
 
 ## Follow-up work found (not started)
 

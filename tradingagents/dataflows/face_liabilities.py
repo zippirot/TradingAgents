@@ -27,6 +27,7 @@ from tradingagents.dataflows.financial_evidence import (
 )
 
 FACE = "Balance Sheet Liability ["
+_CLASS_AXIS = "us-gaap:StatementClassOfStockAxis"
 BORROWINGS_FORMULA = "face_borrowings_v1"
 COMBINED_BORROWINGS = "Total Borrowings Including Finance Leases"
 
@@ -179,15 +180,15 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
 def _filed_shares(facts, end, filed) -> list[FinancialFact]:
     """Common shares outstanding at the balance date as the filing states them, when no tagged total gave them.
 
-    In order: the balance-sheet count; that count where the filer states it for its one class along a
-    single axis; the cover-page count when it is dated the balance date itself; shares issued less treasury
-    shares. A cover count dated later is another date and is not used.
+    In order: the balance-sheet count; the cover-page count when it is dated the balance date itself; the
+    balance-sheet count stated for the filer's one class on the class-of-stock axis; shares issued less
+    treasury shares. A cover count dated later is another date and is not used.
     """
-    def shares(concept, dimensioned=False):
+    def shares(concept, class_axis=False):
         rows = [f for f in facts if f.concept == concept and f.start is None and f.end == end and f.unit == "shares"
-                and (len(f.dimensions) == 1 if dimensioned else not f.dimensions)]
-        if dimensioned and len({f.dimensions for f in rows}) != 1:
-            return None
+                and ((len(f.dimensions) == 1 and f.dimensions[0][0] == _CLASS_AXIS) if class_axis else not f.dimensions)]
+        if class_axis and len({f.dimensions for f in rows}) != 1:
+            return None              # no class stated, or more than one class: not one company-wide count
         values = {f.value for f in rows}
         return next(iter(values)) if len(values) == 1 else None
 
@@ -195,10 +196,12 @@ def _filed_shares(facts, end, filed) -> list[FinancialFact]:
         made = filed(metric, value, locator)
         return made.model_copy(update={"unit": "shares"})
 
-    for concept, dimensioned, how in (("us-gaap:CommonStockSharesOutstanding", False, "in the filed instance"),
-                                      ("us-gaap:CommonStockSharesOutstanding", True, "for the filer's one class, in the filed instance"),
-                                      ("dei:EntityCommonStockSharesOutstanding", False, "on the cover, dated the balance date")):
-        value = shares(concept, dimensioned)
+    # A count split along any axis but the class of stock (a segment, a subsidiary) is never the company's count.
+    for concept, class_axis, how in (("us-gaap:CommonStockSharesOutstanding", False, "in the filed instance"),
+                                     ("dei:EntityCommonStockSharesOutstanding", False, "on the cover, dated the balance date"),
+                                     ("us-gaap:CommonStockSharesOutstanding", True,
+                                      "for the filer's one class of stock, in the filed instance")):
+        value = shares(concept, class_axis)
         if value is not None and value > 0:
             return [fact("Common Shares Outstanding", value, f"{concept} at {end} {how}")]
     issued, treasury = shares("us-gaap:CommonStockSharesIssued"), shares("us-gaap:TreasuryStockCommonShares")
@@ -233,7 +236,10 @@ _CAPITAL_SPENDING = frozenset({"PaymentsToAcquirePropertyPlantAndEquipment", "Pa
 _LEASE_PRINCIPAL = frozenset({"FinanceLeasePrincipalPayments", "RepaymentsOfLongTermCapitalLeaseObligations"})
 _DEBT_WITH_LEASE_PRINCIPAL = frozenset({"RepaymentsOfDebtAndCapitalLeaseObligations",
                                         "RepaymentsOfLongTermDebtAndCapitalSecurities"})
-_EQUIPMENT_PRINCIPAL = re.compile(r"EquipmentFinanc|Financing(?:Obligation|Arrangement)|VendorFinanc|SupplierFinanc", re.I)
+# Any financing cash-flow line that names equipment, property and plant, or a financed purchase. Such a line
+# among financing cash flows is payment on something bought on credit, whatever the filer calls it.
+_EQUIPMENT_PRINCIPAL = re.compile(r"Equipment|PropertyPlant|Financed|Financing(?:Obligation|Arrangement)|"
+                                  r"VendorFinanc|SupplierFinanc", re.I)
 
 
 def _statement_period(package):

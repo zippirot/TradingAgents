@@ -104,8 +104,19 @@ def _for_period(money, structure, shown, start, end) -> RollForward:
         return most_precise(f for f in money if f.concept == concept and f.start is None and f.end == when
                             and f.dimensions == dimensions)
 
-    total_concept = next((c for c in _TOTALS if c in shown and balance(c, end) and balance(c, before)), None)
-    if total_concept is None:
+    consolidated, parent = _TOTALS
+    # Whose equity is reconciled is settled before any arithmetic. A filer with noncontrolling interests
+    # states its movements for the consolidated entity, so only consolidated equity may be the total;
+    # the parent's equity is the total only where the filing carries no outside interest at all.
+    outside = any(f.start is None and f.end in (before, end) and not f.dimensions
+                  and f.concept in (consolidated, "us-gaap:MinorityInterest") for f in money)
+    if consolidated in shown and balance(consolidated, end) and balance(consolidated, before):
+        total_concept = consolidated
+    elif outside:
+        raise InstanceError("the filer has noncontrolling interests and consolidated equity is not filed at both dates")
+    elif parent in shown and balance(parent, end) and balance(parent, before):
+        total_concept = parent
+    else:
         raise InstanceError("opening or closing total equity is not filed")
     opening, closing = balance(total_concept, before), balance(total_concept, end)
     period = [f for f in money if (f.start, f.end) == (start, end) and f.concept in shown and f.concept not in _BALANCES]
@@ -168,6 +179,15 @@ def _for_period(money, structure, shown, start, end) -> RollForward:
 # ---- the reconciliation as package facts, and the check recomputed from them ----
 
 OPENING, CLOSING, MOVEMENT, ROUNDING = "Equity Opening [", "Equity Closing [", "Equity Movement [", "Equity Reconciliation Rounding"
+TOTAL_FACT = "Equity Reconciled Total ["
+
+
+def _same_owner(package, total_concept, end):
+    """The package's balance-sheet equity facts at ``end`` on the same ownership basis as ``total_concept``."""
+    tag = total_concept.split(":", 1)[-1]
+    return [f for f in package.facts if f.period_start is None and f.period_end == end and f.value is not None
+            and f.metric in ("Stockholders Equity", "Total Equity Including Noncontrolling Interests")
+            and f"/{tag}/" in f.locator]
 METHOD = "opening_equity_plus_filed_movements_v1"
 
 
@@ -190,10 +210,21 @@ def with_filed_equity(package, facts, structure, *, url, content_hash, accession
         forward = roll_forward(facts, structure, end)
     except InstanceError as exc:
         return package, [f"filed equity reconciliation not established: {exc}"]
-    stated = {f.value for f in package.facts if f.period_start is None and f.period_end == end and f.value is not None
-              and f.metric in ("Stockholders Equity", "Total Equity Including Noncontrolling Interests")}
-    if forward.closing not in stated:
-        return package, [f"filed closing equity {forward.closing} is not the balance sheet's equity at {end}"]
+    owner = forward.total_concept
+    if forward.closing not in {f.value for f in _same_owner(package, owner, end)}:
+        # Consolidated and parent equity are one figure for a filer with no outside interest. Where the
+        # filing states no noncontrolling balance at either date, the same value under the parent's tag is
+        # the same owner's equity; with any such balance it is not.
+        before = forward.start - timedelta(days=1)
+        outside = any(f.concept == "us-gaap:MinorityInterest" and f.start is None and f.end in (before, end)
+                      and f.unit == "USD" and f.value != 0 for f in facts)
+        parent = _TOTALS[1]
+        if (owner == _TOTALS[0] and not outside
+                and forward.closing in {f.value for f in _same_owner(package, parent, end)}):
+            owner = parent
+        else:
+            return package, [f"filed closing equity {forward.closing} is not the balance sheet's equity on the same "
+                             f"ownership basis at {end}"]
     source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
     source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date, retrieved_at=retrieved_at,
                           content_hash=content_hash, locator="filed XBRL instance and filing structure",
@@ -215,6 +246,10 @@ def with_filed_equity(package, facts, structure, *, url, content_hash, accession
             added.append(filed(f"{MOVEMENT}{fact.concept} | {label} | {where}]", fact.value * sign, forward.start, forward.end,
                                f"{fact.concept} filed as {fact.value}, {'adds to' if sign > 0 else 'takes from'} equity"))
             used.append(fact)
+    added.append(filed(f"{TOTAL_FACT}{owner}]", forward.closing, None, forward.end,
+                       f"{forward.total_concept} at {forward.end}: the equity whose reconciliation this is"
+                       + ("" if owner == forward.total_concept else
+                          "; equal to the parent's equity, the filing stating no noncontrolling interest")))
     decimals = [fact.decimals for fact in used]
     if None in decimals:
         return package, ["filed equity figures do not state their rounding"]
@@ -268,14 +303,22 @@ def check_filed_equity(package):
         worst = max(worst, tolerance)
     if not any(f.metric.startswith(MOVEMENT) for f in package.facts if f.fact_id in ids):
         return unavailable("Filed equity reconciliation has no movements")
-    stated = [f for f in package.facts if f.period_start is None and f.period_end == end and f.value is not None
-              and f.metric in ("Stockholders Equity", "Total Equity Including Noncontrolling Interests")]
+    totals = [f for f in package.facts if f.metric.startswith(TOTAL_FACT) and f.period_end == end and f.value is not None]
+    if len(totals) != 1:
+        return unavailable("Filed equity reconciliation does not say whose equity it reconciles")
+    ids.append(totals[0].fact_id)
+    stated = _same_owner(package, totals[0].metric[len(TOTAL_FACT):-1], end)
     tolerance = quantum * (len(closings) + 1) / 2
+    if abs(totals[0].value - expected) > tolerance:
+        return Calculation(method=METHOD, status="fail", result=expected, expected=totals[0].value, unit=closings[0].unit,
+                           input_fact_ids=tuple(ids), reason_code="material_residual",
+                           message="Filed equity components do not add up to the equity reconciled")
     match = next((f for f in stated if abs(f.value - expected) <= tolerance), None)
     if match is None:
         return Calculation(method=METHOD, status="fail", result=expected, unit=closings[0].unit, input_fact_ids=tuple(ids),
                            reason_code="material_residual",
-                           message="Filed equity components do not add up to the balance sheet's equity")
+                           message="Filed equity components do not add up to the balance sheet's equity on the same "
+                                   "ownership basis")
     ids.append(match.fact_id)
     return Calculation(method=METHOD, status="pass", result=result, expected=expected, residual=result - expected,
                        tolerance=max(worst, tolerance), unit=closings[0].unit, input_fact_ids=tuple(dict.fromkeys(ids)),

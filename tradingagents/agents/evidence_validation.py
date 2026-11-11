@@ -1238,20 +1238,37 @@ def disclosure_coverage_check(package, disclosures, error=None):
     # omitted filings/exhibits remain critical.
     informational = ("Document text limit reached", "Older submissions archive not retrieved")
     critical = [gap for gap in disclosures.gaps if not any(text in gap for text in informational)]
-    # A notice withdrawing reliance on issued statements covers a report issued before it. It stands until
-    # an amended report for the same period is filed after it. A notice issued before the scored report
-    # cannot cover that report.
-    issued = min(doc.filing.filed_date for doc in primary)
+    # A notice withdrawing reliance on issued statements can cover any periodic report in the package that
+    # was issued on or before it, the annual report as well as the quarterly one. It stands for such a report
+    # until the figures being scored for that report's period come from an amended report filed after the
+    # notice: an amendment merely being on file is not a correction (it may change no figure). A notice
+    # issued before every report in the package cannot cover any of them.
+    sources = {s.source_id: s for s in getattr(package, "sources", ())}
+
+    def scored_accessions(period_end):
+        return {sources[i].accession for f in package.facts if f.metric == "Total Assets" and f.value is not None
+                and f.period_end == period_end for i in getattr(f, "source_ids", ()) if i in sources}
+
+    reports = [doc.filing for doc in disclosures.documents if doc.filing.form in {"10-Q", "10-K"}]
     for doc in disclosures.documents:
         notice = doc.filing
-        if not notice.form.startswith("8-K") or "4.02" not in notice.items or notice.filed_date < issued:
+        if not notice.form.startswith("8-K") or "4.02" not in notice.items:
             continue
-        restated = any(other.filing.form in {"10-Q/A", "10-K/A"} and other.filing.report_date == end
-                       and other.filing.filed_date >= notice.filed_date for other in disclosures.documents)
-        if not restated:
+        uncorrected = []
+        for report in reports:
+            if report.filed_date > notice.filed_date:
+                continue
+            amended = {other.filing.accession for other in disclosures.documents
+                       if other.filing.form == report.form + "/A" and other.filing.report_date == report.report_date
+                       and other.filing.filed_date >= notice.filed_date}
+            if not amended & scored_accessions(report.report_date):
+                uncorrected.append(report)
+        if uncorrected:
+            named = ", ".join(f"{r.form} for {r.report_date}" for r in uncorrected)
             critical.append(
-                f"{notice.accession}: Item 4.02 non-reliance notice filed {notice.filed_date}, after the report for "
-                f"{end} was issued, and no amended report for {end} is on file")
+                f"{notice.accession}: Item 4.02 non-reliance notice filed {notice.filed_date}, after these reports "
+                f"were issued: {named}. The figures scored for them do not come from an amended report filed "
+                "after the notice")
     return {
         "code": code,
         "status": "unavailable" if critical else "pass",
@@ -1360,6 +1377,17 @@ def obligation_checks(package, source_precision=None):
         package, groups, cash.fact_id if cash else "missing-unrestricted-cash", settled=settled
     )
     generic = "required obligation category unavailable"
+    if end is not None and cash is None and any(r.status != "pass" for r in results):
+        # Nothing can be netted without cash; say so rather than naming a category that is not the cause.
+        why = (f"unrestricted cash at {end} is not established under the tags read, so no obligation perimeter "
+               "can be netted")
+        return tuple(r if r.status == "pass" else r.model_copy(update={"message": why}) for r in results)
+    stated_totals = {f.value for f in package.facts if f.metric == "Total Borrowings" and f.period_start is None
+                     and f.period_end == end and f.value is not None}
+    if end is not None and total is None and len(stated_totals) > 1:
+        why = (f"sourced borrowings totals disagree at {end} ("
+               + ", ".join(f"{value:,.0f}" for value in sorted(stated_totals)) + "); neither is used")
+        return tuple(r if r.status == "pass" else r.model_copy(update={"message": why}) for r in results)
     if end is None or not any(r.status != "pass" and r.message.startswith(generic) for r in results):
         return results
     # Say what was looked for and where, so a REVIEW gives the actual reason.

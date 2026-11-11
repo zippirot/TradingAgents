@@ -119,7 +119,7 @@ def test_a_figure_repeated_at_coarser_rounding_is_the_same_fact_and_equal_precis
 def _package(equity="1130"):
     def fact(metric, value):
         return FinancialFact(fact_id=f"f-{metric}", metric=metric, value=Decimal(value), unit="USD", cik=CIK, period_end=END,
-                             as_of=CUT, source_ids=("s",), locator="us-gaap/x")
+                             as_of=CUT, source_ids=("s",), locator=f"us-gaap/{metric.replace(' ', '')}/USD/instant/{END}")
     source = SourceRecord(source_id="s", cik=CIK, url="https://data.sec.gov/x", filed_date=date(2026, 10, 28),
                           retrieved_at=datetime(2026, 11, 11, tzinfo=UTC), content_hash="0" * 64, locator="x",
                           accession="0000789019-26-000001", form="10-Q")
@@ -142,7 +142,7 @@ def test_the_check_is_recomputed_from_the_package_and_catches_a_changed_figure()
     assert check_filed_equity(EvidencePackage(cik=CIK, as_of=CUT, facts=changed, sources=package.sources)).status == "fail"
     # A reconciliation whose closing balance is not the balance sheet's equity is not attached at all.
     other, why = with_filed_equity(_package(equity="999"), _instance(TOTAL_COLUMN), _structure(), **WHERE)
-    assert other.facts == _package(equity="999").facts and "not the balance sheet" in why[0]
+    assert other.facts == _package(equity="999").facts and "not the balance sheet's equity on the same ownership basis" in why[0]
     unclosed, why = with_filed_equity(_package(), _instance(TOTAL_COLUMN[:-1]), _structure(), **WHERE)
     assert check_filed_equity(unclosed) is None and "not established" in why[0]
 

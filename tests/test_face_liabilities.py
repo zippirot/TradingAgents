@@ -319,8 +319,7 @@ UNIT = '<unit id="sh"><measure>shares</measure></unit>'
 def test_shares_come_from_the_balance_date_as_the_filing_states_them():
     (direct,), _ = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 900))
     assert direct.value == 900 and direct.unit == "shares" and direct.origin == "reported"
-    (one_class,), _ = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 880, "seg_a"))
-    assert one_class.value == 880
+    # A count along the class-of-stock axis is covered in tests/test_large_filer_audit_closure.py (audit F4).
     (derived,), package = _shares(UNIT + _share_fact("us-gaap:CommonStockSharesIssued", 1000)
                                   + _share_fact("us-gaap:TreasuryStockCommonShares", 150))
     assert derived.value == 850 and derived.formula_id == "shares_issued_less_treasury_v1"

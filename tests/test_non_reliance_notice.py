@@ -68,18 +68,16 @@ def _coverage(*documents):
 QUARTER = ("10-Q", date(2026, 8, 5), END, "0001582961-26-000002")
 
 
-def test_a_retrieved_notice_after_the_scored_filing_stops_the_check_until_an_amended_report_is_on_file():
+def test_a_retrieved_notice_after_the_scored_filing_stops_the_check():
     assert _coverage(_document(*QUARTER))["status"] == "pass"
     notice = _document("8-K", date(2026, 9, 10), date(2026, 9, 10), "0001582961-26-000009", "4.02")
     blocked = _coverage(_document(*QUARTER), notice)
     assert blocked["status"] == "unavailable"
-    assert "0001582961-26-000009" in blocked["message"] and "Item 4.02" in blocked["message"] and "2026-06-30" in blocked["message"]
-    # A restated report for the same period filed after the notice clears it.
+    assert "0001582961-26-000009" in blocked["message"] and "Item 4.02" in blocked["message"] and "10-Q for 2026-06-30" in blocked["message"]
+    # An amendment on file does not clear it while the scored figures still come from the original report;
+    # the clearing case is in tests/test_large_filer_audit_closure.py (audit F1).
     amended = _document("10-Q/A", date(2026, 9, 25), END, "0001582961-26-000011")
-    assert _coverage(_document(*QUARTER), notice, amended)["status"] == "pass"
-    # An amendment filed before the notice does not.
-    early = _document("10-Q/A", date(2026, 8, 20), END, "0001582961-26-000012")
-    assert _coverage(_document(*QUARTER), notice, early)["status"] == "unavailable"
+    assert _coverage(_document(*QUARTER), notice, amended)["status"] == "unavailable"
 
 
 def test_a_notice_issued_before_the_scored_filing_cannot_cover_it():

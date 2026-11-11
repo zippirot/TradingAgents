@@ -205,17 +205,18 @@ def _undimensioned(facts, end, unit="USD", start=None):
     sum of that axis's members. The declared sum above it is then checked, so a split that overlaps or
     omits a member fails rather than passing as a total.
     """
-    repeats, split = {}, {}
+    repeats, split, filed = {}, {}, set()
     for fact in facts:
         if fact.end != end or fact.start != start or fact.unit != unit:
             continue
+        filed.add(fact.concept)
         if not fact.dimensions:
             repeats.setdefault(fact.concept, []).append(fact)
         elif len(fact.dimensions) == 1:
             axis, member = fact.dimensions[0]
             split.setdefault(fact.concept, {}).setdefault(axis, {})[member] = fact
     # A concept whose equally precise repeats disagree is left out, so any declared sum that needs it fails.
-    values = {concept: best for concept, group in repeats.items() if (best := most_precise(group)) is not None}
+    values = _Values({concept: best for concept, group in repeats.items() if (best := most_precise(group)) is not None})
     split = {concept: axes for concept, axes in split.items() if concept not in repeats}
     for concept, axes in split.items():
         if len(axes) != 1:
@@ -224,7 +225,15 @@ def _undimensioned(facts, end, unit="USD", start=None):
         decimals = [fact.decimals for fact in members]
         values[concept] = InstanceFact(concept, sum((fact.value for fact in members), Decimal(0)), unit, start, end, (),
                                        None if None in decimals else min(decimals))
+    # Filed for this date or period, but with no consolidated figure code can read (repeats that disagree, or
+    # a split along more than one axis). A declared sum that names such a line is not a complete list: the
+    # other lines adding up does not show this one is nil.
+    values.unreadable = frozenset(filed - values.keys())
     return values
+
+
+class _Values(dict):
+    unreadable: frozenset = frozenset()
 
 
 def _tolerance(parent, children):
@@ -269,6 +278,8 @@ def liability_lines(facts, calculation, end: date) -> tuple[tuple[Line, ...], De
         if concept in values:
             fact = values[concept]
             lines.append(Line(concept, fact.value * sign, fact.decimals, path))
+        elif concept in values.unreadable:
+            raise InstanceError(f"{concept} is filed but not readable as a consolidated figure")
 
     for root in roots:
         walk(root, (), Decimal(1))
@@ -278,6 +289,10 @@ def liability_lines(facts, calculation, end: date) -> tuple[tuple[Line, ...], De
 
 
 def _check(values, parent, children):
+    hidden = [child for child, _ in children if child in getattr(values, "unreadable", ())]
+    if hidden:
+        raise InstanceError(f"declared under {parent} and filed, but not readable as a consolidated figure: "
+                            + ", ".join(sorted(hidden)))
     present = [(values[child], weight) for child, weight in children if child in values]
     if not present:
         return
@@ -318,6 +333,8 @@ def cash_flow_lines(facts, calculation, start: date, end: date, roots) -> tuple[
                 walk(child, (*path, concept), sign * weight)
         elif concept in values:
             lines.append(Line(concept, values[concept].value * sign, values[concept].decimals, path))
+        elif concept in values.unreadable:
+            raise InstanceError(f"{concept} is filed but not readable as a consolidated figure")
 
     walk(root, (), Decimal(1))
     if not lines:

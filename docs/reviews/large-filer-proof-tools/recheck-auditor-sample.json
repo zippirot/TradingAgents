@@ -1,347 +1,357 @@
 [
  {
-  "ticker": "MU",
-  "document": "000072312526000023/mu-20260903.htm",
-  "sha256": "0a66f7c2c4079178",
+  "ticker": "CAT",
+  "document": "000001823026000057/cat-20260930.htm",
+  "sha256": "621fd12970d321dc",
+  "structure_from": "cat-20260930_cal.xml",
   "liabilities": {
-   "lines": 7,
-   "not_displayed": [],
-   "displayed_lines": {
-    "us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent": "22605000000",
-    "us-gaap:DebtCurrent": "491000000",
-    "us-gaap:OtherLiabilitiesCurrent": "4386000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "4688000000",
-    "us-gaap:GovernmentAssistanceLiabilityNoncurrent": "786000000",
-    "us-gaap:ContractWithCustomerLiabilityNoncurrent": "12895000000",
-    "us-gaap:OtherLiabilitiesNoncurrent": "11659000000"
+   "total_is": "printed total liabilities",
+   "printed_lines": {
+    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "32166000000.0",
+    "us-gaap:ShortTermBorrowings": "4855000000.00",
+    "us-gaap:AccountsPayableCurrent": "10573000000.00",
+    "us-gaap:AccruedLiabilitiesCurrent": "6038000000.00",
+    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "2663000000.00",
+    "us-gaap:ContractWithCustomerLiabilityCurrent": "5329000000.00",
+    "us-gaap:DividendsPayableCurrent": "0.00",
+    "us-gaap:OtherLiabilitiesCurrent": "3028000000.00",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "8180000000.00",
+    "us-gaap:PensionAndOtherPostretirementAndPostemploymentBenefitPlansLiabilitiesNoncurrent": "3610000000.0",
+    "us-gaap:OtherLiabilitiesNoncurrent": "8919000000.0"
    },
-   "displayed_sum": "57510000000",
-   "total_liabilities": "57510000000",
+   "printed_sum": "85361000000.00",
+   "printed_total": "85361000000",
    "adds_up": true,
-   "displayed_borrowings": "5179000000",
-   "borrowings_used": "5179000000.00",
+   "equals_reader_total": true,
+   "borrowings_by_this_tool": "45201000000.00",
+   "borrowings_reader_used": "45201000000.00",
    "borrowings_agree": true
   },
   "equity": {
-   "period": "2025-08-29 to 2026-09-03",
-   "closes": true,
+   "period": "2026-07-01 to 2026-09-30",
+   "closes_on_printed_signs": true,
+   "movements_not_listed_in_the_statement": [],
    "components": [
     {
      "component": "total",
-     "opening": "54165000000",
-     "movements": 7,
-     "computed_closing": "138378000000",
-     "displayed_closing": "138378000000",
+     "printed_opening": "19394000000",
+     "movements": 10,
+     "opening_plus_printed_movements": "21482000000",
+     "printed_closing": "21482000000",
      "closes": true
     }
    ]
   },
   "financing": {
-   "period": "2025-08-29 to 2026-09-03",
-   "lines": 7,
-   "signed_lines": {
-    "mu:ProceedsFromCustomerContractLiabilityDeposits": "12747000000.0",
-    "us-gaap:ProceedsFromIssuanceOfLongTermDebt": "0.0",
-    "us-gaap:RepaymentsOfLongTermDebtAndCapitalSecurities": "-10043000000.0",
-    "us-gaap:PaymentsRelatedToTaxWithholdingForShareBasedCompensation": "-1127000000.0",
-    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-650000000.0",
-    "us-gaap:PaymentsOfDividendsCommonStock": "-610000000.0",
-    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "313000000.0"
+   "period": "2026-01-01 to 2026-09-30",
+   "printed_lines": {
+    "us-gaap:PaymentsOfDividendsCommonStock": "-2148000000",
+    "us-gaap:ProceedsFromIssuanceOrSaleOfEquity": "-131000000",
+    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-7745000000",
+    "cat:PaymentsForExciseTaxOnPurchaseOfCommonStock": "-49000000",
+    "us-gaap:ProceedsFromDebtMaturingInMoreThanThreeMonths": "10490000000",
+    "us-gaap:RepaymentsOfDebtMaturingInMoreThanThreeMonths": "-7495000000",
+    "us-gaap:ProceedsFromRepaymentsOfShortTermDebtMaturingInThreeMonthsOrLess": "-748000000"
    },
-   "displayed_sum": "630000000",
-   "displayed_total": "630000000",
-   "adds_up": true
+   "printed_sum": "-7826000000",
+   "printed_total": "-7826000000",
+   "adds_up": true,
+   "equipment_like_lines_by_this_tool": []
   }
  },
  {
   "ticker": "RTX",
   "document": "000010182926000031/rtx-20260930.htm",
   "sha256": "76dc690f3a258628",
+  "structure_from": "rtx-20260930_cal.xml",
   "liabilities": {
-   "lines": 10,
-   "not_displayed": [],
-   "displayed_lines": {
-    "us-gaap:ShortTermBorrowings": "210000000",
-    "us-gaap:AccountsPayableCurrent": "17803000000",
-    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "3155000000",
-    "us-gaap:OtherAccruedLiabilitiesCurrent": "14801000000",
-    "us-gaap:ContractWithCustomerLiabilityCurrent": "21550000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "5679000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "31490000000",
-    "us-gaap:OperatingLeaseLiabilityNoncurrent": "1495000000",
-    "us-gaap:PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent": "1913000000",
-    "us-gaap:OtherLiabilitiesNoncurrent": "7508000000"
+   "total_is": "printed total liabilities",
+   "printed_lines": {
+    "us-gaap:ShortTermBorrowings": "210000000.00",
+    "us-gaap:AccountsPayableCurrent": "17803000000.00",
+    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "3155000000.00",
+    "us-gaap:OtherAccruedLiabilitiesCurrent": "14801000000.00",
+    "us-gaap:ContractWithCustomerLiabilityCurrent": "21550000000.00",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "5679000000.00",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "31490000000.0",
+    "us-gaap:OperatingLeaseLiabilityNoncurrent": "1495000000.0",
+    "us-gaap:PensionAndOtherPostretirementDefinedBenefitPlansLiabilitiesNoncurrent": "1913000000.0",
+    "us-gaap:OtherLiabilitiesNoncurrent": "7508000000.0"
    },
-   "displayed_sum": "105604000000",
-   "total_liabilities": "105604000000",
+   "printed_sum": "105604000000.00",
+   "printed_total": "105604000000",
    "adds_up": true,
-   "displayed_borrowings": "37379000000",
-   "borrowings_used": "37379000000.00",
+   "equals_reader_total": true,
+   "borrowings_by_this_tool": "37379000000.00",
+   "borrowings_reader_used": "37379000000.00",
    "borrowings_agree": true
   },
   "equity": {
    "period": "2026-07-01 to 2026-09-30",
-   "closes": true,
+   "closes_on_printed_signs": true,
+   "movements_not_listed_in_the_statement": [],
    "components": [
     {
      "component": "AccumulatedOtherComprehensiveIncomeMember",
-     "opening": "-3309000000",
+     "printed_opening": "-3309000000",
      "movements": 1,
-     "computed_closing": "-3308000000",
-     "displayed_closing": "-3308000000",
+     "opening_plus_printed_movements": "-3308000000",
+     "printed_closing": "-3308000000",
      "closes": true
     },
     {
      "component": "CommonStockIncludingAdditionalPaidInCapitalMember",
-     "opening": "38424000000",
+     "printed_opening": "38424000000",
      "movements": 2,
-     "computed_closing": "38673000000",
-     "displayed_closing": "38673000000",
+     "opening_plus_printed_movements": "38673000000",
+     "printed_closing": "38673000000",
      "closes": true
     },
     {
      "component": "NoncontrollingInterestMember",
-     "opening": "1739000000",
+     "printed_opening": "1739000000",
      "movements": 3,
-     "computed_closing": "1714000000",
-     "displayed_closing": "1714000000",
+     "opening_plus_printed_movements": "1714000000",
+     "printed_closing": "1714000000",
      "closes": true
     },
     {
      "component": "RetainedEarningsMember",
-     "opening": "58020000000",
+     "printed_opening": "58020000000",
      "movements": 4,
-     "computed_closing": "60597000000",
-     "displayed_closing": "60597000000",
+     "opening_plus_printed_movements": "60597000000",
+     "printed_closing": "60597000000",
      "closes": true
     },
     {
      "component": "TreasuryStockCommonMember",
-     "opening": "-26758000000",
+     "printed_opening": "-26758000000",
      "movements": 2,
-     "computed_closing": "-26712000000",
-     "displayed_closing": "-26712000000",
+     "opening_plus_printed_movements": "-26712000000",
+     "printed_closing": "-26712000000",
      "closes": true
     }
    ]
   },
   "financing": {
    "period": "2026-01-01 to 2026-09-30",
-   "lines": 4,
-   "signed_lines": {
-    "us-gaap:RepaymentsOfLongTermDebt": "-526000000.0",
-    "us-gaap:PaymentsOfDividendsCommonStock": "-2882000000.0",
-    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-0.0",
-    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-677000000.0"
+   "printed_lines": {
+    "us-gaap:RepaymentsOfLongTermDebt": "-526000000",
+    "us-gaap:PaymentsOfDividendsCommonStock": "-2882000000",
+    "us-gaap:PaymentsForRepurchaseOfCommonStock": "0",
+    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-677000000"
    },
-   "displayed_sum": "-4085000000",
-   "displayed_total": "-4085000000",
-   "adds_up": true
+   "printed_sum": "-4085000000",
+   "printed_total": "-4085000000",
+   "adds_up": true,
+   "equipment_like_lines_by_this_tool": []
   }
  },
  {
-  "ticker": "CAT",
-  "document": "000001823026000057/cat-20260930.htm",
-  "sha256": "621fd12970d321dc",
+  "ticker": "MU",
+  "document": "000072312526000023/mu-20260903.htm",
+  "sha256": "0a66f7c2c4079178",
+  "structure_from": "mu-20260903_cal.xml",
   "liabilities": {
-   "lines": 11,
-   "not_displayed": [],
-   "displayed_lines": {
-    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "32166000000",
-    "us-gaap:ShortTermBorrowings": "4855000000",
-    "us-gaap:AccountsPayableCurrent": "10573000000",
-    "us-gaap:AccruedLiabilitiesCurrent": "6038000000",
-    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "2663000000",
-    "us-gaap:ContractWithCustomerLiabilityCurrent": "5329000000",
-    "us-gaap:DividendsPayableCurrent": "0",
-    "us-gaap:OtherLiabilitiesCurrent": "3028000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "8180000000",
-    "us-gaap:PensionAndOtherPostretirementAndPostemploymentBenefitPlansLiabilitiesNoncurrent": "3610000000",
-    "us-gaap:OtherLiabilitiesNoncurrent": "8919000000"
+   "total_is": "printed total liabilities",
+   "printed_lines": {
+    "us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent": "22605000000.00",
+    "us-gaap:DebtCurrent": "491000000.00",
+    "us-gaap:OtherLiabilitiesCurrent": "4386000000.00",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "4688000000.0",
+    "us-gaap:GovernmentAssistanceLiabilityNoncurrent": "786000000.0",
+    "us-gaap:ContractWithCustomerLiabilityNoncurrent": "12895000000.0",
+    "us-gaap:OtherLiabilitiesNoncurrent": "11659000000.0"
    },
-   "displayed_sum": "85361000000",
-   "total_liabilities": "85361000000",
+   "printed_sum": "57510000000.00",
+   "printed_total": "57510000000",
    "adds_up": true,
-   "displayed_borrowings": "45201000000",
-   "borrowings_used": "45201000000.00",
+   "equals_reader_total": true,
+   "borrowings_by_this_tool": "5179000000.00",
+   "borrowings_reader_used": "5179000000.00",
    "borrowings_agree": true
   },
   "equity": {
-   "period": "2026-07-01 to 2026-09-30",
-   "closes": true,
+   "period": "2025-08-29 to 2026-09-03",
+   "closes_on_printed_signs": true,
+   "movements_not_listed_in_the_statement": [],
    "components": [
     {
      "component": "total",
-     "opening": "19394000000",
-     "movements": 10,
-     "computed_closing": "21482000000",
-     "displayed_closing": "21482000000",
+     "printed_opening": "54165000000",
+     "movements": 7,
+     "opening_plus_printed_movements": "138378000000",
+     "printed_closing": "138378000000",
      "closes": true
     }
    ]
   },
   "financing": {
-   "period": "2026-01-01 to 2026-09-30",
-   "lines": 7,
-   "signed_lines": {
-    "us-gaap:PaymentsOfDividendsCommonStock": "-2148000000.0",
-    "us-gaap:ProceedsFromIssuanceOrSaleOfEquity": "-131000000.0",
-    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-7745000000.0",
-    "cat:PaymentsForExciseTaxOnPurchaseOfCommonStock": "-49000000.0",
-    "us-gaap:ProceedsFromDebtMaturingInMoreThanThreeMonths": "10490000000.0",
-    "us-gaap:RepaymentsOfDebtMaturingInMoreThanThreeMonths": "-7495000000.0",
-    "us-gaap:ProceedsFromRepaymentsOfShortTermDebtMaturingInThreeMonthsOrLess": "-748000000.0"
+   "period": "2025-08-29 to 2026-09-03",
+   "printed_lines": {
+    "mu:ProceedsFromCustomerContractLiabilityDeposits": "12747000000",
+    "us-gaap:ProceedsFromIssuanceOfLongTermDebt": "0",
+    "us-gaap:RepaymentsOfLongTermDebtAndCapitalSecurities": "-10043000000",
+    "us-gaap:PaymentsRelatedToTaxWithholdingForShareBasedCompensation": "-1127000000",
+    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-650000000",
+    "us-gaap:PaymentsOfDividendsCommonStock": "-610000000",
+    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "313000000"
    },
-   "displayed_sum": "-7826000000",
-   "displayed_total": "-7826000000",
-   "adds_up": true
+   "printed_sum": "630000000",
+   "printed_total": "630000000",
+   "adds_up": true,
+   "equipment_like_lines_by_this_tool": []
   }
  },
  {
   "ticker": "MRK",
   "document": "000031015826000248/mrk-20260930.htm",
   "sha256": "e2db154c7122c70f",
+  "structure_from": "mrk-20260930_cal.xml",
   "liabilities": {
-   "lines": 8,
-   "not_displayed": [],
-   "displayed_lines": {
-    "us-gaap:AccountsPayableCurrent": "5031000000",
-    "us-gaap:DebtCurrent": "4088000000",
-    "us-gaap:OtherLiabilitiesCurrent": "13239000000",
-    "us-gaap:DividendsPayableCurrent": "2134000000",
-    "us-gaap:AccruedIncomeTaxesCurrent": "4309000000",
+   "total_is": "printed liabilities-and-equity total less the printed equity-side lines",
+   "printed_lines": {
+    "us-gaap:AccountsPayableCurrent": "5031000000.0",
+    "us-gaap:DebtCurrent": "4088000000.0",
+    "us-gaap:OtherLiabilitiesCurrent": "13239000000.0",
+    "us-gaap:DividendsPayableCurrent": "2134000000.0",
+    "us-gaap:AccruedIncomeTaxesCurrent": "4309000000.0",
     "us-gaap:LongTermDebtNoncurrent": "49689000000",
     "us-gaap:DeferredIncomeTaxLiabilitiesNet": "1460000000",
     "us-gaap:OtherLiabilitiesNoncurrent": "7877000000"
    },
-   "displayed_sum": "87827000000",
-   "total_liabilities": "87827000000",
+   "printed_sum": "87827000000.0",
+   "printed_total": "87827000000",
    "adds_up": true,
-   "displayed_borrowings": "53777000000",
-   "borrowings_used": "53777000000.0",
+   "equals_reader_total": true,
+   "borrowings_by_this_tool": "53777000000.0",
+   "borrowings_reader_used": "53777000000.0",
    "borrowings_agree": true
   },
   "equity": {
    "period": "2026-07-01 to 2026-09-30",
-   "closes": true,
+   "closes_on_printed_signs": true,
+   "movements_not_listed_in_the_statement": [],
    "components": [
     {
      "component": "total",
-     "opening": "41984000000",
+     "printed_opening": "41984000000",
      "movements": 6,
-     "computed_closing": "44942000000",
-     "displayed_closing": "44946000000",
+     "opening_plus_printed_movements": "44946000000",
+     "printed_closing": "44946000000",
      "closes": true
     }
    ]
   },
   "financing": {
    "period": "2026-01-01 to 2026-09-30",
-   "lines": 8,
-   "signed_lines": {
-    "us-gaap:ProceedsFromShortTermDebt": "6000000000.0",
-    "us-gaap:RepaymentsOfShortTermDebt": "-6000000000.0",
-    "us-gaap:ProceedsFromIssuanceOfDebt": "5956000000.0",
-    "us-gaap:RepaymentsOfLongTermDebt": "-1145000000.0",
-    "us-gaap:PaymentsOfDividendsCommonStock": "-6348000000.0",
-    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-2284000000.0",
-    "us-gaap:ProceedsFromStockOptionsExercised": "447000000.0",
-    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-277000000.0"
+   "printed_lines": {
+    "us-gaap:ProceedsFromShortTermDebt": "6000000000",
+    "us-gaap:RepaymentsOfShortTermDebt": "-6000000000",
+    "us-gaap:ProceedsFromIssuanceOfDebt": "5956000000",
+    "us-gaap:RepaymentsOfLongTermDebt": "-1145000000",
+    "us-gaap:PaymentsOfDividendsCommonStock": "-6348000000",
+    "us-gaap:PaymentsForRepurchaseOfCommonStock": "-2284000000",
+    "us-gaap:ProceedsFromStockOptionsExercised": "447000000",
+    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-277000000"
    },
-   "displayed_sum": "-3651000000",
-   "displayed_total": "-3651000000",
-   "adds_up": true
+   "printed_sum": "-3651000000",
+   "printed_total": "-3651000000",
+   "adds_up": true,
+   "equipment_like_lines_by_this_tool": []
   }
  },
  {
   "ticker": "HD",
   "document": "000162828026058715/hd-20260802.htm",
   "sha256": "829455ff8ff013c7",
+  "structure_from": "hd-20260802_cal.xml",
   "liabilities": {
-   "lines": 13,
-   "not_displayed": [],
-   "displayed_lines": {
-    "us-gaap:DeferredRevenueCurrent": "2728000000",
-    "us-gaap:AccountsPayableCurrent": "13585000000",
-    "us-gaap:AccruedIncomeTaxesCurrent": "253000000",
-    "us-gaap:OperatingLeaseLiabilityCurrent": "1516000000",
-    "us-gaap:OtherAccruedLiabilitiesCurrent": "4761000000",
-    "us-gaap:SalesAndExciseTaxPayableCurrent": "729000000",
-    "us-gaap:CommercialPaper": "4248000000",
-    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "2471000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "4697000000",
-    "us-gaap:DeferredIncomeTaxLiabilitiesNet": "2850000000",
-    "us-gaap:OperatingLeaseLiabilityNoncurrent": "8155000000",
-    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "43951000000",
-    "us-gaap:OtherLiabilitiesNoncurrent": "2823000000"
+   "total_is": "printed total liabilities",
+   "printed_lines": {
+    "us-gaap:DeferredRevenueCurrent": "2728000000.00",
+    "us-gaap:AccountsPayableCurrent": "13585000000.00",
+    "us-gaap:AccruedIncomeTaxesCurrent": "253000000.00",
+    "us-gaap:OperatingLeaseLiabilityCurrent": "1516000000.00",
+    "us-gaap:OtherAccruedLiabilitiesCurrent": "4761000000.00",
+    "us-gaap:SalesAndExciseTaxPayableCurrent": "729000000.00",
+    "us-gaap:CommercialPaper": "4248000000.00",
+    "us-gaap:EmployeeRelatedLiabilitiesCurrent": "2471000000.00",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "4697000000.00",
+    "us-gaap:DeferredIncomeTaxLiabilitiesNet": "2850000000.0",
+    "us-gaap:OperatingLeaseLiabilityNoncurrent": "8155000000.0",
+    "us-gaap:LongTermDebtAndCapitalLeaseObligations": "43951000000.0",
+    "us-gaap:OtherLiabilitiesNoncurrent": "2823000000.0"
    },
-   "displayed_sum": "92767000000",
-   "total_liabilities": "92767000000",
+   "printed_sum": "92767000000.00",
+   "printed_total": "92767000000",
    "adds_up": true,
-   "displayed_borrowings": "52896000000",
-   "borrowings_used": "52896000000.00",
+   "equals_reader_total": true,
+   "borrowings_by_this_tool": "52896000000.00",
+   "borrowings_reader_used": "52896000000.00",
    "borrowings_agree": true
   },
   "equity": {
    "period": "2026-02-02 to 2026-08-02",
-   "closes": true,
+   "closes_on_printed_signs": true,
+   "movements_not_listed_in_the_statement": [],
    "components": [
     {
      "component": "AccumulatedOtherComprehensiveIncomeMember",
-     "opening": "-652000000",
+     "printed_opening": "-652000000",
      "movements": 2,
-     "computed_closing": "-688000000",
-     "displayed_closing": "-688000000",
+     "opening_plus_printed_movements": "-688000000",
+     "printed_closing": "-688000000",
      "closes": true
     },
     {
      "component": "AdditionalPaidInCapitalMember",
-     "opening": "14809000000",
+     "printed_opening": "14809000000",
      "movements": 2,
-     "computed_closing": "15237000000",
-     "displayed_closing": "15237000000",
+     "opening_plus_printed_movements": "15237000000",
+     "printed_closing": "15237000000",
      "closes": true
     },
     {
      "component": "CommonStockMember",
-     "opening": "90000000",
+     "printed_opening": "90000000",
      "movements": 1,
-     "computed_closing": "90000000",
-     "displayed_closing": "90000000",
+     "opening_plus_printed_movements": "90000000",
+     "printed_closing": "90000000",
      "closes": true
     },
     {
      "component": "RetainedEarningsMember",
-     "opening": "94537000000",
+     "printed_opening": "94537000000",
      "movements": 2,
-     "computed_closing": "97949000000",
-     "displayed_closing": "97949000000",
+     "opening_plus_printed_movements": "97949000000",
+     "printed_closing": "97949000000",
      "closes": true
     },
     {
      "component": "TreasuryStockCommonMember",
-     "opening": "-95971000000",
+     "printed_opening": "-95971000000",
      "movements": 0,
-     "computed_closing": "-95971000000",
-     "displayed_closing": "-95971000000",
+     "opening_plus_printed_movements": "-95971000000",
+     "printed_closing": "-95971000000",
      "closes": true
     }
    ]
   },
   "financing": {
    "period": "2026-02-02 to 2026-08-02",
-   "lines": 6,
-   "signed_lines": {
-    "us-gaap:RepaymentsOfLongTermDebtAndCapitalSecurities": "-3040000000.0",
-    "us-gaap:ProceedsFromIssuanceOfCommonStock": "192000000.0",
-    "us-gaap:PaymentsOfDividendsCommonStock": "-4643000000.0",
-    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-116000000.0",
-    "us-gaap:ProceedsFromRepaymentsOfCommercialPaper": "-216000000.0",
-    "us-gaap:ProceedsFromIssuanceOfLongTermDebt": "122000000.0"
+   "printed_lines": {
+    "us-gaap:RepaymentsOfLongTermDebtAndCapitalSecurities": "-3040000000",
+    "us-gaap:ProceedsFromIssuanceOfCommonStock": "192000000",
+    "us-gaap:PaymentsOfDividendsCommonStock": "-4643000000",
+    "us-gaap:ProceedsFromPaymentsForOtherFinancingActivities": "-116000000",
+    "us-gaap:ProceedsFromRepaymentsOfCommercialPaper": "-216000000",
+    "us-gaap:ProceedsFromIssuanceOfLongTermDebt": "122000000"
    },
-   "displayed_sum": "-7701000000",
-   "displayed_total": "-7701000000",
-   "adds_up": true
+   "printed_sum": "-7701000000",
+   "printed_total": "-7701000000",
+   "adds_up": true,
+   "equipment_like_lines_by_this_tool": []
   }
  }
 ]
