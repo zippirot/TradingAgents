@@ -139,3 +139,43 @@ def test_the_portfolio_manager_step_sends_a_misfiled_role_back_once_and_keeps_th
         "rationale": "Obligations outweigh growth.", "conditions": [condition()]})
     _, llm = invoke(clean)
     assert len(llm.with_structured_output.return_value.invoke.call_args_list) == 1
+
+
+def test_a_case_weight_with_its_percentage_is_not_a_portfolio_weight():
+    """Run b7396f4f: 'Retain the prior subjective 50% weight' blanked every case reason on the card."""
+    from tradingagents.agents.evidence_presentation import (
+        PORTFOLIO_WITHHELD,
+        without_portfolio_figures,
+    )
+    for reason in ("Retain the prior subjective 50% weight: the 6x multiple is a plausible conditional base.",
+                   "A scenario 30% weight reflects the 1.70 billion downside.", "Keep the case 20% weight at 8x."):
+        assert without_portfolio_figures(reason) == reason
+    for sizing in ("Reduce toward a 2.5% portfolio weight.", "Cut to a 5% weight now.",
+                   "Keep the subjective 50% weight but trim 1,304 units."):
+        assert PORTFOLIO_WITHHELD in without_portfolio_figures(sizing)
+
+
+def test_an_event_given_no_direction_is_kept_as_a_reconsideration_trigger_and_said_so():
+    """Run b7396f4f: a note settlement that could cut either way was sent with no role and lost."""
+    event = {'kind': 'event', 'description': 'DOCN reports completed settlement of the 2026 convertible notes.',
+             'confirming_evidence': '8-K reporting the settlement', 'expiry': '2027-02-28', 'rationale': 'Two-way'}
+    for sent in (event, {**event, 'thesis_role': 'unspecified'}):
+        saved = thesis.prepare_thesis({'conditions': [sent]}, None, 'Underweight', '2026-11-11', str(uuid4()))
+        assert [row['thesis_role'] for row in saved['conditions']] == ['reconsideration_trigger']
+        shown = thesis.visible_warnings(saved['warnings'])
+        assert len(shown) == 1 and shown[0].startswith('Role check: no role was given for the event')
+    # A measure has a direction, so a metric with no role is still refused.
+    refused = thesis.prepare_thesis({'conditions': [condition(thesis_role='unspecified')]}, None, 'Underweight',
+                                    '2026-11-11', str(uuid4()))
+    assert refused['conditions'] == [] and any('needs thesis_role' in w for w in refused['warnings'])
+
+
+def test_the_fixed_levels_rule_claims_no_exclusive_route_and_is_not_audited_as_the_traders_words():
+    from tradingagents.agents.audit_pass import _role_texts
+    from tradingagents.agents.trader.trader import LEVELS_RULE
+    assert "only route" not in LEVELS_RULE and "changes timing only and never the rating" in LEVELS_RULE
+    assert "written by code, not the Trader" in LEVELS_RULE and "does not halt a change in size" in LEVELS_RULE
+    plan = f"**Action**: Sell\n\n**Reference Sale Level**: 84.57\n\n{LEVELS_RULE}\n\nCarried plan."
+    texts = _role_texts({"trader_investment_plan": plan})
+    trader = texts[0]["trader"] if isinstance(texts, tuple) else texts["trader"]
+    assert "How to read these levels" not in trader and "Reference Sale Level" in trader and "Carried plan." in trader

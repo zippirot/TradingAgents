@@ -37,7 +37,7 @@ class ThesisCondition(BaseModel):
     expiry: date
     rationale: str = Field(min_length=1, max_length=1000)
     thesis_role: Literal['supports_thesis', 'reconsideration_trigger', 'unspecified'] = Field(
-        default='unspecified', description='Unvalidated research intent: supports_thesis means the result, if met, supports the rating given now; reconsideration_trigger means reconsider that rating if met; or unspecified. Under Underweight or Sell, a result that is good for the company is a reconsideration_trigger.')
+        default='unspecified', description='Unvalidated research intent: supports_thesis means the result, if met, supports the rating given now; reconsideration_trigger means reconsider that rating if met; or unspecified. Under Underweight or Sell, a result that is good for the company is a reconsideration_trigger, and so is an event that could cut either way.')
 
     @model_validator(mode='after')
     def dates(self):
@@ -175,6 +175,13 @@ def _conditions(values, *, preserve_ids=False, package=None, quote_currency=None
                 payload['currency'] = quote_currency
                 warnings.append(f'Condition at index {index}: quote currency was not stated; the validated quote '
                                 f'currency {quote_currency} was used.')
+            # An event can cut either way, and a look at it either way is what a reconsideration trigger asks for.
+            if (not preserve_ids and payload.get('kind') == 'event'
+                    and payload.get('thesis_role') in (None, 'unspecified')):
+                payload['thesis_role'] = 'reconsideration_trigger'
+                warnings.append('Role check: no role was given for the event '
+                                f'"{_prompt_display(payload.get("description"), 80)}"; it is filed as a '
+                                'reconsideration trigger, since an event that can cut either way prompts a fresh look.')
             condition, originals = _normalize_condition(_condition(payload), package)
             if not preserve_ids and condition.thesis_role == 'unspecified':
                 name = condition.metric or condition.description or f'{condition.comparator} {condition.threshold} {condition.currency}'

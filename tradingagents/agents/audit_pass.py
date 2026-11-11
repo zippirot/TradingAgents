@@ -83,6 +83,9 @@ def _role_texts(state):
     originals = originals if isinstance(originals, Mapping) else {}
     roles = {role: (originals[field] if isinstance(originals.get(field), str)
                     else str(state.get(field) or "")) for role, field in ROLES.items()}
+    # The fixed reading rule is appended by code; it is not a claim the Trader made.
+    from tradingagents.agents.trader.trader import LEVELS_RULE
+    roles["trader"] = roles["trader"].replace(LEVELS_RULE, "").replace("\n\n\n\n", "\n\n")
     validation = state.get("financial_claim_validation") or {}
     original = validation.get("raw_report") if isinstance(validation, Mapping) else None
     if isinstance(original, str):

@@ -26,7 +26,7 @@ SELL = TraderProposal(action="Sell", reasoning="Trim.", reference_sale_level=84.
 def test_every_proposal_with_a_level_is_followed_by_the_fixed_rule_before_the_carried_plan():
     output, messages = _run(SELL)
     assert LEVELS_RULE in output and output.index(LEVELS_RULE) < output.index("Trim gradually.")
-    assert "the only route to a different rating" in LEVELS_RULE and "does not halt a change in size" in LEVELS_RULE
+    assert "changes timing only and never the rating" in LEVELS_RULE and "does not halt a change in size" in LEVELS_RULE
     system = messages[0]["content"]
     assert "Do not write your own conditions for changing or reassessing the rating" in system
     assert "never inside them" in system

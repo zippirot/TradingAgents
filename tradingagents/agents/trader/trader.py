@@ -46,9 +46,9 @@ def _reading(text: str, investment_plan: str) -> str:
 # Said by code after every proposal that names a price level, so no reader has to work out which of the
 # Trader's levels can change the rating (none) and which change only timing (all).
 LEVELS_RULE = (
-    "How to read these levels (a fixed rule, not the Trader's judgement): the Research Manager's conditions "
-    "carried below are the only route to a different rating, and a set stated together must be met together. "
-    "A price level in this proposal changes timing only. A reference sale level or purchase entry price is a "
+    "How to read these levels (a fixed rule written by code, not the Trader): a price level in this proposal "
+    "changes timing only and never the rating. The rating is reconsidered on the evidence, including the Research "
+    "Manager's conditions carried below, and conditions stated together are read together. A reference sale level or purchase entry price is a "
     "preferred price, not a precondition for acting. An invalidation or stop level marks where the technical "
     "read stops holding; it does not halt a change in size the rating calls for and does not by itself reopen "
     "the rating.")
