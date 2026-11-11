@@ -669,7 +669,20 @@ def generate_summary(context: dict, llm) -> dict:
         record = _unavailable(context, _error_category(exc))
         record["elapsed_ms"] = round((time.monotonic() - started) * 1000)
         return record
-    items = _body_items(parsed, {section["key"] for section in context["sections"]}, context["rating"])
+    keys = {section["key"] for section in context["sections"]}
+    items = _body_items(parsed, keys, context["rating"])
+    if items is None:
+        # A model that cannot be made to call the tool answers in prose, or misses a rule. Ask once more, plainly.
+        from tradingagents.agents.structured import JSON_RETRY, _json_object
+        ask = (JSON_RETRY + json.dumps(SummaryOutput.model_json_schema()) + "\nRules the answer must meet: 3 to 10 "
+               "sentences; each object has exactly the keys text and sections; each text is one sentence of at most "
+               "450 characters ending in a full stop; sections lists only, and between them the sentences cover, "
+               "every one of these section keys: " + ", ".join(sorted(keys)) + ".")
+        try:
+            again = llm.invoke(f"{prompt}\n\n{ask}")
+            items = _body_items(_json_object(getattr(again, "content", None)), keys, context["rating"])
+        except Exception:  # noqa: BLE001 - the retry is best effort; the first outcome stands
+            items = None
     if items is None:
         record = _unavailable(context, "malformed_response")
     else:

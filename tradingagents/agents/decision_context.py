@@ -32,6 +32,7 @@ from tradingagents.memory.thesis import (
     condition_role_label,
     condition_status_label,
     observe_conditions,
+    visible_warnings,
 )
 
 
@@ -375,7 +376,7 @@ def prepare_decision_context(state: dict) -> dict:
             'trader_provisional': _trader(trader),
             'trader_reading': action_reading(_trader(trader), research_rating(originals.get('investment_plan', state.get('investment_plan')))),
             'conditions': condition_rows,
-            'condition_warnings': [str(w) for w in thesis.get('warnings', []) if isinstance(w, str) and 'stated but not retained' in w],
+            'condition_warnings': visible_warnings(thesis.get('warnings')),
             'proposed_changes': [], 'excerpts': excerpts[:4],
             'research_only': 'Advisory conditions do not enforce a rating. No validated stop, numerical allocation or broker instruction is published.'}
 

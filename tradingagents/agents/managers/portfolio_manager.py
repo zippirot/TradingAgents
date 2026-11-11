@@ -44,7 +44,16 @@ from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, 
 from tradingagents.agents.valuation import TargetResult
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
 from tradingagents.dataflows.financial_evidence import EvidencePackage, bounded_evidence_view
+from tradingagents.memory.thesis import role_feedback
 from tradingagents.operational_capture import delivered_narrative
+
+
+def _proposed_conditions(decision):
+    """The conditions as the manager wrote them, before any validation drops or relabels one."""
+    candidate = decision._unvalidated_thesis_candidate
+    if candidate is None and decision.thesis_candidate is not None:
+        candidate = decision.thesis_candidate.model_dump(mode="json")
+    return candidate.get("conditions") if isinstance(candidate, dict) else None
 
 
 def create_portfolio_manager(llm):
@@ -164,7 +173,7 @@ settlement), and expiry, without threshold or comparator. Do not derive structur
 conditions from unstated implications. Gross Margin uses Gross
 Profit / Revenue: metric/definition "Gross Margin", unit "percent", basis US-GAAP.
 Every new condition must set thesis_role: supports_thesis supports the current
-thesis; reconsideration_trigger means reconsider if met. A trigger not met is
+rating; reconsideration_trigger means reconsider if met. A trigger not met is
 not a failed thesis. Never infer legacy intent from comparator or rating.
 For each prior ID give kept/overridden/retired and a specific reason. To keep a
 prior condition, dispose it as kept by its condition_id and do not restate it as a
@@ -193,7 +202,8 @@ Write in order, rating first:
                 "portfolio_manager": {"scenario_contract": 1, "structured": decision.model_dump(mode="json")}}}
             feedback = " ".join(part for part in (
                 retry_feedback(answered, replayed),
-                change_feedback(brief, decision.rating.value, getattr(decision, "change_assessment", None))) if part)
+                change_feedback(brief, decision.rating.value, getattr(decision, "change_assessment", None)),
+                role_feedback(decision.rating.value, _proposed_conditions(decision))) if part)
             if feedback:
                 decision = invoke_structured(structured_llm, f"{prompt}\n\n{feedback}", "Portfolio Manager") or decision
         original = dict(state.get("unvalidated_outputs") or {})

@@ -69,7 +69,7 @@ def test_condition_summary_is_next_to_rating_and_keeps_roles_unknown_override():
     rendered = render_decision_context(card)
     assert rendered.index("Advisory conditions at a glance") < rendered.index("**Basis**")
     assert (
-        "overridden" in rendered and "unknown" in rendered and "Supports current thesis" in rendered
+        "overridden" in rendered and "unknown" in rendered and "Supports the current rating" in rendered
     )
     assert "a" * 64 not in rendered and "evidence.json" in rendered
     assert card == original

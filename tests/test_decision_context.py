@@ -97,7 +97,7 @@ def test_advisory_breach_is_recomputed_and_disposition_remains_unvalidated():
     assert record['basis'] == 'risk assessment' and record['rating'] == 'Underweight'
     text = render_decision_context(record)
     assert 'breached' in text and 'Reason (unvalidated)' in text
-    assert 'Advisory conditions' in text and 'Supports current thesis' in text
+    assert 'Advisory conditions' in text and 'Supports the current rating' in text
 
 
 def test_unsupported_final_request_is_not_rescued_by_early_scenarios():

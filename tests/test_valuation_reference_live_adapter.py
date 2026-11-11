@@ -577,7 +577,8 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
     assert result["model_calls"] > (10 if mapped else 0)
     assert result["model_calls"] == (result["state"]["run_metrics"]["model_calls"]
                                      + result["editorial_model_calls"])
-    assert result["editorial_model_calls"] == (1 if mapped else 0)
+    # The offline model never returns a readable summary, so the one plain-JSON retry is spent as well.
+    assert result["editorial_model_calls"] == (2 if mapped else 0)
     assert len([entry for entry in ledger.events() if entry["type"] == "request_meta"]) == result["model_calls"]
     assert result["state"]["market_observation_cutoff"] == market_cutoff
     if not mapped:

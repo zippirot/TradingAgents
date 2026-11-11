@@ -8,6 +8,7 @@ permission.
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal, InvalidOperation, localcontext
 
 from tradingagents.agents.case_reference import BANDS
@@ -262,7 +263,30 @@ def summarize(state, replayed) -> dict:
         contrary, summary["contrary_basis"] = True, "return_gap"
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
+    # A reason may argue against the code's return figure, but it may not restate it backwards.
+    summary["reason_conflict"] = bool(
+        summary["consistency"] == "explained" and gap is not None and gap != 0
+        and (_SAYS_MISSED if gap > 0 else _SAYS_CLEARED).search(summary["rating_basis_reason"]))
     return summary
+
+
+_HURDLE = r"(?:required\s+(?:annual\s+|yearly\s+)?(?:rate\s+of\s+)?return|required\s+rate|hurdle(?:\s+rate)?)"
+_NEAR = r"(?:(?!\.\s)[^;,]){0,30}?"
+_SAYS_MISSED = re.compile(
+    r"(?i)\b(?:below|under|beneath|short\s+of|less\s+than|lower\s+than|miss(?:es|ed)?|"
+    r"(?:fails?|failed|failing)\s+to\s+(?:meet|clear|reach|exceed|beat)|"
+    r"(?:does|do|did)\s+not\s+(?:meet|clear|reach|exceed|beat)|doesn't\s+(?:meet|clear|reach|exceed|beat))\b"
+    + _NEAR + _HURDLE
+    + r"|" + _HURDLE + r"\s+(?:is|was|remains)\s+not\s+(?:met|cleared|reached|exceeded)")
+_SAYS_CLEARED = re.compile(
+    r"(?i)\b(?:above|exceeds?|exceeded|clears?|cleared|meets?|beats?|more\s+than|higher\s+than|in\s+excess\s+of)\b"
+    + _NEAR + _HURDLE
+    + r"|" + _HURDLE + r"\s+(?:is|was)\s+(?:met|cleared|reached|exceeded)")
+
+
+def _return_figures(summary) -> str:
+    return (f"{Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year against a required "
+            f"{Decimal(summary['required_return']['rate']) * 100:.2f}%")
 
 
 def retry_feedback(state, replayed) -> str:
@@ -271,6 +295,14 @@ def retry_feedback(state, replayed) -> str:
     if summary["status"] == "unaddressed":
         return ("Your scenario_view could not be used: " + " ".join(summary["problems"])
                 + " Resubmit the complete decision with a valid scenario_view.")
+    if summary.get("reason_conflict"):
+        claim = "fall short of" if Decimal(summary["return_gap_points"]) > 0 else "clear"
+        return (f"Your rating_basis_reason says the accepted scenarios {claim} the required return. Code's figure on "
+                f"those same cases: bought at the close they return {_return_figures(summary)}, a gap of "
+                f"{Decimal(summary['return_gap_points']):+.1f} points. The value today already has the required "
+                "return taken out, so its gap to the close is not a yearly return to hold against that rate. Resubmit "
+                "the complete decision: start rating_basis_reason from the code's figure and say, with figures, why "
+                "the rating still stands (naming any other basis you mean), or revise the rating or the scenario_view.")
     if summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "return_gap":
         return ("Your rating points against your own accepted scenarios: bought at the close, their weighted value "
                 f"returns {Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year against a required "
@@ -379,6 +411,11 @@ def render(summary) -> list[str]:
                                "reason (unvalidated): " + summary["rating_basis_reason"],
                   "unexplained": f"Rating check: {against} and no reason was given.",
                   }.get(summary["consistency"], "Rating check: not performed."))
+    if summary.get("reason_conflict"):
+        missed = Decimal(summary["return_gap_points"]) > 0
+        lines.append(f"Code note on that reason: it says the required return is {'not met' if missed else 'met'}; on "
+                     f"the accepted cases the return is {_return_figures(summary)}. The value today already has the "
+                     "required return taken out, so its gap to the close is not a yearly return.")
     lines.extend(render_return_parts(summary))
     lines.extend(render_sturdiness(summary))
     lines.extend(render_sizing_rule(summary))

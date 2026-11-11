@@ -37,7 +37,7 @@ class ThesisCondition(BaseModel):
     expiry: date
     rationale: str = Field(min_length=1, max_length=1000)
     thesis_role: Literal['supports_thesis', 'reconsideration_trigger', 'unspecified'] = Field(
-        default='unspecified', description='Unvalidated research intent: a condition supporting the current thesis, a trigger to reconsider it, or unspecified. Never infer intent from comparator or rating.')
+        default='unspecified', description='Unvalidated research intent: supports_thesis means the result, if met, supports the rating given now; reconsideration_trigger means reconsider that rating if met; or unspecified. Under Underweight or Sell, a result that is good for the company is a reconsideration_trigger.')
 
     @model_validator(mode='after')
     def dates(self):
@@ -169,6 +169,12 @@ def _conditions(values, *, preserve_ids=False, package=None, quote_currency=None
     for index, item in enumerate(considered):
         try:
             payload = dict(item)
+            # A completed close has one currency, the instrument's. Leaving it out is not a reason to lose the level.
+            if (not preserve_ids and quote_currency and payload.get('kind') == 'price_level'
+                    and payload.get('currency') is None):
+                payload['currency'] = quote_currency
+                warnings.append(f'Condition at index {index}: quote currency was not stated; the validated quote '
+                                f'currency {quote_currency} was used.')
             condition, originals = _normalize_condition(_condition(payload), package)
             if not preserve_ids and condition.thesis_role == 'unspecified':
                 name = condition.metric or condition.description or f'{condition.comparator} {condition.threshold} {condition.currency}'
@@ -399,6 +405,7 @@ def prepare_thesis(candidate, prior, canonical_rating, asof, run_id, *, financia
     else:
         conditions, proposal_warnings = _conditions(proposed, package=package, quote_currency=quote_currency)
         warnings.extend(proposal_warnings)
+        warnings.extend('Role check: ' + line for line in role_conflicts(canonical_rating, conditions))
         if proposal_warnings and not conditions and proposed != []:
             conditions = prior_conditions
             warnings.append('Malformed optional conditions; prior advisory conditions retained')
@@ -526,8 +533,50 @@ def _prompt_display(value, limit=300):
     return text[:limit] + (' [truncated]' if len(text) > limit else '')
 
 
+# Measures where a higher figure is plainly good news for the company. Direction is read for these only.
+_GOOD_WHEN_HIGHER = frozenset(name.casefold() for name in (
+    'Revenue', 'Gross Profit', 'Gross Margin', 'Operating Income', 'Operating Margin', 'Net Income', 'Net Margin',
+    'Operating Cash Flow', 'Remaining Performance Obligations', 'Diluted EPS', 'Basic EPS'))
+
+
+def role_conflicts(rating, conditions) -> list[str]:
+    """New conditions filed as supporting a rating that their own direction speaks against. Roles are not changed."""
+    bearish, bullish = rating in ('Sell', 'Underweight'), rating in ('Buy', 'Overweight')
+    found = []
+    for row in conditions if isinstance(conditions, (list, tuple)) else ():
+        if not isinstance(row, dict) or row.get('thesis_role') != 'supports_thesis' or row.get('kind', 'metric') != 'metric':
+            continue
+        metric, comparator = row.get('metric'), row.get('comparator')
+        if not isinstance(metric, str) or ' '.join(metric.split()).casefold() not in _GOOD_WHEN_HIGHER:
+            continue
+        higher = comparator in ('>=', '>')
+        if (bearish and higher) or (bullish and comparator in ('<=', '<')):
+            stated = ' '.join(str(row.get(key)) for key in ('comparator', 'threshold', 'unit') if row.get(key) is not None)
+            found.append(f"{_prompt_display(metric, 120)} {stated} is filed as supporting the {rating} rating, but a "
+                         f"{'higher' if higher else 'lower'} {_prompt_display(metric, 120)} is "
+                         f"{'good' if higher else 'bad'} news for the company.")
+    return found
+
+
+def role_feedback(rating, conditions) -> str:
+    """What to send back to the manager once, or '' when the roles can stand."""
+    found = role_conflicts(rating, conditions)
+    if not found:
+        return ''
+    return ('Condition roles: ' + ' '.join(found) + ' supports_thesis means the result supports the rating you give '
+            'now; a result that would argue for a different rating is a reconsideration_trigger. Resubmit the complete '
+            'decision with each of these relabelled or its comparison reversed, or say in its rationale why that '
+            'result supports the rating.')
+
+
+def visible_warnings(warnings) -> list[str]:
+    """The proposal warnings a reader of the decision card needs: a lost condition or a questioned role."""
+    return [str(w) for w in warnings or [] if isinstance(w, str)
+            and ('stated but not retained' in w or w.startswith('Role check: '))]
+
+
 def condition_role_label(row):
-    return {'supports_thesis': 'Supports current thesis',
+    return {'supports_thesis': 'Supports the current rating',
             'reconsideration_trigger': 'Reconsideration trigger'}.get(row.get('thesis_role'), 'Unspecified thesis role')
 
 
