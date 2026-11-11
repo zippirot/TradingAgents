@@ -59,6 +59,30 @@ def document_question_instruction(state) -> str:
     )
 
 
+_REPAIRED = "Repaired:"
+
+
+def _recover(text: str) -> list:
+    """The well-formed questions inside a list that is not valid JSON: strings and {query, scope} objects."""
+    decoder, found, at = json.JSONDecoder(), [], 0
+    while at < len(text):
+        if text[at] in '["{':
+            try:
+                value, end = decoder.raw_decode(text, at)
+            except ValueError:
+                at += 1
+                continue
+            for item in value if isinstance(value, list) else [value]:
+                if (isinstance(item, str) and item.strip()) or (
+                        isinstance(item, dict) and isinstance(item.get("query"), str) and item["query"].strip()
+                        and set(item) <= {"query", "scope"} and item.get("scope") in _SCOPES):
+                    found.append(item)
+            at = end
+        else:
+            at += 1
+    return found
+
+
 def parse_document_questions(text: str, role: str) -> dict:
     """Parse only the specified fence, preserving rejected questions visibly."""
     if role not in _ROLES:
@@ -77,8 +101,13 @@ def parse_document_questions(text: str, role: str) -> dict:
     try:
         values = json.loads(fences[0])
     except (TypeError, ValueError):
-        result.update(status="malformed", rejected=["Question fence is not valid JSON"])
-        return result
+        # A list with a lost or stray bracket still holds its questions; one side's are not dropped for that.
+        values = _recover(fences[0])
+        if not values:
+            result.update(status="malformed", rejected=["Question fence is not valid JSON"])
+            return result
+        result["rejected"].append(f"{_REPAIRED} the list was not valid JSON; {len(values)} well-formed "
+                                  f"question{'s were' if len(values) != 1 else ' was'} recovered from it.")
     if not isinstance(values, list):
         result.update(status="malformed", rejected=["Question fence must contain a JSON string list"])
         return result
@@ -433,7 +462,8 @@ def render_document_followups(state, final_decision_text: str = "") -> str:
     for role in _ROLES:
         entry = record["question_records"][role]
         for rejected in entry["rejected"]:
-            lines.append(f"- {role} question rejected: {rejected}")
+            lines.append(f"- {role} question list repaired: {rejected[len(_REPAIRED):].strip()}"
+                         if str(rejected).startswith(_REPAIRED) else f"- {role} question rejected: {rejected}")
         if entry["status"] in {"missing", "malformed"}:
             lines.append(f"- {role} question list: {entry['status']}")
     if not record["results"]:

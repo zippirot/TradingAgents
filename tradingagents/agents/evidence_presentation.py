@@ -112,10 +112,15 @@ _PORTFOLIO_TERM = re.compile(
     r"\b(?:units?|of\s+(?:the|your|a|my)\s+(?:portfolio|book)|portfolio\s+value|(?:standard|normal|benchmark|"
     r"current|target)\s+weight|(?<!scenario\s)(?<!subjective\s)(?<!case\s)(?<!equal\s)weights?|allocations?|"
     r"position\s+siz\w+|loss\s+budget|than\s+you\s+hold|"
+    # The position stated in plain words: its share of the portfolio, or the weight a rating maps to.
+    r"portfolio\s+concentration|(?<=%\s)concentration|(?<=%)concentration|"
+    r"(?:buy|overweight|hold|underweight|sell)\s+(?:target|weight|allocation)|"
     # A scenario's weight is not a portfolio weight, and "holding X fixed" is not a holding.
     r"holdings|(?:the|your|current|existing|this)\s+holding|stake|trim(?:s|med|ming)?)\b", re.I)
 # "the subjective 50% weight" is a scenario's weight with its figure, not a portfolio weight.
 _CASE_WEIGHT = re.compile(r"\b(?:scenario|subjective|case|equal|probability)\s+\d+(?:\.\d+)?\s*%\s+weights?\b", re.I)
+# A count of units is a position figure the general sizing pattern does not read as a number.
+_UNIT_COUNT = re.compile(r"\d[\d,.]*\s*units?\b", re.I)
 PORTFOLIO_WITHHELD = "Figures stated against the caller's portfolio are withheld from the published record."
 
 
@@ -126,7 +131,8 @@ def without_portfolio_figures(value):
     a portfolio or sizing word; everything else is returned as it was.
     """
     if isinstance(value, str):
-        return memory_without_sizing(value, terms=_PORTFOLIO_TERM, note=PORTFOLIO_WITHHELD, ignore=_CASE_WEIGHT)
+        return memory_without_sizing(value, terms=_PORTFOLIO_TERM, note=PORTFOLIO_WITHHELD, ignore=_CASE_WEIGHT,
+                                     also_numeric=_UNIT_COUNT)
     if isinstance(value, dict):
         return {key: without_portfolio_figures(item) for key, item in value.items()}
     if isinstance(value, list):
@@ -135,7 +141,7 @@ def without_portfolio_figures(value):
 
 
 def memory_without_sizing(text: str | None, *, terms=_SIZING_TERM, note: str | None = None,
-                          ignore=None) -> str | None:
+                          ignore=None, also_numeric=None) -> str | None:
     """Prompt view of an old decision: drop sentences that put a number on sizing, keep evidence figures.
 
     The record on disk is untouched. A sentence is dropped only when it both speaks of
@@ -147,14 +153,17 @@ def memory_without_sizing(text: str | None, *, terms=_SIZING_TERM, note: str | N
 
     note = note or SIZING_WITHHELD
 
-    if not isinstance(text, str) or not _NUMERIC_SIZING.search(text):
+    def numeric(part):
+        return bool(_NUMERIC_SIZING.search(part) or (also_numeric is not None and also_numeric.search(part)))
+
+    if not isinstance(text, str) or not numeric(text):
         return text
     lines, dropped = [], False
     for line in text.split("\n"):
         kept = []
         for sentence in re.split(r"(?<=[.!?])[ \t]+", line):
             probe = ignore.sub(" ", sentence) if ignore is not None else sentence
-            if _NUMERIC_SIZING.search(sentence) and terms.search(probe):
+            if numeric(sentence) and terms.search(probe):
                 dropped = True
                 # A section label that opened the dropped sentence stays, so the entry keeps its shape.
                 label = re.match(r"\s*\*\*[^*\n]+\*\*:?", sentence)
