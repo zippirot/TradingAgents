@@ -1,6 +1,7 @@
 """Dated model capital assumptions for a single conditional revenue case."""
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal, localcontext
 from typing import Literal
@@ -50,6 +51,15 @@ class CashChange(_Record):
     source: Literal["atm", "operations", "finance_payments", "capex", "debt", "other"]
     amount: Decimal = Field(max_digits=40)
     reason: str = Field(min_length=1, max_length=600)
+    # Names the note a "debt" change repays or repurchases, so code does not also convert it.
+    instrument: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @model_serializer(mode="wrap")
+    def _unnamed_stays_absent(self, handler):
+        record = handler(self)
+        if record.get("instrument") is None:
+            record.pop("instrument", None)
+        return record
 
 
 class CaseCapital(_Record):
@@ -204,6 +214,96 @@ def funding_bounds(capital, snapshot_date, scheduled, terms, stated=None) -> dic
                           "per_share_low": str(low / shares), "per_share_high": str(high / shares),
                           "commencement": "; ".join(windows)}
     return bounds
+
+
+CONVERSION = ("A convertible note outstanding at the period end is treated as converted when the case's own value "
+              "per share is above its conversion price: its shares are added and its principal leaves borrowings, never both.")
+
+
+def outstanding_convertibles(capital, snapshot_date, terms) -> tuple[list, list]:
+    """Notes the filing states that are still outstanding at the case's period end, and plain lines for the rest."""
+    notes, lines = [], []
+    named = " ".join(str(c.instrument) for c in (*capital.share_changes, *capital.cash_changes)
+                     if c.instrument and c.source in ("conversion", "debt"))
+    for note in (terms or {}).get("convertibles") or ():
+        try:
+            name, principal = str(note["name"])[:80], Decimal(str(note["principal"]))
+            matures = date.fromisoformat(str(note["maturity_date"]))
+            price = None if note.get("conversion_price") is None else Decimal(str(note["conversion_price"]))
+            call = note.get("capped_call")
+            call = None if call is None else (Decimal(str(call["strike"])), Decimal(str(call["cap"])),
+                                             date.fromisoformat(str(call["expires"])))
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            continue
+        if str(note.get("as_of")) != str(snapshot_date) or note.get("currency") != capital.currency or principal <= 0:
+            continue
+        if matures <= capital.valuation_date:
+            continue  # the maturity check covers a note that falls due inside the period
+        year = re.search(r"20\d{2}", name)
+        if year and year.group() in named:
+            lines.append(f"{name}: the case states its own repayment or conversion, so code adds nothing.")
+        elif price is None or price <= 0:
+            lines.append(f"{name}: left open. The filing's conversion price was not read, so the note stays as debt.")
+        else:
+            # A capped call that has expired by the period end offsets nothing.
+            notes.append({"name": name, "principal": principal, "price": price,
+                          "call": call if call and call[2] >= capital.valuation_date else None})
+    return notes, lines
+
+
+def _per_share(equity, shares, converted):
+    """Value per share once the converted notes' shares, net of capped-call shares, are counted.
+
+    Each converted note adds principal / price shares. Its capped call returns shares worth the gain between
+    the strike and the cap on those same shares. The count depends on the value, so the two are solved together.
+    """
+    def new_shares(value, note):
+        gross = note["principal"] / note["price"]
+        if note["call"] is None or value <= note["call"][0]:
+            return gross, Decimal(0)
+        return gross, gross * (min(value, note["call"][1]) - note["call"][0]) / value
+
+    low, high = Decimal(0), equity / shares
+    for _ in range(200):
+        value = (low + high) / 2
+        count = shares + sum(g - o for g, o in (new_shares(value, n) for n in converted))
+        low, high = (value, high) if value * count < equity else (low, value)
+    value = (low + high) / 2
+    return value, [new_shares(value, n) for n in converted]
+
+
+def settle_convertibles(equity, shares, notes, borrowings):
+    """Decide each outstanding note at the case's own value: converted into shares, or left as debt.
+
+    `equity` is the case's equity value with every note still counted as debt; `borrowings` is the debt the
+    basis counts (None when the basis counts none, so removing a note changes no value).
+    """
+    converted, left, value, counts = [], borrowings, equity / shares, []
+    for note in sorted(notes, key=lambda n: n["price"]):
+        removed = min(note["principal"], left) if left is not None else Decimal(0)
+        trial = [*converted, {**note, "removed": removed}]
+        trial_value, trial_counts = _per_share(equity + sum(n["removed"] for n in trial), shares, trial)
+        if trial_value <= note["price"]:
+            break
+        converted, value, counts = trial, trial_value, trial_counts
+        left = None if left is None else left - removed
+    done = {n["name"] for n in converted}
+    lines = []
+    for note, (gross, offset) in zip(converted, counts, strict=True):
+        line = (f"{note['name']}: treated as converted by code. The case's value of {value:.2f} a share is above the "
+                f"{note['price']} conversion price, so {gross:,.0f} shares are added")
+        if offset:
+            line += (f", less {offset:,.0f} shares returned by the capped call (gain between its {note['call'][0]} strike "
+                     f"and {note['call'][1]} cap on the same shares)")
+        line += (f", and {note['removed']:,.0f} leaves borrowings." if borrowings is not None else
+                 "; this basis counts no borrowings, so no debt is removed.")
+        lines.append(line)
+    for note in notes:
+        if note["name"] not in done:
+            lines.append(f"{note['name']}: stays as debt. The case's value of {value:.2f} a share is not above the "
+                         f"{note['price']} conversion price.")
+    return {"value": value, "shares": shares + sum(g - o for g, o in counts),
+            "debt_removed": sum((n["removed"] for n in converted), Decimal(0)), "lines": lines}
 
 
 LEASE_FINANCE = ("finance_equipment", "finance_leases", "equipment")
@@ -474,8 +574,13 @@ def price_case(request, package, outlooks, terms=None):
         equity = capitalized if request.multiple_basis == "equity" else capitalized - net[request.multiple_basis]
         if equity <= 0:
             raise ValueError("Nonpositive conditional equity value; no per-share value")
-        sensitivities = {basis: str((capitalized - debt) / capital.closing_shares.value)
-                         for basis, debt in net.items() if basis != request.multiple_basis and capitalized > debt}
+        # Notes still outstanding at the period end are converted or left as debt at each basis's own value.
+        notes, note_lines = outstanding_convertibles(capital, cash.period_end, terms)
+        debt = owed.get("borrowings")
+        settled = settle_convertibles(equity, capital.closing_shares.value, notes,
+                                      None if request.multiple_basis == "equity" else debt)
+        sensitivities = {basis: str(settle_convertibles(capitalized - owing, capital.closing_shares.value, notes, debt)["value"])
+                         for basis, owing in net.items() if basis != request.multiple_basis and capitalized > owing}
         assumptions = [forecast, f"Assumed {request.multiple_basis} / revenue multiple {request.multiple}, {period_label}."]
         for label, v in values.items():
             assumptions.append(f"{label}: {v.value} ({v.assumption.replace('_', ' ')}); references {', '.join(v.fact_ids)}. Reason: {v.reason}")
@@ -486,13 +591,25 @@ def price_case(request, package, outlooks, terms=None):
             assumptions.append(f"cash change ({change.source}): {change.amount}. Reason: {change.reason}")
         for category, item in carried.items():
             assumptions.append(f"{category} carried by code: {item['value']}. {item['reason']}")
+        atm_shares = sum(c.shares for c in capital.share_changes if c.source == "atm")
+        atm_cash = sum(c.amount for c in capital.cash_changes if c.source == "atm")
+        if atm_shares or atm_cash:
+            if atm_shares <= 0 or atm_cash <= 0:
+                raise ValueError("A share-sale programme adds shares and cash; both must be positive")
+            assumptions.append(f"share sales checked by code: {atm_shares:,.0f} shares for {atm_cash:,.0f} of cash is "
+                               f"{atm_cash / atm_shares:.2f} a share after costs; this case's value is {settled['value']:.2f} a share.")
+        assumptions.extend(f"convertible notes: {line}" for line in (*settled["lines"], *note_lines))
+        if settled["lines"]:
+            assumptions.append("convertible notes: " + CONVERSION + " A capped call covering notes already repurchased is not valued.")
         if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):
             assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
                                f"{Decimal(funded['adjustment']):+}). " + "; ".join(funded["lines"]) + ".")
-        result = TargetResult(status="supported", method="revenue_case", target=equity / capital.closing_shares.value,
+        result = TargetResult(status="supported", method="revenue_case", target=settled["value"],
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
-            shares_outstanding=capital.closing_shares.value, multiple=request.multiple,
-            net_obligations=net.get(request.multiple_basis), multiple_assumption_date=request.multiple_assumption_date,
+            shares_outstanding=settled["shares"], multiple=request.multiple,
+            net_obligations=(None if request.multiple_basis == "equity"
+                             else net[request.multiple_basis] - settled["debt_removed"]),
+            multiple_assumption_date=request.multiple_assumption_date,
             valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
             accounting_basis=request.forecast.basis, assumptions=tuple(assumptions),
             warnings=(*warnings, "{summary} {limit}".format(**case_funding(request, package, terms))),

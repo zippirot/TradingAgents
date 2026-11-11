@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import date
 from decimal import Decimal, localcontext
 
 from pydantic import ValidationError
@@ -19,10 +20,12 @@ from tradingagents.agents.case_reference import (
     reference_position,
     render_history_context,
 )
+from tradingagents.agents.document_access import validated_document_corpus
 from tradingagents.agents.evidence_validation import _select_compatible_fact, obligation_checks
 from tradingagents.agents.retained_kpi_context import lease_maturities
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_target
 from tradingagents.agents.valuation_cases import (
+    CONVERSION,
     MULTIPLE_CONSTRUCTION,
     RevenueCase,
     carry_leases,
@@ -39,6 +42,7 @@ from tradingagents.agents.valuation_comparison import (
     render_valuation_comparison,
 )
 from tradingagents.agents.valuation_outlooks import grounded_outlooks
+from tradingagents.dataflows.convertibles import discover_convertibles
 from tradingagents.dataflows.financial_evidence import EvidencePackage
 
 MAX_PAYLOAD = 48000
@@ -139,8 +143,22 @@ def _funding_terms(state):
     leases = (state.get("filing_terms_evidence") or {}).get("leases")
     totals = ({key: record["amounts"][key] for key in ("total", "interest") if key in record["amounts"]}
               if isinstance(record, dict) else {})
+    try:
+        # Read from the pinned filing each time, so a saved run reprices without a stored copy of the terms.
+        corpus = validated_document_corpus(state)
+        convertibles = discover_convertibles(corpus, date.fromisoformat(state["trade_date"])) if corpus else []
+    except Exception:  # noqa: BLE001 - unreadable note terms leave every note as debt, never fail pricing
+        convertibles = []
     return {"schedule": schedule, "schedule_totals": totals, "notes": notes if isinstance(notes, list) else [],
-            "leases": leases if isinstance(leases, list) else []}
+            "leases": leases if isinstance(leases, list) else [], "convertibles": convertibles}
+
+
+def _with_conversion(funding, result):
+    """Say beside the funding check what code decided for each convertible note, where every reader looks."""
+    marker = "convertible notes: "
+    lines = [text[len(marker):] for text in result.assumptions
+             if text.startswith(marker) and not text.startswith(marker + CONVERSION)]
+    return {**funding, "convertibles": lines, "summary": " ".join((funding["summary"], *lines))} if lines else funding
 
 
 def _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms=None):
@@ -373,7 +391,8 @@ def _prepare(state, requests):
                          **({"scenario_role": scenario_role} if scenario_role is not None else {}),
                          "request": _request_record(request), "result": result.model_dump(mode="json"),
                          "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
-                         **({"funding": case_funding(request, package, terms)} if isinstance(request, RevenueCase) else {}),
+                         **({"funding": _with_conversion(case_funding(request, package, terms), result)}
+                            if isinstance(request, RevenueCase) else {}),
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
         except ValidationError as exc:
             error = exc.errors(include_input=False)[0]

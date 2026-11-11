@@ -353,11 +353,12 @@ def test_conversion_requires_principal():
 
 
 _ATM_SHARES = {"source": "atm", "shares": "10", "instrument": "ATM program", "reason": "Sold under the program."}
-_ATM_CASH = {"source": "atm", "amount": "-20", "reason": "Net proceeds."}
+_ATM_CASH = {"source": "atm", "amount": "20", "reason": "Net proceeds."}
+_ATM_SPENT = {"source": "other", "amount": "-40", "reason": "Spent."}
 
 
 def test_atm_cash_without_atm_shares_is_rejected():
-    record = _bridge_case(lambda c: c.update(cash_changes=[_ATM_CASH]))
+    record = _bridge_case(lambda c: c.update(cash_changes=[_ATM_CASH, _ATM_SPENT]))
     assert not record["rows"] and "ATM proceeds and ATM shares must both be stated" in " ".join(record["reasons"])
 
 
@@ -367,8 +368,16 @@ def test_atm_shares_without_atm_cash_is_rejected():
 
 
 def test_atm_cash_and_shares_together_is_supported():
-    record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[_ATM_CASH]))
+    record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[_ATM_CASH, _ATM_SPENT]))
     assert len(record["rows"]) == 1, record["reasons"]
+    assert any(line.startswith("share sales checked by code: 10 shares for 20 of cash is 2.00 a share after costs")
+               for line in record["rows"][0]["result"]["assumptions"])
+
+
+def test_a_share_sale_that_loses_cash_is_rejected():
+    lost = {"source": "atm", "amount": "-20", "reason": "Net proceeds."}
+    record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[lost]))
+    assert not record["rows"] and "both must be positive" in " ".join(record["reasons"])
 
 
 def test_prompt_contract_names_share_changes():

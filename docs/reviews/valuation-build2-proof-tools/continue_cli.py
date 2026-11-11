@@ -308,8 +308,11 @@ def _retained(value):
     revenue case with a computed status and added each case's position against the
     company's own valuation history. The decision-quality Part A build of the same day
     replaced the "forward from the analysis date" wording in each case's multiple sentence
-    with one description of the arithmetic, and added the guidance-floor note. Everything
-    else must still match exactly.
+    with one description of the arithmetic, and added the guidance-floor note. Stage 2 of
+    the funded case model (2026-11-10) converts an in-the-money note still outstanding at
+    the period end, which moves each case's value, share count, net obligations and
+    sensitivities on this checkpoint (its 2030 notes convert at 39.17). The requests and
+    everything else must still match exactly.
     """
     if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
         return value
@@ -318,9 +321,12 @@ def _retained(value):
         if isinstance(row, dict) and isinstance(row.get("result"), dict):
             result = dict(row["result"])
             result["warnings"] = [w for w in result.get("warnings") or [] if not str(w).startswith("Funding ")]
-            result["assumptions"] = [_one_label(text) for text in result.get("assumptions") or []]
+            result["assumptions"] = [_one_label(text) for text in result.get("assumptions") or []
+                                     if not str(text).startswith("convertible notes: ")]
+            for derived in ("target", "shares_outstanding", "net_obligations"):
+                result.pop(derived, None)
             row = {k: v for k, v in row.items()
-                   if k not in {"funding", "reference_position", "guidance_floor"}} | {"result": result}
+                   if k not in {"funding", "reference_position", "guidance_floor", "sensitivities"}} | {"result": result}
         rows.append(row)
     return {**{k: v for k, v in value.items() if k != "reference_history"}, "rows": rows}
 

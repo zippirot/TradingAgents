@@ -306,6 +306,12 @@ def assess(state, work):
     mismatched = []
     expected_ids = set()
     published = [(g, c) for g in card["case_groups"] for c in g["cases"]]
+    from datetime import date
+
+    from tradingagents.agents.document_access import validated_document_corpus
+    from tradingagents.dataflows.convertibles import discover_convertibles
+    corpus = validated_document_corpus(state)
+    notes = discover_convertibles(corpus, date.fromisoformat(state["trade_date"])) if corpus else []
     for row in replay["rows"]:
         req, priced = row["request"], row["result"]
         if req["method"] != "revenue_case" or row["diagnostic_only"] or priced["status"] != "supported":
@@ -322,6 +328,25 @@ def assess(state, work):
             if basis != "equity":
                 equity -= sum(amounts[k] for k in categories[basis]) - Decimal(cap["cash"]["value"])
             per_share = equity / Decimal(cap["closing_shares"]["value"])
+            # Funded case model Stage 2 (2026-11-10): a note still outstanding at the period end converts when
+            # the case's value is above its conversion price. Priced here by closed form, apart from the
+            # application's own solver; one such note is the most this check covers.
+            live = [n for n in notes if n["maturity_date"] > cap["valuation_date"] and n["conversion_price"]]
+            if len(live) > 1:
+                per_share = Decimal(0)
+            for note in live[:1]:
+                principal, strike = Decimal(note["principal"]), Decimal(note["conversion_price"])
+                shares, added = Decimal(cap["closing_shares"]["value"]), principal / strike
+                freed = min(principal, amounts["borrowings"]) if basis != "equity" and "borrowings" in amounts else 0
+                ceiling = Decimal(note["capped_call"]["cap"]) if note["capped_call"] else None
+                if ceiling is None:
+                    converted = (equity + freed) / (shares + added)
+                else:
+                    converted = (equity + freed + added * (ceiling - strike)) / (shares + added)
+                    if converted < ceiling:  # between strike and cap the call returns every share above par
+                        converted = (equity + freed - principal) / shares
+                if converted > strike:
+                    per_share = converted
         # One description whichever period word the analyst chose (decision-quality Part A, 2026-11-10).
         period_clock = "applied at the period end to that period's revenue"
         identity = (row["case_id"], row["version"])
@@ -337,7 +362,9 @@ def assess(state, work):
         close_available = comparison.get("status") == "available"
         expected_close = {k: price.get(k) for k in ("close", "currency", "session_date")}
         row_checks = {
-            "price": per_share > 0 and Decimal(priced["target"]) == per_share and Decimal(case["value"]) == per_share,
+            # The application solves the share count and value together by bisection; agree to twenty places.
+            "price": per_share > 0 and abs(Decimal(priced["target"]) - per_share) < Decimal("1e-20")
+                     and abs(Decimal(case["value"]) - per_share) < Decimal("1e-20"),
             "name": case["name"] == row["name"],
             "period": req["forecast"]["period_start"] == group["period_start"]
                       and req["forecast"]["period_end"] == cap["valuation_date"] == group["period_end"],

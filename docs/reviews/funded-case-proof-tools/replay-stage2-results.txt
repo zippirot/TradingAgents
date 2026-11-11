@@ -1,0 +1,20 @@
+read from the filing: {"name": "2026 Convertible Notes", "principal": "312322000", "currency": "USD", "as_of": "2026-09-30", "maturity_date": "2026-12-01", "conversion_price": "178.51", "capped_call": null, "locator": "block-205", "conversion_price_locator": "block-204"}
+read from the filing: {"name": "2030 Convertible Notes", "principal": "153172000", "currency": "USD", "as_of": "2026-09-30", "maturity_date": "2030-08-15", "conversion_price": "39.17", "capped_call": {"strike": "39.17", "cap": "66.51", "expires": "2030-08-15", "locator": "block-195"}, "locator": "block-193", "conversion_price_locator": "block-180"}
+
+status: available 
+
+Base: FY2027 revenue at guided 60% growth, 6   101.17 ->   100.05  (-1.12)
+   shares 120,420,731 -> 123,262,553; net obligations -602,388,000 -> -751,966,000
+   sensitivities: {'finance_equipment': '94.68', 'all_leases': '78.22', 'guided diluted wei': '95.60'}
+   convertible notes: 2030 Convertible Notes: treated as converted by code. The case's value of 100.05 a share is above the 39.17 conversion price, so 3,910,442 shares are added, less 1,068,620 shares returned by the capped call (gain between its 39.17 strike and 66.51 cap on the same shares), and 149,578,000 leaves borrowings.
+
+Downside: growth slows to ~41%, ATM dilution    59.14 ->    59.11  (-0.03)
+   shares 127,087,398 -> 129,678,820; net obligations -715,388,000 -> -864,966,000
+   sensitivities: {'finance_equipment': '53.86', 'all_leases': '37.78', 'guided diluted wei': '59.42'}
+   share sales checked by code: 6,666,667 shares for 392,000,000 of cash is 58.80 a share after costs; this case's value is 59.11 a share.
+   convertible notes: 2030 Convertible Notes: treated as converted by code. The case's value of 59.11 a share is above the 39.17 conversion price, so 3,910,442 shares are added, less 1,319,019 shares returned by the capped call (gain between its 39.17 strike and 66.51 cap on the same shares), and 149,578,000 leaves borrowings.
+
+Upside: ~70% FY2027 growth, 8.0x borrowings-   141.53 ->   139.14  (-2.39)
+   shares 120,420,731 -> 123,562,819; net obligations -643,388,000 -> -792,966,000
+   sensitivities: {'finance_equipment': '133.78', 'all_leases': '117.32', 'guided diluted wei': '133.28'}
+   convertible notes: 2030 Convertible Notes: treated as converted by code. The case's value of 139.14 a share is above the 39.17 conversion price, so 3,910,442 shares are added, less 768,354 shares returned by the capped call (gain between its 39.17 strike and 66.51 cap on the same shares), and 149,578,000 leaves borrowings.
