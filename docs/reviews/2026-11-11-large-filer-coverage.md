@@ -67,3 +67,58 @@ The user chose to pass on what the filing presents (plan Amendment 3). Frozen be
 - Live timing on the candidate, free SEC only, all 31 issuers: slowest 12.9 seconds, most requests 30, no request or time budget exhausted.
 - Not done: the pre-freeze paid MSFT run through the real app (paid runs are not approved). The offline score therefore stands without a live route confirmation.
 
+## Held-out verdict (opened once, after the freeze)
+
+| Group | Size | At 7/7 before | At 7/7 after | Newly passing | Gain |
+|---|---|---|---|---|---|
+| Development | 10 | 0 | 8 | 8 | 80 points |
+| Held out | 20 | 0 | 7 | 7 | 35 points |
+
+- **Numerical criterion met:** seven held-out companies newly clear all seven checks (the floor is five): AAPL, NVDA, MU, ORCL, MRK, HD, PM. Baseline headroom was 20 of 20.
+- **Development improved far more than held out** (80 against 35 points). The readers generalise, but less well than the development group suggests; the reasons below show where.
+- **No regression:** no check that passed at baseline fails or is unavailable after, in either group. No input failure, replay miss or automated fill in either scoring run.
+
+Held-out passes per check, before and after: source_integrity 9 to 20, core_statements 12 to 19, balance_sheet 9 to 19, equity_movement 0 to 13, obligation_perimeter 0 to 13, cash_flow_perimeter 0 to 19, disclosure_coverage 8 to 19.
+
+| Ticker | Before | After | Not passing after, with the reason given and what the data shows |
+|---|---|---|---|
+| AMZN | 0 | 6 | cash flow: a filer-specific financing line (`amzn:RepaymentsOfLongTermFinancingObligations`) reads like equipment financing and is not classified. True as stated. |
+| AVGO | 3 | 6 | core statements: no Net Income fact at the balance date under the tags read. Reader limit. |
+| TSLA | 2 | 5 | balance sheet: residual without source rounding. Obligations: two filer-specific debt-and-finance-lease lines are not classified. True as stated. |
+| AMD | 0 | 6 | equity: the quarter's opening balance is not filed and the year-to-date treasury component does not reconcile. |
+| ABBV | 0 | 6 | equity: the other-comprehensive-income component does not reconcile. |
+| COST | 3 | 5 | equity: paid-in capital does not reconcile. Disclosure: the 6-filing and 8-document limits were reached; a documented acquisition limit, not an omission by the filer. |
+| KO | 1 | 5 | equity: components do not add up to total equity. Obligations: `us-gaap:NotesAndLoansPayable` is not in the borrowing classification. Reader limit. |
+| CVX | 1 | 6 | obligations: `us-gaap:LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` is not classified, and no unrestricted cash fact is read. Reader limit. |
+| PG | 2 | 5 | equity: the noncontrolling component does not reconcile. Obligations: no unrestricted cash fact is read at the balance date; the message shown names leases, which is not the blocking cause. Message defect. |
+| GE | 1 | 5 | equity: opening balance not filed for the quarter. Obligations: no unrestricted cash fact is read. |
+| AMAT | 2 | 6 | obligations: two sourced borrowings totals disagree (the filing-table total and the one derived from the filed lines), so neither is used; the message says "not stated". Message defect. |
+| TXN | 4 | 6 | equity: opening balance not filed for the quarter; year-to-date paid-in capital does not reconcile. |
+| TMO | 2 | 6 | obligations: the filed liabilities lines add up to 59,337M, which is not the total liabilities figure used. True as stated. |
+
+Every non-pass is "unavailable" and none is a wrong pass. Two messages name the wrong cause (PG, AMAT). These are follow-up work and were **not** corrected: a change made after the results were opened could not be validated on this cohort.
+
+## Recomputation of every new pass
+
+The sampling method was not frozen before the scores were seen, as the plan requires. Every newly passing company was therefore recomputed rather than a sample (15: eight development, seven held out).
+
+`docs/reviews/large-filer-proof-tools/recheck.py` does not use the SEC-extracted instance the readers use. It reads the primary filing document, takes each tagged figure as printed (text, scale, sign), and redoes three sums with its own arithmetic: the liability lines add up to total liabilities and the borrowing lines to the borrowings used; opening equity plus each printed movement equals closing equity, component by component; the financing lines add up to financing cash flow for the period. All three hold for all 15 (`recheck-results.json`).
+
+The tool's first run disagreed for three companies. Each was a fault in the tool, found and fixed, not in the readers: it read only the outer of two nested tags on one printed number (HD, ORCL), and treated a printed zero as missing (CAT). Limits of this recomputation: it takes the list of line items from the package (it does not rediscover the statement structure), and it does not recompute lease balances, the investing section, share counts or disclosure coverage.
+
+Auditor sample, drawn after the scores as the first five by SHA-256 of `large-filer-audit-2026-11-11:` plus ticker: MU, RTX, CAT, MRK, HD. Their printed lines are in `recheck-auditor-sample.json`.
+
+## Offline acceptance
+
+Pass on the numerical criterion, the recomputation and the DOCN regression, with these stated limits: the sampling method was fixed late (mitigated by checking every new pass); development gains exceed held-out gains by 45 points; no live run through the real app has been made, so delivery of a decision for a large filer is unverified.
+
+## Follow-up work found (not started)
+
+1. Borrowing classification gaps: `NotesAndLoansPayable`, `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, and filer-specific debt-with-lease lines (TSLA).
+2. Unrestricted cash and net income under other tags (CVX, PG, GE, AVGO).
+3. Equity reconciliations that do not close for seven held-out layouts, and quarterly filings with no opening balance (LLY, AMD, GE, TXN).
+4. Two misleading obligation messages (PG, AMAT) and the bare "required input fact unavailable".
+5. Filer-specific financing lines for equipment purchases (INTC, AMZN).
+6. Filing and document count limits (COST).
+7. Lease payment schedule for large filers, so the funding check is assessed rather than "unassessed".
+8. A fresh cohort is needed to validate any of the above; this one is spent.
