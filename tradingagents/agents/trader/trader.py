@@ -14,6 +14,7 @@ from tradingagents.agents.context import (
 )
 from tradingagents.agents.schemas import (
     CARRIED_PLAN_HEADING,
+    SIZING_WITHHELD,
     TraderProposal,
     label_legacy_trader_price,
     render_trader_proposal,
@@ -40,6 +41,46 @@ def _reading(text: str, investment_plan: str) -> str:
         return ""
     return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "
             "research rating it is a change in the size of an existing position, not an exit or a new position.")
+
+
+# Said by code after every proposal that names a price level, so no reader has to work out which of the
+# Trader's levels can change the rating (none) and which change only timing (all).
+LEVELS_RULE = (
+    "How to read these levels (a fixed rule, not the Trader's judgement): the Research Manager's conditions "
+    "carried below are the only route to a different rating, and a set stated together must be met together. "
+    "A price level in this proposal changes timing only. A reference sale level or purchase entry price is a "
+    "preferred price, not a precondition for acting. An invalidation or stop level marks where the technical "
+    "read stops holding; it does not halt a change in size the rating calls for and does not by itself reopen "
+    "the rating.")
+_LEVEL = re.compile(r"\*\*(?:Purchase Entry Price|Reference Sale Level|Stop Loss|Advisory Thesis Invalidation Level)"
+                    r"\*\*:\s*\d")
+SIZED_NOTE = "Figures are in the Position and sizing block, computed by code from the portfolio file."
+_SIZING_UNKNOWN = ("in qualitative words only: holdings and loss budget are unknown, so give no percentages, "
+                   "fractions, share counts or currency amounts")
+_SIZING_KNOWN = ("in words: the Position and sizing block above is computed by code from the caller's portfolio "
+                 "file, so holdings and the loss budget are known. Say which of its rating targets this action "
+                 "moves toward and how to stage it; do not call them unknown, and do not restate its figures or "
+                 "give others")
+
+
+def _is_sized(state) -> bool:
+    from tradingagents.portfolio import render_sizing, sizing_from_state
+    return bool(render_sizing(sizing_from_state(state)))
+
+
+def _code_notes(text: str, investment_plan: str, sized: bool) -> str:
+    """What code says after the Trader's proposal: how its levels read, and where its size comes from."""
+    if sized:
+        text = text.replace(SIZING_WITHHELD, SIZED_NOTE)
+        rating = research_rating(investment_plan)
+        text += ("\n\nSize (by code, from the portfolio file): "
+                 + (f"the research rating is {rating}, so this action moves the position toward the {rating} "
+                    "target in the Position and sizing block." if rating else
+                    "the Position and sizing block gives the target for each rating; the research rating could "
+                    "not be read from the plan."))
+    if _LEVEL.search(text):
+        text += "\n\n" + LEVELS_RULE
+    return text
 
 
 def _carried_plan(investment_plan: str) -> str:
@@ -88,6 +129,7 @@ def create_trader(llm):
         # only offer it (and the grounding instruction) when it has content.
         market_report = (state["market_report"] or "").strip()
         portfolio_context = get_portfolio_context_from_state(state)
+        sized = _is_sized(state)
 
         if market_report:
             grounding = (
@@ -118,6 +160,11 @@ def create_trader(llm):
                     "Keep technical levels exactly as the market report states them; do not merge separate levels into bands. "
                     "Any claim about where prior trading did or did not occur must cite the Prior closes by price band table; "
                     "if that table is unavailable, say the historical claim is not checkable with these inputs. "
+                    "Do not write your own conditions for changing or reassessing the rating: the Research Manager's are "
+                    "carried word for word after your proposal and are the only ones. Never turn a set of conditions the "
+                    "plan requires together into alternatives, and never let a price or indicator level stand in for them. "
+                    "You may say what a level changes about timing. For Sell, an invalidation level belongs beyond the "
+                    "prices you would prefer to sell at, never inside them. "
                     + NO_EXTERNAL_TOOLS
                     + get_language_instruction()
                 ),
@@ -138,7 +185,7 @@ def create_trader(llm):
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
                     "sized by how strong the case is; conflict alone is not a Hold.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
-                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** in qualitative words only: holdings and loss budget are unknown, so give no percentages, fractions, share counts or currency amounts. When the plan makes an action conditional on current exposure, state that condition in the Reasoning or the Position Sizing"
+                    "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** " + (_SIZING_KNOWN if sized else _SIZING_UNKNOWN) + ". When the plan makes an action conditional on current exposure, state that condition in the Reasoning or the Position Sizing"
                 ),
             },
         ]
@@ -149,10 +196,10 @@ def create_trader(llm):
             messages,
             # The Research Manager's actions and triggers follow the proposal on
             # this path too, not only on the free-text fallback.
-            lambda proposal: (lambda text: f"{text}{_reading(text, investment_plan)}\n\n{_carried_plan(investment_plan)}")(
-                render_trader_proposal(proposal)),
+            lambda proposal: (lambda text: f"{_code_notes(text, investment_plan, sized)}{_reading(text, investment_plan)}"
+                                           f"\n\n{_carried_plan(investment_plan)}")(render_trader_proposal(proposal)),
             "Trader",
-            finish_freetext=lambda text: _complete_fallback(text, investment_plan),
+            finish_freetext=lambda text: _complete_fallback(_code_notes(text, investment_plan, sized), investment_plan),
         )
 
         trader_plan = label_legacy_trader_price(trader_plan)
