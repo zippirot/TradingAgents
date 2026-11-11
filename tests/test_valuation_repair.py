@@ -77,12 +77,25 @@ def test_unreadable_block_says_where_the_json_breaks():
     assert '"}}}}]' in reason or '}}]' in reason
 
 
-def test_field_beside_request_is_named():
+def test_capital_beside_request_is_read_inside_it_and_prices_the_same():
+    expected = prepare_shared_valuation(state([revenue_case()]))["rows"][0]["result"]["target"]
     row = revenue_case()
     row["capital"] = row["request"].pop("capital")
     record = prepare_shared_valuation(state([row]))
+    assert record["rows"][0]["result"]["target"] == expected and "submission_error" not in record
+    assert record["reasons"] == ["Row 1: capital was submitted beside request; code read it inside request, "
+                                 "content unchanged."]
+
+
+def test_a_field_beside_request_that_code_cannot_place_is_still_named():
+    both = revenue_case()
+    both["capital"] = dict(both["request"]["capital"])     # two capitals: which one is meant is not code's call
+    record = prepare_shared_valuation(state([both]))
     assert record["reasons"] == [
         "Row 1 omitted: unexpected field capital beside name and request; capital belongs inside request"]
+    other = revenue_case()
+    other["multiple"] = "3"
+    assert "unexpected field multiple beside name and request" in prepare_shared_valuation(state([other]))["reasons"][0]
     assert "submission_error" not in record
 
 

@@ -18,6 +18,7 @@ all three agents log the same warnings when fallback fires.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -55,9 +56,10 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
     """
     try:
         try:
-            return llm.with_structured_output(schema, include_raw=True)
+            bound = llm.with_structured_output(schema, include_raw=True)
         except TypeError:
-            return llm.with_structured_output(schema)
+            bound = llm.with_structured_output(schema)
+        return _JsonRetry(bound, llm, schema, agent_name) if _is_model(schema) else bound
     except (NotImplementedError, AttributeError) as exc:
         logger.warning(
             "%s: provider does not support with_structured_output (%s); "
@@ -66,6 +68,55 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Any | None:
             extra={"diagnostic_agent": agent_name, "diagnostic_error_class": type(exc).__name__},
         )
         return None
+
+
+JSON_RETRY = ("Your previous answer could not be read as the required structure. Answer again with one JSON object "
+              "only: no prose before or after it and no code fence. It must match this JSON schema exactly:\n")
+
+
+def _is_model(schema) -> bool:
+    return isinstance(schema, type) and hasattr(schema, "model_validate") and hasattr(schema, "model_json_schema")
+
+
+def _json_object(text):
+    """The outermost JSON object in a reply, tolerating a code fence or a stray sentence around it."""
+    text = text if isinstance(text, str) else ""
+    start, end = text.find("{"), text.rfind("}")
+    return json.loads(text[start:end + 1]) if 0 <= start < end else None
+
+
+class _JsonRetry:
+    """A structured call that asks once more in plain JSON when the model answered in prose.
+
+    Thinking models that cannot be forced to call a tool sometimes reply in text, which used to drop the
+    whole answer to unparsed free text. Only that case is retried: a provider error is left to the caller.
+    """
+
+    def __init__(self, bound, plain, schema, agent_name):
+        self._bound, self._plain, self._schema, self._agent = bound, plain, schema, agent_name
+
+    def __getattr__(self, name):
+        return getattr(self._bound, name)
+
+    def invoke(self, prompt, *args, **kwargs):
+        result = self._bound.invoke(prompt, *args, **kwargs)
+        unread = result is None or (isinstance(result, dict) and "parsed" in result and "raw" in result
+                                    and (result.get("parsed") is None or result.get("parsing_error") is not None))
+        if not unread:
+            return result
+        ask = JSON_RETRY + json.dumps(self._schema.model_json_schema())
+        again = f"{prompt}\n\n{ask}" if isinstance(prompt, str) else (
+            [*prompt, {"role": "user", "content": ask}] if isinstance(prompt, list) else None)
+        if again is None:
+            return result
+        try:
+            raw = self._plain.invoke(again)
+            parsed = self._schema.model_validate(_json_object(getattr(raw, "content", None)))
+        except Exception as exc:  # noqa: BLE001 - the retry is best effort; the first outcome stands
+            logger.warning("%s: plain-JSON retry did not produce the structure (%s)", self._agent, type(exc).__name__,
+                           extra={"diagnostic_agent": self._agent, "diagnostic_error_class": type(exc).__name__})
+            return result
+        return {"raw": raw, "parsed": parsed, "parsing_error": None}
 
 
 _last_failure: ContextVar[tuple[str, str] | None] = ContextVar("structured_failure", default=None)

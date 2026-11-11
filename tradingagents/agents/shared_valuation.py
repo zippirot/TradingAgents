@@ -333,6 +333,13 @@ def _prepare(state, requests):
     rows, reasons, comparisons, notes = [], [], [], []
     for index, row in enumerate(requests, 1):
         try:
+            if (isinstance(row, dict) and isinstance(row.get("capital"), dict)
+                    and isinstance(row.get("request"), dict) and "capital" not in row["request"]):
+                # Only one place it can belong, and nothing in it changes: read it where it was meant to be.
+                row = {**{key: value for key, value in row.items() if key != "capital"},
+                       "request": {**row["request"], "capital": row["capital"]}}
+                notes.append(f"Row {index}: capital was submitted beside request; code read it inside request, "
+                             "content unchanged.")
             extra = sorted(set(row) - {"name", "request", "scenario_role"}) if isinstance(row, dict) else []
             if extra:
                 raise ValueError(f"unexpected field{'s' if len(extra) > 1 else ''} {', '.join(map(str, extra))[:200]} "
