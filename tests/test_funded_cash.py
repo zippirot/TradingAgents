@@ -99,3 +99,40 @@ def test_the_case_value_moves_by_exactly_the_completed_cash(monkeypatch):
     assert (Decimal(before["result"]["target"]) - Decimal(after["result"]["target"])) * 110 == deducted
     assert any(line.startswith("cash completed by code:") for line in after["result"]["assumptions"])
     assert after["request"]["capital"]["operations_include_new_lease_rent"] is False
+
+
+def _fact(metric, value):
+    from types import SimpleNamespace
+    return SimpleNamespace(metric=metric, value=Decimal(value))
+
+
+def test_lease_balances_are_carried_to_the_period_end_only_when_the_schedule_matches_the_filed_balance():
+    from tradingagents.agents.accounting_checks import _OBLIGATION_METRICS
+    from tradingagents.agents.shared_valuation import _rolled_leases
+
+    finance, operating = sorted(_OBLIGATION_METRICS["finance_leases"])[0], sorted(_OBLIGATION_METRICS["operating_leases"])[0]
+    facts = [_fact(finance, "923599000"), _fact(operating, "666611000")]
+    carried = _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), TERMS)
+    closing = carried["finance_leases"]["value"](Decimal("923599000"))
+    assert Decimal("600000000") < closing < Decimal("923599000")          # principal has been repaid
+    assert "carried to 2027-12-31 on the filed payment schedule" in carried["finance_leases"]["reason"]
+    added = carried["operating_leases"]["value"](Decimal("666611000")) - Decimal("666611000")
+    assert added > 0 and "Their classification is not stated in the filing" in carried["operating_leases"]["reason"]
+    # A filed balance the schedule does not reproduce is held as filed: nothing is carried for it.
+    off = _rolled_leases([_fact(finance, "500000000")], SNAPSHOT, date(2027, 12, 31), TERMS)
+    assert "finance_leases" not in off and "operating_leases" in off
+    # A company with no schedule and no lease awaiting commencement gets nothing carried at all.
+    assert _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), {"schedule": None, "leases": []}) == {}
+    assert _rolled_leases(facts, SNAPSHOT, date(2027, 12, 31), None) == {}
+
+
+def test_the_analyst_is_asked_the_two_questions_and_a_carried_case_may_answer_them():
+    import inspect
+
+    from tradingagents.agents import prior_cases
+    from tradingagents.agents.analysts import fundamentals_analyst
+    prompt = inspect.getsource(fundamentals_analyst)
+    assert '"operations_after_lease_interest": true or false' in prompt
+    assert '"operations_include_new_lease_rent": true or false' in prompt
+    assert "Funding feasibility remains unassessed" not in prompt
+    assert "is not a change to its values" in inspect.getsource(prior_cases)

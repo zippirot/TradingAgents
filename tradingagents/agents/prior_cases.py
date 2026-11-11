@@ -73,6 +73,7 @@ def render_prior_cases(context) -> str:
         "different reference point, or reading the same evidence differently, is not a new fact. For every value you "
         "change, begin that value's reason or rationale with 'Changed since the last decision:' and name the new fact. "
         "If nothing is new, resubmit the same values; update only dates and fact IDs that this run requires. A multiple "
-        "that was set against one reference stays at its value when you cite a different reference. These earlier cases "
+        "that was set against one reference stays at its value when you cite a different reference. Answering the two "
+        "operating-cash questions on a case that did not have them is not a change to its values. These earlier cases "
         "are your own earlier assumptions, not evidence.\n"
         "```previous_valuation_scenarios\n" + block + "\n```")

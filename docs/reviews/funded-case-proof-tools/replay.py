@@ -10,7 +10,8 @@ PATH = os.path.expanduser("~/.tradingagents/logs/DOCN/TradingAgentsStrategy_logs
 
 
 def main():
-    state = json.load(open(PATH))
+    with open(PATH) as handle:
+        state = json.load(handle)
     saved = state["shared_valuation_scenarios"]["rows"]
     for label, answers in (("as saved (neither answered)", {}),
                            ("after interest: yes; includes new rent: no", {"operations_after_lease_interest": True,
