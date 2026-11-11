@@ -104,6 +104,13 @@ class Transport:
         self.store, self.live, self.calls, self.misses = store, live, [], []
 
     def __call__(self, url, **kwargs):
+        from urllib.parse import urlsplit
+
+        import requests
+        host = urlsplit(url).hostname or ""
+        if not (host == "sec.gov" or host.endswith(".sec.gov")):
+            # Non-SEC sources are off: they cannot affect the seven checks and are never recorded.
+            raise requests.ConnectionError(f"non-SEC source refused by the scorer: {host}")
         self.calls.append(url)
         if self.live is None:
             try:

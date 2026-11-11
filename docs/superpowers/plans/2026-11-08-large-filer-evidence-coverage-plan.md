@@ -141,3 +141,15 @@ An independent audit by the existing Claude route is required on the frozen cand
 Preserve the verdict for the exact candidate that produced it. If a leak occurred, or an unsealed result prompted a correction, disclose it. The old cohort may verify a correction as regression evidence; it cannot independently validate the revised candidate. Do not tune and rescore those companies for a new generalization claim. Any fresh independent study is outside this plan.
 
 In `docs/reviews/<date>-large-filer-coverage.md`, record the tested commits, frozen selection and inputs, both groups' results, verified reasons, manual and independent checks, DOCN comparison, live outcomes or pending status, audit findings and limitations. Keep raw SEC data private, outside the repository; commit hashes and minimal public excerpts only. Build completion means feature-branch completion only. Integration, release, installation and worktree removal follow the Branch and Release Boundary.
+
+## Amendment 1 (2026-11-11, approved by the user)
+
+Applied when the build started from staging `9942114f`. The free acquisition step run that day scored MSFT 3/7, CAT 2/7, WMT 1/7 and DOCN 7/7.
+
+- **Where and who.** The build runs on this Mac (MacBook-Pro) in `~/Worktrees/large-filer-coverage` on branch `claude/large-filer-coverage-20261111`, by Claude. The Machine 2, `codex/` branch and Astra wording above is superseded. The release boundary is unchanged.
+- **L6. Basic statements for filers that report no total-liabilities line, and conflicting document metadata.** WMT fails `core_statements` and `balance_sheet` because it reports no Total Liabilities fact; CAT fails `source_integrity` ("conflicting document metadata") and produces no `equity_movement` check. Derive total liabilities only from sourced facts on the same date and ownership basis (liabilities and equity less total equity including noncontrolling and redeemable interests, each cited); a missing component leaves the check unavailable. Resolve the metadata conflict at its cause; a genuine conflict must still fail. The synthetic-negative list in Acceptance 1 gains: a derived total built from a parent-only equity figure, and a real metadata conflict.
+- **Case-pricing check (free, offline).** Before any paid run, confirm on captured MSFT evidence that at least one revenue case prices through `prepare_shared_valuation` with a sourced borrowings perimeter, lease carry-forward and funded statement, or record exactly which input stops it.
+- **Capture scope.** Images and other binary attachments in a filing index are listed in the manifest and not downloaded; the readers parse text documents only.
+- **Non-SEC sources are refused by the scorer** in both capture and replay, and never stored.
+- **Paid runs** remain unapproved. Proposal when reached: one debate round rather than three (measured 2026-11-11: about 39% fewer tokens at the same scored quality on DOCN).
+- **Estimate.** L6 adds roughly 4–8 hours to the 30–45 hour range. Recommended model in Claude Code: Claude Fable 5.2 (`claude-fable-5-2`), medium effort.

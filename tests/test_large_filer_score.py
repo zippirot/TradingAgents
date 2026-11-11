@@ -48,3 +48,12 @@ def test_a_run_with_a_miss_is_an_input_failure_even_if_the_step_absorbs_it(tmp_p
     monkeypatch.setattr(scorer, "score_one", absorbed)
     row = scorer.run("score", ["MSFT"], "2026-11-11", tmp_path, None)["results"][0]
     assert row["all_seven"] is False and row["passes"] is None and "not in the store" in row["input_failure"]
+
+
+def test_a_source_outside_sec_is_refused_in_both_modes_and_never_stored(tmp_path):
+    import requests
+    calls = []
+    for transport in (scorer.Transport(scorer.Store(tmp_path), live=_live(calls)), scorer.Transport(scorer.Store(tmp_path))):
+        with pytest.raises(requests.ConnectionError):
+            transport("https://api.stlouisfed.org/fred/series/observations", params={"api_key": "secret"})
+    assert calls == [] and not (tmp_path / "manifest.json").exists()
