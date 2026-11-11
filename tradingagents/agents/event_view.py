@@ -87,7 +87,8 @@ def _weights(entries, accepted, label, problems):
     for entry in entries:
         key = (entry.get("case_id"), entry.get("version")) if isinstance(entry, dict) else None
         weight = _decimal(entry.get("weight")) if isinstance(entry, dict) else None
-        if key not in known:
+        # An identifier of the wrong type is an unusable answer, never a crash.
+        if key is None or not isinstance(key[0], str) or not isinstance(key[1], int) or key not in known:
             problems.append(f"{label} names a case that is not an accepted case in scenario_view.")
             return None
         if key in found or weight is None or not 0 <= weight <= 1:
@@ -139,8 +140,8 @@ def assess(accepted, conditions, view, analysis_date, horizon, close, rate, none
                 problems.append("event_view entries must be objects.")
                 continue
             identity = entry.get("condition_id")
-            name = f"Event {identity}"
-            if identity not in labels:
+            name = f"Event {_text(identity, 60) if isinstance(identity, str) else 'with an unusable condition_id'}"
+            if not isinstance(identity, str) or identity not in labels:
                 problems.append(f"{name} is not an open advisory condition listed for this run.")
                 continue
             if identity in seen:

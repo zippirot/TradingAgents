@@ -49,7 +49,10 @@ def test_borrowings_only_submission_missing_lease_inputs_preserves_original_requ
     row, = record["rows"]
     assert submitted == original == record["requests"]
     assert row["request"] == request.model_dump(mode="json")
-    assert row["result"] == base.model_dump(mode="json")
+    # The row's statement also shows the filed lease balances the case left out; nothing else differs.
+    shown = [a for a in row["result"]["assumptions"] if "analyst: not stated in this case" not in a]
+    assert len(shown) < len(row["result"]["assumptions"])
+    assert {**row["result"], "assumptions": shown} == base.model_dump(mode="json")
     for basis in ("finance_equipment", "all_leases"):
         supplemental = RevenueCase.model_validate(row["source_bound_sensitivity_requests"][basis])
         recalculated, _ = price_case(supplemental, package, ())

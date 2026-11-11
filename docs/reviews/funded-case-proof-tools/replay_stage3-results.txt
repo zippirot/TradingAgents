@@ -9,7 +9,7 @@ Base: FY2027 revenue at 60%+ growth, 6.0x borrowings-only: 98.86 -> 98.86
    operating leases: opening 666.6M USD (filed); analyst: no change stated; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: no change stated; code: notes converted, net of any capped call +2,829,242; closing 120,749,973.
    value: revenue times the multiple is 11,580.0M USD; less net obligations of -357.6M USD (the closing borrowings above less closing cash); equity value 11,937.6M USD over 120,749,973 shares, 98.86 a share.
-   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case keeps both the debt and the cash that would repay it, so net obligations are the same either way; closing cash and borrowings above are each higher by up to that amount than after repayment.
+   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case states no repayment of it and leaves it in borrowings; if it is repaid from cash, cash and borrowings both fall by that amount and net obligations are unchanged.
 
 Downside: slower FY2027 growth, 4.0x borrowings-only: 59.40 -> 59.40
    from the 2026-09-30 filing to 2027-12-31. Each line gives the opening balance as filed, what the analyst assumes, what code computes under a stated assumption, and the closing balance.
@@ -19,7 +19,7 @@ Downside: slower FY2027 growth, 4.0x borrowings-only: 59.40 -> 59.40
    operating leases: opening 666.6M USD (filed); analyst: no change stated; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: no change stated; code: notes converted, net of any capped call +2,578,865; closing 120,499,596.
    value: revenue times the multiple is 6,800.0M USD; less net obligations of -357.6M USD (the closing borrowings above less closing cash); equity value 7,157.6M USD over 120,499,596 shares, 59.40 a share.
-   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case keeps both the debt and the cash that would repay it, so net obligations are the same either way; closing cash and borrowings above are each higher by up to that amount than after repayment.
+   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case states no repayment of it and leaves it in borrowings; if it is repaid from cash, cash and borrowings both fall by that amount and net obligations are unchanged.
 
 Upside: approximately 70% FY2027 growth, 8.0x borrowings-onl: 138.43 -> 138.43
    from the 2026-09-30 filing to 2027-12-31. Each line gives the opening balance as filed, what the analyst assumes, what code computes under a stated assumption, and the closing balance.
@@ -29,7 +29,7 @@ Upside: approximately 70% FY2027 growth, 8.0x borrowings-onl: 138.43 -> 138.43
    operating leases: opening 666.6M USD (filed); analyst: no change stated; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: no change stated; code: notes converted, net of any capped call +3,138,342; closing 121,059,073.
    value: revenue times the multiple is 16,400.0M USD; less net obligations of -357.6M USD (the closing borrowings above less closing cash); equity value 16,757.6M USD over 121,059,073 shares, 138.43 a share.
-   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case keeps both the debt and the cash that would repay it, so net obligations are the same either way; closing cash and borrowings above are each higher by up to that amount than after repayment.
+   not stated by the case: Scheduled finance and equipment payments of 320.5M USD through 2027-12-31 are not stated in the case's cash changes. 2026 Convertible Notes: 312.3M USD of principal falls due 2026-12-01, inside the period. The case states no repayment of it and leaves it in borrowings; if it is repaid from cash, cash and borrowings both fall by that amount and net obligations are unchanged.
 
 ===== fe8979c2: status available 
 
@@ -37,6 +37,8 @@ Base: FY2027 revenue at guided 60% growth, 6.0x borrowings-o: 99.69 -> 99.69
    from the 2026-09-30 filing to 2027-12-31. Each line gives the opening balance as filed, what the analyst assumes, what code computes under a stated assumption, and the closing balance.
    cash: opening 666.1M USD (filed); analyst: other +178.6M USD; operations +940.0M USD; capex -400.0M USD; finance payments -320.5M USD; debt -312.3M USD; code: lease interest already inside operating cash added back +64.3M USD; rent on leases that commence deducted -108.7M USD; closing 707.5M USD.
    borrowings: opening 461.6M USD (filed); analyst: closing set to 149.6M USD (-312.1M USD); code: converted notes leave borrowings -149.6M USD; closing 0.0M USD.
+   finance leases and equipment: opening 923.6M USD (filed); analyst: not stated in this case; code: carried to the period end on the filed payment schedule -256.2M USD; closing 667.4M USD; outside this case's borrowings only basis, used in the sensitivities only.
+   operating leases: opening 666.6M USD (filed); analyst: not stated in this case; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: sbc +2,500,000; code: notes converted, net of any capped call +2,838,205; closing 123,258,936.
    value: revenue times the multiple is 11,580.0M USD; less net obligations of -707.5M USD (the closing borrowings above less closing cash); equity value 12,287.5M USD over 123,258,936 shares, 99.69 a share.
    nothing the filing schedules inside the period is left unstated by the case.
@@ -45,6 +47,8 @@ Downside: growth slows to ~41%, ATM dilution, 4.0x borrowing: 58.76 -> 58.76
    from the 2026-09-30 filing to 2027-12-31. Each line gives the opening balance as filed, what the analyst assumes, what code computes under a stated assumption, and the closing balance.
    cash: opening 666.1M USD (filed); analyst: other +178.6M USD; operations +711.0M USD; capex -450.0M USD; finance payments -320.5M USD; debt -312.3M USD; atm +392.0M USD; code: lease interest already inside operating cash added back +64.3M USD; rent on leases that commence deducted -108.7M USD; closing 820.5M USD.
    borrowings: opening 461.6M USD (filed); analyst: closing set to 149.6M USD (-312.1M USD); code: converted notes leave borrowings -149.6M USD; closing 0.0M USD.
+   finance leases and equipment: opening 923.6M USD (filed); analyst: not stated in this case; code: carried to the period end on the filed payment schedule -256.2M USD; closing 667.4M USD; outside this case's borrowings only basis, used in the sensitivities only.
+   operating leases: opening 666.6M USD (filed); analyst: not stated in this case; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: sbc +2,500,000; atm +6,666,667; code: notes converted, net of any capped call +2,607,056; closing 129,694,454.
    value: revenue times the multiple is 6,800.0M USD; less net obligations of -820.5M USD (the closing borrowings above less closing cash); equity value 7,620.5M USD over 129,694,454 shares, 58.76 a share.
    nothing the filing schedules inside the period is left unstated by the case.
@@ -53,6 +57,8 @@ Upside: ~70% FY2027 growth, 8.0x borrowings-only: 138.79 -> 138.79
    from the 2026-09-30 filing to 2027-12-31. Each line gives the opening balance as filed, what the analyst assumes, what code computes under a stated assumption, and the closing balance.
    cash: opening 666.1M USD (filed); analyst: other +178.6M USD; operations +1,031.0M USD; capex -450.0M USD; finance payments -320.5M USD; debt -312.3M USD; code: lease interest already inside operating cash added back +64.3M USD; rent on leases that commence deducted -108.7M USD; closing 748.5M USD.
    borrowings: opening 461.6M USD (filed); analyst: closing set to 149.6M USD (-312.1M USD); code: converted notes leave borrowings -149.6M USD; closing 0.0M USD.
+   finance leases and equipment: opening 923.6M USD (filed); analyst: not stated in this case; code: carried to the period end on the filed payment schedule -256.2M USD; closing 667.4M USD; outside this case's borrowings only basis, used in the sensitivities only.
+   operating leases: opening 666.6M USD (filed); analyst: not stated in this case; code: carried to the period end on leases that commence in the period added +1,379.4M USD; closing 2,046.0M USD; outside this case's borrowings only basis, used in the sensitivities only.
    shares: opening 117,920,731 (filed); analyst: sbc +2,500,000; code: notes converted, net of any capped call +3,140,347; closing 123,561,078.
    value: revenue times the multiple is 16,400.0M USD; less net obligations of -748.5M USD (the closing borrowings above less closing cash); equity value 17,148.5M USD over 123,561,078 shares, 138.79 a share.
    nothing the filing schedules inside the period is left unstated by the case.

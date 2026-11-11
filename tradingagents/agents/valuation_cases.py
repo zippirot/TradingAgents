@@ -619,15 +619,38 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
     filed_debt, owed_debt = opening.get("borrowings"), capital.obligations.get("borrowings")
     dealt = (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
              + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
-    for name, amount, matures in _maturing_notes(terms, snapshot_date, end):
-        if dealt < amount and filed_debt is not None and owed_debt is not None and owed_debt.value >= filed_debt:
-            open_items.append(f"{name}: {_money(amount, currency)} of principal falls due {matures}, inside the period. "
-                              "The case keeps both the debt and the cash that would repay it, so net obligations are "
-                              "the same either way; closing cash and borrowings above are each higher by up to that "
-                              "amount than after repayment.")
+    # Earliest first, and what the case repays or converts is used once, so one repayment never covers two notes.
+    for name, amount, matures in sorted(_maturing_notes(terms, snapshot_date, end), key=lambda note: note[2]):
+        if dealt >= amount:
+            dealt -= amount
+            continue
+        short, dealt = amount - dealt, Decimal(0)
+        if filed_debt is not None and owed_debt is not None and owed_debt.value >= filed_debt:
+            open_items.append(f"{name}: {_money(short, currency)} of principal falls due {matures}, inside the period. "
+                              "The case states no repayment of it and leaves it in borrowings; if it is repaid from "
+                              "cash, cash and borrowings both fall by that amount and net obligations are unchanged.")
     lines.append("not stated by the case: " + " ".join(open_items) if open_items else
                  "nothing the filing schedules inside the period is left unstated by the case.")
     return [STATEMENT + line for line in lines]
+
+
+def unstated_lease_lines(opening: dict, closing: dict, currency, basis) -> list[str]:
+    """Statement lines for filed lease balances a case leaves out: category -> filed opening and carried closing."""
+    lines = []
+    for category, start in opening.items():
+        end = closing[category]
+        how = "the filed payment schedule" if category in LEASE_FINANCE else "leases that commence in the period added"
+        code = "held as filed" if end == start else f"carried to the period end on {how} {_signed(end - start, currency)}"
+        lines.append(f"{STATEMENT}{_LINE_NAMES.get(category, category)}: opening {_money(start, currency)} (filed); "
+                     f"analyst: not stated in this case; code: {code}; closing {_money(end, currency)}; outside this "
+                     f"case's {basis.replace('_', ' ')} basis, used in the sensitivities only.")
+    return lines
+
+
+def with_lease_lines(assumptions, lines) -> tuple:
+    """The assumptions with those lines placed after the statement's last balance line and before its shares line."""
+    at = next((i for i, text in enumerate(assumptions) if text.startswith(STATEMENT + "shares:")), None)
+    return tuple(assumptions) if at is None or not lines else (*assumptions[:at], *lines, *assumptions[at:])
 
 
 def case_funding(request, package, terms):

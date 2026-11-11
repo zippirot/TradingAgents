@@ -108,7 +108,7 @@ def test_a_note_falling_due_in_the_period_that_the_case_leaves_on_both_sides_is_
     last = lines[-1]
     assert last.startswith("not stated by the case: Scheduled payments of 1.0M USD are not stated. 2026 Convertible "
                            "Notes: 312.3M USD of principal falls due 2026-12-01, inside the period.")
-    assert "net obligations are the same either way" in last
+    assert "states no repayment of it and leaves it in borrowings" in last and "net obligations are unchanged" in last
     # Repaid by the case, or due after the period: nothing to name.
     repaid = CaseCapital.model_validate({**_capital().model_dump(mode="json"), "cash_changes": [
         {"source": "debt", "amount": "-312322000", "reason": "r"}, {"source": "operations", "amount": "1", "reason": "r"}]})
@@ -129,3 +129,49 @@ def test_an_equity_basis_and_a_company_with_nothing_but_cash_and_shares_still_ge
                                                          "nothing the filing schedules inside the period is left unstated by the case."]
     assert "this equity basis does not use cash" in lines[1] and "8,000.0M USD of equity value, over 1,000 shares" in lines[3]
     assert date(2027, 12, 31) == capital.valuation_date
+
+
+# --- audit run f4692472 ---
+
+def test_a_case_that_leaves_lease_balances_out_still_shows_them_from_the_filing():
+    """F1: a borrowings-only case that omits the lease categories showed no lease balance at all."""
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+    state, submitted = example()
+    row, = prepare_shared_valuation(state, submitted)["rows"]
+    assert set(row["source_bound_sensitivity_requests"]) == {"finance_equipment", "all_leases"}
+    lines = [a[len(STATEMENT):] for a in row["result"]["assumptions"] if a.startswith(STATEMENT)]
+    heads = [line.split(":")[0] for line in lines]
+    assert heads[1:3] == ["cash", "borrowings"] and heads[-3:] == ["shares", "value", "not stated by the case"]
+    leases = lines[3:-3]
+    assert leases and all("(filed); analyst: not stated in this case; code: " in line for line in leases)
+    assert all(line.endswith("outside this case's borrowings only basis, used in the sensitivities only.") for line in leases)
+    assert any(line.startswith("operating leases: opening ") for line in leases)
+    # The value does not move: the lines describe balances the sensitivities already used.
+    package = EvidencePackage.model_validate(state["financial_evidence"])
+    direct, _ = price_case(RevenueCase.model_validate(submitted[0]["request"]), package, ())
+    assert row["result"]["target"] == direct.model_dump(mode="json")["target"]
+
+
+def _two_notes():
+    return {**TERMS, "notes": [
+        {"name": "2026 Notes", "maturity_date": "2026-12-01", "principal_outstanding": "100", "principal_unit": "USD millions"},
+        {"name": "2027 Notes", "maturity_date": "2027-06-01", "principal_outstanding": "100", "principal_unit": "USD millions"}]}
+
+
+def test_one_repayment_is_not_counted_against_two_maturing_notes():
+    """F2: each note was compared with the same total repaid, so 100 repaid hid a second 100 falling due."""
+    repaid = CaseCapital.model_validate({**_capital().model_dump(mode="json"), "cash_changes": [
+        {"source": "debt", "amount": "-100000000", "reason": "r"}, {"source": "operations", "amount": "1", "reason": "r"}]})
+    last = _statement(repaid, terms=_two_notes())[0][-1]
+    assert "2026 Notes" not in last and "2027 Notes: 100.0M USD of principal falls due 2027-06-01" in last
+    assert "states no repayment of it" in last and "net obligations are unchanged" in last
+
+
+def test_a_partial_repayment_that_lowers_borrowings_is_named_by_the_funding_check():
+    """F2, second part: not reproducible. The funding check already names it and the statement prints its reasons."""
+    from tradingagents.agents.valuation_cases import funding_check
+    terms = {**TERMS, "notes": [_two_notes()["notes"][0]]}
+    capital = CaseCapital.model_validate({**_capital().model_dump(mode="json"), "cash_changes": [
+        {"source": "debt", "amount": "-40000000", "reason": "r"}, {"source": "operations", "amount": "1", "reason": "r"}]})
+    reasons = funding_check(capital, SNAPSHOT, Decimal(200_000_000), terms)["reasons"]
+    assert any("2026 Notes: principal of 100.0M USD matures 2026-12-01; the case accounts for 40.0M USD" in r for r in reasons)

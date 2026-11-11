@@ -454,3 +454,12 @@ def test_none_expected_through_the_manager_call_is_not_corrected_or_scored(monke
     card = {"scenario_decision": summary}
     assert not [f for f in assess_audit({**observed(), "decision_context": card})["findings"]
                 if f["code"] == "event_view_unaddressed"]
+
+
+def test_identifiers_of_the_wrong_type_are_unusable_answers_not_crashes():
+    """Audit run f4692472, F3: a list where an identifier belongs raised TypeError inside the checker."""
+    for view in ([_event(condition_id=["condition-q4"])], [_event(condition_id={"id": 1})],
+                 [_event(favourable_weights=[{"case_id": ["base"], "version": 1, "weight": 1}])],
+                 [_event(adverse_weights=[{"case_id": "base", "version": [1], "weight": 1}])]):
+        summary = _assess(view)
+        assert summary["status"] == "unaddressed" and summary["problems"]

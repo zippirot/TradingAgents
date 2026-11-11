@@ -46,3 +46,17 @@ one for a company with nothing but cash and shares on an equity basis.
 - Part B is a view from dated events, not a six-month price distribution. Event-kind conditions are never
   resolved by code.
 - Not proven until a live run: the manager's event_view answers, and how a reviewer scores the result.
+
+## Independent audit (ran)
+
+Executor run f4692472 (openai/gpt-6-astra, 23 turns, 0.76 USD) on 884e5331..59fce263: three medium findings.
+Each was checked by running before any change.
+
+| Finding | Verdict | Closure |
+|---|---|---|
+| F1 A case that omits lease categories showed no lease balances | confirmed | Filed lease balances the case leaves out are shown from the lease-inclusive request already priced for the sensitivities. |
+| F2 One repayment counted against two maturing notes | confirmed (narrow reach) | Notes taken earliest first; a repayment is used once. |
+| F2 Partial repayment hides a maturity | not reproducible | The unchanged funding check already names it. |
+| F3 A list where an event identifier belongs crashed the checker | confirmed | Identifier types are checked first; the answer is reported unusable. |
+
+After closure: full suite 4,596 passed; ruff clean; replay shows no value moved. The closure was not re-audited.

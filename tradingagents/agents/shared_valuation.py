@@ -32,6 +32,8 @@ from tradingagents.agents.valuation_cases import (
     case_funding,
     obligation_bases,
     price_case,
+    unstated_lease_lines,
+    with_lease_lines,
 )
 from tradingagents.agents.valuation_comparison import (
     comparable_quote,
@@ -160,6 +162,24 @@ def _with_conversion(funding, result):
     lines = [text[len(marker):] for text in result.assumptions
              if text.startswith(marker) and not text.startswith((marker + CONVERSION, marker + "not "))]
     return {**funding, "convertibles": lines, "summary": " ".join((funding["summary"], *lines))} if lines else funding
+
+
+def _with_filed_leases(request, result, supplemental, package):
+    """Show, in the case's funded statement, the filed lease balances the case itself leaves out.
+
+    They come from the widest lease-inclusive request already priced for the sensitivities, so the statement
+    and the sensitivities read the same balances. Nothing here changes a value.
+    """
+    wide = supplemental.get("all_leases") or supplemental.get("finance_equipment")
+    if not wide:
+        return result
+    by_id = {f.fact_id: f.value for f in package.facts}
+    added = {category: item for category, item in wide["capital"]["obligations"].items()
+             if category not in request.capital.obligations}
+    opening = {category: sum(by_id[i] for i in item["fact_ids"]) for category, item in added.items()}
+    closing = {category: Decimal(item["value"]) for category, item in added.items()}
+    lines = unstated_lease_lines(opening, closing, request.capital.currency, request.multiple_basis)
+    return result.model_copy(update={"assumptions": with_lease_lines(result.assumptions, lines)})
 
 
 def _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms=None):
@@ -364,6 +384,7 @@ def _prepare(state, requests):
                 notes += row_notes
                 result, sensitivities = price_case(request, package, outlooks, terms)
                 supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms)
+                result = _with_filed_leases(request, result, supplemental, package)
             elif raw.get("method") == "ev_revenue" and raw.get("capital_structure_assumption") == "forward_capital_v1":
                 request = EVRevenueTarget.model_validate(raw)
                 if len(request.scenarios) != 1 or request.scenarios[0].weight != 1:
