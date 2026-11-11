@@ -45,10 +45,16 @@ def test_case_stating_scheduled_payments_and_note_repayment_is_assessed():
 
 
 def test_case_omitting_scheduled_payments_is_partial_with_the_amount():
-    funding = _check(_capital([("debt", -312322000), ("operations", 100000000)]))
+    # No operating cash stated: code has no starting point for a bridge, so the gap is named.
+    funding = _check(_capital([("debt", -312322000)]))
     assert funding["status"] == "partial"
     assert funding["reasons"] == ["Scheduled finance and equipment payments of 320.4M USD through 2027-12-31 "
                                   "are not stated in the case's cash changes."]
+    # With operating cash stated and no finance payments, code deducts the filed schedule itself.
+    completed = _check(_capital([("debt", -312322000), ("operations", 100000000)]))
+    assert completed["status"] == "assessed" and completed["reasons"] == []
+    assert "are deducted by code from the filed schedule" in completed["summary"]
+    assert Decimal(completed["funded"]["payments_applied"]) == Decimal(completed["scheduled_finance_payments"])
     short = _check(_capital([("finance_payments", -100000000), ("debt", -312322000)]))
     assert short["reasons"] == ["Scheduled finance and equipment payments are 320.4M USD through 2027-12-31; "
                                 "the case states 100.0M USD."]
@@ -135,7 +141,9 @@ def test_filing_terms_from_the_run_reach_the_case(monkeypatch):
         "as_of": snapshot, "amounts": {str(snapshot.year): Decimal(5), "2027": Decimal(7), "total": Decimal(99)},
         "source": "s"})
     funding = prepare_shared_valuation(inputs)["rows"][0]["funding"]
-    assert funding["status"] == "partial" and Decimal(funding["scheduled_finance_payments"]) > 0
+    # The fixture case states operating cash and no finance payments, so code deducts the schedule.
+    assert funding["status"] == "assessed" and Decimal(funding["scheduled_finance_payments"]) > 0
+    assert funding["funded"]["payments_applied"] == funding["scheduled_finance_payments"]
     monkeypatch.setattr(shared, "lease_maturities", lambda _state: (_ for _ in ()).throw(RuntimeError("x")))
     assert prepare_shared_valuation(inputs)["rows"][0]["funding"]["status"] == "unassessed"
     assert SimpleNamespace  # keep import used

@@ -99,6 +99,10 @@ def _add_prompt_only_facts(state: Mapping, values: dict) -> None:
             values[label] = [(number, str(fact.get('unit') or ''))]
 
 
+_LOCATOR = re.compile(r'(?<![A-Za-z0-9])(?:[FCKDS]\d+)?/?\b(?:blocks?|inline-fact-f|row|column)[- ]?\d+'
+                      r'(?:\s*(?:,|and)\s*\d+)*', re.I)
+
+
 def _calculation_inputs(state: Mapping) -> dict[str, set[str]]:
     brief = state.get('canonical_financial_context')
     if not isinstance(brief, str):
@@ -167,7 +171,8 @@ def check_pm_citations(state: Mapping) -> dict:
             if not labels:
                 uncited += 1
                 continue
-            stated = _numbers(sentence)
+            # A locator inside the citation ("D1/block-95") is an address, not a figure the sentence states.
+            stated = _numbers(_LOCATOR.sub(' ', sentence))
             if not stated:
                 citation_only += 1
                 continue
@@ -187,8 +192,8 @@ def check_pm_citations(state: Mapping) -> dict:
                 else:
                     mismatches.append({
                         'field': field, 'citation_id': label, 'sentence': sentence,
-                        'canonical_value': ', '.join(f'{value} {unit}'.strip()
-                                                   for value, unit in options),
+                        'canonical_value': ', '.join(f'{value} {unit}'.strip() for value, unit in options[:6])
+                                           + (f' and {len(options) - 6} more' if len(options) > 6 else ''),
                     })
     return {'matched': matched, 'checked': checked, 'uncited_sentences': uncited,
             'citation_only_sentences': citation_only,

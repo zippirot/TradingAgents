@@ -60,3 +60,21 @@ Each was checked by running before any change.
 | F3 A list where an event identifier belongs crashed the checker | confirmed | Identifier types are checked first; the answer is reported unusable. |
 
 After closure: full suite 4,596 passed; ruff clean; replay shows no value moved. The closure was not re-audited.
+
+## Follow-up after run 6cf38ab1: a bridge code can complete (ran)
+
+Run 6cf38ab1 (Terra) showed the statement on every case with "analyst: no change stated" throughout, and the
+manager again adopted no case. Three changes, approved by the user on 2026-11-11:
+
+| Item | Change | Where |
+|---|---|---|
+| Code completes the bridge | Once a case states operating cash flow, code deducts the scheduled finance-lease and equipment payments the case does not state, and repays from cash a note that falls due inside the period and that the case leaves in borrowings. With no operating cash stated it does neither. | `agents/valuation_cases.py` (`scheduled_payments`, `applied_payments`, `repaid_notes`, `funded_cash`, `price_case`, `funded_statement`) |
+| One request for an empty bridge | A priced case on a basis that uses cash, with no operating cash flow or no capital spending, is sent back to the analyst once. The completed cases replace the originals only if every case still prices and nothing outside the cash bridge changed; otherwise the submitted cases stand. A rejected submission still gets the validation correction instead: there is one request per run. | `agents/shared_valuation.py` (`_request_cash_bridge`) |
+| Six-month view | Labelled a mechanical interpolation of the manager's own weights, not a forecast; the weight mix is moved out of the event lines; identical outcome weights across events are said. | `agents/event_view.py` |
+| Citation check | A locator inside a citation ("D1/block-95") is no longer read as a figure; a long list of canonical values is cut to six. | `agents/citation_check.py` |
+
+Checks: full suite 4,610 passed, ruff clean. `replay_stage3` on runs b7396f4f and fe8979c2: no value moved
+(neither states operating cash without finance payments). Dry run on run 6cf38ab1's base case with operating
+cash +900M and capex -400M added by hand: funding "assessed", payments -320.5M and note repayment -312.3M
+applied by code, statement ends "nothing the filing schedules inside the period is left unstated", value 98.86
+to 99.94. Not independently audited. Not proven until a live run: whether the analyst answers the request.

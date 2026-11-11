@@ -530,7 +530,7 @@ def replay_cases(state, *, revision=None):
         # The revision replaces the analyst's rows; a surviving case still says it had been corrected.
         surviving = {row["name"] for row in revised["rows"]}
         kept["reasons"] = [*revised["reasons"], *(
-            f'Analyst case "{case["name"]}" was corrected after a validation error before this revision: {case["cause"]}'
+            f'Analyst case "{case["name"]}" was corrected before this revision: {case["cause"]}'
             for case in analyst["corrected_submission"].get("cases", ())
             if isinstance(case, dict) and case.get("name") in surviving)]
     return {**(revised if accepted else analyst), **kept, "analyst_requests": analyst["requests"],
@@ -546,6 +546,93 @@ def _reply_text(reply):
     return content if isinstance(content, str) else ""
 
 
+BRIDGE_ASKED = "cash_bridge"
+_BRIDGE_DECLINED = ("Cash bridge request: the analyst did not state operating cash flow and capital spending when "
+                    "asked once; the cases stand as submitted.")
+_BRIDGE_FIELDS = ("cash", "cash_changes", "operations_after_lease_interest", "operations_include_new_lease_rent")
+
+
+def _lacks_bridge(item) -> bool:
+    """A revenue case whose value uses cash but states no operating cash flow or no capital spending."""
+    request = item.get("request") if isinstance(item, dict) else None
+    if not isinstance(request, dict) or request.get("method") != "revenue_case" or request.get("multiple_basis") == "equity":
+        return False
+    capital = request.get("capital") if isinstance(request.get("capital"), dict) else {}
+    sources = {change.get("source") for change in capital.get("cash_changes") or () if isinstance(change, dict)}
+    return not {"operations", "capex"} <= sources
+
+
+def _outside_bridge(item):
+    """A submitted case with the cash bridge taken out, to check that a completed bridge changed nothing else."""
+    copy = json.loads(json.dumps(item))
+    capital = copy["request"].get("capital") if isinstance(copy.get("request"), dict) else None
+    if isinstance(capital, dict):
+        for field in _BRIDGE_FIELDS:
+            capital.pop(field, None)
+    return copy
+
+
+def _request_cash_bridge(state, llm, shape, record, report):
+    """Ask the analyst once for operating cash flow and capital spending in cases that state neither.
+
+    The completed cases replace the originals only when every case still prices and nothing outside the cash
+    bridge changed. Otherwise the submitted cases stand: this never removes a case.
+    """
+    priced = {row["name"] for row in _priced(record["rows"]) if not row.get("diagnostic_only")}
+    submitted = [item for item in record["requests"] if isinstance(item, dict)]
+    asked = [item["name"].strip() for item in submitted
+             if isinstance(item.get("name"), str) and item["name"].strip() in priced and _lacks_bridge(item)]
+    if not asked:
+        return record
+    original = "\n\n".join(_BLOCK.findall(report))[:MAX_PAYLOAD]
+    prompt = (
+        "Your valuation cases price, but these state no operating cash flow or no capital spending between the "
+        "balance-sheet date and the valuation date, so their closing cash is not a forecast: "
+        + "; ".join(asked) + ". Return only one corrected ```valuation_scenarios fenced block and nothing else. "
+        'In each of those cases add to capital "cash_changes" an "operations" entry (your forecast of operating cash '
+        'flow over that whole period, before finance-lease and equipment payments and before capital spending) and a '
+        'negative "capex" entry (cash capital spending over the same period), each with a one-sentence reason from '
+        'the evidence; set "operations_after_lease_interest" and "operations_include_new_lease_rent"; set cash '
+        '"value" to the snapshot cash plus the sum of your cash_changes with "assumption":"estimated". Leave out '
+        "finance_payments and the repayment of a note that falls due in the period: code deducts the filed payment "
+        "schedule and repays such a note itself. Change nothing else: keep every name, forecast, multiple, basis, "
+        "share count, obligation, fact ID and rationale exactly as you wrote it. Do not add or remove cases."
+        "\n\nRequired shape:" + shape + "\n\nYour original block:\n```valuation_scenarios\n" + original + "\n```"
+    )
+
+    def declined(reason=_BRIDGE_DECLINED):
+        return {**record, "reasons": [*record["reasons"], reason],
+                "correction_attempt": {"outcome": reason, "report_sha256": _report_digest(state)}}
+
+    try:
+        text = _reply_text(llm.invoke(prompt))
+    except Exception as exc:  # noqa: BLE001 - a failed request must never fail the run
+        return declined(f"Cash bridge request failed: {type(exc).__name__}; the cases stand as submitted.")
+    blocks = _BLOCK.findall(text)
+    try:
+        corrected = _decode(blocks[0] if len(blocks) == 1 else text.strip())
+    except _SubmissionError:
+        return declined()
+    before = {item["name"].strip(): item for item in submitted if isinstance(item.get("name"), str)}
+    after = {item["name"].strip(): item for item in corrected
+             if isinstance(item, dict) and isinstance(item.get("name"), str)} if isinstance(corrected, list) else {}
+    if (before.keys() != after.keys() or len(after) != len(corrected)
+            or any(not isinstance(after[name].get("request"), dict)
+                   or _outside_bridge(after[name]) != _outside_bridge(before[name]) for name in before)
+            or any(_lacks_bridge(after[name]) for name in asked)):
+        return declined()
+    candidate = _prepare(state, corrected)
+    if {row["name"] for row in _priced(candidate["rows"])} != {row["name"] for row in _priced(record["rows"])}:
+        return declined()
+    cause = "it stated no operating cash flow or capital spending; the analyst was asked once to state them"
+    notes = [f"Row {index}: cash bridge stated by the analyst at code's request (operating cash flow and capital "
+             "spending); nothing else in the case changed."
+             for index, item in enumerate(corrected, 1) if item["name"].strip() in asked]
+    correction = {"block": json.dumps(corrected), "notes": notes, "kind": BRIDGE_ASKED,
+                  "cases": [{"name": name, "cause": cause} for name in asked], "report_sha256": _report_digest(state)}
+    return {**candidate, "reasons": [*candidate["reasons"], *notes], "corrected_submission": correction}
+
+
 def prepare_with_correction(state, llm, shape):
     """Price the analyst's cases; a rejected submission gets one correction attempt by the analyst model.
 
@@ -557,9 +644,11 @@ def prepare_with_correction(state, llm, shape):
     omitted = [reason for reason in record["reasons"] if re.match(r"Row \d+ omitted: ", reason)]
     if (record["status"] == "not_applicable" or "corrected_submission" in record
             or "correction_attempt" in record or not isinstance(report, str)
-            or record.get("submission_error") == "missing_block"
-            or not (record.get("submission_error") or omitted)):
+            or record.get("submission_error") == "missing_block"):
         return record
+    if not (record.get("submission_error") or omitted):
+        # Nothing was rejected, so the one request can go to an empty cash bridge instead.
+        return _request_cash_bridge(state, llm, shape, record, report)
     original = "\n\n".join(_BLOCK.findall(report))[:MAX_PAYLOAD]
     prompt = (
         "Validation rejected the valuation_scenarios block in your fundamentals report. Return only one corrected "

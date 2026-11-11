@@ -267,19 +267,27 @@ def render(summary) -> list[str]:
                 f"resolve by {summary['horizon_date']}. Reason (unvalidated): {summary['reason']}"]
     if not isinstance(summary, dict) or summary.get("status") != "addressed" or not summary.get("events"):
         return []
-    lines = [f"**Six-month view from dated events** (to {summary['horizon_date']}; arithmetic on the manager's own "
-             f"weights, not a forecast): each accepted case is brought back to {summary['horizon_date']} at the "
-             f"required return. On today's weights that is {Decimal(summary['current_value']):.2f}, "
+    lines = [f"**Six-month view from dated events** (to {summary['horizon_date']}; a mechanical interpolation of the "
+             "Portfolio Manager's own case weights, not a forecast of the price or of a six-month return): each "
+             f"accepted case's period-end value is brought back to {summary['horizon_date']} at the required return. "
+             f"On today's weights that is {Decimal(summary['current_value']):.2f}, "
              f"{Decimal(summary['current_move_percent']):+.1f}% against the close of {Decimal(summary['close']):.2f}. "
-             "A move shown is what the price would do if it went to that value."]
+             "The figures below restate the manager's weights under each outcome; they are not an estimate of how "
+             "the market would react."]
+    seen, repeated, mixes = {}, 0, []
     for event in summary["events"]:
         favourable, adverse = (f"{Decimal(event[side]['value']):.2f} ({Decimal(event[side]['move_percent']):+.1f}%)"
                                for side in ("favourable", "adverse"))
         lines.append(f"- {event['label']} (expected by {event['expected_date']}; favourable if "
                      f"{'met' if event['favourable_when'] == 'met' else 'not met'}): {favourable} if favourable, "
-                     f"{adverse} if adverse; today's weights imply about "
-                     f"{Decimal(event['implied_odds_percent']):.0f}% for the favourable outcome. "
-                     f"Reason (unvalidated): {event['reason']}")
-    lines.append("The implied odds are not a probability the manager stated: they are the single mix of its two "
+                     f"{adverse} if adverse. Reason (unvalidated): {event['reason']}")
+        repeated += (favourable, adverse) in seen
+        seen[(favourable, adverse)] = True
+        mixes.append(f"{Decimal(event['implied_odds_percent']):.0f}%")
+    if repeated:
+        lines.append("The manager gave the same outcome weights for more than one of these events, so those figures "
+                     "are identical; they do not tell the events apart.")
+    lines.append("Weight mix behind today's weights (not a probability the manager stated): "
+                 + ", ".join(mixes) + " toward the favourable set, in the order above. It is the single mix of the two "
                  "outcome weight sets that best reproduces today's weights (each case within 5 points).")
     return lines

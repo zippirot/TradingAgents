@@ -373,6 +373,67 @@ def carry_leases(filed: dict, snapshot_date, end, terms) -> dict:
     return carried
 
 
+def scheduled_payments(terms, snapshot_date, end):
+    """Finance-lease and equipment payments the filed schedule puts between the snapshot and ``end``.
+
+    Returns (amount or None, whether a schedule dated at the snapshot was retained). A year the table does
+    not state is unknown, never zero.
+    """
+    schedule = (terms or {}).get("schedule")
+    years = schedule.get("years") if isinstance(schedule, dict) and schedule.get("as_of") == snapshot_date else None
+    first = snapshot_date.year + (snapshot_date == date(snapshot_date.year, 12, 31))  # an ended year needs no column
+    if not years or not all(str(year) in years for year in range(first, end.year + 1)):
+        return None, bool(years)
+    scheduled = Decimal(0)
+    for label, amount in years.items():
+        year = int(label)
+        if snapshot_date.year <= year < end.year:
+            scheduled += amount
+        elif year == end.year:
+            # The snapshot year's column is the remainder of that year.
+            start = snapshot_date if year == snapshot_date.year else date(year - 1, 12, 31)
+            whole = (date(year, 12, 31) - start).days
+            scheduled += amount * (end - start).days / whole if whole > 0 else 0
+    return scheduled, True
+
+
+def states_operations(capital) -> bool:
+    """Whether the case gives operating cash flow. Code completes a bridge only from that starting point."""
+    return any(c.source == "operations" for c in capital.cash_changes)
+
+
+def applied_payments(capital, scheduled) -> Decimal:
+    """Scheduled payments code deducts itself: the case states operating cash and no finance payments of its own."""
+    if scheduled is None or scheduled <= 0 or not states_operations(capital):
+        return Decimal(0)
+    return Decimal(0) if any(c.source == "finance_payments" for c in capital.cash_changes) else scheduled
+
+
+def repaid_notes(capital, opening_borrowings, snapshot_date, terms) -> tuple[Decimal, list[str]]:
+    """Notes falling due inside the period that code repays from cash: (amount, names).
+
+    Only for a case that states operating cash, leaves borrowings at or above the filed balance, and neither
+    repays nor converts the note itself. Cash and borrowings fall together, so net obligations do not move.
+    """
+    owed = capital.obligations.get("borrowings")
+    if (not states_operations(capital) or owed is None or opening_borrowings is None
+            or owed.value < opening_borrowings):
+        return Decimal(0), []
+    dealt = (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
+             + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
+    repaid, names = Decimal(0), []
+    for name, amount, _ in sorted(_maturing_notes(terms, snapshot_date, capital.valuation_date), key=lambda n: n[2]):
+        if dealt >= amount:
+            dealt -= amount
+            continue
+        short, dealt = amount - dealt, Decimal(0)
+        short = min(short, owed.value - repaid)
+        if short > 0:
+            repaid += short
+            names.append(name)
+    return repaid, names
+
+
 def funded_cash(capital, snapshot_date, terms) -> dict:
     """What code adds to or takes from a case's closing cash once the case says what its operating cash holds.
 
@@ -390,6 +451,15 @@ def funded_cash(capital, snapshot_date, terms) -> dict:
     stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
     adjustment, decided, lines, unsized = Decimal(0), [], [], []
     record = {"interest_added_back": None, "rent_deducted": None, "rent_range": None}
+    applied = applied_payments(capital, scheduled_payments(terms, snapshot_date, end)[0])
+    if applied:
+        # The case gives operating cash and no finance payments, so the filed schedule is deducted for it.
+        adjustment -= applied
+        stated += applied
+        decided.append("payments")
+        record["payments_applied"] = str(applied)
+        lines.append(f"the case states operating cash and no finance payments, so the {_money(applied, currency)} "
+                     f"the filed schedule puts through {end} is deducted ({applied / shares:.2f} {currency} a share)")
     if capital.operations_after_lease_interest is False:
         decided.append("interest")
         lines.append("operating cash is stated before lease interest, so the scheduled payments carry that interest once")
@@ -463,24 +533,11 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
     unstated; it never adds a payment or changes the case's arithmetic.
     """
     terms = terms or {}
-    schedule, currency, end = terms.get("schedule"), capital.currency, capital.valuation_date
+    currency, end = capital.currency, capital.valuation_date
     stated = -sum(c.amount for c in capital.cash_changes if c.source == "finance_payments")
-    reasons, scheduled = [], None
-    years = schedule.get("years") if isinstance(schedule, dict) and schedule.get("as_of") == snapshot_date else None
-    # A year the table does not state is unknown, never zero.
-    first = snapshot_date.year + (snapshot_date == date(snapshot_date.year, 12, 31))  # an ended year needs no column
-    covered = bool(years) and all(str(year) in years for year in range(first, end.year + 1))
-    if years and covered:
-        scheduled = Decimal(0)
-        for label, amount in years.items():
-            year = int(label)
-            if snapshot_date.year <= year < end.year:
-                scheduled += amount
-            elif year == end.year:
-                # The snapshot year's column is the remainder of that year.
-                start = snapshot_date if year == snapshot_date.year else date(year - 1, 12, 31)
-                whole = (date(year, 12, 31) - start).days
-                scheduled += amount * (end - start).days / whole if whole > 0 else 0
+    reasons = []
+    scheduled, years = scheduled_payments(terms, snapshot_date, end)
+    by_code = applied_payments(capital, scheduled) if counts_cash else Decimal(0)
     principal = Decimal(0)
     for note in terms.get("notes") or ():
         if not isinstance(note, dict) or not isinstance(note.get("name"), str):
@@ -508,14 +565,15 @@ def funding_check(capital, snapshot_date, borrowings_snapshot, terms, counts_cas
         reasons.insert(0, f"The payment schedule dated {snapshot_date} does not state every year through {end}."
                        if years else
                        f"No finance-lease and equipment payment schedule dated {snapshot_date} was retained.")
-    elif scheduled - stated > scheduled * FUNDING_TOLERANCE:
+    elif scheduled - stated - by_code > scheduled * FUNDING_TOLERANCE:
         reasons.insert(0, (f"Scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
                            "are not stated in the case's cash changes." if stated <= 0 else
                            f"Scheduled finance and equipment payments are {_money(scheduled, currency)} through {end}; "
                            f"the case states {_money(stated, currency)}."))
     status = "unassessed" if scheduled is None else ("partial" if reasons else "assessed")
     summary = (f"Funding assessed: scheduled finance and equipment payments of {_money(scheduled, currency)} through {end} "
-               "are stated and maturing notes are accounted for." if status == "assessed"
+               + ("are deducted by code from the filed schedule" if by_code else "are stated")
+               + " and maturing notes are accounted for." if status == "assessed"
                else f"Funding {status}: " + " ".join(reasons))
     bounds = funding_bounds(capital, snapshot_date, scheduled, terms, stated) if counts_cash else {}
     funded = funded_cash(capital, snapshot_date, terms) if counts_cash else None
@@ -553,7 +611,7 @@ def _maturing_notes(terms, snapshot_date, end):
 
 
 def funded_statement(capital, snapshot_date, opening, funded, carried, settled, basis, capitalized, net, terms,
-                     unstated=()) -> list[str]:
+                     unstated=(), repaid=Decimal(0)) -> list[str]:
     """One statement per case: each balance from the filing to the period end, and who supplied each step.
 
     `opening` holds the filed snapshot balances; `net` is the basis's net obligations before any converted
@@ -568,11 +626,15 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
     # Cash.
     stated = [f"{c.source.replace('_', ' ')} {_signed(c.amount, currency)}" for c in capital.cash_changes]
     code = []
+    if funded.get("payments_applied"):
+        code.append(f"scheduled finance and equipment payments deducted {_signed(-Decimal(funded['payments_applied']), currency)}")
+    if repaid:
+        code.append(f"notes falling due repaid {_signed(-repaid, currency)}")
     if funded.get("interest_added_back"):
         code.append(f"lease interest already inside operating cash added back {_signed(Decimal(funded['interest_added_back']), currency)}")
     if funded.get("rent_deducted"):
         code.append(f"rent on leases that commence deducted {_signed(-Decimal(funded['rent_deducted']), currency)}")
-    closing_cash = capital.cash.value + Decimal(funded["adjustment"])
+    closing_cash = capital.cash.value + Decimal(funded["adjustment"]) - repaid
     lines.append(f"cash: opening {_money(opening['cash'], currency)} (filed); analyst: "
                  + ("; ".join(stated) if stated else "no change stated") + "; code: "
                  + ("; ".join(code) if code else "no change") + f"; closing {_money(closing_cash, currency)}"
@@ -589,6 +651,9 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
             how = ("the filed payment schedule" if category in LEASE_FINANCE
                    else "leases that commence in the period added")
             code.append(f"carried to the period end on {how} {_signed(closing - item.value, currency)}")
+        if category == "borrowings" and repaid:
+            closing -= repaid
+            code.append(f"notes falling due repaid {_signed(-repaid, currency)}")
         if category == "borrowings" and category in counted and settled["debt_removed"]:
             closing -= settled["debt_removed"]
             code.append(f"converted notes leave borrowings {_signed(-settled['debt_removed'], currency)}")
@@ -617,8 +682,8 @@ def funded_statement(capital, snapshot_date, opening, funded, carried, settled, 
     # What the filing schedules inside the period and the case does not state.
     open_items = [str(reason) for reason in unstated]
     filed_debt, owed_debt = opening.get("borrowings"), capital.obligations.get("borrowings")
-    dealt = (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
-             + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
+    dealt = repaid + (-sum(c.amount for c in capital.cash_changes if c.source == "debt" and c.amount < 0)
+                      + sum(c.converted_principal for c in capital.share_changes if c.source == "conversion"))
     # Earliest first, and what the case repays or converts is used once, so one repayment never covers two notes.
     for name, amount, matures in sorted(_maturing_notes(terms, snapshot_date, end), key=lambda note: note[2]):
         if dealt >= amount:
@@ -724,6 +789,12 @@ def price_case(request, package, outlooks, terms=None):
                                 if k != "borrowings" and v.assumption == "unchanged_from_snapshot"},
                                cash.period_end, capital.valuation_date, terms)
         owed = {k: carried[k]["value"] if k in carried else v.value for k, v in obligations.items()}
+        # A note falling due inside the period that the case leaves untouched is repaid from cash by code.
+        repaid, repaid_names = repaid_notes(
+            capital, sum(f.value for f in refs["borrowings"]) if "borrowings" in refs else None, cash.period_end, terms)
+        if repaid:
+            closing_cash -= repaid
+            owed["borrowings"] -= repaid
         net = {basis: sum(owed[k] for k in cats) - closing_cash
                for basis, cats in bases.items() if set(cats) <= components.keys()}
         equity = capitalized if request.multiple_basis == "equity" else capitalized - net[request.multiple_basis]
@@ -778,14 +849,17 @@ def price_case(request, package, outlooks, terms=None):
             assumptions.append("convertible notes: not applicable; none is outstanding at the period end.")
         if settled["lines"]:
             assumptions.append("convertible notes: " + CONVERSION + " A capped call covering notes already repurchased is not valued.")
-        if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):
+        if request.multiple_basis != "equity" and (Decimal(funded["adjustment"]) or repaid):
             assumptions.append(f"cash completed by code: {closing_cash} (stated {capital.cash.value}, adjustment "
-                               f"{Decimal(funded['adjustment']):+}). " + "; ".join(funded["lines"]) + ".")
+                               f"{Decimal(funded['adjustment']) - repaid:+}). " + "; ".join(
+                                   [*funded["lines"], *([f"{' and '.join(repaid_names)} falling due inside the period "
+                                                         f"repaid from cash, {_money(repaid, capital.currency)}, and "
+                                                         "removed from borrowings"] if repaid else [])]) + ".")
         funding = case_funding(request, package, terms)
         assumptions.extend(funded_statement(
             capital, cash.period_end, {label: sum(f.value for f in facts) for label, facts in refs.items()},
             funded, carried, settled, request.multiple_basis, capitalized, net.get(request.multiple_basis), terms,
-            unstated=funding["reasons"]))
+            unstated=funding["reasons"], repaid=repaid))
         result = TargetResult(status="supported", method="revenue_case", target=settled["value"],
             unit=capital.currency + "/shares", input_fact_ids=(revenue.fact_id, *ids), capital_snapshot_date=cash.period_end,
             shares_outstanding=settled["shares"], multiple=request.multiple,

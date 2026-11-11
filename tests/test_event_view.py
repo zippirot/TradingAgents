@@ -152,9 +152,18 @@ def test_the_reader_lines():
     assert lines[0].startswith("**Six-month view from dated events** (to 2027-05-10;")
     assert "On today's weights that is 90.29, +12.9% against the close of 80.00." in lines[0]
     assert lines[1] == ("- Revenue >= 348000000 USD (expected by 2027-02-20; favourable if met): 105.33 (+31.7%) if "
-                        "favourable, 75.24 (-6.0%) if adverse; today's weights imply about 50% for the favourable "
-                        "outcome. Reason (unvalidated): Fourth-quarter revenue against the guidance low.")
-    assert lines[-1].startswith("The implied odds are not a probability the manager stated")
+                        "favourable, 75.24 (-6.0%) if adverse. Reason (unvalidated): Fourth-quarter revenue against "
+                        "the guidance low.")
+    # Run 6cf38ab1's reviewer read the block as a forecast: it is labelled as interpolation, and the mix
+    # behind today's weights is kept out of the event lines.
+    assert "a mechanical interpolation of the Portfolio Manager's own case weights, not a forecast" in lines[0]
+    assert "not an estimate of how the market would react" in lines[0]
+    assert lines[-1].startswith("Weight mix behind today's weights (not a probability the manager stated): 50% toward")
+    assert not any("tell the events apart" in line for line in lines)
+    second = {"condition_id": CONDITIONS[1]["condition_id"]}
+    same = render(_assess([_event(), _event(**second)]))
+    assert "the same outcome weights for more than one of these events" in same[-2]
+    assert same[-1].startswith("Weight mix behind today's weights (not a probability the manager stated): 50%, 50%")
     unusable = render(_assess(None))
     assert len(unusable) == 1 and "not stated" in unusable[0] and "event_view is missing" in unusable[0]
     assert render(None) == [] and render({"status": "not_applicable"}) == []

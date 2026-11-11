@@ -52,6 +52,15 @@ def _conversion_without_instrument():
     return row
 
 
+def _bridged():
+    """A case that already states operating cash flow and capital spending: nothing to ask for."""
+    row = revenue_case()
+    row["request"]["capital"]["cash_changes"] = [
+        {"source": "operations", "amount": "10", "reason": "Operating cash flow."},
+        {"source": "capex", "amount": "-30", "reason": "Capital spending."}]
+    return row
+
+
 class Model:
     def __init__(self, reply=None, error=None):
         self.reply, self.error, self.prompts = reply, error, []
@@ -187,7 +196,7 @@ def test_a_provider_error_leaves_the_original_record():
 
 
 @pytest.mark.parametrize("make", [
-    lambda: state([]), lambda: state([revenue_case()]),
+    lambda: state([]), lambda: state([_bridged()]), lambda: state([revenue_case("equity")]),
     lambda: {**state([_invalid_label()]), "evidence_quality": {"status": "insufficient"}},
     lambda: {**_state("x"), "financial_claim_validation": {"raw_report": "No block."}},
     lambda: {**state([_invalid_label()]), "financial_evidence": None},
@@ -275,7 +284,7 @@ def test_an_accepted_revision_still_shows_that_the_analyst_case_was_corrected():
     saved = {**inputs, "shared_valuation_scenarios": record}
     same = replay_cases(saved, revision=[revenue_case()])
     assert same["revision_status"] == "accepted" and len(same["rows"]) == 1
-    note = 'Analyst case "Base" was corrected after a validation error before this revision: '
+    note = 'Analyst case "Base" was corrected before this revision: '
     assert [reason for reason in same["reasons"] if reason.startswith(note)]
     assert note in render_shared_valuation(same)
     again = replay_cases({**saved, "shared_valuation_scenarios": same})

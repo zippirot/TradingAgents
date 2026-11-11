@@ -227,8 +227,12 @@ def assess_audit(state, *, integrity="verified", expected_stages=None) -> dict:
                              "All required stages completed and no material operational problem was observed.", invalid, len(raw), findings)
     scenarios = state.get("shared_valuation_scenarios")
     if isinstance(scenarios, Mapping) and isinstance(scenarios.get("corrected_submission"), Mapping):
-        assessment["recovered"] = ["Valuation Scenarios: The analyst corrected its valuation submission after a "
-                                   "validation error; the corrected cases passed the same checks."]
+        assessment["recovered"] = [
+            "Valuation Scenarios: The analyst stated operating cash flow and capital spending for its cases when "
+            "asked; the completed cases passed the same checks."
+            if scenarios["corrected_submission"].get("kind") == "cash_bridge" else
+            "Valuation Scenarios: The analyst corrected its valuation submission after a "
+            "validation error; the corrected cases passed the same checks."]
     return assessment
 
 

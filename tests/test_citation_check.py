@@ -161,3 +161,15 @@ def test_disclosure_comparison_percentage_matches():
          "comparison": {"quote": ", an increase of 6%", "value": "6", "unit": "%", "basis_locator": "block-35"}}]}})
     result = check_pm_citations(state)
     assert (result["matched"], result["mismatches"]) == (1, [])
+
+
+def test_a_block_locator_inside_a_citation_is_not_a_figure_to_match():
+    """Run 6cf38ab1: a definition cited as (D1/block-95) was counted as a mismatched figure."""
+    state = _state("AI Customer ARR includes non-AI spending by customers using AI/ML (D1/block-95), so it is not "
+                   "a measure of AI-product revenue.")
+    state["canonical_financial_context"] = BRIEF.replace("- [C2]", "- [D1] guidance: 60 percent; source D1\n- [C2]")
+    result = check_pm_citations(state)
+    assert (result["matched"], result["checked"], result["citation_only_sentences"]) == (0, 0, 1)
+    assert result["mismatches"] == []
+    stated = check_pm_citations(_state("Revenue was $322.2 million (F46/block-12)."))
+    assert (stated["matched"], stated["checked"]) == (0, 1)        # a real figure beside a locator is still checked
