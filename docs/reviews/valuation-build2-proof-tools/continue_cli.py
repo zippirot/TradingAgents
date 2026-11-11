@@ -322,7 +322,7 @@ def _retained(value):
             result = dict(row["result"])
             result["warnings"] = [w for w in result.get("warnings") or [] if not str(w).startswith("Funding ")]
             result["assumptions"] = [_one_label(text) for text in result.get("assumptions") or []
-                                     if not str(text).startswith("convertible notes: ")]
+                                     if not str(text).startswith(("convertible notes: ", "share sales: "))]
             for derived in ("target", "shares_outstanding", "net_obligations"):
                 result.pop(derived, None)
             row = {k: v for k, v in row.items()

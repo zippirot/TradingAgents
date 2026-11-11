@@ -22,7 +22,7 @@ _OUTSTANDING = (
                + r"\s+remained outstanding with a maturity date of\s+" + _DATE),
 )
 _PRICE = re.compile(r"conversion price of (?:approximately\s*)?\$\s*([\d,]+(?:\.\d+)?)", re.I)
-_ROW = re.compile(_NAME + r"\s*\|\s*[\d.]+\s*\|\s*\|\s*\$\s*\|\s*([\d,]+(?:\.\d+)?)")
+_ROW = re.compile(_NAME + r"\s*\|\s*([\d.]+)\s*\|\s*\|\s*\$\s*\|\s*([\d,]+(?:\.\d+)?)")
 _STRIKE = re.compile(r"(20\d{2}) Capped Calls have an initial strike price of \$\s*([\d,]+(?:\.\d+)?) per share")
 _CAP = re.compile(r"(20\d{2}) Capped Calls have an initial cap price of \$\s*([\d,]+(?:\.\d+)?) per share")
 _EXPIRES = re.compile(r"(20\d{2}) Capped Calls expire on " + _DATE)
@@ -54,7 +54,7 @@ def discover_convertibles(package: DisclosurePackage, as_of: date) -> list[dict]
     if document is None:
         return []
     blocks = [block for block in document.blocks if not block.truncated]
-    stated, prices, strikes, caps, expiries = {}, {}, {}, {}, {}
+    stated, prices, rates, strikes, caps, expiries = {}, {}, {}, {}, {}, {}
     for block in blocks:
         text = " ".join(block.text.split())
         for pattern in _OUTSTANDING:
@@ -63,7 +63,10 @@ def discover_convertibles(package: DisclosurePackage, as_of: date) -> list[dict]
                     ((_number(found.group(1)), _day(found.group(3))), block.locator))
         for found in _ROW.finditer(text):
             if "conversion price" in text.lower():
-                prices.setdefault(found.group(1), []).append((_number(found.group(2)), block.locator))
+                prices.setdefault(found.group(1), []).append((_number(found.group(3)), block.locator))
+                # The contractual rate, when the table gives it per 1,000 of principal.
+                if re.search(r"conversion rate per \$\s*1,000", text, re.I):
+                    rates.setdefault(found.group(1), []).append((_number(found.group(2)), block.locator))
         for sentence in _SENTENCE.split(text):
             years = set(re.findall(_NAME, sentence))
             if len(years) == 1 and "|" not in sentence:
@@ -82,6 +85,7 @@ def discover_convertibles(package: DisclosurePackage, as_of: date) -> list[dict]
         if scale is None:
             continue
         price, price_locator = _one(prices.get(year, []))
+        rate, _ = _one(rates.get(year, []))
         (strike, strike_locator), (cap, _), (expires, _) = (_one(store.get(year, [])) for store in (strikes, caps, expiries))
         capped = None
         # A capped call is only read as the note's own when its strike is the note's conversion price.
@@ -90,7 +94,8 @@ def discover_convertibles(package: DisclosurePackage, as_of: date) -> list[dict]
         records.append({
             "name": f"{year} Convertible Notes", "principal": str(terms[0] * scale), "currency": "USD",
             "as_of": document.filing.report_date.isoformat(), "maturity_date": terms[1].isoformat(),
-            "conversion_price": None if price is None or price <= 0 else str(price), "capped_call": capped,
+            "conversion_price": None if price is None or price <= 0 else str(price),
+            "conversion_rate": None if rate is None or rate <= 0 else str(rate), "capped_call": capped,
             "locator": locator, "conversion_price_locator": price_locator, "source_id": document.source_id,
         })
     return records

@@ -71,7 +71,23 @@ def test_a_basis_that_counts_no_borrowings_adds_the_shares_and_removes_no_debt()
 
 def test_a_note_whose_own_dilution_takes_the_value_below_its_price_stays_as_debt():
     settled = settle_convertibles(EQUITY, SHARES, [note(31, principal=3410)], None)
-    assert settled["value"] == 32 and settled["shares"] == 110 and "stays as debt" in settled["lines"][0]
+    assert settled["value"] == 32 and settled["shares"] == 110
+    # Neither reading is consistent, so the line says so instead of claiming 32 is not above 31.
+    assert settled["lines"] == ["2030 Convertible Notes: left open. As debt the case's value is 32.00 a share, above the 31 "
+                                "conversion price; converted it would be 16.00, below it, because this basis does not "
+                                "count all of the note as debt. The note stays as debt and the value is not settled."]
+
+
+def test_the_filed_conversion_rate_sets_the_shares_when_the_filing_states_one():
+    rated = {**note(20), "rate": Decimal("51")}          # 51 shares per 1,000 of principal: 5.1 shares, not 5
+    settled = settle_convertibles(EQUITY, SHARES, [rated], Decimal(160))
+    assert settled["shares"] == Decimal("115.1") and close(settled["value"], Decimal(3620) / Decimal("115.1"))
+
+
+def test_a_note_the_case_partly_repays_is_decided_on_what_is_left():
+    part = {"cash_changes": [{"source": "debt", "amount": "-40", "reason": "Repurchased.", "instrument": "2030 notes"}]}
+    (left,), lines = outstanding_convertibles(_capital(**part), SNAPSHOT, {"convertibles": [FILED]})
+    assert left["principal"] == 60 and lines == []
 
 
 def _capital(**extra):
@@ -82,13 +98,13 @@ def _capital(**extra):
 
 
 FILED = {"name": "2030 Convertible Notes", "principal": "100", "currency": "USD", "as_of": "2026-09-30",
-         "maturity_date": "2030-08-15", "conversion_price": "20",
+         "maturity_date": "2030-08-15", "conversion_price": "20", "conversion_rate": None,
          "capped_call": {"strike": "20", "cap": "25", "expires": "2030-08-15", "locator": "b"}}
 
 
 def test_only_notes_outstanding_at_the_period_end_and_not_already_treated_by_the_case_are_decided():
     notes, lines = outstanding_convertibles(_capital(), SNAPSHOT, {"convertibles": [FILED]})
-    assert notes == [{"name": "2030 Convertible Notes", "principal": Decimal(100), "price": Decimal(20),
+    assert notes == [{"name": "2030 Convertible Notes", "principal": Decimal(100), "price": Decimal(20), "rate": None,
                       "call": (Decimal(20), Decimal(25), date(2030, 8, 15))}] and lines == []
     for skipped in ({**FILED, "maturity_date": "2027-06-01"}, {**FILED, "as_of": "2026-06-30"},
                     {**FILED, "currency": "EUR"}, {**FILED, "principal": "n/a"}, {"name": "x"}):
@@ -128,10 +144,15 @@ def test_a_whole_case_is_priced_with_the_note_converted(monkeypatch):
         return record["rows"][0]["result"]
 
     before = price()
-    assert Decimal(before["target"]) == 32 and not any("convertible" in line for line in before["assumptions"])
+    assert Decimal(before["target"]) == 32
+    assert "convertible notes: not read from a filing for this case." in before["assumptions"]
+    assert "share sales: not applicable; the case states none." in before["assumptions"]
     terms = {"schedule": None, "schedule_totals": {}, "notes": [], "leases": [],
              "convertibles": [{**FILED, "as_of": before["capital_snapshot_date"]}]}
     monkeypatch.setattr(shared_valuation, "_funding_terms", lambda value: terms)
+    terms["convertibles"] = []
+    assert "convertible notes: not applicable; none is outstanding at the period end." in price()["assumptions"]
+    terms["convertibles"] = [{**FILED, "as_of": before["capital_snapshot_date"]}]
     after = price()
     assert close(after["target"], Decimal(3645) / 115) and Decimal(after["net_obligations"]) == -20
     assert close(after["shares_outstanding"], 115 - 25 / Decimal(after["target"]))
@@ -148,3 +169,9 @@ def test_the_analyst_is_told_code_decides_outstanding_notes():
     from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS as text
     assert "Code decides every convertible note still outstanding at the valuation date" in text
     assert '"instrument":"<note name>"' in text and "add no conversion shares for it yourself" in text
+
+
+def test_another_instrument_that_shares_the_notes_year_does_not_switch_code_off():
+    loan = {"cash_changes": [{"source": "debt", "amount": "-50", "reason": "Repaid.", "instrument": "Term loan due 2030"}]}
+    notes, lines = outstanding_convertibles(_capital(**loan), SNAPSHOT, {"convertibles": [FILED]})
+    assert len(notes) == 1 and lines == []

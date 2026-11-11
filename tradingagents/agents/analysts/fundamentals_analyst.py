@@ -180,7 +180,7 @@ SHARED_VALUATION_INPUTS = (
     " Code decides every convertible note still outstanding at the valuation date: when the case's own value per share is above the note's filed conversion price it adds the shares, net of any filed capped call, and removes the note from borrowings; otherwise the note stays as debt. So leave such a note in borrowings and add no conversion shares for it yourself."
     ' Only when your case has the company repay, repurchase or convert a note before the valuation date, state that yourself and name the note: a negative debt cash change with "instrument":"<note name>", or a conversion share change. Code then leaves that note alone.'
     " A note you convert into shares must also be removed from the borrowings estimate, in addition to any debt repaid with cash."
-    " ATM proceeds and ATM shares must both be stated or both be omitted."
+    " ATM proceeds and ATM shares must both be stated or both be omitted. On an atm share change also give \"price\":\"<assumed sale price per share before costs>\"; code checks that the proceeds are no more than shares times that price and within a tenth of it."
     " Never use guided diluted weighted-average shares as closing shares. Code assesses funding from the filed schedule; do not describe it as unassessed."
     " Include complete evidenced additional obligation categories for labeled sensitivities, especially finance_equipment and operating_leases."
     " Use equity, borrowings_only, finance_equipment or all_leases for multiple_basis. Equity applies no cash or debt adjustment."

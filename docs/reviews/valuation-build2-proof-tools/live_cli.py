@@ -336,7 +336,9 @@ def assess(state, work):
                 per_share = Decimal(0)
             for note in live[:1]:
                 principal, strike = Decimal(note["principal"]), Decimal(note["conversion_price"])
-                shares, added = Decimal(cap["closing_shares"]["value"]), principal / strike
+                shares = Decimal(cap["closing_shares"]["value"])
+                added = (principal * Decimal(note["conversion_rate"]) / 1000 if note.get("conversion_rate")
+                         else principal / strike)
                 freed = min(principal, amounts["borrowings"]) if basis != "equity" and "borrowings" in amounts else 0
                 ceiling = Decimal(note["capped_call"]["cap"]) if note["capped_call"] else None
                 if ceiling is None:
@@ -344,7 +346,7 @@ def assess(state, work):
                 else:
                     converted = (equity + freed + added * (ceiling - strike)) / (shares + added)
                     if converted < ceiling:  # between strike and cap the call returns every share above par
-                        converted = (equity + freed - principal) / shares
+                        converted = (equity + freed - added * strike) / shares
                 if converted > strike:
                     per_share = converted
         # One description whichever period word the analyst chose (decision-quality Part A, 2026-11-10).

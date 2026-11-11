@@ -146,9 +146,10 @@ def _funding_terms(state):
     try:
         # Read from the pinned filing each time, so a saved run reprices without a stored copy of the terms.
         corpus = validated_document_corpus(state)
-        convertibles = discover_convertibles(corpus, date.fromisoformat(state["trade_date"])) if corpus else []
+        # No filing to read is "not read", which is not the same as a filing that states no note.
+        convertibles = discover_convertibles(corpus, date.fromisoformat(state["trade_date"])) if corpus else None
     except Exception:  # noqa: BLE001 - unreadable note terms leave every note as debt, never fail pricing
-        convertibles = []
+        convertibles = None
     return {"schedule": schedule, "schedule_totals": totals, "notes": notes if isinstance(notes, list) else [],
             "leases": leases if isinstance(leases, list) else [], "convertibles": convertibles}
 
@@ -157,7 +158,7 @@ def _with_conversion(funding, result):
     """Say beside the funding check what code decided for each convertible note, where every reader looks."""
     marker = "convertible notes: "
     lines = [text[len(marker):] for text in result.assumptions
-             if text.startswith(marker) and not text.startswith(marker + CONVERSION)]
+             if text.startswith(marker) and not text.startswith((marker + CONVERSION, marker + "not "))]
     return {**funding, "convertibles": lines, "summary": " ".join((funding["summary"], *lines))} if lines else funding
 
 

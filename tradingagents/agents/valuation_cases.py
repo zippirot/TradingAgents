@@ -37,9 +37,20 @@ class ShareChange(_Record):
     converted_principal: Decimal | None = Field(default=None, gt=0, max_digits=40)
     instrument: str | None = Field(default=None, min_length=1, max_length=200)
     reason: str = Field(min_length=1, max_length=600)
+    # The assumed sale price of an "atm" entry, before costs, so code can check shares against cash.
+    price: Decimal | None = Field(default=None, gt=0, max_digits=20)
+
+    @model_serializer(mode="wrap")
+    def _unpriced_stays_absent(self, handler):
+        record = handler(self)
+        if record.get("price") is None:
+            record.pop("price", None)
+        return record
 
     @model_validator(mode="after")
     def _principal_matches_source(self):
+        if self.price is not None and self.source != "atm":
+            raise ValueError("price belongs to an atm share change only")
         if (self.source == "conversion") != (self.converted_principal is not None):
             raise ValueError("converted_principal is required for a conversion and only for a conversion")
         if self.source == "conversion" and self.instrument is None:
@@ -223,13 +234,18 @@ CONVERSION = ("A convertible note outstanding at the period end is treated as co
 def outstanding_convertibles(capital, snapshot_date, terms) -> tuple[list, list]:
     """Notes the filing states that are still outstanding at the case's period end, and plain lines for the rest."""
     notes, lines = [], []
-    named = " ".join(str(c.instrument) for c in (*capital.share_changes, *capital.cash_changes)
-                     if c.instrument and c.source in ("conversion", "debt"))
+    # What the case itself retires of each note. A conversion always concerns a note; a debt change names
+    # one only when its label says so.
+    retired = [(c.instrument, c.converted_principal) for c in capital.share_changes
+               if c.source == "conversion" and c.instrument]
+    retired += [(c.instrument, -c.amount) for c in capital.cash_changes
+                if c.source == "debt" and c.instrument and c.amount < 0 and re.search(r"note|convert", c.instrument, re.I)]
     for note in (terms or {}).get("convertibles") or ():
         try:
             name, principal = str(note["name"])[:80], Decimal(str(note["principal"]))
             matures = date.fromisoformat(str(note["maturity_date"]))
             price = None if note.get("conversion_price") is None else Decimal(str(note["conversion_price"]))
+            rate = None if note.get("conversion_rate") is None else Decimal(str(note["conversion_rate"]))
             call = note.get("capped_call")
             call = None if call is None else (Decimal(str(call["strike"])), Decimal(str(call["cap"])),
                                              date.fromisoformat(str(call["expires"])))
@@ -240,25 +256,27 @@ def outstanding_convertibles(capital, snapshot_date, terms) -> tuple[list, list]
         if matures <= capital.valuation_date:
             continue  # the maturity check covers a note that falls due inside the period
         year = re.search(r"20\d{2}", name)
-        if year and year.group() in named:
+        principal -= sum((amount for label, amount in retired if year and year.group() in label), Decimal(0))
+        if principal <= 0:
             lines.append(f"{name}: the case states its own repayment or conversion, so code adds nothing.")
         elif price is None or price <= 0:
             lines.append(f"{name}: left open. The filing's conversion price was not read, so the note stays as debt.")
         else:
             # A capped call that has expired by the period end offsets nothing.
             notes.append({"name": name, "principal": principal, "price": price,
-                          "call": call if call and call[2] >= capital.valuation_date else None})
+                          "rate": rate if rate is not None and rate > 0 else None, "call": call if call and call[2] >= capital.valuation_date else None})
     return notes, lines
 
 
 def _per_share(equity, shares, converted):
     """Value per share once the converted notes' shares, net of capped-call shares, are counted.
 
-    Each converted note adds principal / price shares. Its capped call returns shares worth the gain between
+    Each converted note adds its principal at the filed conversion rate (principal / price when the filing
+    states no rate). Its capped call returns shares worth the gain between
     the strike and the cap on those same shares. The count depends on the value, so the two are solved together.
     """
     def new_shares(value, note):
-        gross = note["principal"] / note["price"]
+        gross = note["principal"] * note["rate"] / 1000 if note.get("rate") else note["principal"] / note["price"]
         if note["call"] is None or value <= note["call"][0]:
             return gross, Decimal(0)
         return gross, gross * (min(value, note["call"][1]) - note["call"][0]) / value
@@ -278,13 +296,17 @@ def settle_convertibles(equity, shares, notes, borrowings):
     `equity` is the case's equity value with every note still counted as debt; `borrowings` is the debt the
     basis counts (None when the basis counts none, so removing a note changes no value).
     """
-    converted, left, value, counts = [], borrowings, equity / shares, []
+    converted, left, value, counts, unsettled = [], borrowings, equity / shares, [], {}
     for note in sorted(notes, key=lambda n: n["price"]):
         removed = min(note["principal"], left) if left is not None else Decimal(0)
         trial = [*converted, {**note, "removed": removed}]
         trial_value, trial_counts = _per_share(equity + sum(n["removed"] for n in trial), shares, trial)
         if trial_value <= note["price"]:
-            break
+            # When the basis counts the whole note as debt, both readings agree. When it does not, the value
+            # can sit above the price as debt and below it converted: neither holds, and that is said.
+            if value > note["price"]:
+                unsettled[note["name"]] = trial_value
+            continue
         converted, value, counts = trial, trial_value, trial_counts
         left = None if left is None else left - removed
     done = {n["name"] for n in converted}
@@ -299,7 +321,12 @@ def settle_convertibles(equity, shares, notes, borrowings):
                  "; this basis counts no borrowings, so no debt is removed.")
         lines.append(line)
     for note in notes:
-        if note["name"] not in done:
+        if note["name"] in unsettled and value > note["price"]:
+            lines.append(f"{note['name']}: left open. As debt the case's value is {value:.2f} a share, above the "
+                         f"{note['price']} conversion price; converted it would be {unsettled[note['name']]:.2f}, below it, "
+                         "because this basis does not count all of the note as debt. The note stays as debt and the "
+                         "value is not settled.")
+        elif note["name"] not in done:
             lines.append(f"{note['name']}: stays as debt. The case's value of {value:.2f} a share is not above the "
                          f"{note['price']} conversion price.")
     return {"value": value, "shares": shares + sum(g - o for g, o in counts),
@@ -596,9 +623,31 @@ def price_case(request, package, outlooks, terms=None):
         if atm_shares or atm_cash:
             if atm_shares <= 0 or atm_cash <= 0:
                 raise ValueError("A share-sale programme adds shares and cash; both must be positive")
-            assumptions.append(f"share sales checked by code: {atm_shares:,.0f} shares for {atm_cash:,.0f} of cash is "
-                               f"{atm_cash / atm_shares:.2f} a share after costs; this case's value is {settled['value']:.2f} a share.")
+            sales = [c for c in capital.share_changes if c.source == "atm"]
+            if any(c.price is not None for c in sales):
+                if any(c.price is None for c in sales):
+                    raise ValueError("Every atm share change needs a price when one states it")
+                # Proceeds are after costs: never above shares times price, and within a tenth of it.
+                gross = sum(c.shares * c.price for c in sales)
+                if atm_cash > gross * (1 + FUNDING_TOLERANCE):
+                    raise ValueError(f"ATM proceeds of {atm_cash} are more than shares times the stated price ({gross})")
+                if atm_cash < gross * Decimal("0.9"):
+                    raise ValueError(f"ATM proceeds of {atm_cash} are less than nine tenths of shares times the stated price ({gross})")
+                stated = " and ".join(sorted({str(c.price) for c in sales}))
+                assumptions.append(f"share sales: checked by code. {atm_shares:,.0f} shares at a stated {stated} a share is "
+                                   f"{gross:,.0f} before costs; the case takes in {atm_cash:,.0f}, costs of "
+                                   f"{(1 - atm_cash / gross) * 100:.1f}%. This case's value is {settled['value']:.2f} a share.")
+            else:
+                assumptions.append(f"share sales: {atm_shares:,.0f} shares for {atm_cash:,.0f} of cash is "
+                                   f"{atm_cash / atm_shares:.2f} a share after costs; no sale price is stated to check "
+                                   f"it against. This case's value is {settled['value']:.2f} a share.")
+        else:
+            assumptions.append("share sales: not applicable; the case states none.")
         assumptions.extend(f"convertible notes: {line}" for line in (*settled["lines"], *note_lines))
+        if not isinstance((terms or {}).get("convertibles"), list):
+            assumptions.append("convertible notes: not read from a filing for this case.")
+        elif not settled["lines"] and not note_lines:
+            assumptions.append("convertible notes: not applicable; none is outstanding at the period end.")
         if settled["lines"]:
             assumptions.append("convertible notes: " + CONVERSION + " A capped call covering notes already repurchased is not valued.")
         if request.multiple_basis != "equity" and Decimal(funded["adjustment"]):

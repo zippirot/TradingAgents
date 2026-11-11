@@ -11,7 +11,7 @@ Proof source: saved run `6fe6324b`, repriced with no model call
 | Note terms read by code | Every "20XX Convertible Notes" the latest primary filing states as outstanding: principal, maturity, conversion price, and a capped call only when its strike equals the note's conversion price. A term stated two ways is left out, never chosen. No company or year in the code. | `dataflows/convertibles.py` |
 | Conversion decided by code | A note still outstanding at the case's period end is converted when the case's own value per share is above its conversion price: shares added (net of capped-call shares, up to the cap), principal removed from borrowings, never both. Otherwise it stays as debt. Share count and value are solved together. Applied to the main value and to each lease-inclusive value at that value's own level. | `agents/valuation_cases.py` (`outstanding_convertibles`, `settle_convertibles`, `price_case`) |
 | A case that treats a note itself | A conversion share change, or a debt cash change that names the note (new optional `instrument`), switches code off for that note. | `agents/valuation_cases.py` (`CashChange.instrument`) |
-| Share sales | Shares and cash must both be positive; the implied price after costs is printed beside the case's value. | `agents/valuation_cases.py` (`price_case`) |
+| Share sales | Shares and cash must both be positive. An `atm` share change may state its sale `price`; proceeds must then be no more than shares times price and within a tenth of it. Without a price the implied price is printed and said to be unchecked. | `agents/valuation_cases.py` (`price_case`) |
 | Where it is shown | Each note's outcome is appended to the case's funding sentence, which the report and the manager's brief already print. | `agents/shared_valuation.py` (`_with_conversion`) |
 | Analyst instructions | Leave an outstanding note in borrowings; code decides it. Name a note the case repays or converts early. | `analysts/fundamentals_analyst.py` |
 | Terms source | Read from the pinned filing on every pricing, not stored in state, so saved runs reprice and no saved record changes shape. | `agents/shared_valuation.py` (`_funding_terms`) |
@@ -23,7 +23,7 @@ decided here). 2030 notes, 153.2M USD outstanding, mature 2030-08-15, conversion
 
 | Case | Before | After | Shares | What happened |
 |---|---|---|---|---|
-| Base | 101.17 | 100.05 | 120.42M to 123.26M | 2030 notes converted: 3.91M shares added, 1.07M returned by the capped call, 149.6M USD leaves borrowings |
+| Base | 101.17 | 100.05 | 120.42M to 123.26M | 2030 notes converted: 3.91M shares added at the filed rate of 25.5317 per 1,000, 1.07M returned by the capped call, 149.6M USD leaves borrowings |
 | Downside | 59.14 | 59.11 | 127.09M to 129.68M | same; 1.32M shares returned. Share sale: 58.80 a share after costs against a case value of 59.11 |
 | Upside | 141.53 | 139.14 | 120.42M to 123.56M | same; 0.77M shares returned |
 
@@ -36,9 +36,9 @@ them as debt only.
 
 | Check | Result |
 |---|---|
-| Full suite | 4,521 passed, 10 skipped |
+| Full suite | 4,525 passed, 10 skipped |
 | Ruff | clean |
-| New tests | `tests/test_convertibles.py` (5), `tests/test_convertible_settlement.py` (12), share-sale tests in `tests/test_shared_valuation.py` |
+| New tests | `tests/test_convertibles.py` (5), `tests/test_convertible_settlement.py` (16), share-sale tests in `tests/test_shared_valuation.py` |
 | Independent arithmetic | The saved-checkpoint drill (`tests/test_build2_continuation_proof.py`) prices the converted case by closed form and agrees with the solver to twenty places |
 
 ## Changed existing checks
@@ -57,3 +57,13 @@ them as debt only.
 - A note the case repays early without naming it is still converted by code. The analyst is told to name it.
 - Real-filing proof is DOCN only. Sentence patterns for other issuers' note disclosures are untested.
 - Not tested with a live model: whether the analyst follows the new instruction.
+
+## Independent audit (run 6d1e267c, openai/gpt-6-astra, 0.69 USD) and closure
+
+| Severity | Finding | Reproduced | Fix |
+|---|---|---|---|
+| High | On a basis that does not count the whole note as debt, the value could sit above the conversion price as debt and below it converted; the line then claimed the value was "not above" the price | Yes, failing test | The line now says "left open", gives both values and the reason; later notes are still decided |
+| Medium | Naming a 1 USD repayment of a note switched code off for the whole note | Yes, failing test | Only the amount the case repays or converts is taken off; the rest is decided by code. A debt label must say "note" or "convert" to count |
+| Medium | Share sales were not checked against an assumed price | Yes, failing test | Optional `price` on an atm share change, checked both ways; the analyst is asked for it |
+| Medium | The filed conversion rate was ignored in favour of principal / rounded price | Yes, failing test | The rate per 1,000 is read and used when the filing states it (DOCN: 300 more shares) |
+| Low | No "not applicable" line when a case has no notes or share sales | Yes, failing test | Three plain lines: not applicable (share sales), not applicable (no note outstanding), not read (no filing) |

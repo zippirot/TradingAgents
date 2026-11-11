@@ -370,8 +370,23 @@ def test_atm_shares_without_atm_cash_is_rejected():
 def test_atm_cash_and_shares_together_is_supported():
     record = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[_ATM_CASH, _ATM_SPENT]))
     assert len(record["rows"]) == 1, record["reasons"]
-    assert any(line.startswith("share sales checked by code: 10 shares for 20 of cash is 2.00 a share after costs")
+    assert any(line.startswith("share sales: 10 shares for 20 of cash is 2.00 a share after costs")
                for line in record["rows"][0]["result"]["assumptions"])
+
+
+def test_a_share_sale_is_checked_against_its_stated_price_both_ways():
+    def priced(price):
+        sold = {**_ATM_SHARES, "price": price}
+        return _bridge_case(lambda c: c.update(share_changes=[sold], cash_changes=[_ATM_CASH, _ATM_SPENT]))
+    ok = priced("2.1")     # 10 shares at 2.10 is 21 gross; 20 after costs of under 5%
+    assert len(ok["rows"]) == 1, ok["reasons"]
+    assert any("10 shares at a stated 2.1 a share is 21 before costs; the case takes in 20" in line
+               for line in ok["rows"][0]["result"]["assumptions"])
+    assert "more than shares times the stated price" in " ".join(priced("1.5")["reasons"])
+    assert "less than nine tenths of shares times the stated price" in " ".join(priced("5")["reasons"])
+    unpriced = _bridge_case(lambda c: c.update(share_changes=[_ATM_SHARES], cash_changes=[_ATM_CASH, _ATM_SPENT]))
+    assert any("no sale price is stated" in line for line in unpriced["rows"][0]["result"]["assumptions"])
+    assert "price" not in unpriced["rows"][0]["request"]["capital"]["share_changes"][0]
 
 
 def test_a_share_sale_that_loses_cash_is_rejected():

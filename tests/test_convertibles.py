@@ -52,6 +52,7 @@ def test_both_notes_are_read_with_their_own_terms_and_the_capped_call_stays_with
     assert old["capped_call"] is None
     assert (new["name"], new["principal"], new["maturity_date"], new["conversion_price"]) == (
         "2030 Convertible Notes", "153172000", "2030-08-15", "39.17")
+    assert new["conversion_rate"] == "25.5317" and old["conversion_rate"] is None
     assert new["capped_call"] == {"strike": "39.17", "cap": "66.51", "expires": "2030-08-15", "locator": "block-103"}
     assert new["locator"] == "block-102" and new["as_of"] == "2026-09-30"
 
