@@ -29,6 +29,9 @@ Plan: `docs/superpowers/plans/2026-11-08-large-filer-evidence-coverage-plan.md` 
 
 - **L6a (done).** `source_integrity` failed for six companies because a block cut short by the excerpt budget was compared with its full text and called a conflict. A truncated prefix now merges into the full block; any other difference still fails (`tests/test_truncated_block_views.py`). After the fix all ten pass `source_integrity`, the equity check is produced for all ten, and DOCN is unchanged at 7/7.
 
+- **L6b (done).** WMT, INTC and LLY report no total-liabilities line. Total liabilities is now derived as the filed liabilities-and-equity total less consolidated equity and any temporary equity, each cited, and replayed by the lineage check. For such a filer the balance check compares assets with the filed total (two independent reported figures). Nothing is derived when a noncontrolling balance exists but only the parent's equity is known, when two temporary balances could overlap, or when the filing carries an outside or temporary equity balance under a tag code does not read (standard or the filer's own). For a filer that reports liabilities and has outside interests (RTX), the identity uses consolidated equity plus temporary equity. `tests/test_total_liabilities_identity.py`. WMT's derived figure, 189,115M USD, matches an independent calculation from the filed facts. The extra facts are read only where needed: DOCN's fact set is identical to the baseline code's (992 facts, same identifiers).
+- Development group after L6: all ten pass `source_integrity`, `core_statements` and `balance_sheet`. `equity_movement`, `obligation_perimeter` and `cash_flow_perimeter` pass for none; `disclosure_coverage` for five.
+
 ## Not yet done
 
 Extended capture of every text document in each filing index; L1–L5; L6b (total liabilities); MSFT case-pricing check; final score; held-out verdict; independent audit. Paid runs are not approved.

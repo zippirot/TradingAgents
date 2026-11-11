@@ -110,6 +110,7 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
         derive_cash_outflow,
         derive_parent_net_income,
         derive_quarter,
+        derive_total_liabilities,
         derive_ttm,
     )
 
@@ -138,6 +139,8 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     )
                 elif fact.formula_id == "four_quarter_sum_v1":
                     expected = derive_ttm(inputs)
+                elif fact.formula_id == "liabilities_and_equity_less_equity_v1":
+                    expected = derive_total_liabilities(tuple(inputs))
                 else:
                     raise ValueError("unsupported formula")
                 if expected != fact:
@@ -155,7 +158,18 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
 
 def latest_balance_check(package: EvidencePackage, source_precision=None):
     """Reconcile one common latest balance date, never stale cross-date inputs."""
-    from tradingagents.agents.accounting_checks import Calculation, check_balance_sheet
+    from tradingagents.agents.accounting_checks import (
+        Calculation,
+        check_assets_equal_filed_total,
+        check_balance_sheet,
+        check_balance_sheet_with_interests,
+    )
+    from tradingagents.dataflows.financial_evidence import (
+        NONCONTROLLING,
+        TEMPORARY_EQUITY_METRICS,
+        TOTAL_EQUITY,
+        TOTAL_LIABILITIES_FORMULA,
+    )
 
     metrics = ("Total Assets", "Total Liabilities", "Stockholders Equity")
     balances = [
@@ -185,6 +199,23 @@ def latest_balance_check(package: EvidencePackage, source_precision=None):
             )
         ids.append(chosen.fact_id)
     by_id = {fact.fact_id: fact for fact in package.facts}
+    liabilities = by_id[ids[1]]
+    at_end = [f for f in package.facts if f.period_start is None and f.period_end == end and f.value is not None]
+    if liabilities.origin == "derived" and liabilities.formula_id == TOTAL_LIABILITIES_FORMULA:
+        # Derived from the filed total, so assets = liabilities + equity would only restate the derivation.
+        # The independent evidence is the filed total itself.
+        pair = (ids[0], liabilities.input_fact_ids[0])
+        return check_assets_equal_filed_total(
+            package, *pair, precision=_comparison_precision(package, [by_id[i] for i in pair], source_precision))
+    total_equity = _select_compatible_fact(package, [f for f in at_end if f.metric == TOTAL_EQUITY], source_precision)
+    temporary = [f for f in at_end if f.metric in TEMPORARY_EQUITY_METRICS]
+    outside = temporary or any(f.metric == NONCONTROLLING for f in at_end)
+    if outside and total_equity is not None and len(temporary) <= 1:
+        # Outside interests sit between liabilities and the parent's equity; the identity uses consolidated equity.
+        wide = (ids[0], ids[1], total_equity.fact_id, *(f.fact_id for f in temporary))
+        return check_balance_sheet_with_interests(
+            package, wide[0], wide[1], wide[2], wide[3:],
+            precision=_comparison_precision(package, [by_id[i] for i in wide], source_precision))
     return check_balance_sheet(
         package,
         *ids,

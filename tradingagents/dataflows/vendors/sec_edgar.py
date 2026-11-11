@@ -439,6 +439,61 @@ def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = 
     return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")
 
 
+_OUTSIDE_EQUITY_CONCEPT = re.compile(r"redeemable|temporaryequity|mezzanine|noncontrolling|minorityinterest", re.I)
+_READ_EQUITY_CONCEPTS = frozenset({
+    "StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "MinorityInterest"})
+
+
+def _unread_equity_concepts(data: dict, end: str, read: frozenset) -> list[str]:
+    """Balances at ``end`` under any taxonomy whose name says outside or temporary equity and which code does not read.
+
+    Every face line item of a filed balance sheet carries a tag, standard or the filer's own. One that code
+    does not read means the equity deducted from the filed total may be incomplete, so nothing is derived.
+    """
+    found = []
+    for concepts in (data.get("facts") or {}).values():
+        for name, body in (concepts or {}).items():
+            if name in read or not _OUTSIDE_EQUITY_CONCEPT.search(name):
+                continue
+            if any(row.get("end") == end and "start" not in row
+                   for rows in (body.get("units") or {}).values() for row in rows):
+                found.append(name)
+    return sorted(found)
+
+
+def _derived_total_liabilities(data, records, end, derive):
+    """Total liabilities at ``end`` from the filed total less all equity, or None when that cannot be established."""
+    from tradingagents.dataflows.financial_evidence import (
+        LIABILITIES_AND_EQUITY,
+        NONCONTROLLING,
+        TEMPORARY_EQUITY_METRICS,
+        TEMPORARY_EQUITY_TAGS,
+        TOTAL_EQUITY,
+    )
+    at_end = [f for f in records.values() if f.value is not None and f.period_start is None
+              and str(f.period_end) == end and f.origin == "reported"]
+
+    def one(metric):
+        found = [f for f in at_end if f.metric == metric]
+        return found[0] if len(found) == 1 else None
+
+    total, temporary = one(LIABILITIES_AND_EQUITY), [f for f in at_end if f.metric in TEMPORARY_EQUITY_METRICS]
+    if total is None or len(temporary) > 1 or _unread_equity_concepts(
+            data, end, _READ_EQUITY_CONCEPTS | frozenset(TEMPORARY_EQUITY_TAGS)):
+        return None
+    equity = one(TOTAL_EQUITY)
+    if equity is None and not any(f.metric == NONCONTROLLING for f in at_end):
+        parent = one("Stockholders Equity")
+        # The parent's equity is all equity only when the filing carries no noncontrolling balance at all.
+        equity = parent if parent is not None and "/StockholdersEquity/" in parent.locator else None
+    if equity is None:
+        return None
+    try:
+        return derive((total, equity, *temporary))
+    except ValueError:
+        return None
+
+
 def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definitions: bool = False,
                            period_floor: date | None = None):
     """Bounded exact SEC facts, retaining the source fragment for each value.
@@ -447,11 +502,17 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
     Twelve recent statement ends and five fiscal year ends bound model context.
     """
     from tradingagents.dataflows.financial_evidence import (
+        LIABILITIES_AND_EQUITY,
+        NONCONTROLLING,
+        TEMPORARY_EQUITY_TAGS,
+        TOTAL_EQUITY,
         EvidencePackage,
         FinancialFact,
         SourceRecord,
         add_period_calculations,
         derive_parent_net_income,
+        derive_total_liabilities,
+        temporary_equity_metric,
     )
 
     # The broader reported-revenue definition is permitted only for peer
@@ -463,7 +524,17 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
             (f"Unclassified Marketable Securities [{tag}]", (tag,))
             for tag in _SECURITY_CANDIDATES
         ],
+        # Read for every filer, kept only where the balance sheet needs them (see below): a filer that
+        # reports no total-liabilities line, or one with noncontrolling or temporary equity.
+        "balance_identity": [
+            (LIABILITIES_AND_EQUITY, ("LiabilitiesAndStockholdersEquity",)),
+            (TOTAL_EQUITY, ("StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",)),
+            (NONCONTROLLING, ("MinorityInterest",)),
+            *((temporary_equity_metric(tag), (tag,)) for tag in TEMPORARY_EQUITY_TAGS),
+        ],
     }
+    identity_metrics = {metric for metric, _ in statements["balance_identity"]}
+    ambiguous_identity = set()
     if peer_revenue_definitions:
         statements = {
             kind: [(metric, tags + ("RevenueFromContractWithCustomerIncludingAssessedTax",)
@@ -521,13 +592,35 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
                         and metric not in _PEER_CONSUMED_METRICS):
                     peer_gaps.append(f"{metric} ambiguous at {ambiguity.group(1)}; not used for peer statistics")
                     continue
-                if not metric.startswith("Unclassified Marketable Securities ["):
+                if metric in identity_metrics:
+                    quarter, annual = {}, {}
+                    ambiguous_identity.add(metric)
+                elif not metric.startswith("Unclassified Marketable Securities ["):
                     raise
-                quarter, annual = {}, {}
-                ambiguous_security_metrics.add(metric)
+                else:
+                    quarter, annual = {}, {}
+                    ambiguous_security_metrics.add(metric)
             selected[metric] = (quarter, annual)
     sources, records = {}, {}
+
+    def instants(metric, end):
+        return [v for (when, _), v in selected.get(metric, ({}, {}))[0].items() if when == end and "start" not in v]
+
+    asset_ends = [end for (end, _), v in selected.get("Total Assets", ({}, {}))[0].items()
+                  if end in allowed_quarters and "start" not in v]
+    balance_end = max(asset_ends) if asset_ends else None
+    outside_interests = balance_end is not None and any(
+        instants(metric, balance_end) for metric in identity_metrics - {LIABILITIES_AND_EQUITY, TOTAL_EQUITY})
+    no_total_liabilities = balance_end is not None and not instants("Total Liabilities", balance_end)
+    keep_identity = (outside_interests or no_total_liabilities) and not ambiguous_identity
     for metric, (quarter, annual) in selected.items():
+        if metric in identity_metrics:
+            # Only the latest balance date, and only for a filer whose balance sheet needs these rows.
+            if not keep_identity:
+                continue
+            quarter, annual = {key: v for key, v in quarter.items() if key[0] == balance_end and "start" not in v}, {}
+            if not quarter:
+                continue
         picked = [v for (end, _), v in quarter.items() if end in allowed_quarters]
         picked += [v for (end, _), v in annual.items() if end in allowed_annual]
         if not picked and metric.startswith("Unclassified Marketable Securities [") and metric not in ambiguous_security_metrics:
@@ -583,6 +676,11 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
         records.pop(hashlib.sha256(
             f"{cik}:{as_of_date}:Net Income:missing".encode()
         ).hexdigest(), None)
+    if keep_identity and no_total_liabilities:
+        derived = _derived_total_liabilities(data, records, balance_end, derive_total_liabilities)
+        if derived is not None:
+            records[derived.fact_id] = derived
+            records.pop(hashlib.sha256(f"{cik}:{as_of_date}:Total Liabilities:missing".encode()).hexdigest(), None)
     if not sources:
         raise NoMarketDataError(ticker, ticker, f"no statement evidence filed by {as_of_date}")
     return add_period_calculations(EvidencePackage(cik=cik, as_of=cutoff, facts=tuple(records.values()), sources=tuple(sources.values()),

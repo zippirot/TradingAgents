@@ -130,6 +130,50 @@ def check_balance_sheet(package: EvidencePackage, assets_id, liabilities_id, equ
         return _unavailable(method, ids, "incompatible_inputs", str(exc))
 
 
+def check_assets_equal_filed_total(package: EvidencePackage, assets_id, total_id, precision):
+    """Assets against the filed liabilities-and-equity total: two independently reported figures.
+
+    Used when total liabilities is derived from that total, where assets = liabilities + equity would
+    only restate the derivation.
+    """
+    method = "assets_equals_liabilities_and_equity_total_v1"
+    ids = (assets_id, total_id)
+    try:
+        assets, total = _facts(package, ids)
+        _same([assets, total])
+        _money([assets, total])
+        if assets.period_start is not None or any(f.origin != "reported" for f in (assets, total)):
+            raise ValueError("balance sheet requires reported instant facts")
+        if (assets.metric, total.metric) != ("Total Assets", "Liabilities and Equity"):
+            raise ValueError("balance-sheet input roles do not match")
+        return _reconcile(method, ids, total.value, assets.value, assets.unit, precision)
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incompatible_inputs", str(exc))
+
+
+def check_balance_sheet_with_interests(package: EvidencePackage, assets_id, liabilities_id, equity_id,
+                                       temporary_ids, precision):
+    """Assets = liabilities + temporary equity + consolidated equity, for a filer with outside interests."""
+    method = "assets_equals_liabilities_temporary_and_total_equity_v1"
+    ids = (assets_id, liabilities_id, equity_id, *temporary_ids)
+    try:
+        assets, liabilities, equity, *temporary = _facts(package, ids)
+        _same([assets, liabilities, equity, *temporary])
+        _money([assets, liabilities, equity, *temporary])
+        if assets.period_start is not None:
+            raise ValueError("balance sheet requires instant facts")
+        if ((assets.metric, liabilities.metric, equity.metric)
+                != ("Total Assets", "Total Liabilities", "Total Equity Including Noncontrolling Interests")
+                or any(not f.metric.startswith("Temporary Equity [") for f in temporary)):
+            raise ValueError("balance-sheet input roles do not match")
+        with localcontext() as ctx:
+            ctx.prec = 50
+            value = liabilities.value + equity.value + sum((f.value for f in temporary), Decimal(0))
+            return _reconcile(method, ids, value, assets.value, assets.unit, precision)
+    except (ValueError, ArithmeticError) as exc:
+        return _unavailable(method, ids, "incompatible_inputs", str(exc))
+
+
 def check_cash_plus_marketable_securities(package: EvidencePackage) -> Calculation:
     """Statement liquidity, separate from valuation cash and obligation bridges."""
     method = "cash_plus_marketable_securities_v1"

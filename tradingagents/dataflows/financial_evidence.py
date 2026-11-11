@@ -431,6 +431,49 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
     return result
 
 
+LIABILITIES_AND_EQUITY = "Liabilities and Equity"
+TOTAL_EQUITY = "Total Equity Including Noncontrolling Interests"
+NONCONTROLLING = "Noncontrolling Interests"
+TEMPORARY_EQUITY_TAGS = (
+    "RedeemableNoncontrollingInterestEquityCarryingAmount",
+    "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests",
+    "TemporaryEquityCarryingAmountAttributableToParent",
+    "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+    "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+)
+TOTAL_LIABILITIES_FORMULA = "liabilities_and_equity_less_equity_v1"
+
+
+def temporary_equity_metric(tag: str) -> str:
+    return f"Temporary Equity [{tag}]"
+
+
+TEMPORARY_EQUITY_METRICS = frozenset(temporary_equity_metric(tag) for tag in TEMPORARY_EQUITY_TAGS)
+
+
+def derive_total_liabilities(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
+    """Total liabilities for a filer that reports none: the filed total less all equity, each input cited.
+
+    Inputs are the reported liabilities-and-equity total, one equity total (consolidated, or the parent's
+    where the caller established there is no noncontrolling interest), and at most one temporary-equity
+    balance, all on one date, unit, basis and vintage.
+    """
+    if not 2 <= len(inputs) <= 3 or len({f.fact_id for f in inputs}) != len(inputs):
+        raise ValueError("total liabilities needs the filed total, one equity total and at most one temporary balance")
+    total, equity, *temporary = inputs
+    if (total.metric != LIABILITIES_AND_EQUITY or equity.metric not in (TOTAL_EQUITY, "Stockholders Equity")
+            or any(f.metric not in TEMPORARY_EQUITY_METRICS for f in temporary)):
+        raise ValueError("total liabilities inputs have the wrong roles")
+    if any(f.origin != "reported" or f.value is None or f.period_start is not None for f in inputs):
+        raise ValueError("total liabilities needs reported balances")
+    if len({(f.unit, f.cik, f.basis, f.as_of, f.period_end) for f in inputs}) != 1 or len(total.unit) != 3:
+        raise ValueError("incompatible unit, issuer, basis, vintage or date")
+    value = total.value - equity.value - sum((f.value for f in temporary), Decimal(0))
+    if value < 0:
+        raise ValueError("derived total liabilities is negative")
+    return _derived(inputs, None, total.period_end, value, TOTAL_LIABILITIES_FORMULA, metric="Total Liabilities")
+
+
 def derive_cash_outflow(reported: FinancialFact) -> FinancialFact:
     """Convert an explicitly classified signed payment to its gross magnitude."""
     if (
