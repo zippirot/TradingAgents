@@ -144,6 +144,9 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                 elif fact.formula_id == "shares_issued_less_treasury_v1":
                     from tradingagents.dataflows.financial_evidence import derive_shares_outstanding
                     expected = derive_shares_outstanding(tuple(inputs))
+                elif fact.formula_id == "cover_count_after_balance_v1":
+                    from tradingagents.dataflows.financial_evidence import derive_shares_from_cover
+                    expected = derive_shares_from_cover(tuple(inputs))
                 elif fact.formula_id == "face_borrowings_v1":
                     from tradingagents.dataflows.face_liabilities import derive_face_borrowings
                     expected = derive_face_borrowings(tuple(inputs))

@@ -864,7 +864,8 @@ def price_case(request, package, outlooks, terms=None):
     if len(refs["closing_shares"]) != 1 or len(refs["cash"]) != 1:
         raise ValueError("Closing shares and cash each require one corresponding reported snapshot fact")
     shares, cash = refs["closing_shares"][0], refs["cash"][0]
-    counted = shares.origin == "reported" or shares.formula_id == "shares_issued_less_treasury_v1"
+    counted = shares.origin == "reported" or shares.formula_id in {"shares_issued_less_treasury_v1",
+                                                                    "cover_count_after_balance_v1"}
     if (shares.metric != "Common Shares Outstanding" or shares.unit != "shares" or not counted
             or shares.value <= 0 or capital.closing_shares.value <= 0 or cash.metric != "Cash and Equivalents"):
         raise ValueError("Closing shares require actual common shares outstanding; cash requires unrestricted cash")
@@ -977,6 +978,14 @@ def price_case(request, package, outlooks, terms=None):
                                    [*funded["lines"], *([f"{' and '.join(repaid_names)} falling due inside the period "
                                                          f"repaid from cash, {_money(repaid, capital.currency)}, and "
                                                          "removed from borrowings"] if repaid else [])]) + ".")
+        counted_shares = refs["closing_shares"][0]
+        if counted_shares.formula_id == "cover_count_after_balance_v1":
+            by_id = {f.fact_id: f for f in package.facts}
+            cover, average = (by_id[i] for i in counted_shares.input_fact_ids)
+            assumptions.append(
+                f"share count: {counted_shares.value:,.0f} is the filing's cover-page count dated {cover.period_end}, "
+                f"used for the {counted_shares.period_end} balance date because the filing tags no count at that date; "
+                f"the filing's average count for the period ending then is {average.value:,.0f}.")
         # Investments the filing presents within current assets are not in the case's cash. Said beside the value,
         # not added to it: the history a multiple is chosen against nets cash only.
         held = [f for f in package.facts if f.metric == "Current Marketable Securities" and f.value is not None

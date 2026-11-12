@@ -24,6 +24,7 @@ from tradingagents.dataflows.financial_evidence import (
     FinancialFact,
     SourceRecord,
     _derived,
+    derive_shares_from_cover,
     derive_shares_outstanding,
 )
 
@@ -236,7 +237,8 @@ def _filed_shares(facts, end, filed) -> list[FinancialFact]:
 
     In order: the balance-sheet count; the cover-page count when it is dated the balance date itself; the
     balance-sheet count stated for the filer's one class on the class-of-stock axis; shares issued less
-    treasury shares. A cover count dated later is another date and is not used.
+    treasury shares. Last, for a filer that states its count only on the cover: the cover count dated
+    shortly after the balance date, when the filing's own average share count for the period agrees with it.
     """
     def shares(concept, class_axis=False):
         rows = [f for f in facts if f.concept == concept and f.start is None and f.end == end and f.unit == "shares"
@@ -259,12 +261,37 @@ def _filed_shares(facts, end, filed) -> list[FinancialFact]:
         if value is not None and value > 0:
             return [fact("Common Shares Outstanding", value, f"{concept} at {end} {how}")]
     issued, treasury = shares("us-gaap:CommonStockSharesIssued"), shares("us-gaap:TreasuryStockCommonShares")
-    if issued is None or treasury is None:
+    if issued is not None and treasury is not None:
+        parts = [fact("Common Shares Issued", issued, f"us-gaap:CommonStockSharesIssued at {end} in the filed instance"),
+                 fact("Treasury Shares", treasury, f"us-gaap:TreasuryStockCommonShares at {end} in the filed instance")]
+        try:
+            return [*parts, derive_shares_outstanding(tuple(parts))]
+        except ValueError:
+            return []
+    return _cover_shares(facts, end, fact)
+
+
+def _cover_shares(facts, end, fact) -> list[FinancialFact]:
+    """The cover-page count dated after the balance date, checked against the period's average count."""
+    plain = [f for f in facts if f.unit == "shares" and not f.dimensions]
+    covers = {(f.end, f.value) for f in plain if f.concept == "dei:EntityCommonStockSharesOutstanding"
+              and f.start is None and f.end > end}
+    averages = {(f.start, f.value) for f in plain if f.start is not None and f.end == end
+                and f.concept == "us-gaap:WeightedAverageNumberOfSharesOutstandingBasic"}
+    if len(covers) != 1 or not averages:
         return []
-    parts = [fact("Common Shares Issued", issued, f"us-gaap:CommonStockSharesIssued at {end} in the filed instance"),
-             fact("Treasury Shares", treasury, f"us-gaap:TreasuryStockCommonShares at {end} in the filed instance")]
+    (dated, count), = covers
+    start = max(start for start, _ in averages)          # the shortest period ending on the balance date
+    values = [value for begun, value in averages if begun == start]
+    if len(values) != 1:
+        return []
+    cover = fact("Cover Shares Outstanding", count,
+                 f"dei:EntityCommonStockSharesOutstanding on the cover, dated {dated}").model_copy(update={"period_end": dated})
+    average = fact("Weighted Average Basic Shares", values[0],
+                   f"us-gaap:WeightedAverageNumberOfSharesOutstandingBasic for {start} to {end} in the filed instance"
+                   ).model_copy(update={"period_start": start})
     try:
-        return [*parts, derive_shares_outstanding(tuple(parts))]
+        return [cover, average, derive_shares_from_cover((cover, average))]
     except ValueError:
         return []
 

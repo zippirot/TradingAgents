@@ -492,6 +492,38 @@ def derive_shares_outstanding(inputs: tuple[FinancialFact, ...]) -> FinancialFac
                     metric="Common Shares Outstanding")
 
 
+COVER_SHARES_FORMULA = "cover_count_after_balance_v1"
+COVER_SHARES_MAX_DAYS = 120
+COVER_SHARES_TOLERANCE = Decimal("0.02")
+
+
+def derive_shares_from_cover(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
+    """Common shares outstanding at the balance date for a filer that states its count only on the cover page.
+
+    The cover count is dated after the balance date. It stands for that date only when it is dated within
+    COVER_SHARES_MAX_DAYS of it and lies within COVER_SHARES_TOLERANCE of the filing's own weighted-average
+    basic share count for a period ending on the balance date.
+    """
+    if len(inputs) != 2:
+        raise ValueError("a cover share count needs the cover count and the period's average count")
+    cover, average = inputs
+    if (cover.metric, average.metric) != ("Cover Shares Outstanding", "Weighted Average Basic Shares"):
+        raise ValueError("cover share count inputs have the wrong roles")
+    if any(f.origin != "reported" or f.value is None or f.unit != "shares" or f.value <= 0 for f in inputs):
+        raise ValueError("a cover share count needs reported share figures")
+    if cover.period_start is not None or average.period_start is None:
+        raise ValueError("the cover count is a balance and the average covers a period")
+    if len({(f.cik, f.basis, f.as_of) for f in inputs}) != 1 or set(cover.source_ids) != set(average.source_ids):
+        raise ValueError("the cover count and the average must come from one filing")
+    days = (cover.period_end - average.period_end).days
+    if not 0 < days <= COVER_SHARES_MAX_DAYS or cover.period_end > cover.as_of:
+        raise ValueError("the cover count is not dated shortly after the balance date")
+    if abs(cover.value - average.value) > COVER_SHARES_TOLERANCE * average.value:
+        raise ValueError("the cover count disagrees with the period's average share count")
+    return _derived(inputs, None, average.period_end, cover.value, COVER_SHARES_FORMULA,
+                    metric="Common Shares Outstanding")
+
+
 def derive_cash_outflow(reported: FinancialFact) -> FinancialFact:
     """Convert an explicitly classified signed payment to its gross magnitude."""
     if (
