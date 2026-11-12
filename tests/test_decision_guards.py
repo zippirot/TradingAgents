@@ -39,7 +39,8 @@ def test_a_reason_that_starts_from_the_code_figure_stands_without_a_note():
               "is far above its standard weight.")
     summary = summarize(_bearish(reason), _three())
     assert summary["consistency"] == "explained" and summary["reason_conflict"] is False
-    assert retry_feedback(_bearish(reason), _three()) == ""
+    # The reason itself draws no correction; these weights decide the side of the close, which is asked separately.
+    assert "rating_basis_reason" not in retry_feedback(_bearish(reason), _three())
     assert "Code note on that reason" not in "\n".join(render(summary))
 
 

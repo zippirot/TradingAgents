@@ -524,6 +524,10 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         default=None,
         description="When priced scenario cases are listed in the prompt: one entry per case with its exact case_id and version, disposition accepted or rejected, a short reason, a weight above 0 and at most 1 for an accepted case (accepted weights sum to 1; subjective, not measured probabilities) and, for a rejected case, the single input rejected in rejected_input. Null when no priced case is listed.",
     )
+    weight_basis: str | None = Field(
+        default=None, max_length=1200,
+        description="When you accept two or more priced scenario cases: the evidence for giving each its weight rather than equal weights, case by case. Calling the weights subjective is not a basis.",
+    )
     rating_basis_reason: str | None = Field(
         default=None, max_length=1200,
         description="When the rating points against your accepted scenarios (their weighted value differs from the close by more than 10 percent the other way, or it returns more than the required return under a bearish rating or less under a bullish one): why the rating still stands, with figures.",

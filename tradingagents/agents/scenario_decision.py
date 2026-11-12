@@ -232,7 +232,8 @@ def summarize(state, replayed) -> dict:
                "close": None, "session_date": None, "direction": None, "consistency": "not_checked",
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
-               "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None}
+               "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None,
+               "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False}
     if not accepted:
         return summary
     # Only the close each accepted case was validated against on replay is comparable; the raw
@@ -263,6 +264,10 @@ def summarize(state, replayed) -> dict:
         if today is not None:
             summary.update(today, direction=_direction(Decimal(today["weighted_value_today"]), close),
                            direction_basis="value_today", sturdiness=sturdiness(accepted, close))
+            # Equal weights on the other side of the close: the weights, not the cases, decide the comparison.
+            equal = _decimal((summary["sturdiness"] or {}).get("equal_weight_vs_close_percent"))
+            given = _decimal(today["weighted_today_vs_close_percent"])
+            summary["weights_decide"] = bool(equal and given and (equal > 0) != (given > 0))
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -345,6 +350,12 @@ def retry_feedback(state, replayed) -> str:
                      "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
                      "rating_basis_reason or revise the rating or the scenario_view.")
     # There is one resubmission, so everything it must correct goes back together.
+    if summary.get("weights_decide") and not summary.get("weight_basis"):
+        parts.append(
+            "Your weights decide the comparison with the close: with them the accepted cases are worth "
+            f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close today, with equal weights "
+            f"{Decimal(summary['sturdiness']['equal_weight_vs_close_percent']):+.1f}%. Resubmit the complete decision "
+            "with weight_basis: the evidence, case by case, for weighting them this way rather than equally.")
     parts.append(size_feedback(state, summary))
     parts.append(event_feedback(summary.get("event_view")))
     return " ".join(part for part in parts if part)
@@ -378,6 +389,8 @@ def render_cases_for_manager(cases, required=None) -> str:
            "today's price are on one time basis. If your rating points the " if valued else
            "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
         + "other way by more than 10 percent, state why in rating_basis_reason."
+        + " When you accept two or more cases, give in weight_basis the evidence for these weights rather than equal "
+          "ones, case by case; code prints what equal weights would give."
         + (" The same applies inside 10 percent when the weighted value returns more than the required return and "
            "your rating is Underweight or Sell, or less than it and your rating is Overweight or Buy: give the "
            "reason with figures." if valued else "")
@@ -456,6 +469,11 @@ def render(summary) -> list[str]:
                      "required return taken out, so its gap to the close is not a yearly return.")
     lines.extend(render_return_parts(summary))
     lines.extend(render_sturdiness(summary))
+    if summary.get("weight_basis"):
+        lines.append("Why these weights (the Portfolio Manager's statement, unvalidated): " + summary["weight_basis"])
+    elif summary.get("weights_decide"):
+        lines.append("The weights decide the comparison with the close (equal weights put the accepted cases on the "
+                     "other side of it) and no basis for them was stated.")
     lines.extend(render_events(summary.get("event_view")))
     lines.extend(render_sizing_rule(summary))
     return lines
