@@ -265,3 +265,6 @@ Lessons: (1) the launcher is what the user decides with; nothing goes there on s
 Reading: on fresh runs neither suspect moves MSFT (inside noise); the 5.6 reported earlier came from follow-up runs that continued a history, not from the code. MSFT sits 0.3 to 0.5 under its end-of-loop 6.73, at the edge of noise. The printed size line is neutral on score and is kept; the label is removed because of the real failure above, not because of these scores.
 Open: follow-up runs (the way the user really runs) score lower than fresh runs on MSFT (5.4 to 5.9 against 6.1 to 6.6); evaluators name carried cases shown as "accepted", "unusable" and "not adopted" at once. Not yet diagnosed.
 Total paid spend to date: about 109 dollars.
+
+### Rollback confirmed on the user's real DOCN run (2026-11-12, launcher at 8072ae71)
+Published Underweight, matching the Research Manager, the Trader and the risk analysts. The user's evaluator: decision 8.1 (5.0 with the override; 8.1 to 8.5 on the three runs before), research 9.2. It names as the remaining weakness that the downside case runs out of cash with no funding modelled (the loop's item on DOCN financing). Visible defect to fix on the bench: the Trader's code-written sentence "opening one where none is held; it is not an exit" printed for a held position.
