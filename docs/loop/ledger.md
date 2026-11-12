@@ -316,3 +316,14 @@ Bank and insurer path verdict: passes the install rule (three runs, both kinds o
 OBSERVATION for the quality loop: of the eight companies' latest runs, every one rates Underweight except one JPM Hold. A tool that gives one answer to a bank, an insurer, an oil company, a health insurer, a retailer and two technology companies is not telling them apart. Not diagnosed. Candidates: the fixed 9.88% required return, downside-weighted scenario sets, a manager that reads any shortfall against the hurdle as Underweight.
 Backlog with cause: COP, NEE, PLD (lines filed under names not read); IBM (financing arm); XOM (new registrant); SNOW (analyst submitted no scenarios, once).
 Total paid spend to date: about 134 dollars.
+
+## Quality loop restarted on the eight (user: "yes", 2026-11-12). First target: nearly every company rates Underweight
+Free diagnosis from 90 saved runs with accepted scenarios (all eight companies, every batch since the noise baseline):
+- Ratings: 60 Underweight, 13 Sell, 6 Hold, 11 Overweight. Every Overweight is MSFT. 81 percent negative.
+- Weights are the same shape for every company: base about 0.50, downside about 0.30, upside about 0.18 (CAT 0.51/0.31/0.18; DOCN 0.48/0.36/0.17; MSFT 0.53/0.30/0.17; WMT 0.52/0.28/0.21; JPM 0.52/0.32/0.17; PGR 0.52/0.25/0.23; UNH 0.50/0.30/0.20; CVX 0.62/0.28/0.20). The downside gets about 1.7 times the upside's weight whatever the company.
+- Scenario values today against the close, mean: base -2.6 to -15.5 percent for every company but MSFT (+3.6); downside -24 to -48; upside +10 to +42. The central case sits a little under the price once discounted at the 9.88 percent required return, i.e. the analysts' central cases are roughly "the stock goes sideways".
+- Weighted value against the close, mean: CAT -10.1, CVX -19.9, DOCN -12.2, UNH -9.3, WMT -13.2, MSFT +0.2. With equal weights: CAT -5.7, CVX -21.8, DOCN -4.2, UNH -5.7, WMT -12.2, MSFT +3.8. So the weights explain about 8 points on DOCN and 4 on CAT and UNH, and almost nothing on WMT and CVX, where the scenarios themselves are low.
+- Every base case (68 of 68) applies a lower multiple than the price pays today, on average 20 percent lower. Partly proper (a forward multiple on higher forecast earnings), so not proof of bias on its own.
+- Then the rating: anything short of the required return is rated Underweight; there is no middle band (the earlier MSFT finding).
+Reading: three things stack in the same direction: central cases anchored near the current price so they miss a 9.88 percent hurdle; a fixed downside tilt in the weights that does not vary by company; and no Hold band. None of this says the ratings are wrong (no outcome has settled), only that the tool is not discriminating.
+Not built. Each candidate fix changes what the manager is asked or what a rating means, so they go to the user.
