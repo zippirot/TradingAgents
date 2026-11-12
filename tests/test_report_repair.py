@@ -59,7 +59,7 @@ def test_other_missing_capital_fields_are_still_rejected():
     row = revenue_case()
     del row["request"]["capital"]["cash"]["value"]
     record = prepare_shared_valuation(state([row]))
-    assert not record["rows"] and "malformed valuation request at capital.cash.value" in record["reasons"][0]
+    assert not record["rows"] and "required field capital.cash.value is missing" in record["reasons"][0]
 
 
 # Z2 ------------------------------------------------------------------------

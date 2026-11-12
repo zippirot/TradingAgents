@@ -40,7 +40,8 @@ def _reading(text: str, investment_plan: str) -> str:
     if reading is None:
         return ""
     return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "
-            "research rating it is a change in the size of an existing position, not an exit or a new position.")
+            "research rating it moves the position toward the size the rating calls for, opening one where none is held; "
+            "it is not an exit.")
 
 
 # Said by code after every proposal that names a price level, so no reader has to work out which of the

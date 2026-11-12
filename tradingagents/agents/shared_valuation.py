@@ -273,6 +273,35 @@ def _label_capital_estimates(raw, index, notes):
     return filled
 
 
+def _fill_equity_capital(raw, package, index, notes):
+    """An equity-basis case that leaves out cash or obligations is still priced: neither enters its value.
+
+    Cash is held at the filed balance on the date of the share count the case cites; no obligation is assumed.
+    A case on any other basis uses both and must state them.
+    """
+    capital = raw.get("capital")
+    if raw.get("multiple_basis") != "equity" or not isinstance(capital, dict) or {"cash", "obligations"} <= capital.keys():
+        return raw
+    filled, missing = {**raw, "capital": dict(capital)}, [key for key in ("cash", "obligations") if key not in capital]
+    if "cash" in missing:
+        cited = (capital.get("closing_shares") or {}).get("fact_ids") if isinstance(capital.get("closing_shares"), dict) else None
+        shares = next((f for f in package.facts if cited and f.fact_id == cited[0]), None)
+        filed = [f for f in package.facts if shares is not None and f.metric == "Cash and Equivalents"
+                 and f.period_start is None and f.period_end == shares.period_end and f.value is not None]
+        cash = filed[0] if len(filed) == 1 else _select_compatible_fact(package, filed) if filed else None
+        if cash is None:
+            return raw
+        filled["capital"]["cash"] = {
+            "value": str(cash.value), "fact_ids": [cash.fact_id], "assumption": "unchanged_from_snapshot",
+            "reason": f"Not stated by the analyst; code holds filed cash as of {cash.period_end} unchanged. "
+                      "An equity-basis value does not use cash."}
+    filled["capital"].setdefault("obligations", {})
+    notes.append(f"Row {index}: {' and '.join(missing)} {'were' if len(missing) > 1 else 'was'} not stated; an "
+                 "equity-basis value uses neither, so the case is priced with filed cash held unchanged and no "
+                 "obligation assumed.")
+    return filled
+
+
 def _request_record(request):
     """Dump a request; a case with no stated bridge keeps its original record shape."""
     record = request.model_dump(mode="json")
@@ -380,7 +409,8 @@ def _prepare(state, requests):
             supplemental = {}
             if raw.get("method") == "revenue_case":
                 row_notes = []
-                request = RevenueCase.model_validate(_label_capital_estimates(raw, index, row_notes))
+                request = RevenueCase.model_validate(_label_capital_estimates(
+                    _fill_equity_capital(raw, package, index, row_notes), index, row_notes))
                 notes += row_notes
                 result, sensitivities = price_case(request, package, outlooks, terms)
                 supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms)
@@ -425,7 +455,9 @@ def _prepare(state, requests):
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
         except ValidationError as exc:
             error = exc.errors(include_input=False)[0]
-            reasons.append(f"Row {index} omitted: malformed valuation request at " + ".".join(map(str, error["loc"])))
+            where = ".".join(map(str, error["loc"]))
+            reasons.append(f"Row {index} omitted: " + (f"required field {where} is missing" if error["type"] == "missing"
+                                                        else f"malformed valuation request at {where}"))
         except (ValueError, TypeError, ArithmeticError) as exc:
             reasons.append(f"Row {index} omitted: {exc}")
     if comparisons and all(r["request"]["method"] != "revenue_case" for r in rows) and any(key != comparisons[0] for key in comparisons[1:]):
