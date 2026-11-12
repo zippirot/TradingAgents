@@ -220,7 +220,7 @@ SHARED_VALUATION_INPUTS = (
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
     " Use compact valid JSON: one complete object per case, concise rationales and all required exact fact IDs. Finish the JSON list and close the named fence before continuing."
     " Check the complete JSON list is syntactically valid before finishing your normal response."
-    " Choose the method by the company. When the filed annual Diluted EPS is positive and earnings are a fair measure of the business (a mature, profitable company), use earnings cases. When earnings are negative, near zero or not yet meaningful (a company valued on growth), use revenue cases. Say in your narrative which you chose and why."
+    " Choose the method by the company. When the filed annual Diluted EPS is positive and earnings are a fair measure of the business (a mature, profitable company), use earnings cases. When earnings are negative, near zero or not yet meaningful (a company valued on growth), use revenue cases. Say in your narrative which you chose and why. For a bank or an insurer use earnings cases: a revenue case needs cash and borrowings netted as debt, which does not describe a financial company whose borrowings and deposits fund its business."
     ' Earnings case shape: {"name":"Base","scenario_role":"base","request":{"method":"earnings_case","eps_fact_id":"<annual Diluted EPS fact ID>",'
     '"forecast":{"value":"<forecast diluted EPS>","unit":"USD/shares","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
     '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption, including any change in share count>"},'

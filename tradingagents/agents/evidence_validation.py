@@ -268,7 +268,25 @@ ADVISORY_WHEN_UNAVAILABLE = {
 }
 
 
-def evidence_quality(checks: list[dict]) -> dict:
+# A bank's or an insurer's borrowings and deposits fund its business, and it files no ordinary cash or capital
+# spending lines. For a company recognised as financial from its own filing tags these two checks are said and
+# lower the status when unavailable; a failure of either still stops the run.
+ADVISORY_FOR_FINANCIAL = {
+    "obligation_perimeter": "Net debt is not established and is not used for a financial company",
+    "cash_flow_perimeter": "Capital spending is not established and is not used for a financial company",
+}
+_FINANCIAL_TAGS = {"bank": ("RevenuesNetOfInterestExpense", "Deposits", "InterestAndDividendIncomeOperating"),
+                   "insurer": ("PremiumsEarnedNet", "LiabilityForClaimsAndClaimsAdjustmentExpense")}
+
+
+def financial_kind(package) -> str | None:
+    """'bank' or 'insurer' when the filing carries that kind's own tags; None for every other company."""
+    tags = {str(getattr(fact, "locator", "")).split("/")[1] for fact in getattr(package, "facts", ())
+            if str(getattr(fact, "locator", "")).startswith("us-gaap/") and str(fact.locator).count("/") >= 1}
+    return next((kind for kind, marks in _FINANCIAL_TAGS.items() if tags & set(marks)), None)
+
+
+def evidence_quality(checks: list[dict], financial: str | None = None) -> dict:
     """Aggregate executed checks; omitted critical checks never imply success."""
     by_code = {}
     for check in checks:
@@ -291,10 +309,10 @@ def evidence_quality(checks: list[dict]) -> dict:
     # critical check cannot bypass this scope by claiming not_applicable.
     # An integrity check that could not be completed is said and lowers the status; it is not a valuation input, so
     # its absence does not stop the run. A failure of it (a contradiction) still does.
-    advisory = [check for check in critical
-                if check["code"] in ADVISORY_WHEN_UNAVAILABLE and check["status"] == "unavailable"]
+    notes = {**ADVISORY_WHEN_UNAVAILABLE, **(ADVISORY_FOR_FINANCIAL if financial else {})}
+    advisory = [check for check in critical if check["code"] in notes and check["status"] == "unavailable"]
     insufficient = any(check["status"] != "pass" and check not in advisory for check in critical)
-    warnings = [{**check, "message": f"{ADVISORY_WHEN_UNAVAILABLE[check['code']]}: {check['message']}"} for check in advisory] + [
+    warnings = [{**check, "message": f"{notes[check['code']]}: {check['message']}"} for check in advisory] + [
         check
         for code, check in by_code.items()
         if code not in REQUIRED_FINANCIAL_CHECKS and check["status"] in {"fail", "unavailable"}
@@ -876,7 +894,7 @@ def assess_financial_package(
     if rpo_comparison is not None:
         checks.append({"code": "optional_rpo_comparison", "status": rpo_comparison["status"],
                        "message": rpo_comparison["reason"]})
-    quality = evidence_quality(checks)
+    quality = evidence_quality(checks, financial=financial_kind(package))
     update = {
         "financial_evidence": package.model_dump(mode="json"),
         "financial_calculations": [

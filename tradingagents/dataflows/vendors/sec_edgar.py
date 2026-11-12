@@ -59,8 +59,10 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                                  "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")),
     ],
     "income_statement": [
+        # A bank's top line is its revenue net of interest expense; read last, so no other filer changes.
         ("Revenue", ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues",
-                     "SalesRevenueNet")),
+                     "SalesRevenueNet", "RevenuesNetOfInterestExpense")),
+        ("Insurance Premiums Earned", ("PremiumsEarnedNet",)),
         ("Cost of Revenue", ("CostOfRevenue", "CostOfGoodsAndServicesSold")),
         ("Gross Profit", ("GrossProfit",)),
         ("Operating Income", ("OperatingIncomeLoss",)),

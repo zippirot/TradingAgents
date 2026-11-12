@@ -125,14 +125,14 @@ class Transport:
         return self.store.get(url)
 
 
-def _open(checks) -> bool:
+def _open(checks, financial=None) -> bool:
     """Whether the run would go on to the analysts: no required source check stops it (the model's own claim
     check is assumed passed; an integrity check that is only unavailable lowers confidence and does not stop)."""
     from tradingagents.agents.evidence_validation import evidence_quality
 
     rows = [{"code": code, "status": row["status"], "message": row["reason"]} for code, row in checks.items()]
     rows.append({"code": "material_claims", "status": "pass", "message": "assumed for source-only scoring"})
-    return evidence_quality(rows)["status"] != "insufficient"
+    return evidence_quality(rows, financial=financial)["status"] != "insufficient"
 
 
 def score_one(ticker, as_of, transport):
@@ -158,11 +158,18 @@ def score_one(ticker, as_of, transport):
     checks = {code: {"status": (found.get(code) or {}).get("status", "unavailable"),
                      "reason": (found.get(code) or {}).get("message") or "required check not produced"}
               for code in REQUIRED}
-    return {"ticker": ticker, "as_of": as_of, "acquisition_status": record.get("status"),
+    from tradingagents.agents.evidence_validation import financial_kind
+    from tradingagents.dataflows.financial_evidence import EvidencePackage
+    raw = update.get("financial_evidence") or record.get("raw_financial_evidence")
+    try:
+        kind = financial_kind(EvidencePackage.model_validate(raw)) if raw else None
+    except ValueError:
+        kind = None
+    return {"ticker": ticker, "as_of": as_of, "acquisition_status": record.get("status"), "financial": kind,
             "acquisition_reason": record.get("reason") or "",
             "checks": checks, "passes": sum(1 for row in checks.values() if row["status"] == "pass"),
             "all_seven": all(row["status"] == "pass" for row in checks.values()),
-            "open": _open(checks),
+            "open": _open(checks, kind),
             "requests": len(transport.calls) - before, "replay_misses": list(transport.misses),
             "seconds": round(time.monotonic() - started, 1)}
 
