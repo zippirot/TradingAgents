@@ -369,6 +369,7 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bo
     from tradingagents.dataflows.errors import VendorError
     from tradingagents.dataflows.face_liabilities import (
         with_current_securities,
+        with_face_cash,
         with_face_liabilities,
         with_financing_lines,
     )
@@ -390,6 +391,9 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bo
         filed = filed_statement_data(package.cik, source.accession)
         where = {"url": filed["url"], "content_hash": filed["content_hash"], "accession": source.accession,
                  "form": source.form, "filed_date": source.filed_date, "retrieved_at": filed["retrieved_at"]}
+        # Cash first: the obligation perimeter nets against it.
+        widened, why = with_face_cash(widened, filed["facts"], filed["calculation"], **where)
+        notes += why
         if liabilities:
             widened, why = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
             notes += why

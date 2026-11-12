@@ -42,12 +42,15 @@ _BORROWING = frozenset({
     "SeniorNotes", "SeniorLongTermNotes", "UnsecuredDebtCurrent", "UnsecuredLongTermDebt",
     "SecuredDebtCurrent", "SecuredLongTermDebt", "ConvertibleDebtCurrent", "ConvertibleDebtNoncurrent",
     "ConvertibleNotesPayableCurrent", "ConvertibleLongTermNotesPayable",
+    "NotesAndLoansPayable", "NotesAndLoansPayableCurrent",
 })
 # Debt the filer states together with its finance (capital) leases.
 _BORROWING_WITH_FINANCE_LEASES = frozenset({
     "LongTermDebtAndCapitalLeaseObligations", "LongTermDebtAndCapitalLeaseObligationsCurrent",
-    "DebtAndCapitalLeaseObligations",
+    "DebtAndCapitalLeaseObligations", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
 })
+# A filer's own line whose whole name says debt together with finance leases (Tesla), and nothing else.
+_OWN_DEBT_WITH_FINANCE_LEASES = re.compile(r"^(?:LongTerm)?DebtAndFinanceLeases(?:Current|Noncurrent)?$")
 _LEASES = {
     "finance": ("FinanceLeaseLiability", "FinanceLeaseLiabilityCurrent", "FinanceLeaseLiabilityNoncurrent"),
     "operating": ("OperatingLeaseLiability", "OperatingLeaseLiabilityCurrent", "OperatingLeaseLiabilityNoncurrent"),
@@ -87,6 +90,8 @@ def classify(concept: str) -> str:
             return "borrowing_with_finance_leases"
         if name in _LEASE_NAMES:
             return "lease"
+    elif _OWN_DEBT_WITH_FINANCE_LEASES.match(name):
+        return "borrowing_with_finance_leases"
     return "unclassified" if _DEBT_LIKE.search(name) else "other"
 
 
@@ -109,7 +114,8 @@ def derive_face_borrowings(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
         raise ValueError("the face lines do not add up to total liabilities")
     kinds = {f.fact_id: classify(_concept(f)) for f in lines}
     if "unclassified" in kinds.values():
-        raise ValueError("a debt-like face line is not classified")
+        names = sorted(_concept(f) for f in lines if kinds[f.fact_id] == "unclassified")
+        raise ValueError("a debt-like face line is not classified: " + ", ".join(names))
     combined = any(kind == "borrowing_with_finance_leases" for kind in kinds.values())
     value = sum((f.value for f in lines if kinds[f.fact_id].startswith("borrowing")), Decimal(0))
     if value < 0:
@@ -186,6 +192,56 @@ _CURRENT_SECURITIES = frozenset({
     "DebtSecuritiesCurrent", "EquitySecuritiesFvNiCurrent", "HeldToMaturitySecuritiesCurrent",
 })
 CURRENT_SECURITIES = "Current Marketable Securities"
+
+
+_INCLUSIVE_CASH = "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+
+
+def _is_cash_line(name: str) -> bool:
+    return name == "Cash" or name.startswith("CashAndCashEquivalents") or name == _INCLUSIVE_CASH
+
+
+def with_face_cash(package: EvidencePackage, facts, calculation, *, url: str, content_hash: str,
+                   accession: str, form: str, filed_date, retrieved_at) -> tuple[EvidencePackage, list[str]]:
+    """The package with cash as the filer's own balance sheet states it, when no tagged cash figure was read.
+
+    The figure is the one cash line of the filer's declared current-assets sum, which has to hold at the
+    filed figures. A line the filer presents together with restricted cash is used and said to include it.
+    """
+    balances = [f for f in package.facts if f.metric == "Total Assets" and f.value is not None and f.period_start is None]
+    if not balances:
+        return package, []
+    end = max(f.period_end for f in balances)
+    if any(f.metric == "Cash and Equivalents" and f.value is not None and f.period_start is None
+           and f.period_end == end for f in package.facts):
+        return package, []
+    try:
+        lines, _ = current_asset_lines(facts, calculation, end)
+    except InstanceError as exc:
+        return package, [f"cash not read from the filed balance sheet: current assets sum not established: {exc}"]
+    found = [line for line in lines if _is_cash_line(line.concept.split(":", 1)[-1])]
+    if not found:
+        return package, []
+    if len(found) != 1 or found[0].value < 0:
+        return package, ["cash not read from the filed balance sheet: more than one line of the filed current assets "
+                         "could be cash, or the line is negative"]
+    line = found[0]
+    inclusive = line.concept.split(":", 1)[-1] == _INCLUSIVE_CASH
+    source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
+    source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date,
+                          retrieved_at=retrieved_at, content_hash=content_hash,
+                          locator="filed XBRL instance and filing structure", accession=accession, form=form)
+    identity = hashlib.sha256(json.dumps([package.cik, "Cash and Equivalents", str(line.value), str(end), source_id]).encode()).hexdigest()
+    fact = FinancialFact(fact_id=identity, metric="Cash and Equivalents", value=line.value, unit="USD", cik=package.cik,
+                         period_end=end, as_of=package.as_of, source_ids=(source_id,),
+                         locator=f"{line.concept} at {end}; the cash line of us-gaap:AssetsCurrent, whose filed sum holds"
+                                 + ("; the filer presents this line together with restricted cash, so it includes "
+                                    "restricted cash it does not state separately" if inclusive else ""))
+    sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
+    notes = [f"cash at {end} is the balance-sheet line the filer presents with restricted cash; it includes restricted "
+             "cash the filer does not state separately"] if inclusive else []
+    return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
+                           facts=(*package.facts, fact), sources=sources), notes
 
 
 def with_current_securities(package: EvidencePackage, facts, calculation, *, url: str, content_hash: str,
