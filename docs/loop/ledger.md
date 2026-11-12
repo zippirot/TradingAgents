@@ -327,3 +327,15 @@ Free diagnosis from 90 saved runs with accepted scenarios (all eight companies, 
 - Then the rating: anything short of the required return is rated Underweight; there is no middle band (the earlier MSFT finding).
 Reading: three things stack in the same direction: central cases anchored near the current price so they miss a 9.88 percent hurdle; a fixed downside tilt in the weights that does not vary by company; and no Hold band. None of this says the ratings are wrong (no outcome has settled), only that the tool is not discriminating.
 Not built. Each candidate fix changes what the manager is asked or what a rating means, so they go to the user.
+
+### Equal weights as the starting point (user: "test it"; bench, NOT installed) - partial batch
+Check run and batch on bench head; fresh runs. OpenRouter ran out of credit mid-batch (HTTP 402): JPM x3 and WMT x2 failed and are owed. Completed:
+| company, portfolio | weights used | weighted value vs close | ratings | Decision before | after |
+|---|---|---|---|---|---|
+| MSFT, standard | 0.33/0.33/0.33 in 3 of 3 (was about 0.53/0.30/0.17) | -2.4, -0.3, +2.3 | Underweight x3 | 6.2 to 6.4 (fresh) | 6.33 (6.5, 6.3, 6.2) |
+| DOCN, concentrated | 0.33/0.33/0.33 in 3 of 3 | -6.9, +1.4, -6.7 | Underweight x3 | 7.17 | 7.17 (7.1, 7.1, 7.3) |
+| WMT, standard | 0.33 x3 (one run) | -15.6 | Underweight | 7.07 | not scored |
+Reading: the instruction is followed every time, so the habit in the weights is gone. Scores do not move, and neither do the ratings: every run is still Underweight, two of them (MSFT +2.3, DOCN +1.4) with the valuation above the close; the MSFT one drew CF3 for it. So the weights were not what makes everything Underweight. What is left: central cases near today's price against a 9.88 percent hurdle, and no Hold band. Verdict held until the five owed runs are in; nothing to keep or revert on score.
+Also built, bench only: the required-return premium can be set in the portfolio file (default unchanged).
+Proposed to the user, not built: "Conditional Hold" (within 3 points of the required return; chosen by the manager; code checks consistency only).
+Total paid spend to date: about 141 dollars.
