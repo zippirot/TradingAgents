@@ -86,8 +86,8 @@ class PortfolioContext(BaseModel):
         symbol = ticker.strip().upper()
         held = self.position_in(symbol)
         if held is None:
-            lines = [f"- No current position in {symbol}. With nothing held, Underweight and Sell both mean do not buy; "
-                     "neither opens a position"]
+            lines = [f"- No current position in {symbol}. With nothing held, Hold, Underweight and Sell all mean do not buy; "
+                     "only Buy or Overweight opens a position"]
         else:
             price = f", average price {held.average_price:,.2f}" if held.average_price is not None else ""
             lines = [f"- Current position in {symbol}: {held.quantity:,.4g} units{price}"]
@@ -166,7 +166,8 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
             row = {"rating": name, "multiple": str(multiple), "target_weight": str(target),
                    "units_change": str((target * value / close - quantity).quantize(Decimal(1)))}
             # A rating below Hold never opens or enlarges a long position: with less held than its weight, it is no purchase.
-            if name in ("Underweight", "Sell") and quantity >= 0 and target > weight:
+            # A Hold with nothing held has nothing to hold: only Buy or Overweight opens a position.
+            if (name in ("Underweight", "Sell") and quantity >= 0 and target > weight) or (name == "Hold" and not quantity):
                 row.update(target_weight=str(weight), units_change="0", scale_weight=str(target), no_addition=True)
             result["targets"].append(row)
             if name == rating:
@@ -252,6 +253,8 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
 
         def move(row):
             if row.get("no_addition"):
+                if row["rating"] == "Hold":
+                    return "no purchase (nothing is held, and Hold does not open a position)"
                 return ("no purchase (a rating below Hold never adds to a position; "
                         + ("nothing is held" if not quantity else
                            f"you hold less than its {_percent(row['scale_weight'])} weight") + ")")

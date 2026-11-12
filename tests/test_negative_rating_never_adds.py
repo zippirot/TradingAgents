@@ -34,7 +34,7 @@ def test_underweight_on_a_stock_not_held_is_no_purchase():
     line = next(text for text in render_sizing(result, final=True) if "final rating" in text)
     assert "no purchase" in line and "nothing is held" in line and "units more" not in line
     before = "\n".join(render_sizing(_sized(0)))
-    assert "Underweight no purchase" in before and "Hold 5.0% of the portfolio (about 50 units more" in before
+    assert "Underweight no purchase" in before and "Overweight 6.2% of the portfolio (about 62 units more" in before
 
 
 def test_underweight_does_not_add_to_a_holding_below_its_weight_and_still_cuts_a_larger_one():
@@ -48,7 +48,7 @@ def test_underweight_does_not_add_to_a_holding_below_its_weight_and_still_cuts_a
 
 
 def test_positive_ratings_and_short_positions_are_unchanged():
-    assert _row(_sized(0), "Overweight")["units_change"] == "62" and _row(_sized(0), "Hold")["units_change"] == "50"
+    assert _row(_sized(0), "Overweight")["units_change"] == "62" and _row(_sized(10), "Hold")["units_change"] == "40"
     assert _row(_sized(-10), "Underweight")["units_change"] == "35"
 
 
@@ -56,7 +56,7 @@ def test_the_reading_of_the_traders_sell_says_no_purchase_and_the_agents_are_tol
     line = action_reading("Sell", "Underweight", _sized(0))
     assert not line.startswith("Reduce") and "nothing is held" in line and "no purchase" in line
     text = PortfolioContext.model_validate({"positions": [{"ticker": "MSFT", "quantity": 10}]}).render("WMT")
-    assert "No current position in WMT" in text and "Underweight and Sell both mean do not buy" in text
+    assert "No current position in WMT" in text and "Hold, Underweight and Sell all mean do not buy" in text
     assert "do not buy" not in PortfolioContext.model_validate({"positions": [{"ticker": "WMT", "quantity": 10}]}).render("WMT")
 
 
