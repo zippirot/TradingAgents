@@ -119,3 +119,21 @@ Commits: task 1 model and pricing; task 2 weighable in the valuation step, mixed
 One run before three (WMT, ~/.tradingagents/loop/logs-e1, 1.00 dollar): the analyst chose earnings cases unprompted by anything but the new instructions: Base 2.95 x 38 = 112.10, Downside 2.60 x 30 = 78.00, Upside 3.20 x 42 = 134.40, close 125.66; weighted value 106.33 printed; rating Underweight. Defect found in that run: "No comparable completed close is available" (the case was anchored to the earnings year end, before the price coverage starts). Fixed and proven by replaying the same saved run: all three cases now compare with the 125.67 close.
 Paid check running: three runs each of WMT, CAT, DOCN, MSFT (tags e2a, e2b, e2c). CAT is the holdout: these three runs are its end reading and must not be used to adjust anything.
 Open note: prior-case comparison and own-history placement do not yet cover earnings cases (they say nothing rather than something wrong).
+
+### Cycle 2 result: earnings-based valuation (scored 2026-11-12; evaluator Claude helper TAE-1.1-loop1)
+
+| company | method chosen | ratings | reached a decision | Decision before | Decision after (3 runs) | D1 before -> after |
+|---|---|---|---|---|---|---|
+| WMT | earnings | Underweight, Sell, Sell | 3 of 3 | 6.3 (cycle 1) | 6.23 (5.6, 6.5, 6.6) | 5.17 -> 5.53 |
+| MSFT | earnings | Overweight x2, Underweight | 3 of 3 | 6.67 (baseline) | 6.83 | 6.37 -> 6.7 |
+| DOCN | revenue (unchanged) | Sell x2 scored (third evaluation pending) | 2 of 2 | 7.33 (baseline) | 7.7 | 7.1 -> 7.6 |
+| CAT (holdout, end reading) | earnings | Underweight x3 | 3 of 3 | 6.7 (one run) | 5.8 | 6.0 -> 6.0 |
+
+Verdict against the keep rule: NO MEASURED GAIN. No company moved by more than the 0.5 line upward; the holdout fell 0.9 (its baseline was one run); rating agreement fell from 3 of 3 to 2 of 3 on WMT and MSFT. The "wrong method for the company" finding is gone. Not reverted: left for the user's decision (recommendation: keep, because valuing a mature retailer on revenue was the wrong tool and the score is now held down by other things).
+What now holds Decision down, seen across companies in these runs:
+1. A negative rating on a stock not held becomes an opening purchase (Underweight = half the standard weight) with a negative modelled return and no stated override: CF3 and CF6 on almost every report. CAT's fall is this: at baseline it rated Sell (no purchase), now Underweight (buy). Needs the user's decision on what a rating means for an unheld stock.
+2. The target weight is not tested against the accepted downside case: CF5 on CAT and MSFT ("exceeds the loss budget in the downside case while the report says inside the budget").
+3. Earnings-case inputs are not anchored: forecast EPS not reconciled with filed year-to-date earnings or the vendor range printed in the same report; multiples not compared with the trailing multiple. The "what the price implies" line (4c781db9) was added after these runs and is not in them.
+4. Case period ends 81 days out for WMT (fiscal year end) against a six-month horizon: CF9.
+Cost of cycle 2: about 18.5 dollars (one WMT, twelve of which nine crashed on a printing bug introduced after the one-run check, then one WMT and eight reruns). Lesson recorded: after any change, however small, replay the saved run through the WHOLE report path (prepare and render), not only the step that changed, before paying for a batch.
+Total paid spend to date: about 43 dollars.
