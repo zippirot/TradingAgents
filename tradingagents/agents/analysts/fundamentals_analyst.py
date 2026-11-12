@@ -197,6 +197,7 @@ SHARED_VALUATION_INPUTS = (
     '"multiple":"<price to earnings multiple>","multiple_assumption_date":"<analysis date>",'
     '"multiple_rationale":"<why this multiple: own history, named peers, growth and risk>"}}.'
     " An earnings case has no capital block: earnings are after interest, so code nets no cash or debt. Its forecast is one explicit annual period ending after the analysis date."
+    " Code prints beside each earnings case how its forecast compares with the filed prior-year Diluted EPS, with the quarters of the forecast period already filed, and with the vendor's estimate range when one was retrieved. Before submitting, make those comparisons yourself from the facts you were given and say in each forecast rationale what growth over the filed figures the forecast assumes and why; a forecast outside the vendor range needs its reason stated."
     " Only revenue_case with explicit capital, or earnings_case, can supply a decision-card value. Legacy P/E remains separately assessed diagnostic arithmetic. All entries MUST use the same method; do not mix revenue cases and earnings cases even as a secondary check."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
     " These calculations do not require a current stock price or return-to-price comparison."
