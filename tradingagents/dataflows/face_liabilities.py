@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from tradingagents.dataflows.filed_instance import (
     InstanceError,
+    current_asset_lines,
     financing_lines,
     investing_lines,
     liability_lines,
@@ -175,6 +176,59 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
     sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
     return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
                            facts=(*package.facts, *added), sources=sources), notes
+
+
+_CASH_LINE = "CashAndCashEquivalentsAtCarryingValue"
+_CURRENT_SECURITIES = frozenset({
+    "ShortTermInvestments", "MarketableSecuritiesCurrent", "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+    "AvailableForSaleSecuritiesCurrent", "DebtSecuritiesAvailableForSaleExcludingAccruedInterestCurrent",
+    "DebtSecuritiesCurrent", "EquitySecuritiesFvNiCurrent", "HeldToMaturitySecuritiesCurrent",
+})
+CURRENT_SECURITIES = "Current Marketable Securities"
+
+
+def with_current_securities(package: EvidencePackage, facts, calculation, *, url: str, content_hash: str,
+                            accession: str, form: str, filed_date, retrieved_at) -> tuple[EvidencePackage, list[str]]:
+    """The package with the investments the filer itself presents within current assets, as one figure.
+
+    They count only as lines of the filer's declared current-assets sum, which has to hold at the filed
+    figures and has to carry the package's own cash figure as its cash line. A filer that presents no such
+    line gets no figure and no note.
+    """
+    cashes = [f for f in package.facts if f.metric == "Cash and Equivalents" and f.value is not None
+              and f.period_start is None and f.unit == "USD"]
+    if not cashes:
+        return package, []
+    end = max(f.period_end for f in cashes)
+    cash = {f.value for f in cashes if f.period_end == end}
+    if any(f.metric == CURRENT_SECURITIES and f.period_end == end for f in package.facts):
+        return package, []
+    try:
+        lines, _ = current_asset_lines(facts, calculation, end)
+    except InstanceError as exc:
+        return package, [f"filed current assets sum not established: {exc}"]
+    securities = [line for line in lines if line.concept.split(":", 1)[-1] in _CURRENT_SECURITIES]
+    if not securities:
+        return package, []
+    filed_cash = {line.value for line in lines if line.concept.split(":", 1)[-1] == _CASH_LINE}
+    if len(cash) != 1 or filed_cash != cash:
+        return package, [f"current investments not counted: the cash line of the filed current assets is not the "
+                         f"cash figure used at {end}"]
+    if any(line.value < 0 for line in securities):
+        return package, ["current investments not counted: a filed investment line is negative"]
+    source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
+    source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date,
+                          retrieved_at=retrieved_at, content_hash=content_hash,
+                          locator="filed XBRL instance and filing structure", accession=accession, form=form)
+    value = sum((line.value for line in securities), Decimal(0))
+    identity = hashlib.sha256(json.dumps([package.cik, CURRENT_SECURITIES, str(value), str(end), source_id]).encode()).hexdigest()
+    fact = FinancialFact(fact_id=identity, metric=CURRENT_SECURITIES, value=value, unit="USD", cik=package.cik,
+                         period_end=end, as_of=package.as_of, source_ids=(source_id,),
+                         locator=" + ".join(line.concept for line in securities)
+                                 + f" at {end}; declared within us-gaap:AssetsCurrent, whose filed sum holds")
+    sources = package.sources if any(s.source_id == source_id for s in package.sources) else (*package.sources, source)
+    return EvidencePackage(cik=package.cik, as_of=package.as_of, scope=package.scope, warnings=package.warnings,
+                           facts=(*package.facts, fact), sources=sources), []
 
 
 def _filed_shares(facts, end, filed) -> list[FinancialFact]:

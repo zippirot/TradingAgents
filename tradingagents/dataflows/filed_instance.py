@@ -350,6 +350,14 @@ def cash_flow_lines(facts, calculation, start: date, end: date, roots) -> tuple[
     return tuple(lines), values[root].value
 
 
+def current_asset_lines(facts, calculation, end: date) -> tuple[tuple[Line, ...], Decimal]:
+    """Every line the filer declares within current assets at ``end``, checked the same way."""
+    try:
+        return cash_flow_lines(facts, calculation, None, end, ("us-gaap:AssetsCurrent",))
+    except InstanceError as exc:
+        raise InstanceError(str(exc).replace("cash-flow section", "current assets").replace("cash-flow", "current assets")) from exc
+
+
 def financing_lines(facts, calculation, start: date, end: date) -> tuple[tuple[Line, ...], Decimal]:
     """Every financing cash-flow line the filer declares for the period, and their total."""
     return cash_flow_lines(facts, calculation, start, end, _FINANCING)

@@ -715,7 +715,12 @@ def confirm_current_marketable_securities(package, corpus):
         return package  # Unrelated packages retain their existing validation path.
     # A replay may carry an old classification. Always derive it again from the
     # retained raw aliases and currently validated corpus.
-    stale = tuple(f for f in package.facts if f.metric == "Current Marketable Securities")
+    # A figure established from the filing's own declared current-assets sum is not a replayed classification.
+    def structural(f):
+        return bool(f.source_ids) and all(i.startswith("sec-instance-") for i in f.source_ids)
+    stale = tuple(f for f in package.facts if f.metric == "Current Marketable Securities" and not structural(f))
+    if len(stale) != sum(f.metric == "Current Marketable Securities" for f in package.facts):
+        return package
     original = tuple(f for f in package.facts if f.metric != "Current Marketable Securities")
     used_sources = {sid for fact in original for sid in fact.source_ids}
     stale_source_ids = {sid for fact in stale for sid in fact.source_ids}

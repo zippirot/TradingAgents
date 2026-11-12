@@ -344,7 +344,11 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bo
     reconciliation of stockholders' equity. One filing is read, in at most three requests.
     """
     from tradingagents.dataflows.errors import VendorError
-    from tradingagents.dataflows.face_liabilities import with_face_liabilities, with_financing_lines
+    from tradingagents.dataflows.face_liabilities import (
+        with_current_securities,
+        with_face_liabilities,
+        with_financing_lines,
+    )
     from tradingagents.dataflows.filed_equity import with_filed_equity
     from tradingagents.dataflows.vendors.sec_instance import filed_statement_data
     from tradingagents.operational_capture import record_operation
@@ -366,6 +370,9 @@ def _with_filed_statements(package, *, liabilities: bool, equity: bool, cash: bo
         if liabilities:
             widened, why = with_face_liabilities(widened, filed["facts"], filed["calculation"], **where)
             notes += why
+        # Read whenever the filing is: which investments the filer presents as current, beside cash.
+        widened, why = with_current_securities(widened, filed["facts"], filed["calculation"], **where)
+        notes += why
         if equity:
             widened, why = with_filed_equity(widened, filed["facts"], filed["structure"], **where)
             notes += why
