@@ -268,3 +268,12 @@ Total paid spend to date: about 109 dollars.
 
 ### Rollback confirmed on the user's real DOCN run (2026-11-12, launcher at 8072ae71)
 Published Underweight, matching the Research Manager, the Trader and the risk analysts. The user's evaluator: decision 8.1 (5.0 with the override; 8.1 to 8.5 on the three runs before), research 9.2. It names as the remaining weakness that the downside case runs out of cash with no funding modelled (the loop's item on DOCN financing). Visible defect to fix on the bench: the Trader's code-written sentence "opening one where none is held; it is not an exit" printed for a held position.
+
+### Bench batch validated on both portfolios (2026-11-12; follow-up runs, three each)
+Changes: the Trader's reading no longer speaks of opening a position that is held; a case ending short of cash states the shortfall, the share sale it is equivalent to and what filed investments would cover (no value change; replayed on the user's real DOCN run: 11.1M, 197,952 shares, investments cover it 16 times); the comparison with the last decision reads earnings cases (they were all printed "unusable").
+| company, portfolio | before | after (3 follow-up runs) |
+|---|---|---|
+| MSFT, standard | follow-ups 5.63 (5.6, 5.9, 5.4); same histories fresh 6.23 | 6.70 (6.8, 6.5, 6.8); Underweight x3, each holding its predecessor's rating; 0 "unusable" lines |
+| DOCN, concentrated | 7.17 fresh | 7.17 (7.0, 7.3, 7.2); Underweight x3; the wrong Trader sentence gone |
+Verdict: KEEP. MSFT follow-ups +1.07 against the earlier follow-ups (which also carried the Hold label on two of three, so not all of the gain is this fix) and level with the end-of-loop 6.73. DOCN unchanged. No loop DOCN run ended short of cash, so the shortfall line is proven by replay only.
+Total paid spend to date: about 121 dollars.

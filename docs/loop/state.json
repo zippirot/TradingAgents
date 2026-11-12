@@ -1081,6 +1081,72 @@
    "tag": "d11x",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11x/DOCN/2026-11-12/094152-3046c134",
    "log": "/Users/zipp/.tradingagents/loop/logs-d11x/loop_run_DOCN_2026-11-12T094150.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "c10a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c10a/MSFT/2026-11-12/111931-fd628faa",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c10a/loop_run_MSFT_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "d11c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11c/DOCN/2026-11-12/111931-e2c64283",
+   "log": "/Users/zipp/.tradingagents/loop/logs-d11c/loop_run_DOCN_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "d11b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11b/DOCN/2026-11-12/111931-bb606d00",
+   "log": "/Users/zipp/.tradingagents/loop/logs-d11b/loop_run_DOCN_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "c10b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c10b/MSFT/2026-11-12/111931-6da72d1d",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c10b/loop_run_MSFT_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "c10c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c10c/MSFT/2026-11-12/111931-4f87671a",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c10c/loop_run_MSFT_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 12,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:19:29",
+   "tag": "d11a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11a/DOCN/2026-11-12/111931-91cb767a",
+   "log": "/Users/zipp/.tradingagents/loop/logs-d11a/loop_run_DOCN_2026-11-12T111929.log"
   }
  ]
 }
