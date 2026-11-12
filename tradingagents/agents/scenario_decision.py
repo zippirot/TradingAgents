@@ -185,6 +185,18 @@ def _direction(value, close):
 
 
 UNEQUAL_SPREAD = Decimal("0.10")
+# Points of yearly return either side of the required return inside which the accepted scenarios do not separate
+# the stock from its price. The caller's portfolio file can set its own figure.
+DEFAULT_HOLD_BAND = Decimal(3)
+
+
+def hold_band(state) -> tuple[Decimal, str]:
+    """The band in points and where it came from."""
+    inputs = state.get("portfolio_inputs") if isinstance(state, dict) or hasattr(state, "get") else None
+    own = _decimal(inputs.get("hold_band_points")) if isinstance(inputs, dict) and inputs.get("hold_band_points") is not None else None
+    if own is not None and 0 <= own <= 10:
+        return own, "portfolio file"
+    return DEFAULT_HOLD_BAND, "app setting"
 
 
 def summarize(state, replayed) -> dict:
@@ -237,7 +249,7 @@ def summarize(state, replayed) -> dict:
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
                "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None,
                "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False,
-               "weights_unequal": False}
+               "weights_unequal": False, "hold_band": None, "conditional_hold": False}
     if not accepted:
         return summary
     # More than ten points between the largest and smallest accepted weight is a departure from equal weights.
@@ -284,6 +296,16 @@ def summarize(state, replayed) -> dict:
     summary["contrary_basis"] = "direction" if contrary else None
     if not contrary and gap is not None and ((rating in _BEARISH and gap > 0) or (rating in _BULLISH and gap < 0)):
         contrary, summary["contrary_basis"] = True, "return_gap"
+    # Close to the required return the scenarios do not separate the stock from its price. There a Hold is a
+    # Conditional Hold, and any other rating owes a reason other than this valuation. Code never changes the rating.
+    if gap is not None:
+        points, source = hold_band(state)
+        near = abs(gap) <= points
+        summary["hold_band"] = {"points": str(points), "source": source, "near": near}
+        # Inside the band the band is the finding, whichever side of the required return the rating sits on.
+        if near and rating in _BEARISH | _BULLISH and summary["contrary_basis"] != "direction":
+            contrary, summary["contrary_basis"] = True, "near_required"
+        summary["conditional_hold"] = near and rating == "Hold"
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     # A reason may argue against the code's return figure, but it may not restate it backwards.
@@ -335,6 +357,14 @@ def retry_feedback(state, replayed) -> str:
             f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
             "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
             "scenario_view.")
+    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "near_required":
+        parts.append(
+            f"Your accepted scenarios return {_return_figures(summary)}, a gap of "
+            f"{Decimal(summary['return_gap_points']):+.1f} points. That is inside the "
+            f"{Decimal(summary['hold_band']['points']):g}-point band in which the scenarios do not separate the stock "
+            "from its price. The rating that fits is Hold, which the report prints as a Conditional Hold with your "
+            "conditions. Resubmit the complete decision: either rate Hold, or keep your rating and state in "
+            "rating_basis_reason the reason, other than this valuation, that supports it.")
     elif summary.get("consistency") == "unexplained":
         basis = "weighted value today" if summary.get("direction_basis") == "value_today" else "weighted value"
         parts.append(f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
@@ -386,6 +416,10 @@ def render_cases_for_manager(cases, required=None) -> str:
            "today's price are on one time basis. If your rating points the " if valued else
            "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
         + "other way by more than 10 percent, state why in rating_basis_reason."
+        + (" When the weighted yearly return is within the Hold band of the required return (code states the band "
+           "and the figure), the scenarios do not separate the stock from its price: the rating that fits is Hold, "
+           "which the report prints as a Conditional Hold with your conditions, and any other rating needs a reason "
+           "other than this valuation in rating_basis_reason." if valued else "")
         + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
           "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
           "moves the weight. A general sense that the downside matters more, or that the base case is the central "
@@ -452,7 +486,18 @@ def render(summary) -> list[str]:
                  + ("" if summary.get("direction_basis") == "value_today" else
                     f" Direction: {summary['direction']} the close, using a 10 percent threshold."))
     lines.extend(render_today_basis(summary))
-    against = ("the rating points against the accepted scenarios, which return "
+    if summary.get("conditional_hold"):
+        band = summary["hold_band"]
+        lines.append(
+            f"Conditional Hold: bought at the close the accepted scenarios return {_return_figures(summary)}, inside "
+            f"the {Decimal(band['points']):g}-point band"
+            + (" (set in your portfolio file)" if band["source"] == "portfolio file" else "")
+            + " in which they do not separate the stock from its price. The Hold stands while the conditions in the "
+            "advisory conditions list stay as they are; that list says what would move the rating up or down. A "
+            "position over your loss budget is still reported in the Position and sizing block.")
+    against = ("the rating is not Hold although the accepted scenarios sit inside the Hold band"
+               if summary.get("contrary_basis") == "near_required" else
+               "the rating points against the accepted scenarios, which return "
                + ("more" if _decimal(summary.get("return_gap_points")) > 0 else "less") + " than the required return"
                if summary.get("contrary_basis") == "return_gap" else
                "the rating points against the accepted scenarios")

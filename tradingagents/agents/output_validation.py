@@ -51,6 +51,16 @@ def enforce_evidence_review(state: dict) -> dict:
     }
 
 
+def _conditional_note(card) -> str:
+    """One line under the rating when the manager's Hold sits inside the Hold band."""
+    basis = card.get('scenario_decision') if isinstance(card, dict) else None
+    if not isinstance(basis, dict) or not basis.get('conditional_hold'):
+        return ''
+    return ('**Rating note**: Conditional Hold. The scenarios\' return is close to the required return, so they do not '
+            'separate the stock from its price; the scenario card below gives the figures and the conditions that '
+            'would move the rating.\n\n')
+
+
 def _thesis_update(state):
     if not state.get("run_id") or not state.get("trade_date") or not (
         state.get("thesis_candidate") is not None or state.get("prior_thesis") or state.get("thesis")
@@ -254,7 +264,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     audit_line = (f"{len(responses['findings'])} findings; PM responded to {responses['answered_count']}."
                   if audit.get('status') == 'completed with findings' else str(audit.get('status') or 'not run; no clearance implied'))
     updates['final_trade_decision'] = (
-        f"**Rating**: {run_rating(state)}\n\n**Horizon**: {_display(card['horizon']['text'])}\n\n"
+        f"**Rating**: {run_rating(state)}\n\n{_conditional_note(card)}**Horizon**: {_display(card['horizon']['text'])}\n\n"
         + ''.join(line + '\n\n' for line in render_brief(card.get('since_last_decision'), display=_display))
         +
         f"**Executive Summary — unvalidated PM reasoning**:\n\n{pm_text('executive_summary')}\n\n"

@@ -100,10 +100,12 @@ SHORT = [_accept("base", 0.50), _accept("down", 0.10), _accept("up", 0.40)]
 
 
 def test_a_bearish_rating_on_cases_that_beat_the_required_return_owes_a_reason():
-    summary = _run(NEAR)
+    # About the return-gap rule alone: the Hold band (tests/test_conditional_hold.py) is set to zero here.
+    off = {"portfolio_inputs": {"hold_band_points": 0}}
+    summary = _run(NEAR, **off)
     assert summary["direction"] == "near" and Decimal(summary["return_gap_points"]) > 0
     assert (summary["consistency"], summary["contrary_basis"]) == ("unexplained", "return_gap")
-    state = {**_state(NEAR), "trade_date": "2026-11-10", "required_return": RETURN}
+    state = {**_state(NEAR), "trade_date": "2026-11-10", "required_return": RETURN, **off}
     feedback = scenario_decision.retry_feedback(state, _three())
     assert "against a required 9.86%" in feedback and "rating_basis_reason, with figures" in feedback
     text = "\n".join(scenario_decision.render(summary))
@@ -111,29 +113,31 @@ def test_a_bearish_rating_on_cases_that_beat_the_required_return_owes_a_reason()
             "return and no reason was given.") in text
     explained = scenario_decision.summarize(
         {**_state(NEAR, reason="Lease rent is outside every case."), "trade_date": "2026-11-10",
-         "required_return": RETURN}, _three())
+         "required_return": RETURN, **off}, _three())
     assert explained["consistency"] == "explained"
     assert "Lease rent is outside every case." in "\n".join(scenario_decision.render(explained))
 
 
 def test_the_return_gap_test_does_not_touch_ratings_it_agrees_with_or_hold():
+    # This test is about the return-gap rule alone, so the Hold band (tests/test_conditional_hold.py) is set to zero.
+    off = {"portfolio_inputs": {"hold_band_points": 0}}
     for rating in ("Hold", "Overweight", "Buy"):
-        state = {**_state(NEAR, rating=rating), "trade_date": "2026-11-10", "required_return": RETURN}
+        state = {**_state(NEAR, rating=rating), "trade_date": "2026-11-10", "required_return": RETURN, **off}
         assert scenario_decision.summarize(state, _three())["consistency"] == "consistent"
     # The mirror case: a bullish rating on cases that fall short of the required return.
     short = scenario_decision.summarize({**_state(SHORT, rating="Overweight"), "trade_date": "2026-11-10",
-                                         "required_return": RETURN}, _three())
+                                         "required_return": RETURN, **off}, _three())
     assert short["direction"] == "near" and Decimal(short["return_gap_points"]) < 0
     assert (short["consistency"], short["contrary_basis"]) == ("unexplained", "return_gap")
     assert "which return less than the required return" in "\n".join(scenario_decision.render(short))
-    assert _run(SHORT)["consistency"] == "consistent"
+    assert _run(SHORT, **off)["consistency"] == "consistent"
     # Without a required return there is no gap and the old 10 percent rule stands alone.
     assert _run(SHORT, required=None)["contrary_basis"] is None
     # NEAR undiscounted is more than 10% above the close, so the old rule, not the gap, is what fires.
     assert _run(NEAR, required=None)["contrary_basis"] == "direction"
     # A direction contradiction keeps its own wording.
     high = [_accept("base", 0.1), _accept("down", 0.1), _accept("up", 0.8)]
-    summary = _run(high)
+    summary = _run(high, **off)
     if summary["direction"] == "above":
         assert summary["contrary_basis"] == "direction"
 
