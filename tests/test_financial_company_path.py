@@ -52,3 +52,16 @@ def test_a_contradiction_still_stops_a_financial_company_and_other_checks_stay_r
 def test_the_analyst_is_told_to_value_a_financial_company_on_earnings():
     from tradingagents.agents.analysts.fundamentals_analyst import SHARED_VALUATION_INPUTS
     assert "bank or an insurer" in SHARED_VALUATION_INPUTS and "earnings cases" in SHARED_VALUATION_INPUTS
+
+
+def test_a_claim_naming_one_of_the_codes_own_long_fact_labels_is_not_malformed():
+    """Progressive's first run stopped at REVIEW on "Claim 14: malformed fields": the analyst had copied the
+    fact's own label, 'Equity Movement [tag | member | member]', 190 characters, and the claim allowed 160."""
+    from tradingagents.agents.evidence_validation import FinancialClaim
+
+    label = ("Equity Movement [us-gaap:OtherComprehensiveIncomeLossNetOfTax | "
+             "us-gaap:AccumulatedOtherComprehensiveIncomeMember | us-gaap:AccumulatedOtherComprehensiveIncomeMember]")
+    assert len(label) > 160
+    claim = FinancialClaim.model_validate({"kind": "reported", "fact_id": "5" * 64, "metric": label, "value": "-2847000000",
+                                           "unit": "USD", "period_start": "2026-01-01", "period_end": "2026-09-30"})
+    assert claim.metric == label

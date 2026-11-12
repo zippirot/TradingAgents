@@ -17,7 +17,8 @@ class FinancialClaim(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
     kind: Literal["reported", "derived"]
     fact_id: str = Field(min_length=1, max_length=128)
-    metric: str = Field(min_length=1, max_length=160)
+    # Long enough for the labels code itself writes, such as an equity movement with its tag and two members.
+    metric: str = Field(min_length=1, max_length=400)
     value: Decimal
     unit: str = Field(min_length=1, max_length=80)
     period_start: date | None = None

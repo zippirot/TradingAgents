@@ -1158,6 +1158,28 @@
    "tag": "w13a",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-w13a/SNOW/2026-11-12/114106-4781d1b5",
    "log": "/Users/zipp/.tradingagents/loop/logs-w13a/loop_run_SNOW_2026-11-12T114104.log"
+  },
+  {
+   "cycle": 14,
+   "ticker": "PGR",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:57:44",
+   "tag": "x14a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-x14a/PGR/2026-11-12/115746-7a2e6897",
+   "log": "/Users/zipp/.tradingagents/loop/logs-x14a/loop_run_PGR_2026-11-12T115744.log"
+  },
+  {
+   "cycle": 14,
+   "ticker": "JPM",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:57:44",
+   "tag": "x14a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-x14a/JPM/2026-11-12/115746-f2e47c38",
+   "log": "/Users/zipp/.tradingagents/loop/logs-x14a/loop_run_JPM_2026-11-12T115744.log"
   }
  ]
 }
