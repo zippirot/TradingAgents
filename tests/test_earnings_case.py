@@ -142,7 +142,10 @@ def test_a_share_count_that_has_changed_by_more_than_half_since_the_earnings_yea
 
 def test_an_earnings_case_that_has_a_price_to_compare_with_still_prints():
     # Cycle 2: nine paid runs stopped with KeyError 'session_status' once earnings cases gained a price comparison.
-    from tradingagents.agents.shared_valuation import prepare_shared_valuation, render_shared_valuation
+    from tradingagents.agents.shared_valuation import (
+        prepare_shared_valuation,
+        render_shared_valuation,
+    )
 
     record = prepare_shared_valuation(_state([_row()]))
     record["rows"][0]["comparison"] = {"status": "available", "price": {"close": "55", "currency": "USD", "session_date": "2026-10-19"}}
