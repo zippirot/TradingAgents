@@ -36,7 +36,7 @@ def prior_cases(config, ticker, state) -> dict | None:
                   "request": item["request"]}
                  for item in requests or ()
                  if isinstance(item, dict) and isinstance(item.get("name"), str) and isinstance(item.get("request"), dict)
-                 and item["request"].get("method") == "revenue_case"]
+                 and item["request"].get("method") in ("revenue_case", "earnings_case")]
         if not cases:
             return None
         try:
@@ -67,7 +67,7 @@ def render_prior_cases(context) -> str:
         new = "No new filing has been retained since then."
     return (
         f"\n\nYour valuation cases in the last decision ({_text(str(context.get('label')), 80)}) are below. {new} "
-        "Start from these cases. Keep each multiple, revenue forecast, share count, cash change and obligation value "
+        "Start from these cases. Keep each multiple, revenue forecast, earnings per share forecast, share count, cash change and obligation value "
         "exactly as it was unless a fact that is new since that decision changes it: a new filing, a reported result, "
         "new guidance, a completed financing, or a price move that changes an input you derive from price. Choosing a "
         "different reference point, or reading the same evidence differently, is not a new fact. For every value you "
