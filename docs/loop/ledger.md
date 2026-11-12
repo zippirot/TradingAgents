@@ -223,3 +223,8 @@ Weighted value today within -4.6% to +5.3% of the close in every run. Rating fol
 
 ### Inside 10 percent the cases support Hold; a Hold with nothing held opens no position (owner's decision under the user's delegation; reversible)
 Inside the band code already calls "near the close", any rating other than Hold owes a reason from outside the cases, on either side; the manager is told before deciding and asked once after. A Hold on an unheld stock prints "no purchase" (the portfolio review already read it as "No action"); only Buy or Overweight opens a position. On the twelve latest saved runs the rule would have asked on 7 (all MSFT, one DOCN).
+
+### Result: the soft Hold rule did NOT work and was removed (2026-11-12)
+Three paid MSFT runs (h8a/b/c) with the rule: Overweight (+4.5% against the close, reason given: growth and margins), Hold (+1.4%), Underweight (-2.2%, reason given). The manager states a reason and keeps its rating; a soft ask does not steady it. Removed the same day (one strike, clear mechanism). Kept: a Hold with nothing held opens no position (agrees with the portfolio review's "No action").
+Open for the user: inside the 10 percent band, should CODE set the published rating to Hold? That is the only version that would steady MSFT, and it makes the rating a function of the scenario arithmetic there. DOCN (h8, unscored): Underweight x3, weighted value today 11% to 24% below the close; unaffected.
+Total paid spend to date: about 90 dollars.

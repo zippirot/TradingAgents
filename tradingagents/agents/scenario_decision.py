@@ -277,11 +277,6 @@ def summarize(state, replayed) -> dict:
     summary["contrary_basis"] = "direction" if contrary else None
     if not contrary and gap is not None and ((rating in _BEARISH and gap > 0) or (rating in _BULLISH and gap < 0)):
         contrary, summary["contrary_basis"] = True, "return_gap"
-    # Inside the 10 percent band on one time basis the cases do not separate the stock from its price: run to
-    # run, the same close gave Overweight, Hold and Underweight. There only Hold stands without a reason.
-    if (not contrary and summary.get("direction_basis") == "value_today" and summary["direction"] == "near"
-            and rating in _BEARISH | _BULLISH):
-        contrary, summary["contrary_basis"] = True, "near"
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     # A reason may argue against the code's return figure, but it may not restate it backwards.
@@ -310,13 +305,6 @@ def _return_figures(summary) -> str:
             f"{Decimal(summary['required_return']['rate']) * 100:.2f}%")
 
 
-_NEAR_FEEDBACK = (
-    "Your accepted scenarios put the stock within 10 percent of the close on one time basis ({percent:+.1f}% "
-    "today). Inside that band the cases do not separate the stock from its price, and they support Hold.")
-_NEAR_ASK = (" Resubmit the complete decision: revise the rating to Hold, or state in rating_basis_reason, with "
-             "figures, the evidence outside these cases that supports a different rating.")
-
-
 def retry_feedback(state, replayed) -> str:
     """What to send back to the manager once, or '' when its scenario answer can stand."""
     summary = summarize(state, replayed)
@@ -334,14 +322,12 @@ def retry_feedback(state, replayed) -> str:
             "the complete decision: start rating_basis_reason from the code's figure and say, with figures, why "
             "the rating still stands (naming any other basis you mean), or revise the rating or the scenario_view.")
     elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "return_gap":
-        parts.append(_NEAR_FEEDBACK.format(percent=Decimal(summary["weighted_today_vs_close_percent"])) + " " +
+        parts.append(
             "Your rating points against your own accepted scenarios: bought at the close, their weighted value "
             f"returns {_return_figures(summary)}, a gap of "
             f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
             "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
             "scenario_view.")
-    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "near":
-        parts.append(_NEAR_FEEDBACK.format(percent=Decimal(summary["weighted_today_vs_close_percent"])) + _NEAR_ASK)
     elif summary.get("consistency") == "unexplained":
         basis = "weighted value today" if summary.get("direction_basis") == "value_today" else "weighted value"
         parts.append(f"Your rating points against your own accepted scenarios ({basis} {summary['direction']} the "
@@ -390,8 +376,6 @@ def render_cases_for_manager(cases, required=None) -> str:
         + "other way by more than 10 percent, state why in rating_basis_reason."
         + " When you accept two or more cases, give in weight_basis the evidence for these weights rather than equal "
           "ones, case by case; code prints what equal weights would give."
-        + (" When the weighted value today is within 10 percent of the close, the cases support Hold: any other "
-           "rating needs its reason in rating_basis_reason, from evidence outside these cases." if valued else "")
         + (" The same applies inside 10 percent when the weighted value returns more than the required return and "
            "your rating is Underweight or Sell, or less than it and your rating is Overweight or Buy: give the "
            "reason with figures." if valued else "")

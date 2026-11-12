@@ -117,20 +117,16 @@ def test_a_bearish_rating_on_cases_that_beat_the_required_return_owes_a_reason()
 
 
 def test_the_return_gap_test_does_not_touch_ratings_it_agrees_with_or_hold():
-    state = {**_state(NEAR, rating="Hold"), "trade_date": "2026-11-10", "required_return": RETURN}
-    assert scenario_decision.summarize(state, _three())["consistency"] == "consistent"
-    # Since 2026-11-12 a rating the gap agrees with still owes a reason inside the 10 percent band: there the
-    # cases support Hold (tests/test_near_the_price_is_hold.py). The gap test itself does not fire for it.
-    for rating in ("Overweight", "Buy"):
+    for rating in ("Hold", "Overweight", "Buy"):
         state = {**_state(NEAR, rating=rating), "trade_date": "2026-11-10", "required_return": RETURN}
-        assert scenario_decision.summarize(state, _three())["contrary_basis"] == "near"
+        assert scenario_decision.summarize(state, _three())["consistency"] == "consistent"
     # The mirror case: a bullish rating on cases that fall short of the required return.
     short = scenario_decision.summarize({**_state(SHORT, rating="Overweight"), "trade_date": "2026-11-10",
                                          "required_return": RETURN}, _three())
     assert short["direction"] == "near" and Decimal(short["return_gap_points"]) < 0
     assert (short["consistency"], short["contrary_basis"]) == ("unexplained", "return_gap")
     assert "which return less than the required return" in "\n".join(scenario_decision.render(short))
-    assert _run(SHORT)["contrary_basis"] == "near"          # Underweight agrees with the gap; the band still asks why
+    assert _run(SHORT)["consistency"] == "consistent"
     # Without a required return there is no gap and the old 10 percent rule stands alone.
     assert _run(SHORT, required=None)["contrary_basis"] is None
     # NEAR undiscounted is more than 10% above the close, so the old rule, not the gap, is what fires.
