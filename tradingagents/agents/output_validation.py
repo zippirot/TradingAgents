@@ -51,6 +51,17 @@ def enforce_evidence_review(state: dict) -> dict:
     }
 
 
+def _stock_view_line(card) -> str:
+    """The stock view above the rating, when the manager gave one; the rating is then the position action."""
+    basis = card.get('scenario_decision') if isinstance(card, dict) else None
+    if not isinstance(basis, dict) or not basis.get('stock_view'):
+        return ''
+    reading = basis.get('valuation_reading')
+    return (f"**Stock view**: {basis['stock_view']}"
+            + (f" (code's reading of the accepted scenarios: {reading})" if reading else '')
+            + ". The rating below is the position action for this portfolio; the two are separate.\n\n")
+
+
 def _conditional_note(card) -> str:
     """One line under the rating when the manager's Hold sits inside the Hold band."""
     basis = card.get('scenario_decision') if isinstance(card, dict) else None
@@ -264,7 +275,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
     audit_line = (f"{len(responses['findings'])} findings; PM responded to {responses['answered_count']}."
                   if audit.get('status') == 'completed with findings' else str(audit.get('status') or 'not run; no clearance implied'))
     updates['final_trade_decision'] = (
-        f"**Rating**: {run_rating(state)}\n\n{_conditional_note(card)}**Horizon**: {_display(card['horizon']['text'])}\n\n"
+        f"{_stock_view_line(card)}**Rating**: {run_rating(state)}\n\n{_conditional_note(card)}**Horizon**: {_display(card['horizon']['text'])}\n\n"
         + ''.join(line + '\n\n' for line in render_brief(card.get('since_last_decision'), display=_display))
         +
         f"**Executive Summary — unvalidated PM reasoning**:\n\n{pm_text('executive_summary')}\n\n"

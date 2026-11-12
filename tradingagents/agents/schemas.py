@@ -524,6 +524,14 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         default=None,
         description="When priced scenario cases are listed in the prompt: one entry per case with its exact case_id and version, disposition accepted or rejected, a short reason, a weight above 0 and at most 1 for an accepted case (accepted weights sum to 1; subjective, not measured probabilities) and, for a rejected case, the single input rejected in rejected_input. Null when no priced case is listed.",
     )
+    stock_view: Literal["Attractive", "Fair", "Unattractive"] | None = Field(
+        default=None,
+        description="Your view of the stock alone, as if the caller held none: Attractive, Fair or Unattractive against the required return. It is separate from the rating, which is what to do with the caller's position.",
+    )
+    stock_view_reason: str | None = Field(
+        default=None, max_length=1200,
+        description="Only when your stock_view differs from code's reading of your accepted scenarios: the evidence outside those scenarios that supports it.",
+    )
     weight_basis: str | None = Field(
         default=None, max_length=1200,
         description="When you accept two or more priced scenario cases: the evidence for giving each its weight rather than equal weights, case by case. Calling the weights subjective is not a basis.",

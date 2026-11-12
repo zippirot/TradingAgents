@@ -190,6 +190,17 @@ UNEQUAL_SPREAD = Decimal("0.10")
 DEFAULT_HOLD_BAND = Decimal(3)
 
 
+_VIEW_SIDE = {"Attractive": 1, "Fair": 0, "Unattractive": -1}
+_ACTION_SIDE = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -1}
+
+
+def valuation_reading(gap, band) -> str | None:
+    """Code's reading of the accepted scenarios: their yearly return against the required return, with the band as Fair."""
+    if gap is None or band is None:
+        return None
+    return "Attractive" if gap > band else "Unattractive" if gap < -band else "Fair"
+
+
 def hold_band(state) -> tuple[Decimal, str]:
     """The band in points and where it came from."""
     inputs = state.get("portfolio_inputs") if isinstance(state, dict) or hasattr(state, "get") else None
@@ -249,7 +260,10 @@ def summarize(state, replayed) -> dict:
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
                "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None,
                "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False,
-               "weights_unequal": False, "hold_band": None, "conditional_hold": False}
+               "weights_unequal": False, "hold_band": None, "conditional_hold": False,
+               "stock_view": structured.get("stock_view") if structured.get("stock_view") in _VIEW_SIDE else None,
+               "stock_view_reason": _text(structured.get("stock_view_reason"), 1200) or None,
+               "valuation_reading": None, "view_check": None, "position_action": state.get("final_rating")}
     if not accepted:
         return summary
     # More than ten points between the largest and smallest accepted weight is a departure from equal weights.
@@ -306,6 +320,16 @@ def summarize(state, replayed) -> dict:
         if near and rating in _BEARISH | _BULLISH and summary["contrary_basis"] != "direction":
             contrary, summary["contrary_basis"] = True, "near_required"
         summary["conditional_hold"] = near and rating == "Hold"
+        summary["valuation_reading"] = valuation_reading(gap, points)
+    # With a stated stock view the two questions are checked separately. The view is set against code's reading of
+    # the scenarios; the rating, now the position action, is set against the view. Either may differ with a reason.
+    view = summary["stock_view"]
+    if view is not None:
+        reading = summary["valuation_reading"]
+        summary["view_check"] = ("consistent" if reading is None or view == reading else
+                                 "explained" if summary["stock_view_reason"] else "unexplained")
+        contrary = rating in _ACTION_SIDE and _ACTION_SIDE[rating] != _VIEW_SIDE[view]
+        summary["contrary_basis"] = "action_against_view" if contrary else None
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     # A reason may argue against the code's return figure, but it may not restate it backwards.
@@ -357,6 +381,13 @@ def retry_feedback(state, replayed) -> str:
             f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
             "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
             "scenario_view.")
+    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "action_against_view":
+        parts.append(
+            f"Your stock_view is {summary['stock_view']} and your rating, the position action, is "
+            f"{state.get('final_rating')}. They point different ways and you gave no reason. Resubmit the complete "
+            "decision and state in rating_basis_reason what about the caller's position or portfolio leads to this "
+            "action (its size against the standard weight, the loss budget, other holdings). Do not change the stock "
+            "view to fit the action.")
     elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "near_required":
         parts.append(
             f"Your accepted scenarios return {_return_figures(summary)}, a gap of "
@@ -371,6 +402,12 @@ def retry_feedback(state, replayed) -> str:
                      "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
                      "rating_basis_reason or revise the rating or the scenario_view.")
     # There is one resubmission, so everything it must correct goes back together.
+    if summary.get("view_check") == "unexplained":
+        parts.append(
+            f"Your stock_view is {summary['stock_view']}; code's reading of your accepted scenarios is "
+            f"{summary['valuation_reading']} (they return {_return_figures(summary)}). Resubmit the complete decision: "
+            "either state in stock_view_reason the evidence outside those scenarios that supports your view, or "
+            "set the view the scenarios support.")
     if summary.get("weights_unequal") and not summary.get("weights_decide") and not summary.get("weight_basis"):
         parts.append(
             "Your weights depart from equal weights and you gave no basis for them. Resubmit the complete decision: "
@@ -416,10 +453,11 @@ def render_cases_for_manager(cases, required=None) -> str:
            "today's price are on one time basis. If your rating points the " if valued else
            "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
         + "other way by more than 10 percent, state why in rating_basis_reason."
-        + (" When the weighted yearly return is within the Hold band of the required return (code states the band "
-           "and the figure), the scenarios do not separate the stock from its price: the rating that fits is Hold, "
-           "which the report prints as a Conditional Hold with your conditions, and any other rating needs a reason "
-           "other than this valuation in rating_basis_reason." if valued else "")
+        + " Give two separate answers. stock_view is your view of the stock alone, as if none were held: Attractive, "
+          "Fair or Unattractive against the required return; code prints its reading of your scenarios beside it, and a "
+          "view that differs needs stock_view_reason. The rating is the position action for this caller's position "
+          "and portfolio. The two may differ (an attractive stock held too large is still a trim); then say why in "
+          "rating_basis_reason."
         + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
           "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
           "moves the weight. A general sense that the downside matters more, or that the base case is the central "
@@ -486,6 +524,22 @@ def render(summary) -> list[str]:
                  + ("" if summary.get("direction_basis") == "value_today" else
                     f" Direction: {summary['direction']} the close, using a 10 percent threshold."))
     lines.extend(render_today_basis(summary))
+    if summary.get("stock_view"):
+        reading = summary.get("valuation_reading")
+        lines.append(
+            f"Stock view: {summary['stock_view']} (the Portfolio Manager's view of the stock alone"
+            + (f"; code's reading of the accepted scenarios: {reading}, from a return of {_return_figures(summary)}"
+               if reading and summary.get("weighted_annual_return") is not None else "") + ")."
+            + (f" Why it differs from that reading (unvalidated): {summary['stock_view_reason']}"
+               if summary.get("view_check") == "explained" else
+               " It differs from that reading and no reason was given." if summary.get("view_check") == "unexplained" else ""))
+        against = summary.get("contrary_basis") == "action_against_view"
+        lines.append(
+            f"Position action: {summary.get('position_action') or 'not recorded'} (what to do with the caller's position; "
+            "sizes are in the Position and sizing block)."
+            + (f" Why it differs from the stock view (unvalidated): {summary['rating_basis_reason']}"
+               if against and summary.get("rating_basis_reason") else
+               " It points a different way from the stock view and no reason was given." if against else ""))
     if summary.get("conditional_hold"):
         band = summary["hold_band"]
         lines.append(
