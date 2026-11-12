@@ -30,6 +30,122 @@
    "started": "2026-11-11T18:58:07",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs/MSFT/2026-11-11/185809-3d4741a9",
    "log": "/Users/zipp/.tradingagents/loop/logs/loop_run_MSFT_2026-11-11T185807.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:39:20",
+   "tag": "n1",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n1/WMT/2026-11-11/193922-5153badd",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n1/loop_run_WMT_2026-11-11T193920.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:39:20",
+   "tag": "n1",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n1/MSFT/2026-11-11/193922-f2a57519",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n1/loop_run_MSFT_2026-11-11T193920.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:39:20",
+   "tag": "n1",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n1/DOCN/2026-11-11/193922-b43292cf",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n1/loop_run_DOCN_2026-11-11T193920.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:43:58",
+   "tag": "n2",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n2/WMT/2026-11-11/194400-26886e7c",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n2/loop_run_WMT_2026-11-11T194358.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:44:24",
+   "tag": "n2",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n2/MSFT/2026-11-11/194426-a17df0f2",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n2/loop_run_MSFT_2026-11-11T194424.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:45:29",
+   "tag": "n2",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n2/DOCN/2026-11-11/194531-e828c0fc",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n2/loop_run_DOCN_2026-11-11T194529.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:48:59",
+   "tag": "n3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n3/WMT/2026-11-11/194901-0c97cb6c",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n3/loop_run_WMT_2026-11-11T194859.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:50:01",
+   "tag": "n3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n3/MSFT/2026-11-11/195003-1bdc2b07",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n3/loop_run_MSFT_2026-11-11T195001.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:52:08",
+   "tag": "n3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-n3/DOCN/2026-11-11/195210-5fc89ed1",
+   "log": "/Users/zipp/.tradingagents/loop/logs-n3/loop_run_DOCN_2026-11-11T195208.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "CAT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T19:53:32",
+   "tag": "hold",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-hold/CAT/2026-11-11/195334-7240762d",
+   "log": "/Users/zipp/.tradingagents/loop/logs-hold/loop_run_CAT_2026-11-11T195332.log"
+  },
+  {
+   "cycle": 0,
+   "kind": "batch_cost",
+   "note": "noise measurement: 9 repeats + CAT holdout, measured together",
+   "cost": 11.7353
   }
  ]
 }
