@@ -871,10 +871,13 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
             filing.filed_date, filing.accession,
         ),
     )
-    for filing in ordered:
+    for position, filing in enumerate(ordered):
         pending = [filing.url]
         seen = set()
-        while pending and len(documents) < 8:
+        # Every selected filing's own document is read before the cap can be spent on another filing's exhibits:
+        # an exhibit takes a place only while one remains for each filing still to come.
+        still_to_come = len(ordered) - position - 1
+        while pending and len(documents) < (8 if pending[0] == filing.url else 8 - still_to_come):
             url = pending.pop(0)
             if url in seen:
                 continue

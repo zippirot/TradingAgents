@@ -1278,7 +1278,16 @@ def disclosure_coverage_check(package, disclosures, error=None):
     # Text excerpts are explicitly bounded; completeness of accounting tables
     # is separately established by the cell verifier. Acquisition failures and
     # omitted filings/exhibits remain critical.
-    informational = ("Document text limit reached", "Older submissions archive not retrieved")
+    informational = ["Document text limit reached", "Older submissions archive not retrieved",
+                     # The selection keeps the statements, every non-reliance notice and the latest earnings and
+                     # financing reports ahead of general notices; losing one of those is reported in its own
+                     # words ("Required ... omitted by filing count limit") and stays critical.
+                     "Filing count limit"]
+    read = {doc.filing.accession for doc in disclosures.documents}
+    chosen = set(getattr(disclosures, "selected_accessions", ()))
+    if chosen and chosen <= read:
+        # Every selected filing was read; what the document cap left out is further exhibits.
+        informational.append("Document count limit reached")
     critical = [gap for gap in disclosures.gaps if not any(text in gap for text in informational)]
     # A notice withdrawing reliance on issued statements can cover any periodic report in the package that
     # was issued on or before it, the annual report as well as the quarterly one. It stands for such a report

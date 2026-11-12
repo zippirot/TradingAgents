@@ -93,3 +93,18 @@ def test_a_filing_recorded_with_no_excerpt_is_covered_and_one_left_out_is_not():
     assert disclosure_coverage_check(_evidence(), package)["status"] == "pass"
     dropped = package.model_copy(update={"gaps": ("Document count limit reached; coverage incomplete",)})
     assert disclosure_coverage_check(_evidence(), dropped)["status"] == "unavailable"
+
+
+def test_reaching_a_count_limit_is_a_notice_when_every_selected_filing_was_read_and_critical_when_one_was_not():
+    # Costco: more current reports than the six-filing package holds. Statements, non-reliance notices and the
+    # latest earnings and financing reports are kept ahead of general notices by the selection itself.
+    quarter = _document(*QUARTER)
+    limits = ("Filing count limit 6 reached; selected coverage is incomplete", "Document count limit reached; coverage incomplete")
+    read_all = docs.DisclosurePackage(cik=CIK, as_of=CUT, documents=(quarter,), gaps=limits,
+                                      selected_accessions=(quarter.filing.accession,))
+    assert disclosure_coverage_check(_evidence(), read_all)["status"] == "pass"
+    one_unread = read_all.model_copy(update={"selected_accessions": (quarter.filing.accession, "0001582961-26-000099")})
+    assert disclosure_coverage_check(_evidence(), one_unread)["status"] == "unavailable"
+    lost = read_all.model_copy(update={"gaps": (*limits, "Required earnings disclosure or amendment omitted by filing count limit")})
+    blocked = disclosure_coverage_check(_evidence(), lost)
+    assert blocked["status"] == "unavailable" and "Required earnings" in blocked["message"]
