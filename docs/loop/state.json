@@ -938,6 +938,61 @@
    "tag": "h8c",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8c/DOCN/2026-11-12/082918-f6bf697d",
    "log": "/Users/zipp/.tradingagents/loop/logs-h8c/loop_run_DOCN_2026-11-12T082916.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T08:49:07",
+   "tag": "h8c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8c/MSFT/2026-11-12/084909-561c7f71",
+   "log": "/Users/zipp/.tradingagents/loop/logs-h8c/loop_run_MSFT_2026-11-12T084907.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T08:49:07",
+   "tag": "h8b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8b/MSFT/2026-11-12/084909-3fdb6b5f",
+   "log": "/Users/zipp/.tradingagents/loop/logs-h8b/loop_run_MSFT_2026-11-12T084907.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T08:49:07",
+   "tag": "h8a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8a/MSFT/2026-11-12/084909-5d5a344e",
+   "log": "/Users/zipp/.tradingagents/loop/logs-h8a/loop_run_MSFT_2026-11-12T084907.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T08:50:45",
+   "tag": "c9a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c9a/MSFT/2026-11-12/085047-4b7fc126",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c9a/loop_run_MSFT_2026-11-12T085045.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T08:55:08",
+   "tag": "h8b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8b/MSFT/2026-11-12/085510-82a52eff",
+   "log": "/Users/zipp/.tradingagents/loop/logs-h8b/loop_run_MSFT_2026-11-12T085508.log"
   }
  ]
 }

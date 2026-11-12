@@ -228,3 +228,9 @@ Inside the band code already calls "near the close", any rating other than Hold 
 Three paid MSFT runs (h8a/b/c) with the rule: Overweight (+4.5% against the close, reason given: growth and margins), Hold (+1.4%), Underweight (-2.2%, reason given). The manager states a reason and keeps its rating; a soft ask does not steady it. Removed the same day (one strike, clear mechanism). Kept: a Hold with nothing held opens no position (agrees with the portfolio review's "No action").
 Open for the user: inside the 10 percent band, should CODE set the published rating to Hold? That is the only version that would steady MSFT, and it makes the rating a function of the scenario arithmetic there. DOCN (h8, unscored): Underweight x3, weighted value today 11% to 24% below the close; unaffected.
 Total paid spend to date: about 90 dollars.
+
+### Carry-forward test for earnings cases (2026-11-12; four paid MSFT follow-up runs that kept their history)
+Before the fix (local commit "Earnings cases are carried to the next run like revenue cases") the carry-forward selected revenue cases only, so MSFT, WMT and CAT re-derived every input each run.
+Result: every follow-up reproduced its predecessor's three cases and the manager's weights exactly (weighted value today identical to the cent: 544.82, 528.52, 509.49). Ratings: Overweight -> Overweight; Underweight -> Underweight; Hold -> Underweight, Underweight on identical numbers (+1.4% against the close, +12.3% a year against a required 9.88%; the Research Manager said Underweight and the manager kept it "as a portfolio risk judgment").
+Reading: the numbers are now steady in normal use; what still moves is the judgment call when the stock is valued at about its price. That is the case the "Hold (on the line)" label is for. The loop's fresh-start runs overstated the flipping in the numbers.
+Total paid spend to date: about 96 dollars.
