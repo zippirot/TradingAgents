@@ -197,3 +197,9 @@ Still open, by evidence in these evaluations:
 5. MSFT's direction is unstable between batches (Overweight, Underweight, Hold on the same close).
 Cost of cycle 5: 12 runs, about 12 dollars. Total paid spend for the loop: about 64 dollars of the 250 allowed.
 Not done: the full Codex check at the end (the plan's second opinion).
+
+## After the loop (user's "yes to both", 2026-11-12)
+
+- Codex second opinion at the end (full, WMT f5c): Decision 7.3 against the Claude helper's 7.0 on the same report, Research 7.1 against 7.0. Inside the 0.5 line: the two evaluators agree.
+- Scenario weights need a stated basis: when equal weights would put the accepted cases on the other side of the close, the manager is asked once for `weight_basis` and the card prints it, or says none was given. Boundary: nothing is asked where equal weights agree with the manager's. It would have fired on 5 of the 12 cycle-5 reports. One paid MSFT check (w6a): the manager gave a case-by-case basis. Not scored in a three-run batch.
+- Merge to staging and launcher install approved by the user.
