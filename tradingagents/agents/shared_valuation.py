@@ -491,6 +491,11 @@ def _prepare(state, requests):
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
     record = _record(status, requests, rows, [*reasons, *notes])
+    baselines = {f.fact_id: {"value": str(f.value), "period_start": str(f.period_start), "period_end": str(f.period_end)}
+                 for f in package.facts
+                 if f.fact_id in {r["request"].get("eps_fact_id") for r in rows if r["request"]["method"] == "earnings_case"}}
+    if baselines:
+        record["earnings_baselines"] = baselines
     priced = [row for row in rows if row["result"]["method"] == "revenue_case"]
     for row in priced:
         row["reference_position"] = reference_position(row, state)
@@ -799,6 +804,22 @@ def _summary_value(row):
     return value
 
 
+def _implied_earnings_multiple(row, record) -> str:
+    """What the close already pays for the filed earnings, beside the multiple the case assumes."""
+    price = (row.get("comparison") or {}).get("price") or {}
+    filed = (record.get("earnings_baselines") or {}).get(row["request"]["eps_fact_id"])
+    try:
+        close, earned = Decimal(str(price["close"])), Decimal(str(filed["value"]))
+        if earned <= 0:
+            return ""
+        return (f"What the price implies: the {price['session_date']} close of {display_number(close)} is "
+                f"{display_number(close / earned)} times the filed diluted earnings per share of {display_number(earned)} "
+                f"for {filed['period_start']} to {filed['period_end']}; this case assumes "
+                f"{display_number(row['request']['multiple'])} times its forecast.")
+    except (KeyError, TypeError, ArithmeticError):
+        return ""
+
+
 def render_shared_valuation(record):
     """Render a freshly calculated record; callers must replay persisted inputs."""
     if not record or record.get("status") == "not_applicable":
@@ -845,6 +866,9 @@ def render_shared_valuation(record):
                 lines.append(f"Earnings case: forecast diluted earnings per share {display_number(request['forecast']['value'])} "
                              f"for {request['forecast']['period_start']} to {request['forecast']['period_end']} × "
                              f"{display_number(request['multiple'])}; no debt or cash adjustment (earnings are after interest).")
+                implied = _implied_earnings_multiple(row, record)
+                if implied:
+                    lines.append(implied)
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = MULTIPLE_CONSTRUCTION

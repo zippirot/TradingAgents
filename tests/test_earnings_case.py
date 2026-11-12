@@ -151,3 +151,6 @@ def test_an_earnings_case_that_has_a_price_to_compare_with_still_prints():
     record["rows"][0]["comparison"] = {"status": "available", "price": {"close": "55", "currency": "USD", "session_date": "2026-10-19"}}
     text = render_shared_valuation(record)
     assert "Earnings case: forecast diluted earnings per share" in text and "Conditional scenario comparison" not in text
+    # 55 a share against filed earnings of 2.50 is 22 times; the case assumes 20.
+    assert "What the price implies: the 2026-10-19 close of 55.00 is 22.00 times the filed diluted earnings per share of 2.50" in text
+    assert "this case assumes 20.00 times its forecast" in text
