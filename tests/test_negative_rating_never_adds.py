@@ -58,3 +58,12 @@ def test_the_reading_of_the_traders_sell_says_no_purchase_and_the_agents_are_tol
     text = PortfolioContext.model_validate({"positions": [{"ticker": "MSFT", "quantity": 10}]}).render("WMT")
     assert "No current position in WMT" in text and "Underweight and Sell both mean do not buy" in text
     assert "do not buy" not in PortfolioContext.model_validate({"positions": [{"ticker": "WMT", "quantity": 10}]}).render("WMT")
+
+
+def test_a_sell_with_nothing_held_reads_as_no_purchase_under_any_negative_rating():
+    from tradingagents.agents.trader.trader import _reading
+    line = action_reading("Sell", "Sell", _sized(0))
+    assert "is not a sale here" in line and "no purchase" in line
+    assert "cannot say this" in _reading("**Action**: Sell", "**Recommendation**: Sell", _sized(0))
+    assert action_reading("Sell", "Sell", _sized(60)) is None and action_reading("Sell", "Sell") is None
+    assert action_reading("Hold", "Sell", _sized(0)) is None

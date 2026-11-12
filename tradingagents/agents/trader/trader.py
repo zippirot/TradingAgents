@@ -189,7 +189,8 @@ def create_trader(llm):
                     "on its own line:\n\n"
                     "- **Action**: exactly one of Buy / Hold / Sell. A research "
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
-                    "sized by how strong the case is; conflict alone is not a Hold.\n"
+                    "sized by how strong the case is; conflict alone is not a Hold. Where the portfolio shows no "
+                    "position, a Sell means do not buy: say that in the Reasoning and do not describe a sale.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
                     "- **Purchase Entry Price** for Buy, **Reference Sale Level** for Sell, **Stop Loss** for Buy or **Advisory Thesis Invalidation Level** for Sell, and **Position Sizing** " + (_SIZING_KNOWN if sized else _SIZING_UNKNOWN) + ". When the plan makes an action conditional on current exposure, state that condition in the Reasoning or the Position Sizing"
                 ),

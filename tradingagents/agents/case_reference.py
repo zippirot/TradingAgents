@@ -185,6 +185,10 @@ def action_reading(action, research_rating, sizing=None) -> str | None:
     when the holding is already at or below the rating's target, nor a Buy an addition when it is at or above.
     """
     reading = {("Sell", "Underweight"): "Reduce", ("Buy", "Overweight"): "Add"}.get((action, research_rating))
+    flat = isinstance(sizing, dict) and sizing.get("status") == "available" and not _decimal(sizing.get("quantity"))
+    if action == "Sell" and flat and research_rating != "Underweight":
+        return ("The Trader's Sell" + (f" under the research rating {research_rating}" if research_rating else "")
+                + " is not a sale here: nothing is held, so it means no purchase")
     if reading is None:
         return None
     said = f"(the Trader's {action} under the research rating {research_rating})"
