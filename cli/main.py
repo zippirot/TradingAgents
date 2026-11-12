@@ -168,6 +168,55 @@ def backtest(
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
 
 
+def _book(portfolio: str | None):
+    path = portfolio or default_portfolio_path()
+    if not path:
+        raise ValueError("no portfolio file: pass --portfolio, or create ~/.tradingagents/portfolio.json")
+    return path, load_portfolio(path)
+
+
+@app.command()
+def review(
+    portfolio: str = typer.Option(None, "--portfolio", help="Portfolio JSON file; default is your own file"),
+    date: str = typer.Option(None, "--date", help="Review date, YYYY-MM-DD; default is today"),
+):
+    """What to do with each stock you hold or watch, from the latest saved ratings. Free: no model is called."""
+    from cli.review import run_review
+
+    try:
+        run_review(portfolio, date)
+    except ValueError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+
+
+@app.command()
+def batch(
+    tickers: str = typer.Argument(None, help="Comma-separated tickers; default is your holdings plus watchlist"),
+    portfolio: str = typer.Option(None, "--portfolio", help="Portfolio JSON file; default is your own file"),
+    date: str = typer.Option(None, "--date", help="Analysis date, YYYY-MM-DD; default is today"),
+    refresh: bool = typer.Option(False, "--refresh", help="Run stocks that already have a recent rating too"),
+):
+    """Run the analysis on each stock that has no recent rating, then show the review. Each run is paid."""
+    from cli.batch import run_batch
+    from cli.review import run_review
+
+    try:
+        path, book = _book(portfolio)
+        names = [name.strip() for name in tickers.split(",") if name.strip()] if tickers else None
+        outcome = run_batch(book, names, date, refresh)
+    except ValueError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+    for name, reason in outcome["failed"]:
+        console.print(f"[yellow]failed:[/yellow] {escape(name)}: {escape(reason)}")
+    try:
+        run_review(path, date)
+    except ValueError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+
+
 # The plans `login` and `logout` take: the providers signed in to, not keyed.
 Plan = StrEnum("Plan", {name: name for name in SIGNED_IN_PROVIDERS})
 

@@ -25,6 +25,8 @@ SIZING_LABEL = "Position and sizing"
 AT_STANDARD_BAND = Decimal("0.05")  # within 5 percent of the standard weight counts as at standard
 RANGE_SESSIONS = 14
 _SIZING_FIELDS = ("portfolio_value", "default_standard_weight", "loss_budget", "rating_weights", "show_amounts")
+# Read only by the portfolio review. They never enter a run's state, its agents' prompts or the file fingerprint.
+_REVIEW_ONLY = {"watchlist": True, "limits": True, "positions": {"__all__": {"sector"}}}
 
 
 class Position(BaseModel):
@@ -33,6 +35,14 @@ class Position(BaseModel):
     average_price: float | None = Field(default=None, description="Average entry price per unit")
     standard_weight: float | None = Field(
         default=None, gt=0, le=1, description="Normal size of this position as a fraction of the portfolio")
+    sector: str | None = Field(default=None, description="Sector for the review's sector limit; overrides the vendor's")
+
+
+class Limits(BaseModel):
+    max_position_weight: float | None = Field(default=None, gt=0, le=1, description="Most one stock may be, as a fraction")
+    max_sector_weight: float | None = Field(default=None, gt=0, le=1, description="Most one sector may be, as a fraction")
+    min_cash_weight: float | None = Field(default=None, ge=0, lt=1, description="Cash kept back, as a fraction")
+    rating_max_age_days: int = Field(default=30, gt=0, description="A rating older than this is flagged stale")
 
 
 class PortfolioContext(BaseModel):
@@ -48,6 +58,8 @@ class PortfolioContext(BaseModel):
     rating_weights: dict[str, float] | None = Field(
         default=None, description="What each rating means as a multiple of the standard weight, e.g. Underweight 0.5")
     show_amounts: bool = Field(default=False, description="Show currency amounts beside percentages and units")
+    watchlist: list[str] = Field(default_factory=list, description="Tickers not held that the review also covers")
+    limits: Limits | None = Field(default=None, description="Position, sector and cash limits for the review")
 
     @field_validator("rating_weights")
     @classmethod
@@ -60,6 +72,11 @@ class PortfolioContext(BaseModel):
         if any(not 0 <= multiple <= 20 for multiple in value.values()):
             raise ValueError("rating_weights multiples must be between 0 and 20")
         return value
+
+    def review_tickers(self) -> list[str]:
+        """Held tickers, then the watchlist; upper-cased, each once."""
+        names = [p.ticker for p in self.positions] + list(self.watchlist)
+        return list(dict.fromkeys(name.strip().upper() for name in names if name.strip()))
 
     def position_in(self, ticker: str) -> Position | None:
         return next((p for p in self.positions if p.ticker.upper() == ticker.strip().upper()), None)
@@ -85,13 +102,14 @@ class PortfolioContext(BaseModel):
         sized = (any(getattr(self, name) != type(self).model_fields[name].default for name in _SIZING_FIELDS)
                  or any(p.standard_weight is not None for p in self.positions))
         # A file with none of the sizing inputs keeps the digest it always had.
-        payload = self.model_dump_json() if sized else self.model_dump_json(
-            exclude={**dict.fromkeys(_SIZING_FIELDS, True), "positions": {"__all__": {"standard_weight"}}})
+        payload = self.model_dump_json(exclude=_REVIEW_ONLY) if sized else self.model_dump_json(
+            exclude={**dict.fromkeys(_SIZING_FIELDS, True), "watchlist": True, "limits": True,
+                     "positions": {"__all__": {"standard_weight", "sector"}}})
         return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
     def inputs(self) -> dict:
         """The book as run state: read locally, shown to this run's agents, never written to a publication."""
-        return {**self.model_dump(mode="json"), "fingerprint": self.fingerprint()}
+        return {**self.model_dump(mode="json", exclude=_REVIEW_ONLY), "fingerprint": self.fingerprint()}
 
 
 def _number(value):

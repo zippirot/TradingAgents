@@ -167,11 +167,12 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
 
 
 @_cleanup_run
-def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None, selections=None):
     flags = flags or {}
     # With no terminal nothing can answer a prompt: name every question still
     # open before any model is called, rather than stopping at the first one.
-    if not (sys.stdin and sys.stdin.isatty()):
+    # A batch passes the answers it already has, so nothing is asked again.
+    if selections is None and not (sys.stdin and sys.stdin.isatty()):
         gaps = unattended_gaps(flags)
         if gaps:
             console.print("[red]No terminal to answer the setup questions. Set:[/red]")
@@ -179,7 +180,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
                 console.print(f"  {gap}")
             raise typer.Exit(code=1)
 
-    selections = get_user_selections(flags)
+    if selections is None:
+        selections = get_user_selections(flags)
 
     config = _build_run_config(selections, checkpoint)
 
