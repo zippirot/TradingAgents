@@ -371,3 +371,15 @@ The finding that matters: the rating no longer follows the valuation at all.
 Reading: the rating is carrying two different things. One is the view of the stock (is it worth more than its price). The other is what to do with this portfolio's position (it is 39 percent of the book, so reduce it; it sits beside two other technology holdings, so trim). When the position is large or the book is concentrated, the second swamps the first and everything reads Underweight whatever the valuation says. That is the user's parked decision "split the stock view from the position action" (map 2a-5), and it explains the uniform Underweight better than weights, bands or the required return did. The Conditional Hold cannot work while the rating means both.
 Not scored: the mechanism is visible in the reports; scoring would cost 12 evaluations to confirm a contradiction the reports state themselves.
 Total paid spend to date: about 154 dollars.
+
+## Look-back test, first pass (2026-11-12; user approved; 24 runs as of 2026-06-01, 2026-07-01, 2026-08-03; market and fundamentals analysts only; `scripts/lookback_outcomes.py`)
+17 of 24 runs reached a rating. Not rated: DOCN x3 and CVX x3 stopped at REVIEW on all three past dates (DOCN: a debt-like line on the filed balance sheet not classified; CVX: cash spending not established), so coverage depends on the date as well as the company; JPM as of 2026-08-03 failed on the model's context limit.
+Price change after the rating, less SPY's over the same sessions:
+| rating | count | 21 sessions: mean, share below the market | 63 sessions: mean, share below the market |
+|---|---|---|---|
+| Overweight | 3 (MSFT x2, PGR) | +8.0, 1 of 3 | +17.4, 0 of 3 |
+| Hold | 2 | -2.0, 1 of 2 | -1.6, 1 of 2 |
+| Underweight | 12 | +1.3, 6 of 12 | -4.0, 8 of 12 |
+Directional calls right: 8 of 15 at 21 sessions, 11 of 15 at 63. Rank correlation between the valuation against the close and the later excess return: 0.40 at 21 sessions, 0.92 at 63 (12 runs with a valuation figure; JPM and PGR carry none in the card).
+Reading, with its limits: at about three months the ratings and, more strongly, the valuations pointed the right way. That is the first evidence that the tool's caution is not simply a habit. It is thin: 17 ratings from six companies, windows that overlap, the 0.92 resting largely on MSFT (rose) and CAT (fell) appearing on all three dates, one market period, and a cut-down pipeline (no news or social analyst). At one month there is no signal.
+Total paid spend to date: about 178 dollars.
