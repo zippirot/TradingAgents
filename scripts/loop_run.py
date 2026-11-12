@@ -20,7 +20,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "docs" / "loop" / "state.json"
-PORTFOLIO = ROOT / "docs" / "loop" / "portfolio.loop.json"
+# LOOP_PORTFOLIO picks another made-up file, such as the concentrated one; never the user's own.
+PORTFOLIO = Path(os.environ.get("LOOP_PORTFOLIO") or ROOT / "docs" / "loop" / "portfolio.loop.json")
 LOOP_HOME = Path.home() / ".tradingagents" / "loop"
 LAUNCHER = Path.home() / "Documents" / "ChatGPT" / "Tauric" / "TradingAgents"
 MODEL = "openai/gpt-6.1-terra-pro"

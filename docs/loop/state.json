@@ -1037,6 +1037,50 @@
    "tag": "h8b",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-h8b/MSFT/2026-11-12/090830-c3abfe0b",
    "log": "/Users/zipp/.tradingagents/loop/logs-h8b/loop_run_MSFT_2026-11-12T090827.log"
+  },
+  {
+   "cycle": 10,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T09:35:16",
+   "tag": "a10b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-a10b/MSFT/2026-11-12/093519-744fbd9e",
+   "log": "/Users/zipp/.tradingagents/loop/logs-a10b/loop_run_MSFT_2026-11-12T093516.log"
+  },
+  {
+   "cycle": 10,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T09:35:16",
+   "tag": "a10a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-a10a/MSFT/2026-11-12/093519-e4b65e81",
+   "log": "/Users/zipp/.tradingagents/loop/logs-a10a/loop_run_MSFT_2026-11-12T093516.log"
+  },
+  {
+   "cycle": 10,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T09:35:16",
+   "tag": "a10c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-a10c/MSFT/2026-11-12/093519-a5037a61",
+   "log": "/Users/zipp/.tradingagents/loop/logs-a10c/loop_run_MSFT_2026-11-12T093516.log"
+  },
+  {
+   "cycle": 11,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T09:41:50",
+   "tag": "d11x",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11x/DOCN/2026-11-12/094152-3046c134",
+   "log": "/Users/zipp/.tradingagents/loop/logs-d11x/loop_run_DOCN_2026-11-12T094150.log"
   }
  ]
 }
