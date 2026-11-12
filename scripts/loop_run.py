@@ -68,12 +68,12 @@ def command(ticker: str, date: str) -> list[str]:
             "--portfolio", str(PORTFOLIO)]
 
 
-def environment(home: Path = LOOP_HOME) -> dict:
+def environment(home: Path = LOOP_HOME, results: str = "logs") -> dict:
     from dotenv import dotenv_values
 
     keys = {name: value for name, value in dotenv_values(LAUNCHER / ".env").items() if value}
     return {**os.environ, **keys, **SETTINGS,
-            "TRADINGAGENTS_RESULTS_DIR": str(home / "logs"), "TRADINGAGENTS_CACHE_DIR": str(home / "cache"),
+            "TRADINGAGENTS_RESULTS_DIR": str(home / results), "TRADINGAGENTS_CACHE_DIR": str(home / "cache"),
             "TRADINGAGENTS_MEMORY_LOG_PATH": str(home / "memory" / "trading_memory.md"),
             "TRADINGAGENTS_PREFS_PATH": str(home / "cli_prefs.json")}
 
@@ -89,8 +89,8 @@ def provider_usage(env: dict) -> float | None:
         return None
 
 
-def newest_run(home: Path, ticker: str, date: str) -> Path | None:
-    folders = [path for path in (home / "logs" / ticker.upper() / date).glob("*") if path.is_dir()]
+def newest_run(home: Path, ticker: str, date: str, results: str = "logs") -> Path | None:
+    folders = [path for path in (home / results / ticker.upper() / date).glob("*") if path.is_dir()]
     return max(folders, key=lambda path: path.stat().st_mtime) if folders else None
 
 
@@ -100,6 +100,10 @@ def main(argv=None):
     parser.add_argument("--date", default=str(datetime.date.today()))
     parser.add_argument("--cycle", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--fresh", metavar="TAG", help="use a results folder of its own (logs-TAG), so the run has no "
+                        "earlier rating or thesis to lean on; repeats of one company are then independent")
+    parser.add_argument("--skip-cost", action="store_true", help="do not measure cost (runs in parallel are "
+                        "measured together by the caller)")
     parser.add_argument("--state", type=Path, default=STATE)
     args = parser.parse_args(argv)
     state = load_state(args.state)
@@ -117,20 +121,23 @@ def main(argv=None):
     if args.dry_run:
         print("dry run: nothing was started")
         return 0
-    env = environment()
-    for folder in ("logs", "cache", "memory"):
+    results = f"logs-{args.fresh}" if args.fresh else "logs"
+    env = environment(results=results)
+    if args.fresh:
+        env["TRADINGAGENTS_MEMORY_LOG_PATH"] = str(LOOP_HOME / results / "trading_memory.md")
+    for folder in (results, "cache", "memory"):
         (LOOP_HOME / folder).mkdir(parents=True, exist_ok=True)
-    before, started = provider_usage(env), datetime.datetime.now().isoformat(timespec="seconds")
-    log = LOOP_HOME / "logs" / f"loop_run_{args.ticker.upper()}_{started.replace(':', '')}.log"
+    before, started = (None if args.skip_cost else provider_usage(env)), datetime.datetime.now().isoformat(timespec="seconds")
+    log = LOOP_HOME / results / f"loop_run_{args.ticker.upper()}_{started.replace(':', '')}.log"
     with log.open("w") as out:
         code = subprocess.run(line, cwd=ROOT, env=env, stdin=subprocess.DEVNULL, stdout=out,  # noqa: S603
                               stderr=subprocess.STDOUT, check=False).returncode
-    after = provider_usage(env)
+    after = None if args.skip_cost else provider_usage(env)
     cost = round(after - before, 4) if before is not None and after is not None else None
-    folder = newest_run(LOOP_HOME, args.ticker, args.date)
+    folder = newest_run(LOOP_HOME, args.ticker, args.date, results)
     state = load_state(args.state)
     state["runs"].append({"cycle": args.cycle, "ticker": args.ticker.upper(), "date": args.date, "exit": code,
-                          "cost": cost, "started": started, "run_dir": str(folder) if folder else None,
+                          "cost": cost, "started": started, "tag": args.fresh, "run_dir": str(folder) if folder else None,
                           "log": str(log)})
     args.state.write_text(json.dumps(state, indent=1))
     print(f"exit {code}; run folder: {folder}; cost: {cost if cost is not None else 'not measured'} dollars; log: {log}")

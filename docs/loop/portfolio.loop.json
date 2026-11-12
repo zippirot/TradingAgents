@@ -1,15 +1,40 @@
 {
-  "currency": "USD",
-  "portfolio_value": 100000,
-  "cash": 10000,
-  "default_standard_weight": 0.05,
-  "loss_budget": 0.01,
-  "rating_weights": {"Buy": 1.5, "Overweight": 1.25, "Hold": 1.0, "Underweight": 0.5, "Sell": 0.0},
-  "show_amounts": false,
-  "positions": [
-    {"ticker": "NVDA", "quantity": 20},
-    {"ticker": "AAPL", "quantity": 30}
-  ],
-  "watchlist": ["DOCN", "MSFT", "WMT"],
-  "limits": {"max_position_weight": 0.10, "max_sector_weight": 0.30, "min_cash_weight": 0.05, "rating_max_age_days": 30}
+ "currency": "USD",
+ "portfolio_value": 100000,
+ "cash": 10000,
+ "default_standard_weight": 0.05,
+ "loss_budget": 0.01,
+ "rating_weights": {
+  "Buy": 1.5,
+  "Overweight": 1.25,
+  "Hold": 1.0,
+  "Underweight": 0.5,
+  "Sell": 0.0
+ },
+ "show_amounts": false,
+ "positions": [
+  {
+   "ticker": "MSFT",
+   "quantity": 10
+  },
+  {
+   "ticker": "NVDA",
+   "quantity": 20
+  },
+  {
+   "ticker": "AAPL",
+   "quantity": 30
+  }
+ ],
+ "watchlist": [
+  "DOCN",
+  "WMT",
+  "CAT"
+ ],
+ "limits": {
+  "max_position_weight": 0.1,
+  "max_sector_weight": 0.3,
+  "min_cash_weight": 0.05,
+  "rating_max_age_days": 30
+ }
 }
