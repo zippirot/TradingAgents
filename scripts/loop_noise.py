@@ -21,8 +21,11 @@ def read(folder: Path) -> dict:
     record = json.loads((folder / "evaluation.json").read_text())
     decision = (folder / "final_trade_decision.md").read_text() if (folder / "final_trade_decision.md").exists() else ""
     rating = re.search(r"\*\*(?:Canonical Portfolio Manager rating|Rating)\*\*:\s*([A-Za-z]+)", decision)
-    scores = {"Decision": record["scores"]["investment_decision_quality"], "Research": record["scores"]["research_quality"]}
-    scores.update({name: record["decision_components"][name]["score"] for name in FACTORS})
+    parts = record.get("decision_components") or {}
+    scores = {"Decision": record["scores"].get("investment_decision_quality"), "Research": record["scores"].get("research_quality")}
+    scores.update({name: (parts.get(name) or {}).get("score") for name in FACTORS})
+    # A run that stopped at REVIEW has no decision to score; it is counted, never dropped from the picture.
+    scores = {name: value if isinstance(value, (int, float)) else None for name, value in scores.items()}
     return {"ticker": (record.get("identity") or {}).get("ticker"), "rating": rating.group(1) if rating else None,
             "scores": scores}
 
@@ -37,8 +40,10 @@ def summarize(runs: list[dict]) -> dict:
         stats = {}
         for name in rows[0]["scores"]:
             values = [float(row["scores"][name]) for row in rows if row["scores"].get(name) is not None]
-            stats[name] = {"mean": round(sum(values) / len(values), 2), "spread": round(max(values) - min(values), 2)}
-        out[ticker] = {"runs": len(rows), "ratings": dict(ratings),
+            stats[name] = ({"mean": round(sum(values) / len(values), 2), "spread": round(max(values) - min(values), 2)}
+                           if values else {"mean": None, "spread": None})
+        reached = sum(row["scores"]["Decision"] is not None for row in rows)
+        out[ticker] = {"runs": len(rows), "ratings": dict(ratings), "reached_a_decision": f"{reached} of {len(rows)}",
                        "rating_agreement": f"{ratings.most_common(1)[0][1]} of {len(rows)}", "scores": stats}
     return out
 
@@ -46,9 +51,11 @@ def summarize(runs: list[dict]) -> dict:
 def main(argv=None):
     result = summarize([read(Path(name)) for name in (argv if argv is not None else sys.argv[1:])])
     for ticker, row in result.items():
-        print(f"{ticker}: {row['runs']} run(s); ratings {row['ratings']} (agreement {row['rating_agreement']})")
+        print(f"{ticker}: {row['runs']} run(s); reached a decision {row['reached_a_decision']}; "
+              f"ratings {row['ratings']} (agreement {row['rating_agreement']})")
         print("   " + "  ".join(f"{name} {stat['mean']} ±{stat['spread']}" for name, stat in row["scores"].items()))
-    spreads = [row["scores"]["Decision"]["spread"] for row in result.values() if row["runs"] > 1]
+    spreads = [row["scores"]["Decision"]["spread"] for row in result.values()
+               if row["runs"] > 1 and row["scores"]["Decision"]["spread"] is not None]
     if spreads:
         print(f"largest Decision spread between repeats: {max(spreads)}")
     return 0

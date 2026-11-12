@@ -34,3 +34,10 @@ Evaluation: a fresh helper is given only the report folder and the skill, never 
 
 Not allowed without the user: merge, push, install, production promotion, worktree removal, other depths or models,
 anything that changes what a rating means or how a money figure is defined.
+
+## Rules added after cycle 1 (2026-11-11)
+
+1. **One run before three.** After a fix passes the free checks, pay for one run and read it. Only then repeat to three.
+2. **Reached a decision.** A run that stops at REVIEW has no Decision score. `scripts/loop_noise.py` reports "reached a decision N of M" beside the averages; a fix that raises the average by losing runs is not a gain.
+3. **Coverage.** Before and after any reader change, count how many stored companies are open: `scripts/large_filer_score.py score --tickers ... --store ~/.tradingagents/private/large-filer-20261111/store --out FILE` (field `open`). The 20-company fresh set is in `~/.tradingagents/private/fresh-cohort-20261111/store`; use it to check a claim of general coverage, and do not tune on it more than has been done.
+4. Every run uses `--date 2026-11-11` so price and filings are the same in every cycle, and `--fresh TAG` so repeats do not see each other.
