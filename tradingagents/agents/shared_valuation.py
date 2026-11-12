@@ -881,7 +881,7 @@ def render_shared_valuation(record):
             else:
                 lines.append(f"{_cell(result['eps_basis'])} EPS {display_number(result['earnings_value'])} × multiple {display_number(result['multiple'])} = {display_number(result['target'])}; {_cell(result['accounting_basis'])}.")
                 lines.append(f"Multiple assumption date: {result.get('multiple_assumption_date') or 'undated; conditional sensitivity only'}.")
-            if result['method'] != 'revenue_case':
+            if result['method'] not in ('revenue_case', 'earnings_case'):
                 lines.append(f"Decision date: {result.get('decision_date') or 'not specified'}; unvalidated rerating assumption: {_cell(result.get('rerating_assumption') or 'not supplied')}.")
             lines.append("")
             lines += ["- " + _cell(v) for v in result["assumptions"] if not v.startswith("Scenario weights and valuation multiples")]
@@ -893,7 +893,7 @@ def render_shared_valuation(record):
                     for basis in row.get("source_bound_sensitivity_requests", {})
                 ) else "Limitation: "
                 lines.append("- " + prefix + _cell(warning))
-            if result['method'] != 'revenue_case':
+            if result['method'] not in ('revenue_case', 'earnings_case'):
                 lines += ["", render_valuation_comparison(row.get('comparison'))]
     if record.get("status") == "partial":
         lines += ["", "Partial table: some proposed scenarios were omitted or remain unfunded diagnostics."]

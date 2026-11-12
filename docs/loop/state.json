@@ -267,6 +267,138 @@
    "tag": "e1",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-e1/WMT/2026-11-11/221103-6c4d25a2",
    "log": "/Users/zipp/.tradingagents/loop/logs-e1/loop_run_WMT_2026-11-11T221102.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:18:21",
+   "tag": "e2a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2a/MSFT/2026-11-11/221823-b8f6a598",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2a/loop_run_MSFT_2026-11-11T221821.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:18:21",
+   "tag": "e2a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2a/WMT/2026-11-11/221823-11ed92f9",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2a/loop_run_WMT_2026-11-11T221821.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "CAT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:18:21",
+   "tag": "e2a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2a/CAT/2026-11-11/221823-a045b647",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2a/loop_run_CAT_2026-11-11T221821.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:20:01",
+   "tag": "e2b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2b/MSFT/2026-11-11/222002-e1d64e24",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2b/loop_run_MSFT_2026-11-11T222001.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:20:06",
+   "tag": "e2b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2b/WMT/2026-11-11/222007-e16c7ef0",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2b/loop_run_WMT_2026-11-11T222006.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "CAT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:20:09",
+   "tag": "e2b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2b/CAT/2026-11-11/222010-21659355",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2b/loop_run_CAT_2026-11-11T222009.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:21:14",
+   "tag": "e2c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2c/MSFT/2026-11-11/222116-25cf64d0",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2c/loop_run_MSFT_2026-11-11T222114.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "CAT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:21:55",
+   "tag": "e2c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2c/CAT/2026-11-11/222157-226e10ae",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2c/loop_run_CAT_2026-11-11T222155.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-11T22:21:44",
+   "tag": "e2c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2c/WMT/2026-11-11/222146-7c1f6b79",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2c/loop_run_WMT_2026-11-11T222144.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T22:18:21",
+   "tag": "e2a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2a/DOCN/2026-11-11/221823-cdb3257f",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2a/loop_run_DOCN_2026-11-11T221821.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T22:24:38",
+   "tag": "e2b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2b/DOCN/2026-11-11/222440-5ea42cd8",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2b/loop_run_DOCN_2026-11-11T222438.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T22:30:50",
+   "tag": "e2c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-e2c/DOCN/2026-11-11/223052-e75e216a",
+   "log": "/Users/zipp/.tradingagents/loop/logs-e2c/loop_run_DOCN_2026-11-11T223050.log"
   }
  ]
 }
