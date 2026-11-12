@@ -301,3 +301,18 @@ Paid, one run each (standard made-up portfolio):
 Not done: three runs on both portfolios (the install rule); a book-value or return-on-equity reference for financial companies; bank-suited peers.
 Other wider-mix items still open: reading gaps on COP, NEE, PLD; SNOW's analyst submitting no cases.
 Total paid spend to date: about 125 dollars.
+
+## Aperture loop, lean version (APPROVED by the user 2026-11-12: "anything, go"; plan `~/Claude/2026-11-12-tradingagents-aperture-loop-plan.md`)
+The eight: DOCN, MSFT, WMT, CAT, CVX, JPM, PGR, UNH. No survey (the user's list is "anything" and eight kinds work).
+Step 4, confirmation runs on bench head (all reached a valued decision, three priced scenarios each):
+| company | portfolio | ratings | Decision (3 runs) |
+|---|---|---|---|
+| JPM | standard | Underweight, Hold, Underweight | 6.57 (6.3, 6.9, 6.5) |
+| JPM | bank as the large position (about 39%, 15% loss budget) | Underweight x3 | 6.70 (6.6, 6.6, 6.9); no CF3 or CF5 |
+| PGR | standard | Underweight x3 | 6.87 (7.0, 6.6, 7.0) |
+| UNH | standard | Underweight (one run, not scored) | - |
+| CVX | standard | Underweight (one run, not scored) | - |
+Bank and insurer path verdict: passes the install rule (three runs, both kinds of portfolio); scores sit in the same range as MSFT (6.2 to 6.7) and WMT (7.1).
+OBSERVATION for the quality loop: of the eight companies' latest runs, every one rates Underweight except one JPM Hold. A tool that gives one answer to a bank, an insurer, an oil company, a health insurer, a retailer and two technology companies is not telling them apart. Not diagnosed. Candidates: the fixed 9.88% required return, downside-weighted scenario sets, a manager that reads any shortfall against the hurdle as Underweight.
+Backlog with cause: COP, NEE, PLD (lines filed under names not read); IBM (financing arm); XOM (new registrant); SNOW (analyst submitted no scenarios, once).
+Total paid spend to date: about 134 dollars.
