@@ -252,3 +252,16 @@ Total paid spend to date: about 99 dollars.
 Reading (two strikes on MSFT: 5.9 with the size check sent back, 5.6 with it printed only): the size-against-downside line is the common factor. Printed and unanswered it reads as an unresolved breach on every held stock whose downside case exceeds budget / weight; sent back, it bends the rating. The only consistent resolution is that the loss budget sets the SIZE: the parked risk-based-sizing decision. Partly an artefact of the loop's made-up portfolio (5% standard weight with a 1% loss budget fails any stock with a downside case worse than 20%).
 The on-the-line label is not shown to help or hurt by these three: its two reports scored 5.9 and 5.4, the untouched one 5.6. STOP building on MSFT until the user decides the sizing question.
 Total paid spend to date: about 99 dollars.
+
+### "Hold (on the line)" REMOVED (2026-11-12, same day it was installed)
+The user's own DOCN run on the launcher (their real portfolio: DOCN about 39% of it, 15% loss budget) published Hold while the Research Manager said Underweight, the Trader Sell and all three risk analysts reduce; their evaluator scored the decision 5.0 against 8.1 to 8.5 on the three runs before. Cause: the code-set Hold. I had tested it only on a 5% position in the made-up portfolio.
+Lessons: (1) the launcher is what the user decides with; nothing goes there on single confirming runs; (2) the loop needed a test portfolio with a large position over its loss limit, now `docs/loop/portfolio.concentrated.json` (select with LOOP_PORTFOLIO); (3) code must not override the chain's rating.
+
+### Clean comparison (fresh runs, 2026-11-12): today's code against a copy with the label and the printed size line switched off
+| company, portfolio | today's code | stripped copy |
+|---|---|---|
+| MSFT, standard made-up portfolio | 6.43 (6.1, 6.6, 6.6) | 6.23 (6.3, 6.2, 6.2) |
+| DOCN, concentrated portfolio | 7.5 (one run; label did not trigger at -14.1%) | 7.17 (7.4, 7.1, 7.0); Underweight x3, Research Manager Underweight x3 |
+Reading: on fresh runs neither suspect moves MSFT (inside noise); the 5.6 reported earlier came from follow-up runs that continued a history, not from the code. MSFT sits 0.3 to 0.5 under its end-of-loop 6.73, at the edge of noise. The printed size line is neutral on score and is kept; the label is removed because of the real failure above, not because of these scores.
+Open: follow-up runs (the way the user really runs) score lower than fresh runs on MSFT (5.4 to 5.9 against 6.1 to 6.6); evaluators name carried cases shown as "accepted", "unusable" and "not adopted" at once. Not yet diagnosed.
+Total paid spend to date: about 109 dollars.

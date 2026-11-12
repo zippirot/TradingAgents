@@ -42,8 +42,6 @@ from tradingagents.agents.scenario_decision import (
     priced_cases,
     render_cases_for_manager,
     retry_feedback,
-    settle_on_the_line,
-    summarize,
     with_value_today,
 )
 from tradingagents.agents.schemas import RequiredHorizonPortfolioDecision, render_pm_decision
@@ -223,13 +221,6 @@ Write in order, rating first:
                 role_feedback(decision.rating.value, _proposed_conditions(decision))) if part)
             if feedback:
                 decision = invoke_structured(structured_llm, f"{prompt}\n\n{feedback}", "Portfolio Manager") or decision
-            # On the line the published rating is Hold whatever the answer was; the manager's own rating is the lean.
-            settled = {**answered, "final_rating": decision.rating.value, "unvalidated_outputs": {"portfolio_manager": {
-                **answered["unvalidated_outputs"]["portfolio_manager"], "structured": decision.model_dump(mode="json")}}}
-            rating, lean = settle_on_the_line(decision.rating.value, getattr(decision, "rating_lean", None),
-                                              summarize(settled, replayed).get("on_the_line"))
-            if (rating, lean) != (decision.rating.value, getattr(decision, "rating_lean", None)):
-                decision = decision.model_copy(update={"rating": type(decision.rating)(rating), "rating_lean": lean})
         original = dict(state.get("unvalidated_outputs") or {})
         request = None
         thesis_candidate = None

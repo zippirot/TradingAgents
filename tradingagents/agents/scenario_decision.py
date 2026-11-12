@@ -184,78 +184,6 @@ def _direction(value, close):
     return "near"
 
 
-# The spread measured between runs of one company on one close: the highest case's weight moved by about this much.
-ON_THE_LINE_SHIFT = Decimal("0.10")
-_LEANS = ("Buy", "Overweight", "Underweight", "Sell")
-
-
-def _lean(value):
-    return value if value in _LEANS else None
-
-
-def on_the_line(summary) -> dict | None:
-    """Whether a small change in the weights would move the accepted cases across the close; None when not.
-
-    Decided from the report's own weight arithmetic, never a fixed percentage of the price: equal weights put
-    the cases on the other side of the close, or the highest case's weight needs to move by no more than
-    ON_THE_LINE_SHIFT for the weighted value today to equal the close.
-    """
-    check = summary.get("sturdiness")
-    if not check or summary.get("direction_basis") != "value_today":
-        return None
-    shift = None
-    if check.get("break_even") == "available":
-        shift = abs(Decimal(check["break_even_weight"]) - Decimal(check["highest"]["weight"]))
-    if shift is not None and shift <= ON_THE_LINE_SHIFT:
-        return {"reason": "weight_shift", "shift": str(shift)}
-    if summary.get("weights_decide"):
-        return {"reason": "equal_weights", "shift": None if shift is None else str(shift)}
-    return None
-
-
-def settle_on_the_line(rating, lean, line) -> tuple[str, str | None]:
-    """The published rating and the lean. On the line the rating is Hold and the manager's own rating is the lean."""
-    if not line:
-        return rating, None
-    if rating != "Hold":
-        return "Hold", rating
-    return "Hold", _lean(lean)
-
-
-def _line_cause(summary) -> str:
-    line, check = summary["on_the_line"], summary["sturdiness"]
-    if line["reason"] == "weight_shift":
-        return (f"moving the weight of the highest case ({check['highest']['role']}) by "
-                f"{Decimal(line['shift']) * 100:.0f} points puts them level with it")
-    return (f"with equal weights they are worth {Decimal(check['equal_weight_vs_close_percent']):+.1f}% against it, "
-            "on the other side")
-
-
-def line_feedback(summary, rating) -> str:
-    """The one instruction sent to a manager whose rating is not Hold while its cases are on the line."""
-    if not summary.get("on_the_line") or rating == "Hold":
-        return ""
-    return ("Your accepted scenarios put the stock on the line: they are worth "
-            f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close today, and "
-            f"{_line_cause(summary)}. On the line the published rating is Hold and code sets it. Resubmit the "
-            "complete decision with rating Hold: put the rating you would otherwise give in rating_lean, say in "
-            "rating_basis_reason what evidence would move the rating to that lean, and write the executive summary "
-            "for holding the present position (no purchase where none is held). Keep your scenario_view and weights "
-            "as they are.")
-
-
-def render_on_the_line(summary) -> list[str]:
-    if not summary.get("on_the_line"):
-        return []
-    lean, reason = summary.get("rating_lean"), summary.get("rating_basis_reason")
-    return [f"Hold (on the line): the accepted cases are worth "
-            f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close today, and "
-            f"{_line_cause(summary)}. That is within what the weights move from one run to the next "
-            f"({ON_THE_LINE_SHIFT * 100:.0f} points), so the rating is set by code to Hold and the holding is left as it "
-            "is. " + (f"The Portfolio Manager leans {lean}." if lean else "The Portfolio Manager stated no lean.")
-            + (f" What would move the rating, in the manager's words (unvalidated): {reason}" if reason else "")]
-
-
 def summarize(state, replayed) -> dict:
     """Recalculate the scenario basis of a decision from replayed cases and the manager's retained answer."""
     cases = with_value_today(priced_cases(replayed), state)
@@ -305,8 +233,7 @@ def summarize(state, replayed) -> dict:
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
                "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None,
-               "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False,
-               "on_the_line": None, "rating_lean": _lean(structured.get("rating_lean"))}
+               "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False}
     if not accepted:
         return summary
     # Only the close each accepted case was validated against on replay is comparable; the raw
@@ -341,7 +268,6 @@ def summarize(state, replayed) -> dict:
             equal = _decimal((summary["sturdiness"] or {}).get("equal_weight_vs_close_percent"))
             given = _decimal(today["weighted_today_vs_close_percent"])
             summary["weights_decide"] = bool(equal and given and (equal > 0) != (given > 0))
-            summary["on_the_line"] = on_the_line(summary)
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -414,7 +340,6 @@ def retry_feedback(state, replayed) -> str:
             f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close today, with equal weights "
             f"{Decimal(summary['sturdiness']['equal_weight_vs_close_percent']):+.1f}%. Resubmit the complete decision "
             "with weight_basis: the evidence, case by case, for weighting them this way rather than equally.")
-    parts.append(line_feedback(summary, state.get("final_rating")))
     # The size test is printed by code and never sent back: asked to answer it, the manager changed the rating
     # to fit the caller's loss budget (three MSFT runs, 2026-11-12). The rating is the view of the stock.
     parts.append(event_feedback(summary.get("event_view")))
@@ -513,7 +438,6 @@ def render(summary) -> list[str]:
                  + ("" if summary.get("direction_basis") == "value_today" else
                     f" Direction: {summary['direction']} the close, using a 10 percent threshold."))
     lines.extend(render_today_basis(summary))
-    lines.extend(render_on_the_line(summary))
     against = ("the rating points against the accepted scenarios, which return "
                + ("more" if _decimal(summary.get("return_gap_points")) > 0 else "less") + " than the required return"
                if summary.get("contrary_basis") == "return_gap" else
