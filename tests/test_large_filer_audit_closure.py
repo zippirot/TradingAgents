@@ -154,9 +154,13 @@ def test_a_financing_line_for_financed_property_and_equipment_is_not_missed():
                  "co:PrincipalPaymentsOnPropertyPlantAndEquipmentFinancing"):
         package, _ = _flows(["us-gaap:RepaymentsOfLongTermDebt", name],
                             [("us-gaap:RepaymentsOfLongTermDebt", -350), (name, -150)])
+        # The line is never read as "no equipment principal". Since 2026-11-11 it is counted as that principal:
+        # the financing list it sits in adds up, and the filer states it as a payment.
         assert financing_principal(package, P_START, END) == {}
-        check = cash_flow_checks(package)[1]
-        assert check["status"] == "unavailable" and name in check["message"]
+        paid = next(f for f in package.facts if f.metric == "Equipment Financing Principal Payments")
+        assert paid.value == 150 and name in paid.locator and (paid.period_start, paid.period_end) == (P_START, END)
+        results, check, _ = cash_flow_checks(package)
+        assert check["status"] == "pass" and any(paid.fact_id in r.input_fact_ids for r in results)
 
 
 # ---- second audit, run 76f4bbfd ----

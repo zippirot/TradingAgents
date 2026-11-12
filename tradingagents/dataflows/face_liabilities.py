@@ -422,6 +422,16 @@ def with_financing_lines(package: EvidencePackage, facts, calculation, *, url: s
         if len(stated_principal) == 1:
             added.append(filed("Finance Lease Principal Payments", abs(next(iter(stated_principal))),
                                f"us-gaap:FinanceLeasePrincipalPayments for {start} to {end} in the filed instance"))
+    # A filer's own financing line for property, equipment or a financing obligation is what it paid on things
+    # bought on credit. The list it sits in adds up to financing cash flow, so the line is read as that payment.
+    if not any(f.metric == "Equipment Financing Principal Payments" and f.value is not None and f.period_start == start
+               and f.period_end == end for f in package.facts):
+        named = [line for line in lines if _EQUIPMENT_PRINCIPAL.search(line.concept.split(":", 1)[-1])]
+        if named and all(line.value <= 0 for line in named):
+            added.append(filed("Equipment Financing Principal Payments", -sum((line.value for line in named), Decimal(0)),
+                               " + ".join(line.concept for line in named)
+                               + f" for {start} to {end}: the filed financing cash-flow lines for property, equipment "
+                                 "or a financing obligation, stated as payments"))
     # The investing section, read the same way: it shows where capital spending is stated and what is not.
     notes = []
     try:

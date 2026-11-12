@@ -298,8 +298,10 @@ def test_a_list_that_does_not_add_up_or_carries_an_equipment_like_line_settles_n
     package, _ = _flows(odd, [("us-gaap:RepaymentsOfLongTermDebt", -300), ("co:PaymentsToAcquireEquipmentFinancingActivities", -150),
                               ("us-gaap:FinanceLeasePrincipalPayments", -50)])
     assert financing_principal(package, P_START, END) == {}
-    check = cash_flow_checks(package)[1]
-    assert check["status"] == "unavailable" and "co:PaymentsToAcquireEquipmentFinancingActivities" in check["message"]
+    # The filer's own equipment line in a list that adds up is counted as equipment principal, not left unread.
+    paid = next(f for f in package.facts if f.metric == "Equipment Financing Principal Payments")
+    assert paid.value == 150 and "co:PaymentsToAcquireEquipmentFinancingActivities" in paid.locator
+    assert cash_flow_checks(package)[1]["status"] == "pass"
 
 
 # ---- share counts and valuation for filers read this way ----
