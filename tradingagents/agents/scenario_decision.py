@@ -247,13 +247,13 @@ def line_feedback(summary, rating) -> str:
 def render_on_the_line(summary) -> list[str]:
     if not summary.get("on_the_line"):
         return []
-    lean = summary.get("rating_lean")
-    return [f"**Hold (on the line)**: the accepted cases are worth "
+    lean, reason = summary.get("rating_lean"), summary.get("rating_basis_reason")
+    return [f"Hold (on the line): the accepted cases are worth "
             f"{Decimal(summary['weighted_today_vs_close_percent']):+.1f}% against the close today, and "
             f"{_line_cause(summary)}. That is within what the weights move from one run to the next "
             f"({ON_THE_LINE_SHIFT * 100:.0f} points), so the rating is set by code to Hold and the holding is left as it "
-            "is. " + (f"The Portfolio Manager leans {lean}; what would move the rating there is its stated reason "
-                      "in the rating check below." if lean else "The Portfolio Manager stated no lean.")]
+            "is. " + (f"The Portfolio Manager leans {lean}." if lean else "The Portfolio Manager stated no lean.")
+            + (f" What would move the rating, in the manager's words (unvalidated): {reason}" if reason else "")]
 
 
 def summarize(state, replayed) -> dict:

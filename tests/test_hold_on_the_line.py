@@ -66,7 +66,11 @@ def test_the_manager_is_told_once_and_the_card_says_what_was_done():
     assert line_feedback(summary, "Hold") == "" and line_feedback({"on_the_line": None}, "Overweight") == ""
     card = "\n".join(render(summarize(_with(ON_LINE, "Hold", lean="Overweight"), _three())))
     assert "Hold (on the line)" in card and "leans Overweight" in card and "set by code" in card
-    assert "equal weights" in card
+    assert "equal weights" in card and "**" not in next(text for text in card.splitlines() if "on the line" in text)
+    from tradingagents.agents.output_validation import _line_note
+    note = _line_note({"scenario_decision": {"on_the_line": {"reason": "weight_shift"}, "rating_lean": "Underweight"}})
+    assert note.startswith("**Rating note**: Hold (on the line), set by code") and "leans Underweight" in note
+    assert _line_note({"scenario_decision": {"on_the_line": None}}) == "" and _line_note({}) == ""
     plain = "\n".join(render(summarize(_with(OFF_LINE, "Underweight"), _three())))
     assert "on the line" not in plain
 

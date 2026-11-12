@@ -234,3 +234,11 @@ Before the fix (local commit "Earnings cases are carried to the next run like re
 Result: every follow-up reproduced its predecessor's three cases and the manager's weights exactly (weighted value today identical to the cent: 544.82, 528.52, 509.49). Ratings: Overweight -> Overweight; Underweight -> Underweight; Hold -> Underweight, Underweight on identical numbers (+1.4% against the close, +12.3% a year against a required 9.88%; the Research Manager said Underweight and the manager kept it "as a portfolio risk judgment").
 Reading: the numbers are now steady in normal use; what still moves is the judgment call when the stock is valued at about its price. That is the case the "Hold (on the line)" label is for. The loop's fresh-start runs overstated the flipping in the numbers.
 Total paid spend to date: about 96 dollars.
+
+### Hold (on the line) (user decision 2026-11-12: "execute this")
+Trigger, from the report's own weight arithmetic and never a fixed percentage of the price: equal weights put the accepted cases on the other side of the close, or the highest case's weight needs to move by no more than 10 points (the spread measured between runs) for the weighted value today to equal the close. Then the published rating is Hold, set by code; the manager's own rating is recorded as the lean (asked once, as an instruction, not a choice); the holding is left as it is; the report says so beside the rating and on the scenario card, with the manager's words on what would move it.
+Free check on 37 saved runs: MSFT on the line in 12 of 16, WMT 0 of 6, DOCN 2 of 9, CAT 2 of 3.
+Paid check, three MSFT follow-up runs with history (h8a/b/c): +1.4% and -2.2% against the close -> Hold (on the line), lean Underweight both, executive summary rewritten for holding; +4.5% -> Overweight, off the line (no reweighting of its cases reaches the close), the same rating as its two predecessors. With carry-forward each history now repeats its own answer.
+Also installed earlier today: earnings cases carried forward (fc60981e).
+Known limit: two fresh starts can still land on different sides (one on the line, one not). The label steadies a history; it does not make fresh starts agree.
+Total paid spend to date: about 99 dollars.
