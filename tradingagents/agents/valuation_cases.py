@@ -782,6 +782,30 @@ def _maturing_notes(terms, snapshot_date, end):
     return found
 
 
+def shortfall_statement(closing_cash, investments, shares, value, currency) -> str | None:
+    """What a case that ends short of cash is said to mean; None when it does not end short.
+
+    The case arithmetic nets a shortfall as an obligation. That gives the same value per share as selling
+    shares at the case's own value to cover it, which is said here with the count. Nothing is changed.
+    """
+    if closing_cash >= 0 or value <= 0 or shares <= 0:
+        return None
+    gap = -closing_cash
+    sold = gap / value
+    text = (f"cash shortfall: the case ends {_money(gap, currency)} short of cash and states no funding for it. Code "
+            "leaves the shortfall in net obligations, which gives the same value per share as selling "
+            f"{sold:,.0f} shares at the case's own value to cover it ({sold / shares * 100:.2f}% more shares) or "
+            "borrowing it at no cost. ")
+    if investments is None or investments <= 0:
+        return text + "No current investments are filed to draw on: it needs new financing, share sales or lower spending."
+    if investments >= gap:
+        return (text + f"The filed current investments of {_money(investments, currency)} would cover it "
+                f"{investments / gap:.1f} times; they are not counted in this case's cash.")
+    return (text + f"The filed current investments of {_money(investments, currency)} would cover "
+            f"{_money(investments, currency)} of it; the remaining {_money(gap - investments, currency)} needs new "
+            "financing, share sales or lower spending.")
+
+
 def funded_statement(capital, snapshot_date, opening, funded, carried, settled, basis, capitalized, net, terms,
                      unstated=(), repaid=Decimal(0), flows=None) -> list[str]:
     """One statement per case: each balance from the filing to the period end, and who supplied each step.
@@ -1063,6 +1087,10 @@ def price_case(request, package, outlooks, terms=None):
                 f"current investments: {_money(held[0].value, capital.currency)} filed as of "
                 f"{cash.period_end} are not counted in cash; counted as cash at that amount they would add "
                 f"{held[0].value / settled['shares']:.2f} a share.")
+        short = (shortfall_statement(closing_cash, held[0].value if len(held) == 1 else None, settled["shares"],
+                                     settled["value"], capital.currency) if request.multiple_basis != "equity" else None)
+        if short:
+            assumptions.append(short)
         funding = case_funding(request, package, terms)
         assumptions.extend(funded_statement(
             capital, cash.period_end, {label: sum(f.value for f in facts) for label, facts in refs.items()},
