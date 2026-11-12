@@ -118,3 +118,23 @@ def test_the_decision_card_groups_earnings_cases_into_one_range_on_a_forward_ear
     assert group["multiple_basis"] == "forward P/E" and group["share_basis"] == "diluted EPS"
     assert (Decimal(group["low"]), Decimal(group["high"])) == (Decimal("45.00"), Decimal("60.00"))
     assert [case["name"] for case in group["cases"]] == ["Base", "Downside"]
+
+
+def _with_diluted(package, year, latest):
+    record = package.model_dump(mode="json")
+    eps = next(f for f in record["facts"] if f["fact_id"] == "eps")
+    record["facts"] += [
+        {**eps, "fact_id": "w-year", "metric": "Weighted Average Diluted Shares", "value": str(year), "unit": "shares"},
+        {**eps, "fact_id": "w-latest", "metric": "Weighted Average Diluted Shares", "value": str(latest), "unit": "shares",
+         "period_start": "2026-04-01", "period_end": "2026-06-30"}]
+    return EvidencePackage.model_validate(record)
+
+
+def test_a_share_count_that_has_changed_by_more_than_half_since_the_earnings_year_refuses_the_case():
+    steady, _ = price_earnings_case(_request(), _with_diluted(_package(), 100, 98), ())
+    assert any("no split since the earnings year" in line for line in steady.assumptions)
+    assert str(steady.capital_snapshot_date) == "2026-06-30"          # the latest balance sheet, as the price is anchored
+    with pytest.raises(ValueError, match="share split is suspected"):
+        price_earnings_case(_request(), _with_diluted(_package(), 100, 300), ())
+    unchecked, _ = price_earnings_case(_request(), _package(), ())
+    assert any("no later diluted share count is filed" in line for line in unchecked.assumptions)

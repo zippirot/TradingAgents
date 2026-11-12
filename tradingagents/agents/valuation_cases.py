@@ -151,6 +151,27 @@ def price_earnings_case(request: EarningsCase, package, outlooks):
                                           _outlooks(package, outlooks), baseline=filed.value)
     if request.multiple_assumption_date != package.as_of or not request.multiple_rationale.strip():
         raise ValueError("Multiple needs the analysis date and a stated rationale")
+    # The price the case is compared with is on today's share basis. The filed EPS is on that basis only if the
+    # share count has not been split since its year: the filing's own diluted share counts show whether it has.
+    def diluted(start, end):
+        found = {f.value for f in package.facts if f.metric == "Weighted Average Diluted Shares" and f.value
+                 and (f.period_start, f.period_end) == (start, end)}
+        return next(iter(found)) if len(found) == 1 else None
+
+    then = diluted(filed.period_start, filed.period_end)
+    later = [f for f in package.facts if f.metric == "Weighted Average Diluted Shares" and f.value
+             and f.period_start is not None and f.period_end > filed.period_end]
+    latest = max(later, key=lambda f: (f.period_end, f.period_start), default=None)
+    share_note = "share basis: no later diluted share count is filed to check the earnings year's against."
+    if then and latest is not None:
+        ratio = latest.value / then
+        if not Decimal("0.67") <= ratio <= Decimal("1.5"):
+            raise ValueError("Diluted shares changed by more than half since the earnings year; a share split is "
+                             "suspected and the filed earnings per share is not on today's share basis")
+        share_note = (f"share basis: diluted shares were {then:,.0f} for the earnings year and {latest.value:,.0f} for "
+                      f"the period ended {latest.period_end}; no split since the earnings year.")
+    balances = [f.period_end for f in package.facts if f.metric == "Cash and Equivalents" and f.value is not None
+                and f.period_start is None]
     expected = request.forecast.value
     with localcontext() as context:
         context.prec = 60
@@ -163,12 +184,11 @@ def price_earnings_case(request: EarningsCase, package, outlooks):
         f"the forecast is {change:+.1f}% against it.",
         "no net-debt bridge: earnings are after interest, so cash and borrowings are not netted; a change in the "
         "share count enters only through the analyst's per-share forecast.",
+        share_note,
     )
     result = TargetResult(
         status="supported", method="earnings_case", target=target, unit=filed.unit, input_fact_ids=(filed.fact_id,),
-        # The price a case is compared with has to be on the share basis of the filed earnings: a split after that
-        # period is checked from here.
-        capital_snapshot_date=filed.period_end,
+        capital_snapshot_date=max(balances, default=filed.period_end),
         multiple=request.multiple, earnings_value=expected, eps_basis="diluted",
         multiple_assumption_date=request.multiple_assumption_date,
         valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,

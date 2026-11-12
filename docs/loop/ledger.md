@@ -112,3 +112,10 @@ Tuned set unchanged: 30 of 31 (COST).
 Costco opened (3b8b61f6): tuned set 31 of 31. Live check (one run before three): CVX, blocked this afternoon, reached a valued decision live: Sell, Base 206.1 / Downside 141.2 vs close 213.27, evidence "limited", cash read from cvx:CashAndCashEquivalentsExcludingTimeDeposits; fix 4's reading line appears as intended. Run folder ~/.tradingagents/loop/logs-live-cvx.
 User 2026-11-11: do the remaining work and apply my recommendations (Costco warning: done; outside-data fallback: skipped, nothing needs it).
 Earnings case: plan in docs/loop/earnings-case-plan.md. Task 1 (model and pricing) built and tested. Tasks 2 to 5 open.
+
+### Cycle 2: earnings-based valuation (built 2026-11-11 night; suite 4,779 passing; saved runs replay unchanged)
+
+Commits: task 1 model and pricing; task 2 weighable in the valuation step, mixed methods refused; tasks 3 and 4 manager weighing, printing, analyst prompt; split check and price comparison.
+One run before three (WMT, ~/.tradingagents/loop/logs-e1, 1.00 dollar): the analyst chose earnings cases unprompted by anything but the new instructions: Base 2.95 x 38 = 112.10, Downside 2.60 x 30 = 78.00, Upside 3.20 x 42 = 134.40, close 125.66; weighted value 106.33 printed; rating Underweight. Defect found in that run: "No comparable completed close is available" (the case was anchored to the earnings year end, before the price coverage starts). Fixed and proven by replaying the same saved run: all three cases now compare with the 125.67 close.
+Paid check running: three runs each of WMT, CAT, DOCN, MSFT (tags e2a, e2b, e2c). CAT is the holdout: these three runs are its end reading and must not be used to adjust anything.
+Open note: prior-case comparison and own-history placement do not yet cover earnings cases (they say nothing rather than something wrong).
