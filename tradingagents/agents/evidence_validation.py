@@ -234,6 +234,9 @@ def latest_balance_check(package: EvidencePackage, source_precision=None):
             package, *pair, precision=_comparison_precision(package, [by_id[i] for i in pair], source_precision))
     total_equity = _select_compatible_fact(package, [f for f in at_end if f.metric == TOTAL_EQUITY], source_precision)
     temporary = [f for f in at_end if f.metric in TEMPORARY_EQUITY_METRICS]
+    if len(temporary) > 1 and len({f.value for f in temporary}) == 1:
+        # One balance filed under two tags (the line and its inclusive total) is one line, counted once.
+        temporary = sorted(temporary, key=lambda f: f.metric)[:1]
     outside = temporary or any(f.metric == NONCONTROLLING for f in at_end)
     if outside and total_equity is not None and len(temporary) <= 1:
         # Outside interests sit between liabilities and the parent's equity; the identity uses consolidated equity.
