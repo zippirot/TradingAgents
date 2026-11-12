@@ -1422,6 +1422,39 @@
    "tag": "q16b",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-q16b/JPM/2026-11-12/140552-292c63cd",
    "log": "/Users/zipp/.tradingagents/loop/logs-q16b/loop_run_JPM_2026-11-12T140550.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T14:55:57",
+   "tag": "s17a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17a/MSFT/2026-11-12/145559-f4cf7ac3",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17a/loop_run_MSFT_2026-11-12T145557.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T14:55:57",
+   "tag": "s17b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17b/MSFT/2026-11-12/145559-acc16823",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17b/loop_run_MSFT_2026-11-12T145557.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T14:55:57",
+   "tag": "s17c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17c/MSFT/2026-11-12/145559-863734a2",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17c/loop_run_MSFT_2026-11-12T145557.log"
   }
  ]
 }
