@@ -175,3 +175,25 @@ Built before paying, each with a test first:
 1. Earnings anchor (done): each earnings case states its forecast against the filed prior year, the filed quarters of the forecast period, and the vendor range when retrieved.
 2. A case period much shorter than a year is not annualised (to build).
 3. Own-history price-to-earnings reference for earnings cases (to build if it can be stated safely across splits).
+
+### Cycle 5 result: valuation-input package for earnings cases (scored 2026-11-12; runs f5a/f5b/f5c dated 2026-11-12 on the 2026-11-11 close; evaluator Claude helper TAE-1.1-loop1)
+
+Built (each with a failing test first): earnings anchor (forecast against the filed year, the filed quarters and the vendor range); a case period under half a year states its own return before the yearly figure; own price-to-earnings points from fiscal year ends, with each case multiple placed against them; analyst prompt asks for both comparisons in the rationales.
+
+| company | ratings | Decision before (cycles 3-4) | Decision after (3 runs) | D1 before -> after | reading |
+|---|---|---|---|---|---|
+| WMT | Underweight x3 | 6.43 | 6.90 (6.8, 6.9, 7.0) | 5.33 -> 6.27 | measured gain: +0.47 on the mean, every run above every earlier run; D1 +0.94 |
+| MSFT | Underweight x2, Hold | 6.73 | 6.73 (6.6, 6.8, 6.8) | 6.43 -> 6.77 | no change in Decision; D1 up inside noise |
+| CAT (holdout, second end reading) | Underweight x3 | 5.8 (cycle 2); 6.7 (one baseline run) | 6.50 (6.8, 6.3, 6.4) | 6.0 -> 5.67 | recovered the cycle-2 fall (the no-purchase rule); not above its baseline |
+| DOCN (guard; revenue cases, package does not apply) | Underweight x3 | 7.60 | 7.27 (7.0, 7.7, 7.1) | 7.27 -> about 6.9 | down 0.33, inside the 0.5 line; Research 8.07 -> 7.77, at the 0.3 guardrail |
+
+Verdict: KEEP. WMT is the loop's one measured Decision gain from a build (with cycle 1). MSFT flat. DOCN's weaknesses in these runs are the asserted scenario weights and, in one run, the analyst pricing a 2026 period 50 days out; neither comes from this package, but DOCN has not improved in the loop and its guard reading is at the edge.
+Where each company ended against its noise baseline: WMT 5.5 -> 6.9 (+1.4); MSFT 6.67 -> 6.73 (flat); DOCN 7.33 -> 7.27 (flat); CAT 6.7 (one run) -> 6.5 (flat).
+Still open, by evidence in these evaluations:
+1. Scenario weights are asserted and equal weights flip the answer (named on DOCN, MSFT, WMT). Type 3 (what the manager is told) and a product question: should code require a stated basis for weights or show the rating at equal weights as the default?
+2. Case period: analysts still choose periods far shorter than the six-month horizon (WMT fiscal year end 81 days out: CF9 on 3 of 3; DOCN once at 50 days). The short-period line states it; nothing yet makes the analyst price the next year.
+3. The size check's figures are withheld from the published record when the manager repeats them, so a reader cannot see why the manager overrode the research rating (MSFT f5c, CF3). The Hold size is tested at 5.0% while 5.2% is held (same report, CF2/CF5).
+4. Earnings cases are EPS times a multiple with "funding unassessed" (CF4 on every MSFT report): no built-up earnings bridge.
+5. MSFT's direction is unstable between batches (Overweight, Underweight, Hold on the same close).
+Cost of cycle 5: 12 runs, about 12 dollars. Total paid spend for the loop: about 64 dollars of the 250 allowed.
+Not done: the full Codex check at the end (the plan's second opinion).
