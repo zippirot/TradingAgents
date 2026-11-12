@@ -64,13 +64,14 @@ def test_material_claims_render_from_canonical_facts_not_raw_prose():
     assert result["fact_ids"] == ["f"]
 
 
-def test_changed_value_metric_unit_period_or_reference_is_rejected():
+def test_changed_value_metric_unit_period_or_origin_is_rejected():
+    # A reference that names no fact is covered by the mistyped-reference tests below.
     for changes in [
         {"value": "235000000"},
         {"metric": "AI product revenue"},
         {"unit": "EUR"},
         {"period_end": "2026-09-30"},
-        {"fact_id": "missing"},
+        {"fact_id": "missing", "value": "235000000"},
         {"kind": "derived"},
     ]:
         result = validate_financial_claims(report(**changes), package())
@@ -466,3 +467,21 @@ def test_extraction_prompts_show_the_literal_parser_fences():
     ):
         assert fence + label + '\n' in prompt
         assert "generic" in prompt
+
+
+def test_a_mistyped_reference_is_matched_when_everything_else_names_exactly_one_fact():
+    # A model that copies a 64-character ID with a character missing has still stated the fact in full.
+    result = validate_financial_claims(report(fact_id="f-typo"), package())
+    assert result["status"] == "pass" and result["fact_ids"] == ["f"]
+    assert result["repairs"] == ["Claim 0: reference f-typo is not a fact ID; matched to fact f, the one fact with "
+                                 "this metric, value, unit, period and origin"]
+    assert validate_financial_claims(report(), package())["repairs"] == []
+
+
+def test_a_mistyped_reference_is_still_refused_when_the_claim_differs_or_names_two_facts():
+    wrong = validate_financial_claims(report(fact_id="f-typo", value="235000000"), package())
+    assert wrong["status"] == "unavailable" and "Claim 0: unavailable canonical fact" in wrong["reasons"]
+    base = package()
+    twin = base.facts[0].model_copy(update={"fact_id": "g"})
+    doubled = base.model_copy(update={"facts": (*base.facts, twin)})
+    assert validate_financial_claims(report(fact_id="f-typo"), doubled)["status"] == "unavailable"

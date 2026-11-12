@@ -39,7 +39,7 @@ def validate_financial_claims(report: str, package: EvidencePackage) -> dict:
     """
     fence = chr(96) * 3
     matches = re.findall(fence + r"financial_claims\s*\n(.*?)\n" + fence, report, re.S)
-    reasons, accepted, hypotheses = [], [], []
+    reasons, accepted, hypotheses, repairs = [], [], [], []
     if len(matches) != 1 or len(matches[0]) > 48000:
         reasons.append("Missing, duplicate or oversized material financial claim extraction")
         rows = []
@@ -62,6 +62,16 @@ def validate_financial_claims(report: str, package: EvidencePackage) -> dict:
             reasons.append(f"Claim {index}: malformed fields")
             continue
         fact = facts.get(claim.fact_id)
+        if fact is None:
+            # A reference that names no fact (a long ID copied with a character lost) is matched only when the rest
+            # of the claim states exactly one fact in full; the value still comes from that fact, never the claim.
+            stated = (claim.kind, claim.metric, claim.value, claim.unit, claim.period_start, claim.period_end)
+            same = [f for f in package.facts if f.value is not None and stated == (
+                f.origin, f.metric, f.value, f.unit, f.period_start, f.period_end)]
+            if len(same) == 1:
+                fact = same[0]
+                repairs.append(f"Claim {index}: reference {claim.fact_id[:80]} is not a fact ID; matched to fact "
+                               f"{fact.fact_id}, the one fact with this metric, value, unit, period and origin")
         if fact is None or fact.value is None:
             reasons.append(f"Claim {index}: unavailable canonical fact")
             continue
@@ -100,6 +110,7 @@ def validate_financial_claims(report: str, package: EvidencePackage) -> dict:
         "fact_ids": [fact.fact_id for fact in accepted],
         "canonical_summary": "\n".join(lines),
         "hypotheses": hypotheses,
+        "repairs": repairs,
         "raw_report": report,
     }
 
