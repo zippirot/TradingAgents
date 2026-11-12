@@ -47,7 +47,7 @@ def remaining(state: dict, cycle: int) -> float:
 
 
 def last_cost(state: dict) -> float | None:
-    costs = [run["cost"] for run in state["runs"] if run.get("cost")]
+    costs = [run["cost"] for run in state["runs"] if run.get("cost") and run.get("kind") != "second_opinion"]
     return costs[-1] if costs else None
 
 
