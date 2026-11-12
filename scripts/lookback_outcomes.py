@@ -21,10 +21,10 @@ HORIZONS = (21, 63)
 _SIDE = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -1}
 
 
-def runs(home: Path) -> list[dict]:
+def runs(home: Path, prefix: str = "logs-lb") -> list[dict]:
     """One row per look-back run that reached a rating."""
     rows, seen = [], set()
-    for path in sorted(glob.glob(str(home / "logs-lb*" / "*" / "TradingAgentsStrategy_logs" / "full_states_log_*.json"))):
+    for path in sorted(glob.glob(str(home / f"{prefix}*" / "*" / "TradingAgentsStrategy_logs" / "full_states_log_*.json"))):
         try:
             state = json.loads(Path(path).read_text())
         except (OSError, ValueError):
@@ -35,7 +35,9 @@ def runs(home: Path) -> list[dict]:
             continue
         seen.add(key[:2])
         card = ((state.get("decision_context") or {}).get("scenario_decision") or {})
-        rows.append({"ticker": key[0], "date": key[1], "rating": rating,
+        structured = (((state.get("unvalidated_outputs") or {}).get("portfolio_manager") or {}).get("structured") or {})
+        rows.append({"ticker": key[0], "date": key[1], "rating": rating, "stock_view": structured.get("stock_view"),
+                     "valuation_reading": card.get("valuation_reading"),
                      "valuation_vs_close": _number(card.get("weighted_today_vs_close_percent")),
                      "return_gap_points": _number(card.get("return_gap_points"))})
     return rows
@@ -101,10 +103,16 @@ def summary(rows: list[dict]) -> dict:
             if values:
                 by[rating] = {"count": len(values), "mean_excess": round(statistics.mean(values), 2),
                               "share_below_market": round(sum(1 for value in values if value < 0) / len(values), 2)}
+        views = {}
+        for view in ("Attractive", "Fair", "Unattractive"):
+            values = [row[key] for row in scored if row.get("stock_view") == view]
+            if values:
+                views[view] = {"count": len(values), "mean_excess": round(statistics.mean(values), 2),
+                               "share_below_market": round(sum(1 for value in values if value < 0) / len(values), 2)}
         directional = [row for row in scored if _SIDE[row["rating"]]]
         right = sum(1 for row in directional if (row[key] > 0) == (_SIDE[row["rating"]] > 0))
         result["horizons"][sessions] = {
-            "scored": len(scored), "by_rating": by,
+            "scored": len(scored), "by_rating": by, "by_stock_view": views,
             "directional_right": f"{right} of {len(directional)}",
             "valuation_rank_correlation": rank_correlation(
                 [(row["valuation_vs_close"], row[key]) for row in scored if row["valuation_vs_close"] is not None])}
@@ -115,13 +123,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--home", type=Path, default=Path.home() / ".tradingagents" / "loop")
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--prefix", default="logs-lb", help="results folders to read, by name prefix")
     args = parser.parse_args()
-    rows = outcomes(runs(args.home))
+    rows = outcomes(runs(args.home, args.prefix))
     report = {"rows": rows, "summary": summary(rows)}
     if args.out:
         args.out.write_text(json.dumps(report, indent=1))
     for row in rows:
-        print(f"{row['date']} {row['ticker']:5} {row['rating']:11} valuation {row['valuation_vs_close']}  "
+        print(f"{row['date']} {row['ticker']:5} {row['rating']:11} view {row.get('stock_view')} valuation {row['valuation_vs_close']}  "
               + "  ".join(f"+{s}s {row[f'excess_{s}']}" for s in HORIZONS))
     print(json.dumps(report["summary"], indent=1))
 
