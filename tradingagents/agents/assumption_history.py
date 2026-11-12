@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from tradingagents.agents.shared_valuation import _label_capital_estimates, replay_cases
 from tradingagents.agents.valuation import EVRevenueTarget, PETarget
-from tradingagents.agents.valuation_cases import RevenueCase
+from tradingagents.agents.valuation_cases import EarningsCase, RevenueCase
 from tradingagents.dataflows.date_window import resolve_analysis_cutoff
 from tradingagents.dataflows.vendors.sec_documents import DisclosurePackage
 
@@ -73,6 +73,11 @@ def _case_fields(item, names):
                   "cash": f"{_number(request.capital.cash.value)} ({request.capital.cash.assumption})",
                   "obligations": "; ".join(f"{name} {_number(item.value)} ({item.assumption})"
                                            for name, item in sorted(request.capital.obligations.items()))}
+    elif method == "earnings_case":
+        request = EarningsCase.model_validate(raw)
+        forecast = request.forecast
+        fields = {"multiple": f"{_number(request.multiple)}× forecast diluted earnings per share",
+                  "share_basis": "per share already (no share count or net debt enters an earnings case)"}
     elif method == "pe":
         request = PETarget.model_validate(raw)
         forecast = request.forecast
