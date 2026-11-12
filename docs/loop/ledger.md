@@ -389,3 +389,21 @@ Built, tests first (suite 4,838): the manager gives `stock_view` (Attractive, Fa
 Note: the manager's prompt is at its 70,000-character test limit; one heading line had to be dropped to fit.
 Check run (v19a, DOCN on the concentrated portfolio): "Stock view: Attractive (code's reading: Attractive, +19.9% a year against 9.98%)"; "Position action: Underweight ... DOCN is 40.4% of this portfolio, versus the 5% ... reduce concentration while retaining a core." The two answers are now apart and each is stated with its own reason.
 Running: measured batch (MSFT x3, WMT x3 standard; DOCN x3 concentrated; JPM x3 bank-concentrated) and the look-back re-run (24 runs, tags ls0601/ls0701/ls0803).
+
+### The split: measured batch and look-back re-run (2026-11-12; bench head; fresh runs)
+| company, portfolio | stock view / code's reading | position action | Decision before | after (3 runs) |
+|---|---|---|---|---|
+| MSFT, standard (held at standard weight) | Fair / Fair x3 | Underweight x3 | 6.33 | 6.10 (6.2, 6.3, 5.8) |
+| WMT, standard (not held) | Unattractive / Unattractive x3 | Underweight x3 | 7.07 | 7.03 (7.0, 7.0, 7.1) |
+| DOCN, concentrated (39% held) | Attractive, Unattractive, Unattractive (matches the reading each time) | Underweight x3 | 7.17 | 7.13 (7.0, 7.0, 7.4) |
+| JPM, bank as the large position | Fair x3 (no reading printed) | Underweight x3 | 6.70 | 6.57 (6.8, 6.5, 6.4) |
+Verdict: no score movement (all inside noise). The split does what it was built for: the two answers are apart, the manager's view matched code's reading in every run, and the uniform Underweight is now visibly the position action. What the split exposes on MSFT, and evaluators mark down (CF3 on 3 of 3): the manager trims a position that is at its standard weight on a stock it calls Fair, and its stated reason restates the valuation rather than giving a portfolio reason. That is the next target, and it is the manager's (and the Research Manager's) habit of caution, not a wording problem.
+Gaps seen: JPM and PGR cards carry no valuation against the close, so no reading and no position-action line print for them; DOCN's view flips between fresh runs because its scenarios do (carry-forward steadies this in normal use).
+
+Look-back re-run on the split (24 fresh runs, tags ls*; 17 rated; DOCN and CVX again at REVIEW on past dates):
+| stock view | count | 21 sessions vs SPY | 63 sessions vs SPY |
+|---|---|---|---|
+| Attractive | 3 | +8.0 | +17.4, none below the market |
+| Unattractive | 14 | +0.8 | -3.7, 9 of 14 below the market |
+Directional calls right: 9 of 16 at 21 sessions, 12 of 16 at 63. Rank correlation of valuation with later excess return: 0.27 and 0.83. A second independent set of runs gave the same picture as the first (11 of 15; 0.92), which makes a fluke less likely; the sample limits are unchanged.
+Total paid spend to date: about 214 dollars.
