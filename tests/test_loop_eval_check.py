@@ -40,3 +40,11 @@ def test_the_second_evaluator_is_sent_only_the_skill_and_the_report_and_its_reco
     assert record == {"scores": {"research_quality": 9}}
     with pytest.raises(ValueError, match="no fenced JSON"):
         second.split_reply("prose only")
+
+
+def test_a_focused_second_opinion_asks_for_one_factor_only():
+    from scripts import loop_second_opinion as second
+
+    ask = second.messages("REPORT BODY", "D1")[1]["content"]
+    assert ask.startswith("focused: D1") and "score only D1" in ask and "REPORT BODY" in ask
+    assert "Focused mode (host rule 8)" in second.SKILL.read_text()

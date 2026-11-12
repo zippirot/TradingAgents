@@ -17,6 +17,18 @@ description: Use when asked to evaluate, score or grade a TradingAgents research
 6. **Section I priorities are suggestions.** The builder decides what to build.
 7. **Reply** with one line per top-level score, the triggered critical-failure rules, and the two file paths. Nothing else.
 
+## Focused mode (host rule 8)
+
+When the request names one factor (for example "focused: D1"), evaluate only that factor:
+
+- Read the whole report, but score only the named factor on its 0 to 10 scale by the rubric text for that factor below.
+- Check only the critical-failure rules that bear on that factor, and say which you checked.
+- Do not score any other factor and do not give a Research, Decision or Operational total.
+- Write `evaluation.focused.<factor>.json` beside the report: `{"rubric_version", "mode": "focused", "factor", "score", "critical_failures": [{"rule", "triggered", "effect"}], "findings": [...], "what_would_raise_it": "..."}`. Findings follow host rule 5. No human-readable report.
+- Reply with one line: the factor, the score, and the triggered rules.
+
+A focused score is compared only with other focused scores of the same factor.
+
 Edits made to the user's text, all marked where they occur: the MSFT 6.3 calibration example is labelled as recorded before the valuation-case fix; the section 18 record is required; section I is labelled as suggestions.
 
 ---
