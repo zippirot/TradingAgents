@@ -242,3 +242,13 @@ Paid check, three MSFT follow-up runs with history (h8a/b/c): +1.4% and -2.2% ag
 Also installed earlier today: earnings cases carried forward (fc60981e).
 Known limit: two fresh starts can still land on different sides (one on the line, one not). The label steadies a history; it does not make fresh starts agree.
 Total paid spend to date: about 99 dollars.
+
+### MSFT scored after the day's changes: 5.6 average, DOWN from 6.7 (three follow-up runs h8a/b/c; reports made just before the final wording fix)
+| run | rating | Decision | biggest weakness named |
+|---|---|---|---|
+| h8a | Overweight (off the line) | 5.6 | the printed size test: 6.2% loses 1.31% against a 1.00% budget in the report's own downside case, the case allows 4.8%, 5.2% is already held, and nothing in the report acts on it |
+| h8b | Hold (on the line), lean Underweight | 5.9 | see evaluation; CF3 and CF5 again |
+| h8c | Hold (on the line), lean Underweight | 5.4 | code-set Hold overrides a chain that all leaned Underweight; rating changed from the prior run on identical inputs (the rule arrived between the two runs: one-off); position left outside the loss budget |
+Reading (two strikes on MSFT: 5.9 with the size check sent back, 5.6 with it printed only): the size-against-downside line is the common factor. Printed and unanswered it reads as an unresolved breach on every held stock whose downside case exceeds budget / weight; sent back, it bends the rating. The only consistent resolution is that the loss budget sets the SIZE: the parked risk-based-sizing decision. Partly an artefact of the loop's made-up portfolio (5% standard weight with a 1% loss budget fails any stock with a downside case worse than 20%).
+The on-the-line label is not shown to help or hurt by these three: its two reports scored 5.9 and 5.4, the untouched one 5.6. STOP building on MSFT until the user decides the sizing question.
+Total paid spend to date: about 99 dollars.
