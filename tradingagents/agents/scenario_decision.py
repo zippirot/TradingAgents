@@ -25,6 +25,7 @@ from tradingagents.agents.required_return import (
 from tradingagents.agents.scenario_return import (
     annual_return,
     return_parts,
+    short_period,
     sturdiness,
     today_basis,
 )
@@ -413,7 +414,10 @@ def render(summary) -> list[str]:
                 ) if case.get("flagged_by") else ""
         today = f" at {case['period_end']}, {_money(case['value_today'], case['unit'])} today" if case.get("value_today") else ""
         if case.get("annual_return") is not None:
-            today += f", {Decimal(case['annual_return']) * 100:+.1f}% a year from the close"
+            short = short_period(case.get("price"), summary.get("close"), summary.get("session_date"), case.get("period_end"))
+            today += (f", {Decimal(short['period_return']) * 100:+.1f}% from the close over {short['days']} days "
+                      f"({Decimal(case['annual_return']) * 100:+.1f}% if repeated for a year)" if short else
+                      f", {Decimal(case['annual_return']) * 100:+.1f}% a year from the close")
         # "Assessed" covered the filed schedule only; the operating cash in a case is always an assumption.
         funding = {"assessed": "scheduled payments covered, operating cash assumed"}.get(
             case["funding"], f"funding {case['funding']}")
@@ -468,8 +472,15 @@ def render_today_basis(summary) -> list[str]:
             f"{Decimal(percent['low']):+.1f}% to {Decimal(percent['high']):+.1f}%).")
     if summary.get("weighted_annual_return") is not None:
         required = Decimal(summary["required_return"]["rate"]) * 100
-        text += (f" Bought at the close, the weighted case returns {Decimal(summary['weighted_annual_return']) * 100:+.1f}% "
-                 f"a year against a required {required:.2f}%, a gap of {Decimal(summary['return_gap_points']):+.1f} points.")
+        ends = {case.get("period_end") for case in summary.get("cases") or () if case.get("disposition") == "accepted"}
+        short = short_period(summary.get("weighted_value"), summary.get("close"), summary.get("session_date"),
+                             next(iter(ends))) if len(ends) == 1 else None
+        yearly = f"{Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year"
+        tail = f"against a required {required:.2f}%, a gap of {Decimal(summary['return_gap_points']):+.1f} points."
+        text += (f" Bought at the close, the weighted case returns {Decimal(short['period_return']) * 100:+.1f}% over the "
+                 f"{short['days']} days to {next(iter(ends))}. The yearly figure, {yearly}, repeats that {short['days']}-day "
+                 f"move for a full year and is not a forecast of one; it is set {tail}" if short else
+                 f" Bought at the close, the weighted case returns {yearly} {tail}")
     return [text + f" Direction: {summary['direction']} the close, using a 10 percent threshold."]
 
 

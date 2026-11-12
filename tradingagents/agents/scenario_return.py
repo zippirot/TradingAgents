@@ -38,6 +38,17 @@ def annual_return(value, close, close_date, period_end) -> Decimal | None:
         return (value / close) ** (Decimal(365) / Decimal(days)) - 1
 
 
+SHORT_PERIOD_DAYS = 183  # under half a year, a yearly figure repeats the move more than once
+
+
+def short_period(value, close, close_date, period_end) -> dict | None:
+    """The plain return over a case period shorter than half a year; None for a longer or unusable one."""
+    value, close, days = _decimal(value), _decimal(close), _days(close_date, period_end)
+    if value is None or close is None or value <= 0 or close <= 0 or not days or not 0 < days < SHORT_PERIOD_DAYS:
+        return None
+    return {"days": days, "period_return": str(value / close - 1)}
+
+
 def today_basis(accepted, close, rate, close_date) -> dict | None:
     """Weighted value today against the close; None unless every accepted case has a value today.
 
