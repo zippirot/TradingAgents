@@ -40,10 +40,12 @@ def test_weights_that_decide_the_side_of_the_close_need_a_stated_basis_once():
     assert "Why these weights (the Portfolio Manager's statement, unvalidated): Two signed capacity contracts" in text
 
 
-def test_weights_that_agree_with_equal_weights_owe_nothing_and_a_given_basis_is_still_printed():
+def test_weights_that_agree_with_equal_weights_do_not_decide_the_side_and_a_given_basis_is_still_printed():
     state = _with(AGREEING, rating="Underweight")
     assert summarize(state, _three())["weights_decide"] is False
-    assert "weight_basis" not in retry_feedback(state, _three())
+    # Since the equal-weights rule (tests/test_equal_weights_start.py) lopsided weights owe a basis even when they
+    # do not decide the side of the close; that request is worded differently from the deciding one.
+    assert "decide the comparison" not in retry_feedback(state, _three())
     assert "no basis for them was stated" not in "\n".join(render(summarize(state, _three())))
     given = _with(AGREEING, "Guidance midpoint supports the base case.", rating="Underweight")
     assert "Why these weights" in "\n".join(render(summarize(given, _three())))

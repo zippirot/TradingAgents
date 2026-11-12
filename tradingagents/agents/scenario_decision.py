@@ -184,6 +184,9 @@ def _direction(value, close):
     return "near"
 
 
+UNEQUAL_SPREAD = Decimal("0.10")
+
+
 def summarize(state, replayed) -> dict:
     """Recalculate the scenario basis of a decision from replayed cases and the manager's retained answer."""
     cases = with_value_today(priced_cases(replayed), state)
@@ -233,9 +236,13 @@ def summarize(state, replayed) -> dict:
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
                "required_return": state.get("required_return") if isinstance(state.get("required_return"), dict) else None,
                "sizing_rule": None, "direction_basis": None, "weighted_value_today": None, "sturdiness": None,
-               "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False}
+               "weight_basis": _text(structured.get("weight_basis"), 1200) or None, "weights_decide": False,
+               "weights_unequal": False}
     if not accepted:
         return summary
+    # More than ten points between the largest and smallest accepted weight is a departure from equal weights.
+    given_weights = [Decimal(row["weight"]) for row in accepted]
+    summary["weights_unequal"] = len(given_weights) > 1 and max(given_weights) - min(given_weights) > UNEQUAL_SPREAD
     # Only the close each accepted case was validated against on replay is comparable; the raw
     # price observation is never read here, so a quote in another currency cannot be compared.
     quotes = [row["quote"] for row in accepted]
@@ -334,6 +341,11 @@ def retry_feedback(state, replayed) -> str:
                      "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
                      "rating_basis_reason or revise the rating or the scenario_view.")
     # There is one resubmission, so everything it must correct goes back together.
+    if summary.get("weights_unequal") and not summary.get("weights_decide") and not summary.get("weight_basis"):
+        parts.append(
+            "Your weights depart from equal weights and you gave no basis for them. Resubmit the complete decision: "
+            "either weight the accepted cases equally, or keep your weights and state in weight_basis, case by case, "
+            "the evidence specific to this company that moves each weight away from equal.")
     if summary.get("weights_decide") and not summary.get("weight_basis"):
         parts.append(
             "Your weights decide the comparison with the close: with them the accepted cases are worth "
@@ -374,8 +386,10 @@ def render_cases_for_manager(cases, required=None) -> str:
            "today's price are on one time basis. If your rating points the " if valued else
            "compares the weighted value of your accepted cases with the completed close. If your rating points the ")
         + "other way by more than 10 percent, state why in rating_basis_reason."
-        + " When you accept two or more cases, give in weight_basis the evidence for these weights rather than equal "
-          "ones, case by case; code prints what equal weights would give."
+        + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
+          "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
+          "moves the weight. A general sense that the downside matters more, or that the base case is the central "
+          "one, is not evidence. Code prints what equal weights would give."
         + (" The same applies inside 10 percent when the weighted value returns more than the required return and "
            "your rating is Underweight or Sell, or less than it and your rating is Overweight or Buy: give the "
            "reason with figures." if valued else "")

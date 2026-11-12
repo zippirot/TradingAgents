@@ -41,7 +41,9 @@ def _state(view, rating="Underweight", reason=None):
             # Deliberately not the comparison price: the raw observation is never read.
             "price_observation": {"status": "available", "close": "1", "currency": "EUR", "session_date": "2026-11-09"},
             "unvalidated_outputs": {"portfolio_manager": {"scenario_contract": 1, "structured": {
-                "scenario_view": view, "rating_basis_reason": reason}}}}
+                "scenario_view": view, "rating_basis_reason": reason,
+                # These tests are not about the weights; a stated basis keeps the equal-weights rule out of them.
+                "weight_basis": "Stated for these tests."}}}}
 
 
 def _accept(case_id, weight, **extra):
@@ -291,7 +293,7 @@ def _decision(**fields):
 
     return RequiredHorizonPortfolioDecision(**{
         "rating": "Underweight", "executive_summary": "Summary.", "investment_thesis": "Thesis.",
-        "time_horizon": "6 months", **fields})
+        "time_horizon": "6 months", "weight_basis": "Stated for these tests.", **fields})
 
 
 def _manager(*answers):
