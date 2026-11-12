@@ -203,3 +203,23 @@ Not done: the full Codex check at the end (the plan's second opinion).
 - Codex second opinion at the end (full, WMT f5c): Decision 7.3 against the Claude helper's 7.0 on the same report, Research 7.1 against 7.0. Inside the 0.5 line: the two evaluators agree.
 - Scenario weights need a stated basis: when equal weights would put the accepted cases on the other side of the close, the manager is asked once for `weight_basis` and the card prints it, or says none was given. Boundary: nothing is asked where equal weights agree with the manager's. It would have fired on 5 of the 12 cycle-5 reports. One paid MSFT check (w6a): the manager gave a case-by-case basis. Not scored in a three-run batch.
 - Merge to staging and launcher install approved by the user.
+
+## After the loop, continued (2026-11-12; user: "execute your recommendations ... as if this was your codebase")
+
+### Case period reaches the horizon (8f2998f4) - KEEP
+Analyst is told the earliest acceptable period end (run date plus the horizon) and to price the following fiscal year when the current one ends sooner; code notes any case that still ends short. Nine runs p6a/b/c: no case ended short (WMT priced the year to 2028-01-31; its return read -9.8% a year, not -61%).
+| company | Decision before | after (3 runs) |
+|---|---|---|
+| WMT | 6.90 | 7.07 (7.0, 7.0, 7.2) |
+| DOCN | 7.27 | 7.37 (7.3, 6.9, 7.9) |
+| MSFT | 6.73 | 5.93 (6.2, 5.3, 6.3): caused by the size check below, not by this change |
+
+### DEFECT FOUND AND FIXED: the size check bent the rating (introduced in cycle 4, merged in 005215b8, fixed in 70f49644, installed as 820598eb)
+`size_feedback` asked the manager to answer when the rating's size broke the loss budget in the lowest accepted case. In p6a/b/c all three MSFT runs rated Underweight for that reason alone ("Even the 5.0% standard allocation exceeds that limit, so the available 2.5% Underweight is the appropriate discrete size"), once against an Overweight research view; the evaluator scored that report 5.3 (CF3). Earlier single cases (k3c, f5c) were the same thing. Fix: the test is printed by code and never sent back; the printed line says the rating is not changed by it. Confirmed on three paid MSFT runs (q7a/b/c): no rating cited the budget. Lesson: a correction sent back to the manager with "or revise the rating" will be answered by revising the rating. Send back only what should change the rating.
+Also lesson: the cycle-4 batch was scored at "no change" for MSFT with one Hold in three; the mechanism was visible then (ledger noted "the rating bending to the position limit") and I kept it. A noted side effect on what a rating means should have blocked the keep.
+
+### Diagnosis: why MSFT's rating flips (free, thirteen saved runs on one close)
+Weighted value today within -4.6% to +5.3% of the close in every run. Rating follows the sign of the yearly return against the 9.88% required return: 14% to 20% Overweight; 2% to 6% Underweight; 9% and 13% Hold. Base inputs stable since the anchor (20.00 x 28); the spread comes from the downside and upside cases and the weights. Not a case for the earnings model.
+
+### Inside 10 percent the cases support Hold; a Hold with nothing held opens no position (owner's decision under the user's delegation; reversible)
+Inside the band code already calls "near the close", any rating other than Hold owes a reason from outside the cases, on either side; the manager is told before deciding and asked once after. A Hold on an unheld stock prints "no purchase" (the portfolio review already read it as "No action"); only Buy or Overweight opens a position. On the twelve latest saved runs the rule would have asked on 7 (all MSFT, one DOCN).
