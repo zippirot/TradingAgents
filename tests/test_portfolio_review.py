@@ -7,7 +7,12 @@ from decimal import Decimal
 import pytest
 
 from tradingagents.portfolio import PortfolioContext, load_portfolio
-from tradingagents.portfolio_review import amounts_review, direction_review, latest_ratings, render_review
+from tradingagents.portfolio_review import (
+    amounts_review,
+    direction_review,
+    latest_ratings,
+    render_review,
+)
 
 WEIGHTS = {"Buy": 1.5, "Overweight": 1.25, "Hold": 1.0, "Underweight": 0.5, "Sell": 0}
 LEGACY = {"cash": 5000, "currency": "USD", "positions": [{"ticker": "DOCN", "quantity": 100, "average_price": 90}]}

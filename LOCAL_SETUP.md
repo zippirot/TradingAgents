@@ -59,3 +59,32 @@ you override their paths in `.env`.
 - `.env` and `.venv` are ignored by Git.
 - Live model calls and a complete market analysis have not been tested; an API
   provider and a valid key still need to be configured.
+
+## Portfolio review
+
+Two commands work across everything you hold and watch. Both read your portfolio file
+(`~/.tradingagents/portfolio.json`, or `--portfolio PATH`). An example with every field is in
+`docs/portfolio.example.json`.
+
+Add these to your portfolio file (all optional):
+
+- `watchlist`: tickers you do not hold but want reviewed, for example `["MSFT", "AAPL"]`.
+- `limits`: `max_position_weight` (most one stock may be), `max_sector_weight` (most one sector may be),
+  `min_cash_weight` (cash kept back), each as a fraction such as `0.10`, and `rating_max_age_days`
+  (a rating older than this is flagged stale; default 30).
+- `sector` on a position, when you want to set it yourself instead of using the data vendor's.
+
+These three are read only by the review. They are never sent to a model and never written to a saved analysis.
+
+`tradingagents review` is free and calls no model. It reads the latest saved rating for each stock and prints:
+
+- **Level 1: Direction.** Buy, Add, Hold, Trim, Exit, No action or Not reviewed for each stock, with the reason.
+- **Level 2: Recommended amounts (work in progress).** Units and amounts. Sales fund purchases, your limits and
+  cash floor are respected, and anything it cannot fund says why. Treat these figures as a draft: the ratings
+  behind them have no settled track record yet.
+
+The review is saved under `portfolio_reviews` in your results folder. It is arithmetic on your file, not an order.
+
+`tradingagents batch` runs the normal analysis on each stock that has no recent rating, asking the setup
+questions once, then shows the review. Each stock is a full paid analysis. `tradingagents batch MSFT,AAPL`
+runs just those; `--refresh` also re-runs stocks whose rating is still recent.
