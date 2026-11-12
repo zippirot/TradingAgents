@@ -152,3 +152,26 @@ DOCN third cycle-2 evaluation (e2c): Decision 7.1, Research 7.9. DOCN after: 7.7
 - Item 2 (the rating's size tested against the lowest accepted case and the loss budget; the manager asked once to answer an OUTSIDE result) is measured on the held company: MSFT.
 - The two do not touch the same reports, so one batch of nine runs measures both and saves nine runs and nine evaluations. Owner's change to the approved "three cycles": two measured batches instead of three (this one, then earnings-case anchors with CAT's end reading).
 - Free checks before paying: suite; 18 saved cycle-2 reports re-rendered offline through the whole report path (all render; unheld Underweight shows "no purchase"; held MSFT unchanged).
+
+### Cycles 3 and 4 result (scored 2026-11-12; nine runs k3a/k3b/k3c on f0b4b8c8..downside-size commit; evaluator Claude helper TAE-1.1-loop1)
+
+| company | ratings | reached a decision | Decision before (cycle 2) | Decision after (3 runs) | D1 after | what it measures |
+|---|---|---|---|---|---|---|
+| WMT | Underweight x3 | 3 of 3 | 6.23 | 6.43 (6.5, 6.3, 6.5) | 5.33 | item 1, no purchase |
+| DOCN | Underweight x3 (was Sell x3) | 3 of 3 | 7.5 | 7.6 (7.6, 7.5, 7.7) | 7.27 | item 1, no purchase |
+| MSFT | Underweight x2, Hold (was Overweight x2, Underweight) | 3 of 3 | 6.83 | 6.73 (7.0, 6.7, 6.5) | 6.43 | item 2, size against the downside case |
+
+Verdict against the keep rule: KEEP both, on the second leg of the rule (a code-checkable wrong result removed), not on the score. No company moved by more than the 0.5 line. What changed in the findings: CF3 (contradictory logic) triggered on 0 of 9 reports and CF5 (portfolio risk mismatch) on 0 of 9; CF6 once, mitigated. In cycle 2 these were on almost every report. Spread between runs narrowed (WMT 5.6 to 6.6 became 6.3 to 6.5).
+Things to know:
+- The size check changed a rating once: MSFT k3c, Research Manager Overweight, Portfolio Manager Hold after being told the Overweight size broke the loss budget in its own downside case. That is the rating bending to the position limit; it bears on the parked decision "split stock view from position action".
+- MSFT's direction is not stable between batches (baseline Underweight; cycle 2 Overweight x2; now Underweight x2 and Hold), with the same close.
+- CONFOUND: these nine runs had no vendor estimates. The fixed run date 2026-11-11 became a past date on 2026-11-12, and the vendor reader correctly refuses a past date without a retained snapshot. The cycle-2 reports had the vendor table; these did not. Remaining runs use `--date 2026-11-12` (the last completed close is still 2026-11-11 until that day's close).
+- What holds Decision down now, named as the biggest weakness in 8 of 9 evaluations: the valuation inputs. Multiples have no own-history or peer reference; case weights are asserted and equal weights flip the answer; EPS is not built up or tested against the quarter already filed; WMT's 81-day case window is annualised to "-52% a year" (CF9 on 3 of 3).
+Cost: nine runs, about 9 dollars. Total paid spend to date: about 52 dollars.
+
+## Cycle 5 (last batch): the valuation-input package for earnings cases
+
+Built before paying, each with a test first:
+1. Earnings anchor (done): each earnings case states its forecast against the filed prior year, the filed quarters of the forecast period, and the vendor range when retrieved.
+2. A case period much shorter than a year is not annualised (to build).
+3. Own-history price-to-earnings reference for earnings cases (to build if it can be stated safely across splits).
