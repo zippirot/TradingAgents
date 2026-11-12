@@ -35,7 +35,8 @@ SETTINGS = {
     "TRADINGAGENTS_OUTPUT_LANGUAGE": "English",
     "TRADINGAGENTS_NO_UPDATE_CHECK": "1",
 }
-ANALYSTS = "market,social,news,fundamentals"
+# LOOP_ANALYSTS limits the analysts, e.g. "market,fundamentals" for a look-back run where undated feeds would leak.
+ANALYSTS = os.environ.get("LOOP_ANALYSTS") or "market,social,news,fundamentals"
 
 
 def load_state(path: Path = STATE) -> dict:
