@@ -977,6 +977,15 @@ def price_case(request, package, outlooks, terms=None):
                                    [*funded["lines"], *([f"{' and '.join(repaid_names)} falling due inside the period "
                                                          f"repaid from cash, {_money(repaid, capital.currency)}, and "
                                                          "removed from borrowings"] if repaid else [])]) + ".")
+        # Investments the filing presents within current assets are not in the case's cash. Said beside the value,
+        # not added to it: the history a multiple is chosen against nets cash only.
+        held = [f for f in package.facts if f.metric == "Current Marketable Securities" and f.value is not None
+                and f.period_start is None and f.period_end == cash.period_end and f.unit == capital.currency and f.value > 0]
+        if request.multiple_basis != "equity" and len(held) == 1:
+            assumptions.append(
+                f"current investments: {_money(held[0].value, capital.currency)} filed as of "
+                f"{cash.period_end} are not counted in cash; counted as cash at that amount they would add "
+                f"{held[0].value / settled['shares']:.2f} a share.")
         funding = case_funding(request, package, terms)
         assumptions.extend(funded_statement(
             capital, cash.period_end, {label: sum(f.value for f in facts) for label, facts in refs.items()},

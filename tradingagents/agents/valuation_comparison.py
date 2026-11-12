@@ -387,6 +387,11 @@ def price_implied_valuation(state: dict) -> dict:
         precision = (state.get('filing_fact_extraction') or {}).get('rounding_quantum_by_fact')
         checks = obligation_checks(package, precision)
         by_id = {f.fact_id: f for f in package.facts}
+        # Investments the filing presents within current assets. Shown beside each multiple, never inside it:
+        # past quarters carry no such figure, so the multiples stay on the basis the history is stated on.
+        held = [f for f in package.facts if f.metric == 'Current Marketable Securities' and f.value is not None
+                and f.period_start is None and f.period_end == capital_date and f.unit == quote['currency'] and f.value > 0]
+        investments = held[0] if len(held) == 1 else None
         rows = []
         for name, check in zip(('borrowings_only', 'finance_equipment', 'all_classified_obligations'), checks, strict=True):
             row = {'perimeter': name, 'status': 'unavailable', 'reason': check.message,
@@ -406,6 +411,8 @@ def price_implied_valuation(state: dict) -> dict:
                     row.update(status='available', reason=None, numerator_usd=str(numerator))
                     if trailing is not None:
                         row['ratios']['trailing_revenue'] = str(numerator / trailing.value)
+                        if investments is not None and numerator > investments.value:
+                            row['ratios']['less_current_investments'] = str((numerator - investments.value) / trailing.value)
                     if guidance_values:
                         low, high = guidance_values
                         row['ratios']['guidance_range'] = [str(numerator / high), str(numerator / low)]
@@ -434,7 +441,9 @@ def price_implied_valuation(state: dict) -> dict:
             elif check.status == 'pass':
                 row['reason'] = 'Obligation and cash dates or currency differ from outstanding-share basis'
             rows.append(row)
-        return {'status': 'available', 'reason': None, 'price': {k: quote[k] for k in
+        return {**({'current_investments': {'value_usd': str(investments.value), 'fact_id': investments.fact_id,
+                                            'date': str(investments.period_end)}} if investments is not None else {}),
+                'status': 'available', 'reason': None, 'price': {k: quote[k] for k in
                     ('close', 'currency', 'session_date', 'session_status', 'exchange_timezone',
                      'retrieved_at', 'adjustment_basis', 'source_id', 'url', 'content_hash', 'price_fallback') if k in quote},
                 'shares': {'value': str(shares.value), 'date': str(shares.period_end), 'fact_id': shares.fact_id,
@@ -511,6 +520,13 @@ def render_price_implied_valuation(record: dict) -> str:
             _number(ratios['trailing_revenue']) + '×' if 'trailing_revenue' in ratios else 'unavailable',
             f"{_number(guidance[0])}–{_number(guidance[1])}×" if guidance else 'unavailable',
             '≤' + _number(ratios['growth_floor_conditional_upper']) + '×' if 'growth_floor_conditional_upper' in ratios else 'unavailable')))
+    if record.get('current_investments'):
+        held = record['current_investments']
+        also = '; '.join(f"{_cell(labels.get(row['perimeter'], row['perimeter']))} {_number(row['ratios']['less_current_investments'])}×"
+                         for row in record['rows'] if (row.get('ratios') or {}).get('less_current_investments'))
+        lines += ['', f"Current investments of {_number(held['value_usd'])} USD as of {_cell(held['date'])} (fact "
+                      f"{_cell(held['fact_id'])}) are not deducted in the table, which nets cash only so that it stays "
+                      'on the basis of the history.' + (f' Deducting them as well, on trailing revenue: {also}.' if also else '')]
     if record['trailing_revenue_usd']:
         period = record['trailing_revenue_period']
         lines += ['', f"Trailing revenue ({_cell(period[0])} to {_cell(period[1])}): {_number(record['trailing_revenue_usd'])} USD from compatible contiguous quarters; "
