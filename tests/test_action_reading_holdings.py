@@ -39,3 +39,14 @@ def test_the_line_under_the_traders_proposal_points_to_the_sizing_block_instead_
     line = _reading(text, plan, _sized(0))
     assert "Reduce" not in line and "it is not an exit" not in line and "Position and sizing block" in line
     assert "Reduce" in _reading(text, plan, _sized(60)) and "Reduce" in _reading(text, plan)
+
+
+def test_the_reading_does_not_talk_of_opening_a_position_that_is_already_held():
+    """Seen on the user's own DOCN report (2026-11-12): 'opening one where none is held' printed under a
+    Sell on a stock that was held; the report's own audit flagged it."""
+    held = _reading("**Action**: Sell", "**Recommendation**: Underweight", _sized(60))
+    assert "Reduce" in held and "opening one" not in held and "it is not an exit" in held
+    unknown = _reading("**Action**: Sell", "**Recommendation**: Underweight")
+    assert "opening one where none is held" in unknown          # holdings not known: the general sentence stays
+    add = _reading("**Action**: Buy", "**Recommendation**: Overweight", _sized(0))
+    assert "opening one where none is held" in add

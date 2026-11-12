@@ -42,9 +42,10 @@ def _reading(text: str, investment_plan: str, sizing=None) -> str:
     if " is not a" in reading:
         return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell and cannot say "
                 "this; the size the rating calls for is in the Position and sizing block, not in the action word.")
+    held = isinstance(sizing, dict) and sizing.get("status") == "available" and str(sizing.get("quantity")) not in ("0", "0.0", "None")
     return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "
-            "research rating it moves the position toward the size the rating calls for, opening one where none is held; "
-            "it is not an exit.")
+            "research rating it moves the position toward the size the rating calls for"
+            + ("" if held else ", opening one where none is held") + "; it is not an exit.")
 
 
 # Said by code after every proposal that names a price level, so no reader has to work out which of the
