@@ -139,3 +139,16 @@ Cost of cycle 2: about 18.5 dollars (one WMT, twelve of which nine crashed on a 
 Total paid spend to date: about 43 dollars.
 
 DOCN third cycle-2 evaluation (e2c): Decision 7.1, Research 7.9. DOCN after: 7.7, 7.7, 7.1, mean 7.5 against the 7.33 baseline (+0.17, inside noise); ratings Sell x3; reached a decision 3 of 3.
+
+## User decisions 2026-11-12 ("Yes yes yes")
+
+1. Earnings method: KEEP.
+2. For a stock not held, Underweight or Sell means do not buy: YES. Built as "a rating below Hold never opens or enlarges a position" (f0b4b8c8 and the commit after it): unheld Underweight prints "no purchase"; a holding smaller than the Underweight weight is not added to; a Trader Sell with nothing held reads as no purchase; the agents are told the rule in the portfolio block and the Trader prompt. The portfolio review already read an unheld negative rating as "No action", so the two now agree.
+3. Remaining loop cycles unattended: YES.
+
+## Cycles 3 and 4 (one paid batch, attribution by company)
+
+- Item 1 (no purchase under a negative rating) is measured on the unheld companies: WMT and DOCN.
+- Item 2 (the rating's size tested against the lowest accepted case and the loss budget; the manager asked once to answer an OUTSIDE result) is measured on the held company: MSFT.
+- The two do not touch the same reports, so one batch of nine runs measures both and saves nine runs and nine evaluations. Owner's change to the approved "three cycles": two measured batches instead of three (this one, then earnings-case anchors with CAT's end reading).
+- Free checks before paying: suite; 18 saved cycle-2 reports re-rendered offline through the whole report path (all render; unheld Underweight shows "no purchase"; held MSFT unchanged).
