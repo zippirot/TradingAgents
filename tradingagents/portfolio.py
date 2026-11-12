@@ -307,7 +307,8 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
         lines.append(f"- In the lowest accepted case ({case}), worth {_percent(test['fall'])} below the close today: "
                      f"the {test['rating']} size of {_percent(test['weight'])} would lose {_percent(test['loss'], 2)} of "
                      f"the portfolio, {'inside' if test['inside'] else 'OUTSIDE'} the {_percent(test['budget'], 2)} "
-                     f"budget; that case allows at most {_percent(test['ceiling'])} at this budget. This is this "
+                     f"budget; that case allows at most {_percent(test['ceiling'])} at this budget. The rating is the "
+                     "view of the stock and is not changed by this; the budget bears on the size. This is this "
                      "position alone; the case is the report's own, not a forecast of the worst outcome.")
     return lines
 

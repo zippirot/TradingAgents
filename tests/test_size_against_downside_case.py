@@ -7,7 +7,6 @@ asked once to answer it.
 """
 from decimal import Decimal
 
-from tradingagents.agents.scenario_decision import size_feedback
 from tradingagents.portfolio import downside_test, render_sizing, sizing, sizing_from_state
 
 BOOK = {"portfolio_value": 100000, "currency": "USD", "default_standard_weight": 0.05, "loss_budget": 0.01,
@@ -44,13 +43,27 @@ def test_a_size_inside_the_budget_is_said_inside_and_nothing_is_tested_without_a
     assert downside_test(no_budget, RULE) is None
 
 
-def test_the_report_reads_the_rule_from_the_decision_card_and_the_manager_is_asked_once():
+def test_the_report_reads_the_rule_from_the_decision_card():
     state = {"portfolio_inputs": {**BOOK, "positions": [{"ticker": "MSFT", "quantity": 10}]},
              "company_of_interest": "MSFT", "price_observation": QUOTE, "final_rating": "Overweight",
              "decision_context": {"scenario_decision": {"sizing_rule": RULE}}}
     assert sizing_from_state(state, final=True)["downside"]["inside"] is False
     assert "downside" not in sizing_from_state(state)                 # before the decision nothing is accepted yet
-    text = size_feedback(state, {"sizing_rule": RULE})
-    assert "6.2% of the portfolio" in text and "1.31%" in text and "4.8%" in text and "Resubmit" in text
-    assert size_feedback({**state, "final_rating": "Underweight"}, {"sizing_rule": RULE}) == ""
-    assert size_feedback({**state, "portfolio_inputs": None}, {"sizing_rule": RULE}) == ""
+
+
+def test_the_size_test_is_printed_and_never_sent_back_to_the_manager():
+    """Asked to answer it, the manager changed the rating to fit the loss budget (three MSFT runs, 2026-11-12)."""
+    from tests.test_required_return import RETURN, _three
+    from tests.test_scenario_decision import _accept, _state
+    from tradingagents.agents import scenario_decision
+
+    assert not hasattr(scenario_decision, "size_feedback")
+    book = {**BOOK, "positions": [{"ticker": "MSFT", "quantity": 100}]}
+    state = {**_state([_accept("base", 0.55), _accept("down", 0.30), _accept("up", 0.15)], rating="Underweight"),
+             "trade_date": "2026-11-10", "required_return": RETURN, "portfolio_inputs": book,
+             "company_of_interest": "MSFT"}
+    feedback = scenario_decision.retry_feedback(state, _three())
+    assert "loss budget" not in feedback and "of the portfolio" not in feedback
+    line = next(text for text in render_sizing({**_sized(10, "Overweight"), "downside": downside_test(_sized(10, "Overweight"), RULE)}, final=True)
+                if "lowest accepted case" in text)
+    assert "The rating is the view of the stock and is not changed by this" in line
