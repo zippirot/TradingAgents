@@ -129,6 +129,51 @@ class RevenueCase(_Record):
     capital: CaseCapital
 
 
+class EarningsCase(_Record):
+    """Forecast diluted earnings per share times a stated multiple, for a company with positive filed earnings."""
+    method: Literal["earnings_case"]
+    eps_fact_id: str
+    forecast: ForecastAssumption
+    multiple: Decimal = Field(gt=0, max_digits=20)
+    multiple_assumption_date: date
+    multiple_rationale: str = Field(min_length=1, max_length=1200)
+
+
+def price_earnings_case(request: EarningsCase, package, outlooks):
+    """Value a share at forecast diluted EPS times the multiple. Earnings are after interest, so nothing is netted."""
+    filed = _fact(package, request.eps_fact_id)
+    if filed.metric != "Diluted EPS" or filed.origin != "reported" or not _annual(filed.period_start, filed.period_end) \
+            or filed.basis != "US-GAAP":
+        raise ValueError("An earnings case needs the filed annual Diluted EPS fact as its baseline")
+    if filed.value <= 0:
+        raise ValueError("An earnings case needs positive filed annual diluted earnings per share; use a revenue case")
+    _forecast_value, warnings = _forecast(request.forecast, package, "Diluted EPS", filed.unit, filed.basis,
+                                          _outlooks(package, outlooks), baseline=filed.value)
+    if request.multiple_assumption_date != package.as_of or not request.multiple_rationale.strip():
+        raise ValueError("Multiple needs the analysis date and a stated rationale")
+    expected = request.forecast.value
+    with localcontext() as context:
+        context.prec = 60
+        target = expected * request.multiple
+        change = (expected / filed.value - 1) * 100
+    assumptions = (
+        f"earnings case: forecast diluted earnings per share {expected} for {request.forecast.period_start} to "
+        f"{request.forecast.period_end}, times a multiple of {request.multiple}, gives {target} a share.",
+        f"baseline: filed diluted earnings per share {filed.value} for {filed.period_start} to {filed.period_end}; "
+        f"the forecast is {change:+.1f}% against it.",
+        "no net-debt bridge: earnings are after interest, so cash and borrowings are not netted; a change in the "
+        "share count enters only through the analyst's per-share forecast.",
+    )
+    result = TargetResult(
+        status="supported", method="earnings_case", target=target, unit=filed.unit, input_fact_ids=(filed.fact_id,),
+        multiple=request.multiple, earnings_value=expected, eps_basis="diluted",
+        multiple_assumption_date=request.multiple_assumption_date,
+        valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
+        accounting_basis=request.forecast.basis, assumptions=assumptions, warnings=tuple(warnings),
+        decision_use=DecisionUse(classification="forward_scenario", suitability="conditional", final_target_eligible=True))
+    return result, {}
+
+
 class CaseSelection(_Record):
     method: Literal["case"]
     case_id: str = Field(min_length=1, max_length=80)

@@ -245,6 +245,17 @@
    "tag": "c1h",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1h/WMT/2026-11-11/210205-39d5552d",
    "log": "/Users/zipp/.tradingagents/loop/logs-c1h/loop_run_WMT_2026-11-11T210203.log"
+  },
+  {
+   "cycle": 2,
+   "ticker": "CVX",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": 0.9259,
+   "started": "2026-11-11T21:59:47",
+   "tag": "live-cvx",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-live-cvx/CVX/2026-11-11/215949-5d810862",
+   "log": "/Users/zipp/.tradingagents/loop/logs-live-cvx/loop_run_CVX_2026-11-11T215947.log"
   }
  ]
 }

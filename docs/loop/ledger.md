@@ -106,3 +106,9 @@ Out of the box: open 16 of 20 (80%), all seven checks 9. That is the honest gene
 After two fixes found there: open 18 of 20, all seven 10. DE: us-gaap:SecuredDebt / UnsecuredDebt classified as borrowings. PEP: a borrowing-detail tag stated in several currencies at one date gives nothing instead of stopping the read (core figures still stop it). Also added: older SEC submissions archives are read when the recent list has no 10-K (built for XOM; not the cause there).
 Still blocked: XOM (registrant CIK 0002115436 has only 42 filings since 2026-07-01 and no 10-K: a new registrant; correct to stop); IBM (financing arm: filed liability lines and financing lines do not add up; three checks).
 Tuned set unchanged: 30 of 31 (COST).
+
+### 2026-11-11 late night
+
+Costco opened (3b8b61f6): tuned set 31 of 31. Live check (one run before three): CVX, blocked this afternoon, reached a valued decision live: Sell, Base 206.1 / Downside 141.2 vs close 213.27, evidence "limited", cash read from cvx:CashAndCashEquivalentsExcludingTimeDeposits; fix 4's reading line appears as intended. Run folder ~/.tradingagents/loop/logs-live-cvx.
+User 2026-11-11: do the remaining work and apply my recommendations (Costco warning: done; outside-data fallback: skipped, nothing needs it).
+Earnings case: plan in docs/loop/earnings-case-plan.md. Task 1 (model and pricing) built and tested. Tasks 2 to 5 open.
