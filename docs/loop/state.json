@@ -1455,6 +1455,215 @@
    "tag": "s17c",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17c/MSFT/2026-11-12/145559-863734a2",
    "log": "/Users/zipp/.tradingagents/loop/logs-s17c/loop_run_MSFT_2026-11-12T145557.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T14:55:57",
+   "tag": "t17a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-t17a/DOCN/2026-11-12/145559-b217b0cd",
+   "log": "/Users/zipp/.tradingagents/loop/logs-t17a/loop_run_DOCN_2026-11-12T145557.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "MSFT",
+   "date": "2026-08-03",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:01:50",
+   "tag": "lb0803",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0803/MSFT/2026-08-03/150152-a1f47bc8",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0803/loop_run_MSFT_2026-11-12T150150.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "WMT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:01:57",
+   "tag": "s17a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17a/WMT/2026-11-12/150159-df900110",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17a/loop_run_WMT_2026-11-12T150157.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "WMT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:02:00",
+   "tag": "s17b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17b/WMT/2026-11-12/150202-04f14839",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17b/loop_run_WMT_2026-11-12T150200.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "CVX",
+   "date": "2026-07-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:07",
+   "tag": "lb0701",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0701/CVX/2026-07-01/150709-7abb09a7",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0701/loop_run_CVX_2026-11-12T150707.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "WMT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:02:13",
+   "tag": "s17c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17c/WMT/2026-11-12/150215-8f69cba7",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17c/loop_run_WMT_2026-11-12T150213.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "DOCN",
+   "date": "2026-06-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:07",
+   "tag": "lb0601",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0601/DOCN/2026-06-01/150709-8bdfa53d",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0601/loop_run_DOCN_2026-11-12T150707.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:02:55",
+   "tag": "t17b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-t17b/DOCN/2026-11-12/150257-b247da34",
+   "log": "/Users/zipp/.tradingagents/loop/logs-t17b/loop_run_DOCN_2026-11-12T150255.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "PGR",
+   "date": "2026-06-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:07",
+   "tag": "lb0601",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0601/PGR/2026-06-01/150709-ac9cf196",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0601/loop_run_PGR_2026-11-12T150707.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "CAT",
+   "date": "2026-08-03",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:07",
+   "tag": "lb0803",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0803/CAT/2026-08-03/150709-b233c493",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0803/loop_run_CAT_2026-11-12T150707.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "JPM",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:13",
+   "tag": "s17a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17a/JPM/2026-11-12/150715-a57725b0",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17a/loop_run_JPM_2026-11-12T150713.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "JPM",
+   "date": "2026-07-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:08:29",
+   "tag": "lb0701",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0701/JPM/2026-07-01/150831-30b67145",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0701/loop_run_JPM_2026-11-12T150829.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "CVX",
+   "date": "2026-08-03",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:12:11",
+   "tag": "lb0803",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0803/CVX/2026-08-03/151213-335708ba",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0803/loop_run_CVX_2026-11-12T151211.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "MSFT",
+   "date": "2026-06-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:09:08",
+   "tag": "lb0601",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0601/MSFT/2026-06-01/150910-2f458fe1",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0601/loop_run_MSFT_2026-11-12T150908.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "JPM",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:07:52",
+   "tag": "s17b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17b/JPM/2026-11-12/150754-57d88e21",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17b/loop_run_JPM_2026-11-12T150752.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "JPM",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:08:35",
+   "tag": "s17c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-s17c/JPM/2026-11-12/150836-a0555be1",
+   "log": "/Users/zipp/.tradingagents/loop/logs-s17c/loop_run_JPM_2026-11-12T150835.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "JPM",
+   "date": "2026-08-03",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-12T15:13:36",
+   "tag": "lb0803",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0803/JPM/2026-08-03/151337-42b45612",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0803/loop_run_JPM_2026-11-12T151336.log"
+  },
+  {
+   "cycle": 17,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:09:23",
+   "tag": "t17c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-t17c/DOCN/2026-11-12/150925-b4f64c9a",
+   "log": "/Users/zipp/.tradingagents/loop/logs-t17c/loop_run_DOCN_2026-11-12T150923.log"
+  },
+  {
+   "cycle": 18,
+   "ticker": "UNH",
+   "date": "2026-06-01",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T15:11:42",
+   "tag": "lb0601",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-lb0601/UNH/2026-06-01/151144-61d5fc6a",
+   "log": "/Users/zipp/.tradingagents/loop/logs-lb0601/loop_run_UNH_2026-11-12T151142.log"
   }
  ]
 }
