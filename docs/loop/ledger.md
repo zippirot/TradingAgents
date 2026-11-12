@@ -137,3 +137,5 @@ What now holds Decision down, seen across companies in these runs:
 4. Case period ends 81 days out for WMT (fiscal year end) against a six-month horizon: CF9.
 Cost of cycle 2: about 18.5 dollars (one WMT, twelve of which nine crashed on a printing bug introduced after the one-run check, then one WMT and eight reruns). Lesson recorded: after any change, however small, replay the saved run through the WHOLE report path (prepare and render), not only the step that changed, before paying for a batch.
 Total paid spend to date: about 43 dollars.
+
+DOCN third cycle-2 evaluation (e2c): Decision 7.1, Research 7.9. DOCN after: 7.7, 7.7, 7.1, mean 7.5 against the 7.33 baseline (+0.17, inside noise); ratings Sell x3; reached a decision 3 of 3.
