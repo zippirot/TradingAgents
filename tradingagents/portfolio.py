@@ -130,7 +130,8 @@ def average_daily_move(closes) -> Decimal | None:
     return sum(abs(b / a - 1) for a, b in zip(recent, recent[1:], strict=False)) / RANGE_SESSIONS
 
 
-def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | None = None) -> dict:
+def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | None = None,
+           in_place: bool = False) -> dict:
     """Arithmetic on the caller's inputs at a dated close. No judgment and no order.
 
     ``inputs`` is ``PortfolioContext.inputs()`` as kept in run state. Whatever an
@@ -169,6 +170,9 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
             # A Hold with nothing held has nothing to hold: only Buy or Overweight opens a position.
             if (name in ("Underweight", "Sell") and quantity >= 0 and target > weight) or (name == "Hold" and not quantity):
                 row.update(target_weight=str(weight), units_change="0", scale_weight=str(target), no_addition=True)
+            # A Hold set because the cases are on the line leaves the holding as it is, whatever its size.
+            if in_place and name == "Hold" and name == rating and quantity:
+                row.update(target_weight=str(weight), units_change="0", scale_weight=str(target), in_place=True)
             result["targets"].append(row)
             if name == rating:
                 result["final"] = row
@@ -252,6 +256,8 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
                      "standard (within 5 percent of the standard weight counts as at standard).")
 
         def move(row):
+            if row.get("in_place"):
+                return "on the line, so the holding is left as it is (what you hold now)"
             if row.get("no_addition"):
                 if row["rating"] == "Hold":
                     return "no purchase (nothing is held, and Hold does not open a position)"
@@ -329,10 +335,11 @@ def sizing_from_state(state, *, final: bool = False) -> dict:
     session = str(quote.get("session_date") or "")
     closes = [bar.get("close") for bar in bars or () if isinstance(bar, dict)
               and str(bar.get("timestamp", ""))[:10] <= session]
-    result = sizing(inputs, state.get("company_of_interest", ""), quote, levels=levels, closes=closes,
-                    rating=state.get("final_rating") if final else None)
     card = state.get("decision_context") if final else None
     basis = card.get("scenario_decision") if isinstance(card, dict) else None
+    result = sizing(inputs, state.get("company_of_interest", ""), quote, levels=levels, closes=closes,
+                    rating=state.get("final_rating") if final else None,
+                    in_place=bool(isinstance(basis, dict) and basis.get("on_the_line")))
     test = downside_test(result, basis.get("sizing_rule") if isinstance(basis, dict) else None)
     return {**result, "downside": test} if test else result
 

@@ -524,6 +524,10 @@ class RequiredHorizonPortfolioDecision(PortfolioDecision):
         default=None,
         description="When priced scenario cases are listed in the prompt: one entry per case with its exact case_id and version, disposition accepted or rejected, a short reason, a weight above 0 and at most 1 for an accepted case (accepted weights sum to 1; subjective, not measured probabilities) and, for a rejected case, the single input rejected in rejected_input. Null when no priced case is listed.",
     )
+    rating_lean: str | None = Field(
+        default=None,
+        description="Only when code tells you your accepted scenarios put the stock on the line and the rating must be Hold: the rating you would otherwise give, exactly one of Buy / Overweight / Underweight / Sell. Otherwise null.",
+    )
     weight_basis: str | None = Field(
         default=None, max_length=1200,
         description="When you accept two or more priced scenario cases: the evidence for giving each its weight rather than equal weights, case by case. Calling the weights subjective is not a basis.",
@@ -591,6 +595,8 @@ def render_pm_decision(decision: PortfolioDecision, target_result: TargetResult 
     """
     parts = [
         f"**Rating**: {decision.rating.value}",
+        *(["", f"**Rating note**: Hold (on the line), set by code; the Portfolio Manager leans {lean}. "
+               "The scenario card says why and what would move it."] if (lean := getattr(decision, "rating_lean", None)) else []),
         "",
         f"**Executive Summary**: {decision.executive_summary}",
         "",
