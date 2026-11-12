@@ -1,0 +1,35 @@
+{
+ "budget_per_cycle": 50.0,
+ "runs": [
+  {
+   "cycle": 0,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": 0.8319,
+   "started": "2026-11-11T18:47:27",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs/WMT/2026-11-11/184729-7897e51f",
+   "log": "/Users/zipp/.tradingagents/loop/logs/loop_run_WMT_2026-11-11T184727.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "DOCN",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": 1.3491,
+   "started": "2026-11-11T18:52:08",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs/DOCN/2026-11-11/185210-46c345dc",
+   "log": "/Users/zipp/.tradingagents/loop/logs/loop_run_DOCN_2026-11-11T185208.log"
+  },
+  {
+   "cycle": 0,
+   "ticker": "MSFT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": 1.1142,
+   "started": "2026-11-11T18:58:07",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs/MSFT/2026-11-11/185809-3d4741a9",
+   "log": "/Users/zipp/.tradingagents/loop/logs/loop_run_MSFT_2026-11-11T185807.log"
+  }
+ ]
+}
