@@ -339,3 +339,12 @@ Reading: the instruction is followed every time, so the habit in the weights is 
 Also built, bench only: the required-return premium can be set in the portfolio file (default unchanged).
 Proposed to the user, not built: "Conditional Hold" (within 3 points of the required return; chosen by the manager; code checks consistency only).
 Total paid spend to date: about 141 dollars.
+
+## Aperture loop CLOSED (user, 2026-11-12). Improvement loop restarted on a new yardstick
+Aperture end state: eight kinds reach a valued decision (DOCN, MSFT, WMT, CAT, CVX, JPM, PGR, UNH); backlog with cause: COP, NEE, PLD, IBM, XOM, SNOW.
+Agreed with the user, replacing score-chasing on single evaluator complaints (most fixes moved less than the noise; one company improved in two days and about 141 dollars):
+1. Two rating fixes: the caller's own required return in the portfolio file (built), and Conditional Hold.
+2. Validate both on both made-up portfolios.
+3. Look-back test: run as of past dates on the eight and compare ratings with what the shares then did. First a free check that an as-of run cannot see later information.
+4. Choose what to improve next from that.
+Blocked for paid runs: the provider account is out of credit (the user's to top up).
