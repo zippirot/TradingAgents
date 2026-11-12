@@ -71,3 +71,14 @@ Verdict: mattered. Cost of cycle 1 paid runs: about 8.5 dollars (nine WMT runs; 
 Fix 4 (ecd7ee3a, action reading agrees with the holding) is built and tested but not yet in a paid run.
 Offline coverage 2026-11-11: 15 of 31 stored companies pass all seven source checks (16 blocked: equity_movement 8, obligation_perimeter 7, cash_flow_perimeter 3, core_statements 1, balance_sheet 1, disclosure_coverage 1).
 User decisions 2026-11-11: build an earnings-based valuation for mature companies (approved); run remaining cycles unattended (approved, after the 16-blocked question is settled). New loop rules: one run before three; track "reached a decision"; track offline coverage count.
+
+## Aperture program (APPROVED by the user 2026-11-11: "yes to both, include step 3, complete all the work")
+
+Work in this order, each with a failing test first, the offline 31-company coverage count before and after, replay of saved runs (DOCN and MSFT must not change), then one live run before three:
+1. Equity-movement check becomes a warning that lowers stated confidence, not a stop (unblocks LLY, AMD, ABBV, TXN; needed with step 2 for KO, PG, GE, COST).
+2. Teach the readers: cash under other tags (CVX, PG, GE); debt-like face lines (TSLA, KO); company-specific financing lines (INTC, NVDA, AMZN); net income tag (AVGO).
+3. Labelled outside-data fallback, capped (revenue always verified; at most one of shares, cash, debt unverified; any number corroborated), for what is left (TSLA rounding, COST document limit, AMAT, TMO).
+4. Earnings-based valuation for mature profitable companies (approved separately).
+5. Fresh-company test: a new set of companies never used for tuning, offline, to claim general coverage.
+6. Loop rules added (one run before three; track reached-a-decision; track coverage), then remaining cycles unattended.
+Nothing is merged, pushed or installed without the user's explicit approval.
