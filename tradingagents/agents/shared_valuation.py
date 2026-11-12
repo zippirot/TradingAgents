@@ -27,11 +27,13 @@ from tradingagents.agents.valuation import EVRevenueTarget, PETarget, validate_t
 from tradingagents.agents.valuation_cases import (
     CONVERSION,
     MULTIPLE_CONSTRUCTION,
+    EarningsCase,
     RevenueCase,
     carry_leases,
     case_funding,
     obligation_bases,
     price_case,
+    price_earnings_case,
     unstated_lease_lines,
     with_lease_lines,
 )
@@ -128,6 +130,8 @@ def _comparable(request, result):
                 tuple(request.capital.closing_shares.fact_ids), "closing common shares")
     if isinstance(request, EVRevenueTarget):
         return (*common, request.perimeter, request.shares_fact_id, request.revenue_fact_id)
+    if isinstance(request, EarningsCase):
+        return (*common, request.eps_fact_id, "diluted", True)
     return (*common, request.eps_fact_id, request.eps_basis, request.forecast is not None)
 
 
@@ -380,6 +384,12 @@ def _prepare(state, requests):
     outlooks = grounded_outlooks(state)
     terms = _funding_terms(state)
     rows, reasons, comparisons, notes = [], [], [], []
+    kinds = {row["request"].get("method") for row in requests
+             if isinstance(row, dict) and isinstance(row.get("request"), dict)} & {"revenue_case", "earnings_case"}
+    if len(kinds) > 1:
+        # A weighted value across a revenue multiple and an earnings multiple is not defined.
+        return _record("unavailable", requests, reasons=(
+            "Cases mix revenue cases and earnings cases; submit every case on one method. No case was priced.",))
     for index, row in enumerate(requests, 1):
         try:
             if (isinstance(row, dict) and isinstance(row.get("capital"), dict)
@@ -415,6 +425,9 @@ def _prepare(state, requests):
                 result, sensitivities = price_case(request, package, outlooks, terms)
                 supplemental = _source_bound_lease_requests(request, result, package, outlooks, sensitivities, terms)
                 result = _with_filed_leases(request, result, supplemental, package)
+            elif raw.get("method") == "earnings_case":
+                request = EarningsCase.model_validate(raw)
+                result, sensitivities = price_earnings_case(request, package, outlooks)
             elif raw.get("method") == "ev_revenue" and raw.get("capital_structure_assumption") == "forward_capital_v1":
                 request = EVRevenueTarget.model_validate(raw)
                 if len(request.scenarios) != 1 or request.scenarios[0].weight != 1:
@@ -437,7 +450,7 @@ def _prepare(state, requests):
             comparisons.append(_comparable(request, result))
             historical = result.decision_use.classification == "historical_diagnostic"
             comparison = None
-            if isinstance(request, RevenueCase):
+            if isinstance(request, (RevenueCase, EarningsCase)):
                 try:
                     quote = comparable_quote(state, package, result.unit, result.capital_snapshot_date)
                     comparison = {"status": "available", "price": {k: quote[k] for k in ("close", "currency", "session_date")}}
@@ -449,7 +462,8 @@ def _prepare(state, requests):
             rows.append({"name": name.strip(), "case_id": case_id, "version": 1,
                          **({"scenario_role": scenario_role} if scenario_role is not None else {}),
                          "request": _request_record(request), "result": result.model_dump(mode="json"),
-                         "diagnostic_only": not isinstance(request, RevenueCase), "comparison": comparison, "sensitivities": sensitivities,
+                         "diagnostic_only": not isinstance(request, (RevenueCase, EarningsCase)), "comparison": comparison,
+                         "sensitivities": sensitivities,
                          **({"funding": _with_conversion(case_funding(request, package, terms), result)}
                             if isinstance(request, RevenueCase) else {}),
                          **({"source_bound_sensitivity_requests": supplemental} if supplemental else {})})
@@ -460,7 +474,7 @@ def _prepare(state, requests):
                                                         else f"malformed valuation request at {where}"))
         except (ValueError, TypeError, ArithmeticError) as exc:
             reasons.append(f"Row {index} omitted: {exc}")
-    if comparisons and all(r["request"]["method"] != "revenue_case" for r in rows) and any(key != comparisons[0] for key in comparisons[1:]):
+    if comparisons and all(r["request"]["method"] not in ("revenue_case", "earnings_case") for r in rows) and any(key != comparisons[0] for key in comparisons[1:]):
         return _record("unavailable", requests, reasons=("Scenario rows use incomparable methods, periods, bases or capital inputs; table omitted.",))
     revenue_rows = [r for r in rows if r["request"]["method"] == "revenue_case"]
     if revenue_rows:

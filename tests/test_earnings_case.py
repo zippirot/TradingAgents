@@ -55,3 +55,38 @@ def test_the_multiple_must_be_dated_the_analysis_date_and_the_forecast_must_be_i
     whole = {**forecast(), "value": "300000000", "unit": "USD"}
     with pytest.raises(ValueError, match="unit"):
         price_earnings_case(_request(forecast=whole), _package(), ())
+
+
+# ---- in the report's valuation step ----
+
+def _state(rows, eps="2.50"):
+    import json
+
+    from tests.test_shared_valuation import state
+
+    saved = state(rows)
+    saved["financial_evidence"] = _package(eps).model_dump(mode="json")
+    saved["financial_claim_validation"]["raw_report"] = "Research\n```valuation_scenarios\n" + json.dumps(rows) + "\n```"
+    return saved
+
+
+def _row(name="Base", role="base", **changes):
+    return {"name": name, "scenario_role": role, "request": _request(**changes).model_dump(mode="json")}
+
+
+def test_earnings_cases_are_priced_as_weighable_cases_not_diagnostics():
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+
+    record = prepare_shared_valuation(_state([_row(), _row("Downside", "downside", multiple="15")]))
+    assert record["status"] == "available" and [row["diagnostic_only"] for row in record["rows"]] == [False, False]
+    assert [Decimal(row["result"]["target"]) for row in record["rows"]] == [Decimal("60.00"), Decimal("45.00")]
+    assert all(row["result"]["method"] == "earnings_case" for row in record["rows"])
+
+
+def test_a_submission_that_mixes_revenue_and_earnings_cases_prices_nothing_and_says_why():
+    from tests.test_case_valuation import revenue_case
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+
+    record = prepare_shared_valuation(_state([_row("Earnings base"), revenue_case()]))
+    assert record["status"] == "unavailable" and record["rows"] == []
+    assert "one method" in record["reasons"][0]

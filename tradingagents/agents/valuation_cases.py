@@ -166,6 +166,9 @@ def price_earnings_case(request: EarningsCase, package, outlooks):
     )
     result = TargetResult(
         status="supported", method="earnings_case", target=target, unit=filed.unit, input_fact_ids=(filed.fact_id,),
+        # The price a case is compared with has to be on the share basis of the filed earnings: a split after that
+        # period is checked from here.
+        capital_snapshot_date=filed.period_end,
         multiple=request.multiple, earnings_value=expected, eps_basis="diluted",
         multiple_assumption_date=request.multiple_assumption_date,
         valuation_period_start=request.forecast.period_start, valuation_period_end=request.forecast.period_end,
