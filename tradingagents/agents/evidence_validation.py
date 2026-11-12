@@ -1364,6 +1364,7 @@ def obligation_checks(package, source_precision=None):
         return identifiers(current, noncurrent) if current and noncurrent else ()
 
     from tradingagents.dataflows.face_liabilities import (
+        BORROWINGS_FORMULA,
         COMBINED_BORROWINGS,
         equipment_presented,
         has_face_inventory,
@@ -1384,7 +1385,11 @@ def obligation_checks(package, source_precision=None):
     short_term = selected("Short-term Borrowings")
     if total:
         groups["borrowings"] = identifiers(total)
-        if long_term and short_term:
+        # Borrowings summed from a filed liabilities list that adds up to total liabilities are complete by that
+        # proof. Separately tagged pieces can overlap its lines (a current portion tagged in a note and also
+        # inside the balance sheet's short-term line), so they are not a second total to agree with.
+        from_face = total.formula_id == BORROWINGS_FORMULA
+        if long_term and short_term and not from_face:
             by_id = {f.fact_id: f for f in package.facts}
             parts = [by_id[i] for i in long_term] + [short_term]
             if not _sum_matches(package, total, parts, source_precision):

@@ -95,6 +95,25 @@ def classify(concept: str) -> str:
     return "unclassified" if _DEBT_LIKE.search(name) else "other"
 
 
+def _rounding_unit(values) -> Decimal:
+    """The unit the figures are stated in: the largest power of ten that divides every nonzero one."""
+    unit = Decimal(1)
+    amounts = [abs(Decimal(v)) for v in values if v]
+    while amounts and unit < 10**9 and all(v % (unit * 10) == 0 for v in amounts):
+        unit *= 10
+    return unit
+
+
+def closes_on(total: FinancialFact, lines_sum: Decimal, values) -> bool:
+    """Whether a list summing to ``lines_sum`` is this total. A filed total has to match exactly. A total that was
+    itself derived from rounded figures (the filed total less equity) may differ by three of the lines' units,
+    and never by more than five thousandths of one percent of the total."""
+    if total.value == lines_sum:
+        return True
+    allowed = min(3 * _rounding_unit(values), abs(total.value) * Decimal("0.00005"))
+    return total.origin == "derived" and abs(total.value - lines_sum) <= allowed
+
+
 def derive_face_borrowings(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
     """Borrowings as the borrowing lines of a liabilities list that adds up to total liabilities.
 
@@ -110,7 +129,7 @@ def derive_face_borrowings(inputs: tuple[FinancialFact, ...]) -> FinancialFact:
         raise ValueError("face borrowings need filed balances")
     if len({(f.unit, f.cik, f.basis, f.as_of, f.period_end) for f in inputs}) != 1:
         raise ValueError("incompatible unit, issuer, basis, vintage or date")
-    if sum((f.value for f in lines), Decimal(0)) != total.value:
+    if not closes_on(total, sum((f.value for f in lines), Decimal(0)), [f.value for f in lines]):
         raise ValueError("the face lines do not add up to total liabilities")
     kinds = {f.fact_id: classify(_concept(f)) for f in lines}
     if "unclassified" in kinds.values():
@@ -142,7 +161,8 @@ def with_face_liabilities(package: EvidencePackage, facts, calculation, *, url: 
         lines, stated = liability_lines(facts, calculation, end)
     except InstanceError as exc:
         return package, [f"filed liabilities sum not established: {exc}"]
-    total = next((f for f in totals if f.value == stated), None)
+    total = next((f for f in totals if f.value == stated), None) or next(
+        (f for f in totals if closes_on(f, stated, [line.value for line in lines])), None)
     if total is None:
         return package, [f"filed liabilities sum {stated} differs from total liabilities at {end}"]
     source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
