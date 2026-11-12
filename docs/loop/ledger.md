@@ -82,3 +82,10 @@ Work in this order, each with a failing test first, the offline 31-company cover
 5. Fresh-company test: a new set of companies never used for tuning, offline, to claim general coverage.
 6. Loop rules added (one run before three; track reached-a-decision; track coverage), then remaining cycles unattended.
 Nothing is merged, pushed or installed without the user's explicit approval.
+
+### Aperture progress, 2026-11-11 late (all committed locally; suite 4,763 passing; 27 saved runs replay unchanged)
+
+Offline coverage ("open" = no required source check stops the run): 15 -> 27 of 31. All seven checks passed: 15 -> 20.
+Done: step 1 (equity check advisory when unavailable); step 2: cash from the filer's own current-assets cash line (CVX, PG, GE), debt lines (KO NotesAndLoansPayable, CVX LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities, TSLA own DebtAndFinanceLeases lines), own financing lines read as equipment principal (INTC, NVDA, AMZN), profit as parent income when no noncontrolling interest (AVGO).
+Still blocked (4): TSLA balance_sheet "nonzero residual cannot be assessed without source rounding precision"; COST disclosure_coverage (filing count limit 6 / document count limit); AMAT borrowings not on a separate line (within other liabilities); TMO filed liabilities sum differs from total liabilities.
+Next: step 3 for these four; step 4 earnings-based valuation; step 5 fresh-company test (the 31 are now tuned on); step 6 loop rules; live check of one opened company (one run before three); fix 4 (action reading) still not in a paid run.

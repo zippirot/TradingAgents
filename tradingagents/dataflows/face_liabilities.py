@@ -42,7 +42,7 @@ _BORROWING = frozenset({
     "SeniorNotes", "SeniorLongTermNotes", "UnsecuredDebtCurrent", "UnsecuredLongTermDebt",
     "SecuredDebtCurrent", "SecuredLongTermDebt", "ConvertibleDebtCurrent", "ConvertibleDebtNoncurrent",
     "ConvertibleNotesPayableCurrent", "ConvertibleLongTermNotesPayable",
-    "NotesAndLoansPayable", "NotesAndLoansPayableCurrent",
+    "NotesAndLoansPayable",
 })
 # Debt the filer states together with its finance (capital) leases.
 _BORROWING_WITH_FINANCE_LEASES = frozenset({

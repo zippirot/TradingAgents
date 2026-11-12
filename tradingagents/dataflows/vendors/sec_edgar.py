@@ -671,6 +671,26 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
             records[derived.fact_id] = derived
             bridged = True
             break
+    # A filer that tags only consolidated profit and has never tagged a noncontrolling interest: the profit is
+    # the parent's income.
+    def other_owner(tag):
+        # A nonzero noncontrolling figure for any period ending in the three years before the cutoff.
+        floor = str(int(str(cutoff)[:4]) - 3) + str(cutoff)[4:]
+        return any(row.get("val") and floor <= str(row.get("end", "")) <= str(cutoff)
+                   for rows in ((facts.get(tag) or {}).get("units") or {}).values() for row in rows)
+
+    if not any(f.value for f in nci_facts) and not any(
+            other_owner(tag) for tag in ("NetIncomeLossAttributableToNoncontrollingInterest", "MinorityInterest")):
+        from tradingagents.dataflows.financial_evidence import derive_profit_as_parent_income
+        for profit in profits:
+            if (profit.period_start, profit.period_end) in direct_periods:
+                continue
+            try:
+                derived = derive_profit_as_parent_income(profit, tuple(records.values()))
+            except ValueError:
+                continue
+            records[derived.fact_id] = derived
+            bridged = True
     if bridged:
         # A value with exact source lineage supersedes the generic missing row.
         records.pop(hashlib.sha256(

@@ -148,6 +148,11 @@ def validate_calculation_lineage(package: EvidencePackage) -> list[str]:
                     expected = derive_parent_net_income(
                         *inputs, *(sources[item.source_ids[0]] for item in inputs)
                     )
+                elif fact.formula_id == "profit_without_noncontrolling_interest_v1" and len(inputs) == 1:
+                    from tradingagents.dataflows.financial_evidence import (
+                        derive_profit_as_parent_income,
+                    )
+                    expected = derive_profit_as_parent_income(inputs[0], package.facts)
                 elif fact.formula_id == "four_quarter_sum_v1":
                     expected = derive_ttm(inputs)
                 elif fact.formula_id == "liabilities_and_equity_less_equity_v1":
@@ -1736,6 +1741,7 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
 
 # A share count the filing states another way (issued less treasury, or on the cover) is source-replayed like the
 # parent-income bridge: the analyst is shown it, with its inputs, in place of the empty direct-tag placeholder.
+_INCOME_BRIDGES = frozenset({"consolidated_profit_less_nci_v1", "profit_without_noncontrolling_interest_v1"})
 _SHARE_BRIDGES = frozenset({"shares_issued_less_treasury_v1", "cover_count_after_balance_v1"})
 
 
@@ -1759,13 +1765,13 @@ def canonical_accounting_context(package, calculations):
         rows = [
             f for f in package.facts if f.metric == metric
             and (f.origin == "reported" or (
-                metric == "Net Income" and f.formula_id == "consolidated_profit_less_nci_v1"
+                metric == "Net Income" and f.formula_id in _INCOME_BRIDGES
             ) or (metric == "Common Shares Outstanding" and f.formula_id in _SHARE_BRIDGES))
         ]
         # The definition bridge is source-replayed and remains explicitly
         # derived; a missing direct-tag placeholder must not hide it. Do not
         # broaden this to arbitrary calculated quarters or TTM values.
-        if any(f.formula_id == "consolidated_profit_less_nci_v1" or f.formula_id in _SHARE_BRIDGES for f in rows):
+        if any(f.formula_id in _INCOME_BRIDGES or f.formula_id in _SHARE_BRIDGES for f in rows):
             rows = [f for f in rows if f.value is not None]
         latest = max((f.period_end for f in rows), default=None)
         rows = [f for f in rows if f.period_end == latest]

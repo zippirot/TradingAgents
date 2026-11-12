@@ -474,6 +474,30 @@ def derive_total_liabilities(inputs: tuple[FinancialFact, ...]) -> FinancialFact
     return _derived(inputs, None, total.period_end, value, TOTAL_LIABILITIES_FORMULA, metric="Total Liabilities")
 
 
+PROFIT_AS_PARENT_FORMULA = "profit_without_noncontrolling_interest_v1"
+_OTHER_OWNER_METRICS = ("Net Income Attributable to Noncontrolling Interests", "Noncontrolling Interests")
+
+
+def derive_profit_as_parent_income(profit: FinancialFact, others) -> FinancialFact:
+    """Net income for a filer that tags only consolidated profit and holds no noncontrolling interest.
+
+    ``others`` is every other fact in the package. Any valued noncontrolling figure, nonzero, refuses the
+    bridge: with another owner in the books, consolidated profit is not the parent's income.
+    """
+    if (profit.metric != "Consolidated Profit (Loss)" or profit.origin != "reported" or profit.value is None
+            or profit.period_start is None or profit.unit != "USD"):
+        raise ValueError("parent income needs a reported consolidated profit for a period")
+    if any(f.metric in _OTHER_OWNER_METRICS and f.value for f in others):
+        raise ValueError("the filer reports a noncontrolling interest; consolidated profit is not the parent's income")
+    # Where the filer states the income its per-share figures rest on for this period, it has to be this profit.
+    if any(f.metric == "Basic Earnings Numerator" and f.value is not None and f.value != profit.value
+           and (f.period_start, f.period_end) == (profit.period_start, profit.period_end) for f in others):
+        raise ValueError("income available to common holders differs from consolidated profit; a noncontrolling "
+                         "or preferred share is implied")
+    return _derived((profit,), profit.period_start, profit.period_end, profit.value, PROFIT_AS_PARENT_FORMULA,
+                    metric="Net Income")
+
+
 SHARES_FORMULA = "shares_issued_less_treasury_v1"
 
 
