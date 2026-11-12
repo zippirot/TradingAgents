@@ -98,3 +98,11 @@ Still blocked: COST only. disclosure_coverage: "Filing count limit 6 reached" an
 Step 3 (outside-data fallback): NOT built. All four failure modes closed by reading the filings, and the one remaining block is not a missing figure, so there is nothing for a fallback to supply on these companies. Decide after the fresh-company test shows what is actually missing.
 Step 5 running: fresh cohort of 20 never-tuned companies captured to ~/.tradingagents/private/fresh-cohort-20261111 (XOM, UNH, V, PEP, MCD, NKE, DIS, VZ, BA, HON, UPS, LOW, SBUX, ADBE, CRM, NFLX, QCOM, IBM, PFE, DE); result in capture.json there.
 Not yet done: live run of a newly opened company (one before three); step 4 earnings-based valuation; step 6 loop rules; fix 4 (action reading) in a paid run.
+
+### Fresh-company test, 2026-11-11 night (committed; suite 4,769 passing)
+
+20 companies never used for tuning (XOM, UNH, V, PEP, MCD, NKE, DIS, VZ, BA, HON, UPS, LOW, SBUX, ADBE, CRM, NFLX, QCOM, IBM, PFE, DE), store ~/.tradingagents/private/fresh-cohort-20261111.
+Out of the box: open 16 of 20 (80%), all seven checks 9. That is the honest general-coverage figure.
+After two fixes found there: open 18 of 20, all seven 10. DE: us-gaap:SecuredDebt / UnsecuredDebt classified as borrowings. PEP: a borrowing-detail tag stated in several currencies at one date gives nothing instead of stopping the read (core figures still stop it). Also added: older SEC submissions archives are read when the recent list has no 10-K (built for XOM; not the cause there).
+Still blocked: XOM (registrant CIK 0002115436 has only 42 filings since 2026-07-01 and no 10-K: a new registrant; correct to stop); IBM (financing arm: filed liability lines and financing lines do not add up; three checks).
+Tuned set unchanged: 30 of 31 (COST).

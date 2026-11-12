@@ -82,6 +82,10 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
 
 # Keep totals and components separate. These rows do not imply additive debt
 # perimeters: equipment financing and issuer-specific items need filed narrative.
+_BORROWING_DETAIL_METRICS = frozenset({
+    "Long-term Borrowings (including current)", "Current Long-term Borrowings", "Noncurrent Long-term Borrowings",
+    "Short-term Borrowings",
+})
 _STATEMENTS["balance_sheet"] += [
     ("Long-term Borrowings (including current)", ("LongTermDebt",)),
     ("Current Long-term Borrowings", ("LongTermDebtCurrent",)),
@@ -595,6 +599,12 @@ def get_financial_evidence(ticker: str, as_of_date: str, *, peer_revenue_definit
                 if metric in identity_metrics:
                     quarter, annual = {}, {}
                     ambiguous_identity.add(metric)
+                elif ambiguity and metric in _BORROWING_DETAIL_METRICS:
+                    # A debt tag stated more than one way for a date (PepsiCo tags one by currency of issue) is a
+                    # breakdown, not a total. The tag gives nothing; borrowings then come from the filed
+                    # balance-sheet lines or stay unavailable. No figure is chosen.
+                    quarter, annual = {}, {}
+                    peer_gaps.append(f"{metric} ambiguous at {ambiguity.group(1)}; tag not used")
                 elif not metric.startswith("Unclassified Marketable Securities ["):
                     raise
                 else:

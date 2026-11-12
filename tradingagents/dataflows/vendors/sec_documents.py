@@ -102,6 +102,43 @@ class DisclosurePackage(BaseModel):
     selected_accessions: tuple[str, ...] = ()
 
 
+_OLDER_ARCHIVE_LIMIT = 3
+
+
+def with_older_annual(client, data: dict, as_of: str) -> dict:
+    """The submissions metadata with older archive files added when the recent list holds no annual report.
+
+    SEC keeps only the latest filings in the recent list; a filer with hundreds of other forms a year can
+    have its 10-K only in an older file. At most three older files are read, in the order SEC lists them,
+    and reading stops at the first that holds a 10-K filed by the analysis date. Malformed data is returned
+    as it came, for the caller's own validation to refuse.
+    """
+    try:
+        recent, files = data["filings"]["recent"], data["filings"].get("files") or ()
+
+        def has_annual(columns):
+            return any(form == "10-K" and str(filed) <= as_of
+                       for form, filed in zip(columns["form"], columns["filingDate"], strict=True))
+
+        if not files or has_annual(recent):
+            return data
+        merged = {name: list(values) for name, values in recent.items() if isinstance(values, (list, tuple))}
+        for entry in list(files)[:_OLDER_ARCHIVE_LIMIT]:
+            name = str(entry.get("name", ""))
+            if not re.fullmatch(r"[A-Za-z0-9._-]+\.json", name):
+                break
+            older = json.loads(client.fetch(f"https://data.sec.gov/submissions/{name}")["text"])
+            if any(not isinstance(older.get(column), list) or len(older[column]) != len(older["form"]) for column in merged):
+                break
+            for column in merged:
+                merged[column].extend(older[column])
+            if has_annual(older):
+                break
+        return {**data, "filings": {**data["filings"], "recent": merged}}
+    except (KeyError, TypeError, ValueError):
+        return data
+
+
 def _filing_rows(data: dict, cik: str, as_of: str, *, include_prospectus=False):
     """Validate recent submissions once for both bounded selection paths."""
     cutoff = date.fromisoformat(as_of)
@@ -810,7 +847,7 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     client = DocumentClient(max_bytes=_DOCUMENT_TRANSPORT_MAX_BYTES)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
-        submissions = json.loads(metadata["text"])
+        submissions = with_older_annual(client, json.loads(metadata["text"]), as_of_date)
         filings, gaps = select_filings(submissions, cik, as_of_date)
     except ValueError as exc:
         raise VendorUnavailableError("Unreadable SEC submissions JSON") from exc
@@ -1220,7 +1257,8 @@ def get_filing_search_evidence(
                             max_requests=1 + _SEARCH_DOCUMENT_LIMIT, max_seconds=240)
     metadata = client.fetch(f"https://data.sec.gov/submissions/CIK{cik}.json")
     try:
-        filings, gaps = select_search_filings(json.loads(metadata["text"]), cik, as_of_date)
+        filings, gaps = select_search_filings(
+            with_older_annual(client, json.loads(metadata["text"]), as_of_date), cik, as_of_date)
     except ValueError as exc:
         raise VendorUnavailableError("Unreadable SEC submissions JSON") from exc
     documents = []
