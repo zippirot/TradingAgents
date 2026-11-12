@@ -6,7 +6,7 @@ This module checks their bounded projection and never fetches market data.
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, localcontext
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -437,6 +437,75 @@ def peer_range(peers: list[dict], *, include_quality=False) -> dict:
     if include_quality and any("including assessed tax" in p.get("revenue_definition", "").lower() for p in peers):
         result["quality_label"] += "; reported revenue tax/accounting comparability is not established"
     return result
+
+
+EARNINGS_HISTORY_BASIS = "completed fiscal year-end close / diluted EPS filed for that year"
+
+
+def calculate_earnings_history(package, prices, split_history, *, ticker: str, current_close=None) -> dict:
+    """The close at each fiscal year end over the diluted EPS filed for that year. Retrospective, never a backtest.
+
+    It needs no share count. Prices are on the split basis of the analysis date; filed EPS is on that basis
+    only where a later annual report has restated it, so a year is used only when it ended after the last
+    split or sits inside the three years the latest annual report presents. A split after the latest
+    annual period states nothing.
+    """
+    try:
+        package = _validated_package(package)
+        history = SplitHistory.model_validate(split_history)
+        if history.ticker != ticker or not history.coverage_complete or history.split_basis_date != package.as_of:
+            raise ValueError("Complete split coverage through analysis cutoff unavailable")
+        records = {p.quarter_end: p for p in (HistoricalPrice.model_validate(row) for row in prices)}
+        annual: dict[date, set[Decimal]] = {}
+        for f in package.facts:
+            if f.metric == "Diluted EPS" and f.value is not None and f.period_start is not None \
+                    and f.unit.endswith("/shares") and 350 <= (f.period_end - f.period_start).days + 1 <= 380:
+                annual.setdefault(f.period_end, set()).add(f.value)
+        if not annual:
+            raise ValueError("No filed annual diluted EPS")
+        latest = max(annual)
+        splits = sorted(action.session_date for action in history.splits)
+        if any(latest < day <= history.split_basis_date for day in splits):
+            raise ValueError("A split since the latest annual period; filed EPS is not yet on the price's split basis")
+        last_split = max((day for day in splits if day <= latest), default=None)
+        presented_from = latest.replace(year=latest.year - 2, day=min(latest.day, 28)) - timedelta(days=10)
+        rows, reasons = [], []
+        for end in sorted(annual):
+            price, values = records.get(end), annual[end]
+            if price is None:
+                continue
+            if (price.ticker != ticker or price.session_status != "completed" or price.close <= 0
+                    or price.adjustment_basis != "historical_split_adjusted"
+                    or price.split_basis_date != history.split_basis_date or price.session_date > end
+                    or (end - price.session_date).days > 7 or f"{price.currency}/shares" not in {f.unit for f in package.facts if f.metric == "Diluted EPS" and f.period_end == end}):
+                reasons.append(f"{end}: completed year-end close unavailable or not comparable")
+            elif len(values) != 1:
+                reasons.append(f"{end}: diluted EPS filed with more than one value")
+            elif last_split is not None and end < last_split and end < presented_from:
+                reasons.append(f"{end}: before the {last_split} split and outside the years the latest annual report restates")
+            elif next(iter(values)) <= 0:
+                reasons.append(f"{end}: no positive diluted EPS, so no multiple")
+            else:
+                eps = next(iter(values))
+                rows.append({"year_end": str(end), "close": _number(price.close), "price_session": str(price.session_date),
+                             "currency": price.currency, "eps": _number(eps), "multiple": _number(price.close / eps),
+                             "price_source_id": price.source_id})
+        if len(rows) < 2:
+            return {**_unavailable("Fewer than two usable fiscal year ends"), "excluded": reasons}
+        multiples = [Decimal(row["multiple"]) for row in rows]
+        today, close = None, None if current_close is None else Decimal(str(current_close))
+        if close is not None and close.is_finite() and close > 0 and len(annual[latest]) == 1 and next(iter(annual[latest])) > 0:
+            today = {"multiple": _number(close / next(iter(annual[latest]))), "eps_period_end": str(latest)}
+        listed = ", ".join(f"{Decimal(row['multiple']):.1f}× at {row['year_end']}" for row in rows)
+        summary = (f"Own price-to-earnings history ({EARNINGS_HISTORY_BASIS}): {listed}"
+                   + (f"; the latest close is {Decimal(today['multiple']):.1f}× the diluted EPS filed for the year to "
+                      f"{today['eps_period_end']}" if today else "")
+                   + f". {len(rows)} year ends only: retrospective, not a point-in-time backtest, and not a range to rely on.")
+        return {"status": "available", "reason": None, "basis": EARNINGS_HISTORY_BASIS, "rows": rows, "today": today,
+                "statistics": {"low": _number(min(multiples)), "high": _number(max(multiples)), "count": len(rows)},
+                "excluded": reasons, "summary": summary}
+    except (ValueError, TypeError, KeyError, ArithmeticError) as exc:
+        return _unavailable(str(exc))
 
 
 def render_own_history(record: dict) -> str:

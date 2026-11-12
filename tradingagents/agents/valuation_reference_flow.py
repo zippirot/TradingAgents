@@ -343,6 +343,11 @@ def _history(state, raw, subject):
     result = calculate_own_history(package, state["issuer_identity"], prices, splits,
                                    ticker=state["company_of_interest"],
                                    current_multiple=subject.get("multiple") if subject["status"] == "available" else None)
+    from tradingagents.agents.valuation_reference import calculate_earnings_history
+    quote = state.get("price_observation") if isinstance(state.get("price_observation"), dict) else {}
+    result["earnings_history"] = calculate_earnings_history(
+        package, prices, splits, ticker=state["company_of_interest"],
+        current_close=quote.get("close") if quote.get("currency") in (None, *{p["currency"] for p in prices}) else None)
     priced = {row["quarter_end"] for row in prices}
     result["excluded"] = [*result.get("excluded", []), *[
         day + ": completed quarter-end close unavailable within seven days"
@@ -498,6 +503,10 @@ def render_valuation_reference(record):
         lines.append("Own history unavailable: " + _cell(history["reason"]))
     for reason in history.get("excluded", [])[:24]:
         lines.append("Excluded " + _cell(reason) + ".")
+    earnings = history.get("earnings_history") or {}
+    if earnings.get("status") == "available":
+        lines += ["", _cell(earnings["summary"])]
+        lines += ["Excluded " + _cell(reason) + "." for reason in earnings.get("excluded", [])[:8]]
     peers = record["peers"]
     lines += ["", "Peers — " + peers["kind"] + ". " + peers["qualification"] + "."]
     if record["phase"] == "preanalyst":

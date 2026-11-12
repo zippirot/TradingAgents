@@ -89,3 +89,22 @@ def earnings_anchor(request, facts, trade_date, vendor_estimates) -> dict | None
                      + f"high {high:.2f}{count}; this forecast is {words}.")
         result["vendor"] = {"low": str(low), "high": str(high), "position": position}
     return {**result, "lines": lines}
+
+
+def multiple_reference(request, history) -> str | None:
+    """Where an earnings case's multiple sits against the company's own year-end price-to-earnings points."""
+    multiple = _decimal(request.get("multiple")) if isinstance(request, dict) and request.get("method") == "earnings_case" else None
+    if multiple is None or not isinstance(history, dict) or history.get("status") != "available":
+        return None
+    points = [_decimal(row.get("multiple")) for row in history.get("rows") or ()]
+    if not points or None in points:
+        return None
+    where = ("below the lowest" if multiple < min(points) else "above the highest" if multiple > max(points)
+             else "inside the span")
+    today = _decimal((history.get("today") or {}).get("multiple"))
+    listed = ", ".join(f"{point:.1f}×" for point in points)
+    return (f"Against the company's own history: the case multiple of {multiple:.1f}× is {where} of its {len(points)} "
+            f"fiscal year-end price-to-earnings points ({listed})"
+            + (f"; the latest close is {today:.1f}× filed earnings" if today is not None else "")
+            + ". Those points divide a close by the year just filed; the case multiplies a forecast year, so the "
+            "comparison is indicative, and a few year ends are not a range to rely on.")

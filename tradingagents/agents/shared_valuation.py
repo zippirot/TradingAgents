@@ -496,12 +496,15 @@ def _prepare(state, requests):
                  if f.fact_id in {r["request"].get("eps_fact_id") for r in rows if r["request"]["method"] == "earnings_case"}}
     if baselines:
         record["earnings_baselines"] = baselines
-    from tradingagents.agents.earnings_anchor import earnings_anchor
+    from tradingagents.agents.earnings_anchor import earnings_anchor, multiple_reference
     expectations = state.get("vendor_expectations") if isinstance(state.get("vendor_expectations"), dict) else {}
+    reference = state.get("valuation_reference") if isinstance(state.get("valuation_reference"), dict) else {}
+    own = reference.get("own_history") if isinstance(reference.get("own_history"), dict) else {}
     for row in rows:
         anchor = earnings_anchor(row["request"], package.facts, state.get("trade_date"), expectations.get("estimates"))
-        if anchor:
-            row["earnings_anchor"] = anchor
+        placed = multiple_reference(row["request"], own.get("earnings_history"))
+        if anchor or placed:
+            row["earnings_anchor"] = {**(anchor or {}), "lines": [*((anchor or {}).get("lines") or ()), *([placed] if placed else ())]}
     priced = [row for row in rows if row["result"]["method"] == "revenue_case"]
     for row in priced:
         row["reference_position"] = reference_position(row, state)

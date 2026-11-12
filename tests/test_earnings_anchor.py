@@ -72,3 +72,15 @@ def test_an_earnings_case_prints_the_comparison_in_the_block_the_agents_and_the_
     record = prepare_shared_valuation(_state([_row(), _row("Downside", "downside", multiple="15")]))
     assert record["rows"][0]["earnings_anchor"]["growth_percent"].startswith("20")     # 3.00 against the filed 2.50
     assert "Against the filings: the forecast of 3.00 is 20.0% above the filed 2.50" in render_shared_valuation(record)
+
+
+def test_a_case_multiple_is_placed_against_the_companys_own_year_end_points():
+    from tradingagents.agents.earnings_anchor import multiple_reference
+
+    history = {"status": "available", "today": {"multiple": "46.03"},
+               "rows": [{"multiple": "28.8"}, {"multiple": "40.7"}, {"multiple": "43.6"}]}
+    line = multiple_reference({"method": "earnings_case", "multiple": "36"}, history)
+    assert "36.0× is inside the span" in line and "28.8×, 40.7×, 43.6×" in line and "46.0× filed earnings" in line
+    assert "above the highest" in multiple_reference({"method": "earnings_case", "multiple": "50"}, history)
+    assert multiple_reference({"method": "earnings_case", "multiple": "36"}, {"status": "unavailable"}) is None
+    assert multiple_reference({"method": "revenue_case", "multiple": "5"}, history) is None
