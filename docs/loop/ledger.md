@@ -291,3 +291,13 @@ Six companies of different kinds, none seen before; private store `~/.tradingage
 Reading: 1 of 6 open. The 80 to 90 percent figure held for industrial, technology and consumer filers only. Two groups: reading gaps the present model can absorb (COP, NEE, PLD), and financial companies that need a path without net debt or revenue multiples (JPM, PGR). New failure kind: a company that passes every source check and still gets no valuation because the analyst declines to submit cases (SNOW).
 Installed state: staging 9cfd8033 (bench batch), CI green; launcher still at 8072ae71 because a session was open on it.
 Total paid spend to date: about 122 dollars.
+
+## Banks and insurers: their own path (user decision 2026-11-12: "yes build it"; bench only, NOT installed)
+Built, tests first: a company is recognised as a bank or an insurer from its own filing tags (revenue net of interest expense, deposits; premiums earned, claims liability). For it the obligation and cash-spending checks lower the status when unavailable and no longer stop the run (a failure still does; every other check stays required); bank revenue is read from RevenuesNetOfInterestExpense; the analyst is told to use earnings cases.
+Free checks: JPM 5 of 7 and PGR 6 of 7 passing, both now open. The 51 earlier companies are unchanged (31 of 31 and 18 of 20 open); only UNH is recognised as an insurer, correctly, and it passed every check already.
+Paid, one run each (standard made-up portfolio):
+- JPM x14a: Underweight, three earnings cases priced (base 25.50 x 15). Evaluator: Decision 6.3, Research 6.6. Biggest weakness: the hurdle is anchored on fiscal 2025 EPS while nine-month 2026 EPS is in the evidence; no build from bank drivers, no book-value or return-on-equity cross-check; peer reference unsuited to banks. Credited: net debt and free cash flow explicitly not used; the unheld Sell read as no purchase.
+- PGR x14a: stopped at REVIEW, cause unrelated to the path: the claim model allowed a 160-character metric name and the analyst had copied the code's own 190-character fact label. Fixed (limit 400); the saved answer then passes offline. PGR x14b: Underweight, three earnings cases priced (base 16.20 x 12). Not yet scored.
+Not done: three runs on both portfolios (the install rule); a book-value or return-on-equity reference for financial companies; bank-suited peers.
+Other wider-mix items still open: reading gaps on COP, NEE, PLD; SNOW's analyst submitting no cases.
+Total paid spend to date: about 125 dollars.

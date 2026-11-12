@@ -1180,6 +1180,17 @@
    "tag": "x14a",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-x14a/JPM/2026-11-12/115746-f2e47c38",
    "log": "/Users/zipp/.tradingagents/loop/logs-x14a/loop_run_JPM_2026-11-12T115744.log"
+  },
+  {
+   "cycle": 14,
+   "ticker": "PGR",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T12:06:38",
+   "tag": "x14b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-x14b/PGR/2026-11-12/120640-798040a0",
+   "log": "/Users/zipp/.tradingagents/loop/logs-x14b/loop_run_PGR_2026-11-12T120638.log"
   }
  ]
 }
