@@ -90,3 +90,31 @@ def test_a_submission_that_mixes_revenue_and_earnings_cases_prices_nothing_and_s
     record = prepare_shared_valuation(_state([_row("Earnings base"), revenue_case()]))
     assert record["status"] == "unavailable" and record["rows"] == []
     assert "one method" in record["reasons"][0]
+
+
+def test_earnings_cases_reach_the_managers_weighing_and_the_printed_valuation_section():
+    from tradingagents.agents.scenario_decision import priced_cases
+    from tradingagents.agents.shared_valuation import (
+        prepare_shared_valuation,
+        render_shared_valuation,
+    )
+
+    record = prepare_shared_valuation(_state([_row(), _row("Downside", "downside", multiple="15")]))
+    cases = priced_cases(record)
+    assert [(c["name"], c["role"], c["method"], Decimal(c["price"]), c["forecast_eps"], c["forecast_revenue"]) for c in cases] == [
+        ("Base", "base", "earnings_case", Decimal("60.00"), "3.00", None),
+        ("Downside", "downside", "earnings_case", Decimal("45.00"), "3.00", None)]
+    text = render_shared_valuation(record)
+    assert "forecast EPS × multiple" in text and "Earnings case: forecast diluted earnings per share" in text
+    assert "no net-debt bridge" in text
+
+
+def test_the_decision_card_groups_earnings_cases_into_one_range_on_a_forward_earnings_basis():
+    from tradingagents.agents.decision_context import _case_groups
+    from tradingagents.agents.shared_valuation import prepare_shared_valuation
+
+    record = prepare_shared_valuation(_state([_row(), _row("Downside", "downside", multiple="15")]))
+    (group,) = _case_groups(record["rows"])
+    assert group["multiple_basis"] == "forward P/E" and group["share_basis"] == "diluted EPS"
+    assert (Decimal(group["low"]), Decimal(group["high"])) == (Decimal("45.00"), Decimal("60.00"))
+    assert [case["name"] for case in group["cases"]] == ["Base", "Downside"]

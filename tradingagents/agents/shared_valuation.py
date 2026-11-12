@@ -814,7 +814,8 @@ def render_shared_valuation(record):
         lines += ["Scenario | Method | Period | Conditional price / historical arithmetic", "--- | --- | --- | ---"]
         for row in rows:
             result = row["result"]
-            lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue", "revenue_case": row["request"].get("multiple_basis", "") + " / period revenue"}[result["method"]],
+            lines.append(" | ".join(_cell(v) for v in (row["name"], {"pe": "P/E", "ev_revenue": "EV/revenue", "earnings_case": "forecast EPS × multiple",
+                                                                 "revenue_case": row["request"].get("multiple_basis", "") + " / period revenue"}[result["method"]],
                 f"{result['valuation_period_start']} to {result['valuation_period_end']}",
                 _summary_value(row) if result['status'] == 'supported'
                 else "Unavailable — unfunded scenario")))
@@ -839,6 +840,11 @@ def render_shared_valuation(record):
             if row.get('disputed_by'):
                 lines.append((row['dispute_note'][0].upper() + row['dispute_note'][1:] + '.') if row.get('dispute_note') else
                              'Disputed by accepted audit finding ' + ', '.join(row['disputed_by']) + '; shown flagged in the conditional range. Arithmetic retained unchanged.')
+            if result["method"] == "earnings_case":
+                request = row["request"]
+                lines.append(f"Earnings case: forecast diluted earnings per share {display_number(request['forecast']['value'])} "
+                             f"for {request['forecast']['period_start']} to {request['forecast']['period_end']} × "
+                             f"{display_number(request['multiple'])}; no debt or cash adjustment (earnings are after interest).")
             if result["method"] == "revenue_case":
                 request = row["request"]
                 clock = MULTIPLE_CONSTRUCTION

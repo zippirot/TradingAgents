@@ -218,7 +218,7 @@ def _case_groups(rows, scenario=None):
             # The analyst's period word no longer changes the printed label, but still keeps ranges apart.
             period_word = request["multiple_period"]
         else:
-            basis, share_basis = "forward P/E", request["eps_basis"] + " EPS"
+            basis, share_basis = "forward P/E", request.get("eps_basis", "diluted") + " EPS"
             share_ref = (request["eps_fact_id"],)
             period_word = ""
         key = (result["valuation_period_start"], result["valuation_period_end"], basis, share_basis,

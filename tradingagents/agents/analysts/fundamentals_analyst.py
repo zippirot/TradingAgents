@@ -190,7 +190,14 @@ SHARED_VALUATION_INPUTS = (
     " The valuation fields MUST be nested inside request, never beside name. Do not emit example placeholders."
     " Use compact valid JSON: one complete object per case, concise rationales and all required exact fact IDs. Finish the JSON list and close the named fence before continuing."
     " Check the complete JSON list is syntactically valid before finishing your normal response."
-    " Only revenue_case with explicit capital can supply a decision-card value. Legacy P/E remains separately assessed diagnostic arithmetic. All entries MUST use the same method; do not mix EV/revenue and P/E even as a secondary check."
+    " Choose the method by the company. When the filed annual Diluted EPS is positive and earnings are a fair measure of the business (a mature, profitable company), use earnings cases. When earnings are negative, near zero or not yet meaningful (a company valued on growth), use revenue cases. Say in your narrative which you chose and why."
+    ' Earnings case shape: {"name":"Base","scenario_role":"base","request":{"method":"earnings_case","eps_fact_id":"<annual Diluted EPS fact ID>",'
+    '"forecast":{"value":"<forecast diluted EPS>","unit":"USD/shares","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
+    '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption, including any change in share count>"},'
+    '"multiple":"<price to earnings multiple>","multiple_assumption_date":"<analysis date>",'
+    '"multiple_rationale":"<why this multiple: own history, named peers, growth and risk>"}}.'
+    " An earnings case has no capital block: earnings are after interest, so code nets no cash or debt. Its forecast is one explicit annual period ending after the analysis date."
+    " Only revenue_case with explicit capital, or earnings_case, can supply a decision-card value. Legacy P/E remains separately assessed diagnostic arithmetic. All entries MUST use the same method; do not mix revenue cases and earnings cases even as a secondary check."
     " Use [] if a supported method is unsuitable or required facts are unavailable; never invent missing inputs."
     " These calculations do not require a current stock price or return-to-price comparison."
     " Inspect the annual Revenue, Basic EPS and Diluted EPS facts in the evidence tool before declaring baselines missing."

@@ -68,14 +68,18 @@ def priced_cases(replayed) -> list[dict]:
     cases = []
     for row in (replayed or {}).get("rows") or ():
         result = row.get("result") if isinstance(row, dict) else None
-        if (not isinstance(result, dict) or result.get("method") != "revenue_case" or result.get("status") != "supported"
+        if (not isinstance(result, dict) or result.get("method") not in ("revenue_case", "earnings_case")
+                or result.get("status") != "supported"
                 or _decimal(result.get("target")) is None):
             continue
         funding, position = row.get("funding") or {}, row.get("reference_position") or {}
         request = row.get("request") if isinstance(row.get("request"), dict) else {}
         forecast = request.get("forecast") if isinstance(request.get("forecast"), dict) else {}
         cases.append({"case_id": row["case_id"], "version": row["version"], "name": row["name"],
-                      "forecast_revenue": forecast.get("value"), "multiple": result.get("multiple"),
+                      "method": result["method"],
+                      "forecast_revenue": forecast.get("value") if result["method"] == "revenue_case" else None,
+                      "forecast_eps": forecast.get("value") if result["method"] == "earnings_case" else None,
+                      "multiple": result.get("multiple"),
                       "multiple_basis": request.get("multiple_basis"), "net_obligations": result.get("net_obligations"),
                       "closing_shares": result.get("shares_outstanding"),
                       "role": _text(row.get("scenario_role"), 40) or "unlabelled", "price": str(_decimal(result["target"])),
