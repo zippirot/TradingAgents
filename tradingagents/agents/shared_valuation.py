@@ -490,6 +490,10 @@ def _prepare(state, requests):
                         key = f"guided diluted weighted average {share['point']} ({share['value']} shares, {share['period']})"
                         row["sensitivities"][key] = str(equity / Decimal(share["value"]))
     status = ("partial" if reasons else "available") if rows else "unavailable"
+    for row in rows:
+        short = horizon_note(row["name"], row["result"].get("valuation_period_end"), state)
+        if short:
+            notes.append(short)
     record = _record(status, requests, rows, [*reasons, *notes])
     baselines = {f.fact_id: {"value": str(f.value), "period_start": str(f.period_start), "period_end": str(f.period_end)}
                  for f in package.facts
@@ -811,6 +815,22 @@ def _summary_value(row):
     if row.get("disputed_by"):
         return f"{value} — flagged ({', '.join(row['disputed_by'])}), shown in range"
     return value
+
+
+def horizon_note(name, period_end, state) -> str | None:
+    """A sentence for a case whose period ends before the run's decision horizon; None when it reaches it."""
+    from datetime import date
+
+    from tradingagents.agents.analysts.fundamentals_analyst import horizon_end
+    end = horizon_end(state)
+    try:
+        case_end, today = date.fromisoformat(str(period_end)[:10]), date.fromisoformat(str(state.get("trade_date"))[:10])
+    except (ValueError, TypeError):
+        return None
+    if end is None or case_end >= end:
+        return None
+    return (f"{name}: the case period ends on {case_end}, {(case_end - today).days} days after the analysis date and "
+            f"before the decision horizon ends on {end}; its value says nothing about the months after it.")
 
 
 def _implied_earnings_multiple(row, record) -> str:

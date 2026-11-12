@@ -34,6 +34,35 @@ TOOLS = (
 )
 
 
+def horizon_end(state):
+    """The analysis date plus the run's decision horizon, or None when the date is unusable."""
+    from datetime import date
+    try:
+        day = date.fromisoformat(str(state.get("trade_date"))[:10])
+        months = int((state.get("run_settings") or {}).get("decision_horizon_months", 6))
+    except (ValueError, TypeError):
+        return None
+    year, month = divmod(day.month - 1 + months, 12)
+    year, month = day.year + year, month + 1
+    for last in (day.day, 30, 29, 28):
+        try:
+            return date(year, month, last)
+        except ValueError:
+            continue
+    return None
+
+
+def case_period_rule(state) -> str:
+    """What the analyst is told about how far a valuation case's period must reach."""
+    end = horizon_end(state)
+    if end is None:
+        return ""
+    return (f" The decision horizon for this run ends on {end}. Every valuation case's forecast period must end on or "
+            f"after {end}: when the company's current fiscal year ends before that date, forecast the following fiscal "
+            "year, so the rating is not rested on a value the company reaches in a few weeks. Say in the forecast "
+            "rationale which fiscal year you priced.")
+
+
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
@@ -48,6 +77,7 @@ def create_fundamentals_analyst(llm):
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements, and `get_insider_transactions` for recent insider buying and selling."
             + " Use the shared source brief and get_financial_evidence for exact dated facts and source IDs before drawing financial conclusions. The source tool reuses this run’s retained package. Cite fact IDs and retain reported versus derived status. It does not prove narrative disclosure coverage is complete."
             + SHARED_VALUATION_INPUTS
+            + case_period_rule(state)
             # The analyst's own cases from the last decision, when one exists: the starting point, not evidence.
             + (state.get("prior_case_context") or "")
             + PEER_PROPOSAL
