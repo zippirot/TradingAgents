@@ -277,3 +277,17 @@ Changes: the Trader's reading no longer speaks of opening a position that is hel
 | DOCN, concentrated | 7.17 fresh | 7.17 (7.0, 7.3, 7.2); Underweight x3; the wrong Trader sentence gone |
 Verdict: KEEP. MSFT follow-ups +1.07 against the earlier follow-ups (which also carried the Hold label on two of three, so not all of the gain is this fix) and level with the end-of-loop 6.73. DOCN unchanged. No loop DOCN run ended short of cash, so the shortfall line is proven by replay only.
 Total paid spend to date: about 121 dollars.
+
+## Wider mix, first pass (2026-11-12; user: "go on the default mix")
+Six companies of different kinds, none seen before; private store `~/.tradingagents/private/wide-mix-20261112/store`; free offline source checks, then one paid run where open.
+| company | kind | open offline | what stops it | reading |
+|---|---|---|---|---|
+| SNOW | unprofitable growth software | yes, 7 of 7 | - | paid run w13a reached Underweight, but the analyst submitted NO valuation cases ("the capital structure needs updating": notes issued after the balance date), so the rating is opinion only. Not yet scored |
+| COP | oil and gas | no | cash spending: no capital-expenditure line under the two tags read (it files its own line) | reading gap, same family as earlier own-line fixes |
+| NEE | utility | no | revenue filed as RegulatedAndUnregulatedOperatingRevenue; no capex under the tags read; latest primary filing not matched | reading gaps |
+| PLD | property (REIT) | no | spending filed as real-estate acquisition and development; equity and financing reconciliations do not close; latest primary filing not matched | reading gaps; valuation method (funds from operations) is a separate question |
+| PGR | insurer | no | unrestricted cash not established (only the cash-including-restricted tag) | financial company: net debt is not the right frame |
+| JPM | bank | no | revenue filed as RevenuesNetOfInterestExpense; cash as CashAndDueFromBanks; no capex | financial company: needs its own path |
+Reading: 1 of 6 open. The 80 to 90 percent figure held for industrial, technology and consumer filers only. Two groups: reading gaps the present model can absorb (COP, NEE, PLD), and financial companies that need a path without net debt or revenue multiples (JPM, PGR). New failure kind: a company that passes every source check and still gets no valuation because the analyst declines to submit cases (SNOW).
+Installed state: staging 9cfd8033 (bench batch), CI green; launcher still at 8072ae71 because a session was open on it.
+Total paid spend to date: about 122 dollars.

@@ -1147,6 +1147,17 @@
    "tag": "d11a",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-d11a/DOCN/2026-11-12/111931-91cb767a",
    "log": "/Users/zipp/.tradingagents/loop/logs-d11a/loop_run_DOCN_2026-11-12T111929.log"
+  },
+  {
+   "cycle": 13,
+   "ticker": "SNOW",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T11:41:04",
+   "tag": "w13a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-w13a/SNOW/2026-11-12/114106-4781d1b5",
+   "log": "/Users/zipp/.tradingagents/loop/logs-w13a/loop_run_SNOW_2026-11-12T114104.log"
   }
  ]
 }
