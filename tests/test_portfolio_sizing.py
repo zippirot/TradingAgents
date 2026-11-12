@@ -354,3 +354,23 @@ def test_case_weights_and_ordinary_wording_are_not_mistaken_for_portfolio_figure
               "Holdings of 1,402 remain above the 5% standard weight."]
     for sentence in hidden:
         assert without_portfolio_figures(sentence).strip() == PORTFOLIO_WITHHELD
+
+
+def test_the_loss_budget_is_tested_at_the_size_the_final_rating_calls_for():
+    """MSFT run 5bc202c4: 'no position, so nothing is at risk' beside a recommendation to buy to 6.2%."""
+    flat = sizing(full(0), "DOCN", QUOTE, levels=["70", "90"], rating="Overweight")
+    target = flat["loss"]["target"]
+    # Overweight is 1.25 x 5% = 6.25%. A fall from 80 to 70 is 12.5%, so 0.78% of the portfolio; budget 1%.
+    assert target["rating"] == "Overweight" and Decimal(target["weight"]) == Decimal("0.0625")
+    assert [(row["level"], Decimal(row["loss"]), row["inside"]) for row in target["rows"]] == [("70", Decimal("0.0078125"), True)]
+    assert Decimal(target["budget_fall"]) == Decimal("0.16")
+    text = "\n".join(render_sizing(flat, final=True))
+    assert "no position, so nothing is at risk now" in text
+    assert "At the Overweight target of 6.2%" in text and "would lose 0.78%, inside the budget" in text
+    assert "a fall of 16.0% in the price would use the whole budget" in text and "Other holdings are not included" in text
+    # A budget larger than the whole position cannot be used up by it.
+    roomy = "\n".join(render_sizing(sizing(full(0, loss_budget=0.15), "DOCN", QUOTE, rating="Overweight"), final=True))
+    assert "losing the whole position would use 6.2%, inside the budget" in roomy
+    # No final rating, or a target of nothing: no target test.
+    assert "target" not in sizing(full(0), "DOCN", QUOTE)["loss"]
+    assert "target" not in sizing(full(0), "DOCN", QUOTE, rating="Sell")["loss"]

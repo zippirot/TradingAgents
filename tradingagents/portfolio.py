@@ -163,6 +163,18 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
         for row in rows:
             row["inside"] = Decimal(row["loss"]) <= budget
         result["loss"] = {"budget": str(budget), "rows": rows, "daily_move_available": move is not None}
+        # The same test at the size the final rating calls for, so a recommendation to buy is tested before it is acted on.
+        final = result["final"]
+        weight_at_target = Decimal(final["target_weight"]) if final else Decimal(0)
+        if final and weight_at_target > 0 and Decimal(final["units_change"]):
+            at = [{"kind": "level", "level": str(price), "loss": str(weight_at_target * (close - price) / close)}
+                  for price in map(_number, levels) if price is not None and 0 < price < close]
+            if move is not None:
+                at.append({"kind": "daily_move", "move": str(move), "loss": str(weight_at_target * move)})
+            for row in at:
+                row["inside"] = Decimal(row["loss"]) <= budget
+            result["loss"]["target"] = {"rating": final["rating"], "weight": str(weight_at_target), "rows": at,
+                                        "budget_fall": str(budget / weight_at_target) if budget < weight_at_target else None}
     return result
 
 
@@ -217,7 +229,8 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
     if loss is None:
         lines.append("- Loss budget: not supplied, so no loss is compared with a limit.")
     elif not quantity:
-        lines.append(f"- Loss budget {_percent(loss['budget'], 2)} of the portfolio: no position, so nothing is at risk.")
+        lines.append(f"- Loss budget {_percent(loss['budget'], 2)} of the portfolio: no position, so nothing is at risk"
+                     + (" now." if final and loss.get("target") else "."))
     else:
         parts = []
         for row in loss["rows"]:
@@ -230,6 +243,20 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
             parts.append("average daily move unavailable (fewer than 15 retained closes)")
         lines.append(f"- Loss budget {_percent(loss['budget'], 2)} of the portfolio: " + "; ".join(parts) + ". "
                      "Prices can gap through a level; these are not stops.")
+    target = loss.get("target") if loss and final else None
+    if target:
+        parts = []
+        for row in target["rows"]:
+            where = (f"at the advisory review level {Decimal(row['level']):.2f} {money}".rstrip() if row["kind"] == "level"
+                     else f"at one average daily move ({_percent(row['move'])})")
+            parts.append(f"{where} it would lose {_percent(row['loss'], 2)}, "
+                         f"{'inside' if row['inside'] else 'OUTSIDE'} the budget")
+        parts.append(f"a fall of {_percent(target['budget_fall'])} in the price would use the whole budget"
+                     if target["budget_fall"] else
+                     f"losing the whole position would use {_percent(target['weight'])}, inside the budget")
+        lines.append(f"- At the {target['rating']} target of {_percent(target['weight'])}: " + "; ".join(parts) + ". "
+                     "This is this position alone, at this close. Other holdings are not included, and prices can "
+                     "gap through a level.")
     return lines
 
 
