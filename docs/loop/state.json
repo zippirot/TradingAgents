@@ -146,6 +146,105 @@
    "kind": "batch_cost",
    "note": "noise measurement: 9 repeats + CAT holdout, measured together",
    "cost": 11.7353
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:44:47",
+   "tag": "c1c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1c/WMT/2026-11-11/204449-4d10a17c",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1c/loop_run_WMT_2026-11-11T204447.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:44:47",
+   "tag": "c1b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1b/WMT/2026-11-11/204449-fa35d48f",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1b/loop_run_WMT_2026-11-11T204447.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:44:47",
+   "tag": "c1a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1a/WMT/2026-11-11/204449-61aea676",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1a/loop_run_WMT_2026-11-11T204447.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:52:30",
+   "tag": "c1d",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1d/WMT/2026-11-11/205233-e94d90df",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1d/loop_run_WMT_2026-11-11T205230.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:52:30",
+   "tag": "c1e",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1e/WMT/2026-11-11/205233-63805a60",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1e/loop_run_WMT_2026-11-11T205230.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T20:52:30",
+   "tag": "c1f",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1f/WMT/2026-11-11/205233-a5e41e61",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1f/loop_run_WMT_2026-11-11T205230.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T21:02:03",
+   "tag": "c1g",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1g/WMT/2026-11-11/210205-ba479979",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1g/loop_run_WMT_2026-11-11T210203.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T21:02:03",
+   "tag": "c1i",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1i/WMT/2026-11-11/210205-243b69ce",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1i/loop_run_WMT_2026-11-11T210203.log"
+  },
+  {
+   "cycle": 1,
+   "ticker": "WMT",
+   "date": "2026-11-11",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-11T21:02:03",
+   "tag": "c1h",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-c1h/WMT/2026-11-11/210205-39d5552d",
+   "log": "/Users/zipp/.tradingagents/loop/logs-c1h/loop_run_WMT_2026-11-11T210203.log"
   }
  ]
 }

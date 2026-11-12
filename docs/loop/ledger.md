@@ -56,3 +56,18 @@ Planned fix (not started): in `_filed_shares`, last resort = cover count `dei:En
 Also open: MSFT Underweight (not held) vs Overweight x3 (held) not investigated.
 
 MSFT held-versus-not-held question, RESOLVED 2026-11-11 (free check on saved states): not caused by holdings. The single portfolio-v1 run priced MSFT at the 2026-11-10 close (533.16) because the 11-11 bar was not yet posted; the three v2 runs used the 11-11 close (521.13), and their cases used multiples of 11 against 10.5. Rule for the loop from now on: every run uses `--date 2026-11-11` so price and filings are the same in every cycle. Left as an observation, not a target: a 2.3% lower price plus a slightly higher multiple moved MSFT two notches (Underweight to Overweight) in one comparison.
+
+## Cycle 1 result (WMT, three runs on 6e1f35d4; fixes b4faf29d cover share count, the derived-count brief fix, 6e1f35d4 mistyped reference)
+
+| | baseline (3 runs) | cycle 1 (3 runs) |
+|---|---|---|
+| Rating | Hold x3 | Sell x3 |
+| Reached a decision | 3 of 3 | 3 of 3 (an interim batch had 1 of 3 stop at REVIEW on a mistyped reference; fixed) |
+| Valuation cases priced | 0 of 3 | 3 of 3 |
+| Decision | 5.5, 5.5, 5.5 | 6.3, 6.4, 6.2 (mean 6.3, +0.8, beats the 0.5 line) |
+| Research | 6.2, 6.0, 6.5 | 6.8, 6.8, 6.7 |
+
+Verdict: mattered. Cost of cycle 1 paid runs: about 8.5 dollars (nine WMT runs; the first three were run before the second fix and were wasted: rule added, one run before three).
+Fix 4 (ecd7ee3a, action reading agrees with the holding) is built and tested but not yet in a paid run.
+Offline coverage 2026-11-11: 15 of 31 stored companies pass all seven source checks (16 blocked: equity_movement 8, obligation_perimeter 7, cash_flow_perimeter 3, core_statements 1, balance_sheet 1, disclosure_coverage 1).
+User decisions 2026-11-11: build an earnings-based valuation for mature companies (approved); run remaining cycles unattended (approved, after the 16-blocked question is settled). New loop rules: one run before three; track "reached a decision"; track offline coverage count.
