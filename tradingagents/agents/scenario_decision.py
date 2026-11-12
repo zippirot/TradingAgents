@@ -299,6 +299,22 @@ def _return_figures(summary) -> str:
             f"{Decimal(summary['required_return']['rate']) * 100:.2f}%")
 
 
+def size_feedback(state, summary) -> str:
+    """What to tell the manager when the size its rating calls for breaks the loss budget in its own lowest case."""
+    from tradingagents.portfolio import downside_test, sizing_from_state
+
+    test = downside_test(sizing_from_state({**state, "decision_context": None}, final=True), summary.get("sizing_rule"))
+    if not test or test["inside"]:
+        return ""
+    return (f"The size your rating calls for on the caller's scale is {Decimal(test['weight']) * 100:.1f}% of the "
+            f"portfolio. In your lowest accepted case ({test['role']}), worth {Decimal(test['fall']) * 100:.1f}% below "
+            f"the close today, that size loses {Decimal(test['loss']) * 100:.2f}% of the portfolio, more than the "
+            f"caller's loss budget of {Decimal(test['budget']) * 100:.2f}%; that case allows at most "
+            f"{Decimal(test['ceiling']) * 100:.1f}%. Resubmit the complete decision: either say in "
+            "rating_basis_reason, with these figures, why that size is still right, or revise the rating or the "
+            "scenario_view. The report prints this comparison either way.")
+
+
 def retry_feedback(state, replayed) -> str:
     """What to send back to the manager once, or '' when its scenario answer can stand."""
     summary = summarize(state, replayed)
@@ -328,6 +344,7 @@ def retry_feedback(state, replayed) -> str:
                      "completed close by more than 10 percent). Resubmit the complete decision and either state why in "
                      "rating_basis_reason or revise the rating or the scenario_view.")
     # There is one resubmission, so everything it must correct goes back together.
+    parts.append(size_feedback(state, summary))
     parts.append(event_feedback(summary.get("event_view")))
     return " ".join(part for part in parts if part)
 

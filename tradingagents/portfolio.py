@@ -200,6 +200,24 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
     return result
 
 
+def downside_test(result, rule) -> dict | None:
+    """The size the final rating calls for against the lowest accepted case and the loss budget.
+
+    ``rule`` is the decision card's sizing rule. None when there is no final size, no loss budget, or no
+    accepted case below the close: nothing is assumed in their place.
+    """
+    final = result.get("final") if isinstance(result, dict) and result.get("status") == "available" else None
+    budget = _number((result.get("loss") or {}).get("budget")) if final else None
+    fall = _number(rule.get("fall")) if isinstance(rule, dict) and rule.get("status") == "available" else None
+    weight = _number(final["target_weight"]) if final else None
+    if None in (budget, fall, weight) or fall <= 0 or weight <= 0:
+        return None
+    loss = weight * fall
+    return {"rating": final["rating"], "role": rule.get("role"), "name": rule.get("name"), "fall": str(fall),
+            "weight": str(weight), "loss": str(loss), "budget": str(budget), "inside": loss <= budget,
+            "ceiling": str(budget / fall)}
+
+
 def _percent(value, places=1):
     return f"{Decimal(value) * 100:.{places}f}%"
 
@@ -283,6 +301,14 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
         lines.append(f"- At the {target['rating']} target of {_percent(target['weight'])}: " + "; ".join(parts) + ". "
                      "This is this position alone, at this close. Other holdings are not included, and prices can "
                      "gap through a level.")
+    test = result.get("downside") if final else None
+    if test:
+        case = " — ".join(str(part) for part in (test["role"], test["name"]) if part)
+        lines.append(f"- In the lowest accepted case ({case}), worth {_percent(test['fall'])} below the close today: "
+                     f"the {test['rating']} size of {_percent(test['weight'])} would lose {_percent(test['loss'], 2)} of "
+                     f"the portfolio, {'inside' if test['inside'] else 'OUTSIDE'} the {_percent(test['budget'], 2)} "
+                     f"budget; that case allows at most {_percent(test['ceiling'])} at this budget. This is this "
+                     "position alone; the case is the report's own, not a forecast of the worst outcome.")
     return lines
 
 
@@ -299,8 +325,12 @@ def sizing_from_state(state, *, final: bool = False) -> dict:
     session = str(quote.get("session_date") or "")
     closes = [bar.get("close") for bar in bars or () if isinstance(bar, dict)
               and str(bar.get("timestamp", ""))[:10] <= session]
-    return sizing(inputs, state.get("company_of_interest", ""), quote, levels=levels, closes=closes,
-                  rating=state.get("final_rating") if final else None)
+    result = sizing(inputs, state.get("company_of_interest", ""), quote, levels=levels, closes=closes,
+                    rating=state.get("final_rating") if final else None)
+    card = state.get("decision_context") if final else None
+    basis = card.get("scenario_decision") if isinstance(card, dict) else None
+    test = downside_test(result, basis.get("sizing_rule") if isinstance(basis, dict) else None)
+    return {**result, "downside": test} if test else result
 
 
 def default_portfolio_path() -> str | None:
