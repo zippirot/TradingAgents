@@ -1,0 +1,33 @@
+{
+ "currency": "USD",
+ "portfolio_value": 100000,
+ "cash": 5000,
+ "default_standard_weight": 0.1,
+ "loss_budget": 0.15,
+ "rating_weights": {
+  "Buy": 1.5,
+  "Overweight": 1.25,
+  "Hold": 1.0,
+  "Underweight": 0.5,
+  "Sell": 0.0
+ },
+ "show_amounts": false,
+ "positions": [
+  {
+   "ticker": "JPM",
+   "quantity": 114
+  },
+  {
+   "ticker": "MSFT",
+   "quantity": 40
+  },
+  {
+   "ticker": "NVDA",
+   "quantity": 60
+  }
+ ],
+ "watchlist": [
+  "WMT",
+  "CAT"
+ ]
+}
