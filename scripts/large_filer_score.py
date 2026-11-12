@@ -125,6 +125,16 @@ class Transport:
         return self.store.get(url)
 
 
+def _open(checks) -> bool:
+    """Whether the run would go on to the analysts: no required source check stops it (the model's own claim
+    check is assumed passed; an integrity check that is only unavailable lowers confidence and does not stop)."""
+    from tradingagents.agents.evidence_validation import evidence_quality
+
+    rows = [{"code": code, "status": row["status"], "message": row["reason"]} for code, row in checks.items()]
+    rows.append({"code": "material_claims", "status": "pass", "message": "assumed for source-only scoring"})
+    return evidence_quality(rows)["status"] != "insufficient"
+
+
 def score_one(ticker, as_of, transport):
     """Seven statuses and reasons for one issuer, from the production acquisition step."""
     import requests
@@ -152,6 +162,7 @@ def score_one(ticker, as_of, transport):
             "acquisition_reason": record.get("reason") or "",
             "checks": checks, "passes": sum(1 for row in checks.values() if row["status"] == "pass"),
             "all_seven": all(row["status"] == "pass" for row in checks.values()),
+            "open": _open(checks),
             "requests": len(transport.calls) - before, "replay_misses": list(transport.misses),
             "seconds": round(time.monotonic() - started, 1)}
 

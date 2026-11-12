@@ -255,6 +255,11 @@ REQUIRED_FINANCIAL_CHECKS = (
 )
 
 
+ADVISORY_WHEN_UNAVAILABLE = {
+    "equity_movement": "Equity movement not tied out (confidence lowered, run continues)",
+}
+
+
 def evidence_quality(checks: list[dict]) -> dict:
     """Aggregate executed checks; omitted critical checks never imply success."""
     by_code = {}
@@ -276,8 +281,12 @@ def evidence_quality(checks: list[dict]) -> dict:
     critical = [by_code[code] for code in REQUIRED_FINANCIAL_CHECKS]
     # Applicability is decided before invoking this US-filer aggregator. A
     # critical check cannot bypass this scope by claiming not_applicable.
-    insufficient = any(check["status"] != "pass" for check in critical)
-    warnings = [
+    # An integrity check that could not be completed is said and lowers the status; it is not a valuation input, so
+    # its absence does not stop the run. A failure of it (a contradiction) still does.
+    advisory = [check for check in critical
+                if check["code"] in ADVISORY_WHEN_UNAVAILABLE and check["status"] == "unavailable"]
+    insufficient = any(check["status"] != "pass" and check not in advisory for check in critical)
+    warnings = [{**check, "message": f"{ADVISORY_WHEN_UNAVAILABLE[check['code']]}: {check['message']}"} for check in advisory] + [
         check
         for code, check in by_code.items()
         if code not in REQUIRED_FINANCIAL_CHECKS and check["status"] in {"fail", "unavailable"}
