@@ -567,7 +567,7 @@ def create_source_acquisition(selected_analysts):
                 "reason": "No supported dated-close provider is configured; no additional vendor was used"}
         from tradingagents.agents.required_return import fetch_required_return
 
-        update["required_return"] = fetch_required_return(str(scope["as_of"]), config)
+        update["required_return"] = fetch_required_return(str(scope["as_of"]), config, state.get("portfolio_inputs"))
         update["evidence_acquisition"] = record
         from tradingagents.agents.document_access import prepare_document_sources
 

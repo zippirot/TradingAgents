@@ -28,9 +28,20 @@ def premium_from_config(config) -> Decimal | None:
     return premium if premium is not None and 0 <= premium <= MAX_PREMIUM else None
 
 
-def fetch_required_return(as_of: str, config) -> dict:
+def premium_for_run(config, portfolio_inputs) -> tuple[Decimal | None, str]:
+    """The premium a run uses and where it came from: the caller's portfolio file when it sets one, else the app's.
+
+    An unusable value in the file is reported as unusable; it is never replaced by the default without saying so.
+    """
+    own = (portfolio_inputs or {}).get("required_return_premium") if isinstance(portfolio_inputs, dict) else None
+    if own is None:
+        return premium_from_config(config), "app setting"
+    return premium_from_config({"required_return_premium": own}), "portfolio file"
+
+
+def fetch_required_return(as_of: str, config, portfolio_inputs=None) -> dict:
     """Retrieve the yield as known on ``as_of`` and add the premium. Never assumes a yield."""
-    premium = premium_from_config(config)
+    premium, premium_source = premium_for_run(config, portfolio_inputs)
     if premium is None:
         return {"status": "unavailable", "reason": "required_return_premium must be a fraction between 0 and 0.30"}
     vendors = {name.strip() for name in str((config or {}).get("data_vendors", {}).get("macro_data", "")).split(",")}
@@ -45,10 +56,10 @@ def fetch_required_return(as_of: str, config) -> dict:
                                lambda: latest_observation(SERIES, as_of))
     except Exception as exc:  # a missing key or an unreachable source leaves the return unstated, never assumed
         return {"status": "unavailable", "reason": f"The 10-year Treasury yield could not be retrieved ({type(exc).__name__})"}
-    return required_return_record(point, premium, as_of)
+    return required_return_record(point, premium, as_of, premium_source=premium_source)
 
 
-def required_return_record(point, premium: Decimal, as_of: str) -> dict:
+def required_return_record(point, premium: Decimal, as_of: str, premium_source: str = "app setting") -> dict:
     """Validate one retrieved yield observation and state the required return built on it."""
     percent = _decimal((point or {}).get("value"))
     observed = str((point or {}).get("date") or "")
@@ -61,7 +72,8 @@ def required_return_record(point, premium: Decimal, as_of: str) -> dict:
     risk_free = percent / 100
     return {"schema_version": 1, "status": "available", "series": SERIES, "source": "FRED",
             "observation_date": observed, "as_of": as_of, "risk_free_rate": str(risk_free),
-            "premium": str(premium), "rate": str(risk_free + premium)}
+            "premium": str(premium), "rate": str(risk_free + premium),
+            **({"premium_source": premium_source} if premium_source != "app setting" else {})}
 
 
 def usable_rate(record) -> Decimal | None:
@@ -106,4 +118,6 @@ def render_required_return(record) -> str:
         return f"Required return unavailable: {reason or 'not recorded'}. No value today or sizing rule is stated."
     return (f"Required return {Decimal(record['rate']) * 100:.2f}% a year: 10-year Treasury yield "
             f"{Decimal(record['risk_free_rate']) * 100:.2f}% ({record['source']} {record['series']}, {record['observation_date']}) "
-            f"plus a fixed premium of {Decimal(record['premium']) * 100:.2f} points. A stated assumption, not a forecast.")
+            f"plus a fixed premium of {Decimal(record['premium']) * 100:.2f} points"
+            + (" (set in your portfolio file)" if record.get("premium_source") == "portfolio file" else "")
+            + ". A stated assumption, not a forecast.")

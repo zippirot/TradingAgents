@@ -24,7 +24,8 @@ RATINGS = ("Buy", "Overweight", "Hold", "Underweight", "Sell")
 SIZING_LABEL = "Position and sizing"
 AT_STANDARD_BAND = Decimal("0.05")  # within 5 percent of the standard weight counts as at standard
 RANGE_SESSIONS = 14
-_SIZING_FIELDS = ("portfolio_value", "default_standard_weight", "loss_budget", "rating_weights", "show_amounts")
+_SIZING_FIELDS = ("portfolio_value", "default_standard_weight", "loss_budget", "rating_weights", "show_amounts",
+                  "required_return_premium")
 # Read only by the portfolio review. They never enter a run's state, its agents' prompts or the file fingerprint.
 _REVIEW_ONLY = {"watchlist": True, "limits": True, "positions": {"__all__": {"sector"}}}
 
@@ -58,6 +59,10 @@ class PortfolioContext(BaseModel):
     rating_weights: dict[str, float] | None = Field(
         default=None, description="What each rating means as a multiple of the standard weight, e.g. Underweight 0.5")
     show_amounts: bool = Field(default=False, description="Show currency amounts beside percentages and units")
+    required_return_premium: float | None = Field(
+        default=None, ge=0, le=0.30,
+        description="The yearly return you require above the 10-year Treasury yield, as a fraction (0.05 is 5 points). "
+                    "Left out, the app's own setting is used.")
     watchlist: list[str] = Field(default_factory=list, description="Tickers not held that the review also covers")
     limits: Limits | None = Field(default=None, description="Position, sector and cash limits for the review")
 
