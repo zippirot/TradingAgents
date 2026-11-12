@@ -178,12 +178,27 @@ def research_rating(investment_plan) -> str | None:
     return None if found else extract_rating(text)
 
 
-def action_reading(action, research_rating) -> str | None:
-    """How a three-way Trader action reads under a five-way research rating, or None when no reading is needed."""
+def action_reading(action, research_rating, sizing=None) -> str | None:
+    """How a three-way Trader action reads under a five-way research rating, or None when no reading is needed.
+
+    With the run's sizing block, the reading is checked against the holding: a Sell is not called a reduction
+    when the holding is already at or below the rating's target, nor a Buy an addition when it is at or above.
+    """
     reading = {("Sell", "Underweight"): "Reduce", ("Buy", "Overweight"): "Add"}.get((action, research_rating))
     if reading is None:
         return None
-    return f"{reading} (the Trader's {action} under the research rating {research_rating})"
+    said = f"(the Trader's {action} under the research rating {research_rating})"
+    row = next((r for r in (sizing or {}).get("targets") or () if r.get("rating") == research_rating), None)
+    change = _decimal(row.get("units_change")) if row else None
+    if change is None or (change < 0 if reading == "Reduce" else change > 0):
+        return f"{reading} {said}"
+    held = _decimal(sizing.get("quantity"))
+    where = (f"{abs(change):,.0f} units {'above' if change > 0 else 'below'} the current holding" if change
+             else "at the current holding")
+    return (f"The Trader's {action} under the research rating {research_rating} is not "
+            f"{'a reduction' if reading == 'Reduce' else 'an addition'} here: "
+            + ("nothing is held; " if not held else "")
+            + f"the Position and sizing block puts the {research_rating} target {where}")
 
 
 def reference_position(row, state) -> dict:

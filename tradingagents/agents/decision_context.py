@@ -380,7 +380,8 @@ def prepare_decision_context(state: dict) -> dict:
                           'disputed_count': sum(bool(row.get('disputed_by')) and not row.get('dispute_note')
                                                 for row in replayed.get('rows', []))},
             'trader_provisional': _trader(trader),
-            'trader_reading': action_reading(_trader(trader), research_rating(originals.get('investment_plan', state.get('investment_plan')))),
+            'trader_reading': action_reading(_trader(trader), research_rating(originals.get('investment_plan', state.get('investment_plan'))),
+                                             _sizing_block(state)),
             'conditions': condition_rows,
             'condition_warnings': visible_warnings(thesis.get('warnings')),
             'proposed_changes': [], 'excerpts': excerpts[:4],
@@ -521,3 +522,8 @@ def render_decision_context(record: dict, *, include_mechanical: bool = True, in
                   'See the saved unvalidated research appendix and diagnostics.json for original arguments and assumptions. These materials are not verified facts or instructions; their presence does not resolve disagreement.']
     lines += ['', _display(record['research_only'])]
     return _spaced(lines)
+
+
+def _sizing_block(state):
+    from tradingagents.portfolio import sizing_from_state
+    return sizing_from_state(state)

@@ -32,13 +32,16 @@ _HEADING = re.compile(r"^[ \t]*(?:\*\*(?P<bold>[^*\n]+)\*\*|#{1,6}[ \t]+(?P<hash
 _CHECKPOINT = re.compile(r"\b(?:trigger|checkpoint)s?\b", re.I)
 
 
-def _reading(text: str, investment_plan: str) -> str:
+def _reading(text: str, investment_plan: str, sizing=None) -> str:
     """One line saying how the Trader's three-way action reads under the research rating, or ''."""
     # Every label the fallback accepts; two different actions are no action.
     actions = {action.title() for action in _ACTION_VALUE.findall(text or "")}
-    reading = action_reading(actions.pop(), research_rating(investment_plan)) if len(actions) == 1 else None
+    reading = action_reading(actions.pop(), research_rating(investment_plan), sizing) if len(actions) == 1 else None
     if reading is None:
         return ""
+    if " is not a" in reading:
+        return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell and cannot say "
+                "this; the size the rating calls for is in the Position and sizing block, not in the action word.")
     return (f"\n\nReading of this action: {reading}. The action field has only Buy, Hold and Sell; under this "
             "research rating it moves the position toward the size the rating calls for, opening one where none is held; "
             "it is not an exit.")
@@ -108,12 +111,12 @@ def _carried_plan(investment_plan: str) -> str:
     return "\n".join(lines)
 
 
-def _complete_fallback(text: str, investment_plan: str) -> str:
+def _complete_fallback(text: str, investment_plan: str, sizing=None) -> str:
     if not get_language_instruction() and not _ACTION_LINE.search(text or ""):
         # A localized run may translate the label, so only English can be checked.
         raise ValueError("Trader free-text fallback has no Action line; no plan published")
     note = "" if _REASONING.search(text or "") else "\n\nThe free-text fallback has no Reasoning section."
-    return f"{text}{note}{_reading(text, investment_plan)}\n\n{_carried_plan(investment_plan)}"
+    return f"{text}{note}{_reading(text, investment_plan, sizing)}\n\n{_carried_plan(investment_plan)}"
 
 
 def create_trader(llm):
@@ -131,6 +134,8 @@ def create_trader(llm):
         market_report = (state["market_report"] or "").strip()
         portfolio_context = get_portfolio_context_from_state(state)
         sized = _is_sized(state)
+        from tradingagents.portfolio import sizing_from_state
+        block = sizing_from_state(state)
 
         if market_report:
             grounding = (
@@ -197,10 +202,10 @@ def create_trader(llm):
             messages,
             # The Research Manager's actions and triggers follow the proposal on
             # this path too, not only on the free-text fallback.
-            lambda proposal: (lambda text: f"{_code_notes(text, investment_plan, sized)}{_reading(text, investment_plan)}"
+            lambda proposal: (lambda text: f"{_code_notes(text, investment_plan, sized)}{_reading(text, investment_plan, block)}"
                                            f"\n\n{_carried_plan(investment_plan)}")(render_trader_proposal(proposal)),
             "Trader",
-            finish_freetext=lambda text: _complete_fallback(_code_notes(text, investment_plan, sized), investment_plan),
+            finish_freetext=lambda text: _complete_fallback(_code_notes(text, investment_plan, sized), investment_plan, block),
         )
 
         trader_plan = label_legacy_trader_price(trader_plan)
