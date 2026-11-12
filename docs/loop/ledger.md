@@ -348,3 +348,12 @@ Agreed with the user, replacing score-chasing on single evaluator complaints (mo
 3. Look-back test: run as of past dates on the eight and compare ratings with what the shares then did. First a free check that an as-of run cannot see later information.
 4. Choose what to improve next from that.
 Blocked for paid runs: the provider account is out of credit (the user's to top up).
+
+### Conditional Hold built (bench, NOT installed) and what the free replay says about it
+Built with tests: band of 3 points of yearly return either side of the required return, or the figure in the portfolio file (`hold_band_points`); inside it a Hold is printed as a Conditional Hold with its conditions, any other rating owes a reason other than this valuation (asked once), and code never changes a rating. Suite 4,829.
+Free replay over 88 distinct saved runs: only 9 fall inside a 3-point band (7 MSFT, 2 DOCN). Gap to the required return, points, median (min to max): CAT -17.4 (-33 to +12), CVX -19.4, DOCN -8.5 (-57 to +1), MSFT -1.0 (-8 to +10), UNH -9.0, WMT -49 (-71 to -11; the early runs carry the short-period distortion).
+Reading: the uniform Underweight is NOT a matter of narrow misses. For every company but MSFT the accepted scenarios return far less than 9.88 percent a year. The Conditional Hold is right for MSFT-like cases and will change little else. The dominant cause is the first one: how the scenarios themselves are built (central cases near today's price; every base case on a lower multiple than the price pays). Whether that bearishness is right is a question about outcomes, not report quality.
+
+### Look-back test, free pre-check (2d-1)
+Source acquisition run as of 2026-08-03 for MSFT, DOCN, JPM: no filing dated after the date, no reporting period after it, price session 2026-08-03, latest documents 2026-07-23 to 2026-07-29. The filed data and prices are clean as of a past date.
+NOT clean, and no code can fix it: (a) the model itself may know what happened after the date if the date falls inside its training period; (b) news, social and vendor feeds are not all dated (the vendor estimates reader already refuses past dates; StockTwits and headlines return recent items). So a look-back is only meaningful for dates after the model's knowledge cutoff, with the undated feeds switched off or accepted as degraded, and only short horizons (5, 21, 63 sessions) will have matured. The model's cutoff is not known to me and must be established before any paid look-back run.
