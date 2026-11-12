@@ -173,6 +173,11 @@ def _identity(ticker: str) -> dict:
     return identity
 
 
+def latest_first(facts):
+    """Newest first, a fact that has a value ahead of an empty placeholder (which is dated the analysis date)."""
+    return sorted(facts, key=lambda f: (f.value is not None, f.period_end, f.origin == "reported"), reverse=True)
+
+
 def build_instrument_context(
     ticker: str,
     asset_type: str = "stock",
@@ -368,8 +373,8 @@ def build_shared_source_brief(state: Mapping[str, Any]) -> str:
             if fact.metric.startswith("Unclassified Marketable Securities ["):
                 continue  # Raw aliases remain in evidence, never duplicated as accepted liquidity.
             groups.setdefault(fact.metric, []).append(fact)
-        for group in groups.values():
-            group.sort(key=lambda f: (f.period_end, f.origin == "reported"), reverse=True)
+        for metric, group in groups.items():
+            groups[metric] = latest_first(group)
         ordered = []
         for metric in ("Revenue", "Diluted EPS", "Basic EPS"):
             annual = next((f for f in groups.get(metric, ()) if f.period_start is not None

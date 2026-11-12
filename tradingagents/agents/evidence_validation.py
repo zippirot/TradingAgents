@@ -1710,6 +1710,11 @@ def cash_flow_checks(package, disclosures=None, source_precision=None, *, extrac
     return results, check, warnings
 
 
+# A share count the filing states another way (issued less treasury, or on the cover) is source-replayed like the
+# parent-income bridge: the analyst is shown it, with its inputs, in place of the empty direct-tag placeholder.
+_SHARE_BRIDGES = frozenset({"shares_issued_less_treasury_v1", "cover_count_after_balance_v1"})
+
+
 def canonical_accounting_context(package, calculations):
     """Render readable values once, with a separate exact-ID reference index."""
     from tradingagents.agents.evidence_presentation import REFERENCE_END, REFERENCE_START
@@ -1731,12 +1736,12 @@ def canonical_accounting_context(package, calculations):
             f for f in package.facts if f.metric == metric
             and (f.origin == "reported" or (
                 metric == "Net Income" and f.formula_id == "consolidated_profit_less_nci_v1"
-            ))
+            ) or (metric == "Common Shares Outstanding" and f.formula_id in _SHARE_BRIDGES))
         ]
         # The definition bridge is source-replayed and remains explicitly
         # derived; a missing direct-tag placeholder must not hide it. Do not
         # broaden this to arbitrary calculated quarters or TTM values.
-        if any(f.formula_id == "consolidated_profit_less_nci_v1" for f in rows):
+        if any(f.formula_id == "consolidated_profit_less_nci_v1" or f.formula_id in _SHARE_BRIDGES for f in rows):
             rows = [f for f in rows if f.value is not None]
         latest = max((f.period_end for f in rows), default=None)
         rows = [f for f in rows if f.period_end == latest]

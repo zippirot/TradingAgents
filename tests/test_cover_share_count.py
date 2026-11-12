@@ -78,3 +78,36 @@ def test_a_case_priced_on_a_cover_count_says_so_beside_its_value():
     assert row["target"] == before["target"]
     assert any(line.startswith("share count:") and "cover-page count dated" in line for line in row["assumptions"])
     assert not any(line.startswith("share count:") for line in before["assumptions"])
+
+
+def _with_placeholder(package):
+    """What the tag reader leaves when no share-count tag exists: an empty fact dated the analysis date."""
+    from tests.test_face_liabilities import CUT
+
+    shares = next(f for f in package.facts if f.metric == "Common Shares Outstanding")
+    empty = shares.model_copy(update={"fact_id": "placeholder", "value": None, "unit": "unknown", "period_end": CUT,
+                                      "origin": "reported", "formula_id": None, "input_fact_ids": (),
+                                      "source_ids": (), "missing_reason": "No usable consolidated fact"})
+    return package.model_copy(update={"facts": (empty, *package.facts)})
+
+
+def test_the_analyst_is_shown_a_derived_share_count_and_not_the_empty_placeholder_beside_it():
+    from tradingagents.agents.evidence_validation import canonical_accounting_context
+
+    for extra in (_contexts() + _share_fact("dei:EntityCommonStockSharesOutstanding", 7934, "cover") + AVERAGE,
+                  _share_fact("us-gaap:CommonStockSharesIssued", 1000) + _share_fact("us-gaap:TreasuryStockCommonShares", 150)):
+        package = _with_placeholder(_shares(extra)[1])
+        text = str(canonical_accounting_context(package, ()))
+        assert "Common Shares Outstanding: unavailable" not in text
+        derived = next(f for f in package.facts if f.metric == "Common Shares Outstanding" and f.value is not None)
+        assert f"fact_id {derived.fact_id}" in text and "; derived;" in text
+        # The figures it was derived from are listed with it.
+        assert all(f"fact_id {ident}" in text for ident in derived.input_fact_ids)
+
+
+def test_the_latest_facts_list_puts_a_valued_share_count_ahead_of_the_empty_placeholder():
+    from tradingagents.agents.context import latest_first
+
+    package = _with_placeholder(_shares(_contexts() + _share_fact("dei:EntityCommonStockSharesOutstanding", 7934, "cover") + AVERAGE)[1])
+    rows = latest_first([f for f in package.facts if f.metric == "Common Shares Outstanding"])
+    assert rows[0].value == 7934 and rows[-1].value is None
