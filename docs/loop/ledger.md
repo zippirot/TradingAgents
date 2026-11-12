@@ -29,6 +29,17 @@ are not compared. Differences under 0.3 between runs of the same code are treate
 | date | item | why it needs a decision |
 |---|---|---|
 
+## Noise baseline (cycle 0, portfolio v2 with MSFT held; three independent runs each on 2ff7a43c; evaluator Claude helper TAE-1.1-loop1)
+
+| company | ratings | Decision mean (spread) | Research mean | D1 | D2 | D3 | D4 | D5 | D6 | D7 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| DOCN | Sell x3 | 7.33 (0.5) | 8.27 | 7.1 (0.7) | 7.8 (0.0) | 7.2 (0.8) | 7.6 (1.0) | 7.2 (0.7) | 6.93 (0.2) | 8.57 (0.2) |
+| MSFT | Overweight x3 | 6.67 (0.4) | 7.47 | 6.37 (0.2) | 6.67 (0.5) | 6.5 (1.0) | 6.37 (1.0) | 6.97 (0.9) | 7.6 (1.2) | 7.77 (0.7) |
+| WMT | Hold x3 | 5.5 (0.0) | 6.23 | 2.67 (0.5) | 6.4 (0.3) | 6.5 (0.0) | 5.5 (0.0) | 6.33 (1.5) | 6.5 (1.0) | 7.33 (0.5) |
+| CAT (holdout, one run) | Sell | 6.7 | 7.0 | 6.0 | 7.0 | 6.8 | 7.5 | 7.5 | 6.5 | 7.8 |
+
+Lines a change must beat (three-run means): Decision by more than 0.5; a single factor by more than 1.0 (1.5 for D5). Rating agreement is 3 of 3 everywhere, so stability starts at its ceiling; the goal is not to lose it. Cost of the ten runs: 11.74 dollars. Open question: MSFT rated Underweight in the one portfolio-v1 run (not held) and Overweight in all three v2 runs (held); not yet investigated.
+
 ## State
 
 2026-11-11: baseline (cycle 0) complete, 3.30 dollars spent. The user put cycle 1 ON HOLD while they finish the loop's design; do not start a fix or a paid run until they say so. Loop runs use a made-up portfolio with none of the three stocks held, so ratings are not comparable with the user's own runs.
