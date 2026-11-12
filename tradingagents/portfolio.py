@@ -86,7 +86,8 @@ class PortfolioContext(BaseModel):
         symbol = ticker.strip().upper()
         held = self.position_in(symbol)
         if held is None:
-            lines = [f"- No current position in {symbol}"]
+            lines = [f"- No current position in {symbol}. With nothing held, Underweight and Sell both mean do not buy; "
+                     "neither opens a position"]
         else:
             price = f", average price {held.average_price:,.2f}" if held.average_price is not None else ""
             lines = [f"- Current position in {symbol}: {held.quantity:,.4g} units{price}"]
@@ -164,6 +165,9 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
             target = standard * multiple
             row = {"rating": name, "multiple": str(multiple), "target_weight": str(target),
                    "units_change": str((target * value / close - quantity).quantize(Decimal(1)))}
+            # A rating below Hold never opens or enlarges a long position: with less held than its weight, it is no purchase.
+            if name in ("Underweight", "Sell") and quantity >= 0 and target > weight:
+                row.update(target_weight=str(weight), units_change="0", scale_weight=str(target), no_addition=True)
             result["targets"].append(row)
             if name == rating:
                 result["final"] = row
@@ -229,6 +233,10 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
                      "standard (within 5 percent of the standard weight counts as at standard).")
 
         def move(row):
+            if row.get("no_addition"):
+                return ("no purchase (a rating below Hold never adds to a position; "
+                        + ("nothing is held" if not quantity else
+                           f"you hold less than its {_percent(row['scale_weight'])} weight") + ")")
             change = Decimal(row["units_change"])
             gap = "what you hold now" if not change else (
                 f"about {_units(abs(change))} units {'more' if change > 0 else 'fewer'} than you hold"

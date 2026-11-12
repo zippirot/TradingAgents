@@ -193,6 +193,10 @@ def action_reading(action, research_rating, sizing=None) -> str | None:
     if change is None or (change < 0 if reading == "Reduce" else change > 0):
         return f"{reading} {said}"
     held = _decimal(sizing.get("quantity"))
+    if row.get("no_addition"):
+        return (f"The Trader's {action} under the research rating {research_rating} is not a reduction here: "
+                + ("nothing is held" if not held else "less is held than the rating's weight")
+                + ", so it means no purchase (see the Position and sizing block)")
     where = (f"{abs(change):,.0f} units {'above' if change > 0 else 'below'} the current holding" if change
              else "at the current holding")
     return (f"The Trader's {action} under the research rating {research_rating} is not "

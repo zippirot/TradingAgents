@@ -280,7 +280,7 @@ def test_markdown_and_html_reports_carry_the_block_once_each_at_the_top(monkeypa
     text = (tmp_path / "with" / "complete_report.md").read_text()
     page = (tmp_path / "with" / "complete_report.html").read_text()
     assert text.index("**Position and sizing**") < text.index("## ") and "Position and sizing</strong>" in page
-    assert "For the final rating Underweight on your scale" in text and "units more than you hold" in page
+    assert "For the final rating Underweight on your scale" in text and "no purchase (a rating below Hold never adds" in page
     plain_state, plain = _published(monkeypatch, None)
     write_report_tree({**plain_state, **plain}, "DOCN", tmp_path / "without")
     for name in ("complete_report.md", "complete_report.html"):

@@ -19,9 +19,9 @@ def _sized(quantity):
 def test_a_sell_under_underweight_is_not_called_a_reduction_when_the_holding_is_below_the_target():
     line = action_reading("Sell", "Underweight", _sized(0))
     assert not line.startswith("Reduce") and "nothing is held" in line
-    assert "25 units above the current holding" in line and "Underweight target" in line
+    assert "no purchase" in line and "units above" not in line
     short = action_reading("Sell", "Underweight", _sized(10))
-    assert "nothing is held" not in short and "15 units above the current holding" in short
+    assert "nothing is held" not in short and "less is held than the rating's weight" in short
 
 
 def test_a_reading_that_agrees_with_the_holding_is_unchanged_and_no_sizing_reads_as_before():
