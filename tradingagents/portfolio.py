@@ -319,6 +319,34 @@ def downside_test(result, rule) -> dict | None:
             "ceiling": str(budget / fall)}
 
 
+def limit_size(result) -> dict:
+    """Cut the size the final rating calls for to what the caller's loss budget and sector limit allow.
+
+    The loss ceiling is the budget over the fall to the lowest accepted case; the sector ceiling is the limit
+    less the other holdings of the sector. A limit only ever reduces a size, and the rating is not touched.
+    """
+    final = result.get("final") if isinstance(result, dict) and result.get("status") == "available" else None
+    weight = _number(final["target_weight"]) if final else None
+    if weight is None or weight <= 0:
+        return result
+    ceilings = []
+    test, group = result.get("downside"), result.get("group")
+    if isinstance(test, dict) and _number(test.get("ceiling")) is not None:
+        ceilings.append((_number(test["ceiling"]), "loss_budget"))
+    if isinstance(group, dict) and _number(group.get("limit")) is not None:
+        others = Decimal(group["now"]) - Decimal(result["current_weight"])
+        ceilings.append((max(_number(group["limit"]) - others, Decimal(0)), "sector_limit"))
+    if not ceilings:
+        return result
+    allowed, bound = min(ceilings, key=lambda pair: pair[0])
+    if allowed >= weight:
+        return result
+    close, value, quantity = Decimal(result["close"]), Decimal(result["portfolio_value"]), Decimal(result["quantity"])
+    return {**result, "limited": {"rating": final["rating"], "rating_weight": str(weight), "weight": str(allowed),
+                                  "bound_by": bound,
+                                  "units_change": str((allowed * value / close - quantity).quantize(Decimal(1)))}}
+
+
 def _percent(value, places=1):
     return f"{Decimal(value) * 100:.{places}f}%"
 
@@ -434,7 +462,19 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
             text += f" Left out (price or sector not found): {', '.join(group['left_out'])}; the figure is partial."
         lines = [line.replace("Other holdings are not included, and", "Related holdings are in the line below, and")
                  for line in lines]
-        lines.append(text + " Code states the figures; it does not change the rating or the size.")
+        lines.append(text + (" Code states the figures; it does not change the rating." if result.get("limited") and final
+                             else " Code states the figures; it does not change the rating or the size."))
+    limited = result.get("limited") if final else None
+    if limited:
+        change = Decimal(limited["units_change"])
+        gap = "what you hold now" if not change else (
+            f"about {_units(abs(change))} units {'more' if change > 0 else 'fewer'} than you hold{amount(abs(change) * close)}")
+        why = ("your loss budget: a larger size would lose more than the budget in the lowest accepted case"
+               if limited["bound_by"] == "loss_budget" else
+               "your sector limit: a larger size would take the sector over it")
+        lines.append(f"- Size after your limits: {_percent(limited['weight'])} of the portfolio ({gap}). The "
+                     f"{limited['rating']} size of {_percent(limited['rating_weight'])} is cut by {why}. A limit only "
+                     "ever reduces a size; the rating is not changed.")
     return lines
 
 
@@ -460,7 +500,8 @@ def sizing_from_state(state, *, final: bool = False) -> dict:
     if fallen:
         result["group"]["downside"] = fallen
     test = downside_test(result, rule)
-    return {**result, "downside": test} if test else result
+    result = {**result, "downside": test} if test else result
+    return limit_size(result) if final else result
 
 
 def default_portfolio_path() -> str | None:
