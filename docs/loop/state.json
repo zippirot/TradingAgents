@@ -2533,6 +2533,17 @@
    "tag": "sub1",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-sub1/MSFT/2026-11-13/082139-396843cb",
    "log": "/Users/zipp/.tradingagents/loop/logs-sub1/loop_run_MSFT_2026-11-13T082138.log"
+  },
+  {
+   "cycle": 5,
+   "ticker": "BTC-USD",
+   "date": "2026-11-13",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-13T08:28:07",
+   "tag": "btc3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-btc3/BTC-USD/2026-11-13/082808-773a9cca",
+   "log": "/Users/zipp/.tradingagents/loop/logs-btc3/loop_run_BTC-USD_2026-11-13T082807.log"
   }
  ]
 }

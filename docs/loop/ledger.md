@@ -467,3 +467,6 @@ First run on the plan: MSFT, standard made-up portfolio, fresh (`logs-sub1`), co
 
 ### Non-company reports (user: "we need to fix those yes"; bench 219dfafd, NOT installed)
 Reproduced offline by replaying the saved BTC-USD state through `enforce_publication` (raw pydantic text and company-only lines present), then fixed, tests first (suite 4,857): for any asset type other than stock, the target reason is one plain sentence, the valuation section is one line ("Valuation: not applicable ... research opinion from price action, news and sentiment"), and no document-search block is printed. Stock runs unchanged. One existing test expected the old wording for a crypto report and was updated to the new one. Reddit stays unavailable until the user enters the key (L-5).
+
+### Installed dcf0d7eb (user: "install", 2026-11-13)
+Confirming BTC-USD run on the plan (`logs-btc3`): Underweight; none of the six fault strings present; the one "Valuation: not applicable" line prints. Staging fast-forwarded d2054424 -> dcf0d7eb, CI green first run (43453253213). Launcher on `claude/installed-dcf0d7eb`, 18 focused tests pass, CLI starts. Production stays 268ffcf3. Bench is one local ledger commit ahead.
