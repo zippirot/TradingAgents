@@ -516,3 +516,15 @@ Verdict on score: NO measurable gain. Decision is flat (line to beat: 0.5), D1 i
 What did change, read from the evaluators' own top weakness: without A, 7 of 12 lead with the cases being asserted or unbuilt EPS figures; with A, none does. With A the lead complaint is the unsupported multiple and default equal weights (5 of 12), and on MSFT the Overweight size breaking the 1% loss budget (3 of 3 with, 2 of 3 without), which the sizing ceilings (not in these runs) remove. So the build closed the half of the valuation complaint it was aimed at, and the score now rests on the other half: how the multiple and the weights are chosen.
 JPM a42: Overweight while calling the stock Unattractive, on a 39% holding; code could not flag it because bank cards carry no comparison with price (map 2b-14).
 Baseline for B on c8ad5325, 32 runs as of 2026-05-01, 06-01, 07-01, 08-03 (`logs-ob*`): 23 rated. At 63 sessions against SPY: Attractive +13.2 (4, none below the market), Fair +4.7 (4), Unattractive -4.5 (15, 10 below). Directional calls right 14 of 19 (11 of 19 at 21 sessions); rank correlation of valuation with later excess return 0.77 (0.26 at 21). Third independent set with the same picture. The same 32 with A (`logs-oa*`) are running.
+
+### B with A: the same 32 past-date runs on the valuation build (`logs-oa*`, 8ed6a55e; 2026-11-13)
+All 32 exit 0; 23 rated in both sets (DOCN and CVX stop at REVIEW on all four past dates, CAT on 2026-05-01, in both).
+| at 63 sessions against SPY | baseline (c8ad5325) | with A |
+|---|---|---|
+| Attractive | +13.2 (4, none below the market) | +12.6 (5, none below) |
+| Fair | +4.7 (4) | -1.6 (2) |
+| Unattractive | -4.5 (15, 10 below) | -3.5 (16, 10 below) |
+| directional calls right | 14 of 19 | 15 of 21 |
+| rank correlation, valuation with later excess return | 0.77 | 0.80 |
+At 21 sessions: 11 of 19 and 0.26 without, 12 of 21 and 0.43 with. Views by company are the same except PGR (Attractive 1, Fair 3 without; Attractive 2, Fair 1, Unattractive 1 with).
+Verdict on A: neutral on outcomes as on scores. It neither helps nor harms how often the views are right on this sample; what it adds is that each report shows what the earnings figure rests on, the dividend in the return, and peers on earnings and book value. The outcome picture has now held in four independent sets of runs (two on Terra Pro, two on Terra).
