@@ -2214,6 +2214,72 @@
    "tag": "ls0601",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-ls0601/CVX/2026-06-01/164359-6b7d1f90",
    "log": "/Users/zipp/.tradingagents/loop/logs-ls0601/loop_run_CVX_2026-11-12T164357.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-msft2",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-msft2/MSFT/2026-11-12/170826-a0aef4d9",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-msft2/loop_run_MSFT_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-msft1",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-msft1/MSFT/2026-11-12/170826-87da1ffd",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-msft1/loop_run_MSFT_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-msft3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-msft3/MSFT/2026-11-12/170826-bf0f8f09",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-msft3/loop_run_MSFT_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-docn1",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-docn1/DOCN/2026-11-12/170826-c7e83ad7",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-docn1/loop_run_DOCN_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-docn3",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-docn3/DOCN/2026-11-12/170826-ed7b78c7",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-docn3/loop_run_DOCN_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "DOCN",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:08:23",
+   "tag": "fs-docn2",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-docn2/DOCN/2026-11-12/170826-aca2e6e8",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-docn2/loop_run_DOCN_2026-11-12T170823.log"
   }
  ]
 }

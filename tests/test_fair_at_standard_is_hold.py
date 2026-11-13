@@ -14,6 +14,7 @@ from tradingagents.agents.scenario_decision import (
     priced_cases,
     render,
     render_cases_for_manager,
+    retry_feedback,
     summarize,
     with_value_today,
 )
@@ -53,3 +54,12 @@ def test_the_manager_is_told_the_rule_before_deciding():
     cases = with_value_today(priced_cases(_three()), {"trade_date": "2026-11-10", "required_return": RETURN})
     text = render_cases_for_manager(cases, RETURN)
     assert "Fair stock held at its standard weight is a Hold" in text and "named portfolio reason" in text
+
+
+def test_the_manager_is_asked_once_even_when_it_gave_a_reason():
+    """Measured 2026-11-12: with the rule in its instructions the manager still trimmed and gave the valuation as its
+    reason; a reason of any kind had switched the question off."""
+    given = _with("Underweight", 50, reason="The weighted value is about the close, supporting a Fair view.")
+    assert "a Fair stock at its standard weight is a Hold" in retry_feedback(given, _three())
+    assert "standard weight is a Hold" not in retry_feedback(_with("Hold", 50), _three())
+    assert "standard weight is a Hold" not in retry_feedback(_with("Underweight", 400, reason="It is 40% of the portfolio."), _three())

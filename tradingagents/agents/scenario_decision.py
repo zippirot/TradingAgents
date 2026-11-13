@@ -394,13 +394,14 @@ def retry_feedback(state, replayed) -> str:
             f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
             "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
             "scenario_view.")
-    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "fair_at_standard":
+    elif summary.get("contrary_basis") == "fair_at_standard":     # asked once whatever reason was given: code cannot judge a reason
         parts.append(
             f"Your stock_view is Fair, the caller holds the position at its standard weight, and your rating is "
             f"{state.get('final_rating')}. On the caller's scale a Fair stock at its standard weight is a Hold. "
             "Resubmit the complete decision: rate Hold, or keep your rating and name in rating_basis_reason the "
             "portfolio reason with its figure (for example the combined weight of related holdings, or a loss-budget "
-            "breach). Restating the valuation is not a portfolio reason. Do not change the stock view to fit.")
+            "breach). Restating the valuation is not a portfolio reason. If you have already named one, resubmit "
+            "unchanged. Do not change the stock view to fit.")
     elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "action_against_view":
         parts.append(
             f"Your stock_view is {summary['stock_view']} and your rating, the position action, is "
