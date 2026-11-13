@@ -124,6 +124,7 @@ _STATEMENTS["income_statement"] += [
     ("Diluted Earnings Numerator", ("NetIncomeLossAvailableToCommonStockholdersDiluted",)),
     ("Weighted Average Basic Shares", ("WeightedAverageNumberOfSharesOutstandingBasic",)),
     ("Weighted Average Diluted Shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",)),
+    ("Dividends Declared Per Share", ("CommonStockDividendsPerShareDeclared", "CommonStockDividendsPerShareCashPaid")),
     ("Income Tax Expense or Benefit", ("IncomeTaxExpenseBenefit",)),
     ("Nonoperating Interest Expense", ("InterestExpenseNonoperating",)),
     ("Debt Interest Expense", ("InterestExpenseDebt",)),

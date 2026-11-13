@@ -24,6 +24,7 @@ from tradingagents.agents.required_return import (
 )
 from tradingagents.agents.scenario_return import (
     annual_return,
+    dividend_yield,
     earnings_parts,
     return_parts,
     short_period,
@@ -336,6 +337,12 @@ def summarize(state, replayed) -> dict:
             equal = _decimal((summary["sturdiness"] or {}).get("equal_weight_vs_close_percent"))
             given = _decimal(today["weighted_today_vs_close_percent"])
             summary["weights_decide"] = bool(equal and given and (equal > 0) != (given > 0))
+    # A holder also receives the dividend; the gap against the required return is judged with it.
+    evidence = state.get("financial_evidence") if isinstance(state.get("financial_evidence"), dict) else {}
+    paid = dividend_yield(evidence.get("facts"), close) if summary.get("return_gap_points") is not None else None
+    if paid is not None:
+        summary.update(dividend=paid, return_gap_before_dividend=summary["return_gap_points"],
+                       return_gap_points=str(Decimal(summary["return_gap_points"]) + Decimal(paid["yield_percent"])))
     rating = state.get("final_rating")
     contrary = ((rating in _BEARISH and summary["direction"] == "above")
                 or (rating in _BULLISH and summary["direction"] == "below"))
@@ -394,8 +401,10 @@ _SAYS_CLEARED = re.compile(
 
 
 def _return_figures(summary) -> str:
-    return (f"{Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year against a required "
-            f"{Decimal(summary['required_return']['rate']) * 100:.2f}%")
+    paid = summary.get("dividend")
+    return (f"{Decimal(summary['weighted_annual_return']) * 100:+.1f}% a year"
+            + (f" in price plus a filed dividend of {Decimal(paid['yield_percent']):.1f}%" if paid else "")
+            + f" against a required {Decimal(summary['required_return']['rate']) * 100:.2f}%")
 
 
 def retry_feedback(state, replayed) -> str:
@@ -652,6 +661,12 @@ def render_today_basis(summary) -> list[str]:
                  f"{short['days']} days to {next(iter(ends))}. The yearly figure, {yearly}, repeats that {short['days']}-day "
                  f"move for a full year and is not a forecast of one; it is set {tail}" if short else
                  f" Bought at the close, the weighted case returns {yearly} {tail}")
+    paid = summary.get("dividend")
+    if paid:
+        text += (f" Those figures are the price alone. Adding the dividend of {Decimal(paid['per_share']):f} a share filed "
+                 f"for the year to {paid['period_end']} ({Decimal(paid['yield_percent']):.1f}% of the close), held at that "
+                 f"rate, the gap is {Decimal(summary['return_gap_points']):+.1f} points; code's reading of the stock uses "
+                 "that.")
     return [text + f" Direction: {summary['direction']} the close, using a 10 percent threshold."]
 
 

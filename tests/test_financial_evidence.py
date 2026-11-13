@@ -284,8 +284,11 @@ def test_bounded_tool_view_retains_annual_valuation_baselines_without_extra_data
               for i in range(80)]
     annual = [fact(fact_id=metric, metric=metric, period_start="2025-01-01",
                    period_end="2025-12-31", unit=unit)
+              # Net income and diluted shares joined 2026-11-13: an earnings build starts from them, and without
+              # them in view the analyst proposed no cases at all (MSFT, first run with the build).
               for metric, unit in (("Revenue", "USD"), ("Diluted EPS", "USD/shares"),
-                                   ("Basic EPS", "USD/shares"))]
+                                   ("Basic EPS", "USD/shares"), ("Net Income", "USD"),
+                                   ("Weighted Average Diluted Shares", "shares"))]
     recent += [f.model_copy(update={"fact_id": "quarter-" + f.fact_id,
                                    "period_start": date(2026, 7, 1),
                                    "period_end": date(2026, 9, 30)}) for f in annual]

@@ -373,7 +373,7 @@ def bounded_evidence_view(package: EvidencePackage) -> EvidencePackage:
     # Latest-quarter facts alone cannot support annual EPS/revenue scenarios.
     # These are existing source facts, still subject to the same byte/lineage cap.
     prioritized_groups = {}
-    for metric in ("Revenue", "Diluted EPS", "Basic EPS"):
+    for metric in ("Revenue", "Diluted EPS", "Basic EPS", "Net Income", "Weighted Average Diluted Shares"):
         annual = next((f for f in groups.get(metric, ())
                        if f.origin == "reported" and f.value is not None
                        and f.period_start is not None

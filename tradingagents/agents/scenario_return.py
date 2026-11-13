@@ -164,3 +164,32 @@ def earnings_parts(case, close) -> dict | None:
                 "eps_filed": str(filed), "eps_filed_period_end": case.get("filed_eps_period_end"), "eps_case": str(forecast),
                 "earnings_effect": str(after_earnings - close), "multiple_effect": str(value - after_earnings),
                 "total": str(value - close)}
+
+
+def dividend_yield(facts, close) -> dict | None:
+    """The latest filed annual dividend per share as a yield on the close; None when none is filed.
+
+    Held flat at the filed rate: an assumption, stated wherever it is printed. A year filed with two values says
+    nothing rather than choose one.
+    """
+    close, annual = _decimal(close), {}
+    for fact in facts or ():
+        get = fact.get if isinstance(fact, dict) else lambda key, fact=fact: getattr(fact, key, None)
+        start, end = get("period_start"), get("period_end")
+        if get("metric") != "Dividends Declared Per Share" or not start or not end:
+            continue
+        try:
+            days = (date.fromisoformat(str(end)[:10]) - date.fromisoformat(str(start)[:10])).days + 1
+        except ValueError:
+            continue
+        value = _decimal(get("value"))
+        if 350 <= days <= 380 and value is not None:
+            annual.setdefault(str(end)[:10], set()).add(value)
+    if close is None or close <= 0 or not annual:
+        return None
+    latest = max(annual)
+    values = annual[latest]
+    if len(values) != 1 or next(iter(values)) <= 0:
+        return None
+    paid = next(iter(values))
+    return {"per_share": str(paid), "period_end": latest, "yield_percent": str(paid / close * 100)}
