@@ -2280,6 +2280,39 @@
    "tag": "fs-docn2",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-docn2/DOCN/2026-11-12/170826-aca2e6e8",
    "log": "/Users/zipp/.tradingagents/loop/logs-fs-docn2/loop_run_DOCN_2026-11-12T170823.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:19:37",
+   "tag": "fs-m2a",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-m2a/MSFT/2026-11-12/171939-bd329fe9",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-m2a/loop_run_MSFT_2026-11-12T171937.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:19:37",
+   "tag": "fs-m2b",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-m2b/MSFT/2026-11-12/171939-b60bf7fa",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-m2b/loop_run_MSFT_2026-11-12T171937.log"
+  },
+  {
+   "cycle": 8,
+   "ticker": "MSFT",
+   "date": "2026-11-12",
+   "exit": 0,
+   "cost": null,
+   "started": "2026-11-12T17:19:37",
+   "tag": "fs-m2c",
+   "run_dir": "/Users/zipp/.tradingagents/loop/logs-fs-m2c/MSFT/2026-11-12/171939-3d0e7c76",
+   "log": "/Users/zipp/.tradingagents/loop/logs-fs-m2c/loop_run_MSFT_2026-11-12T171937.log"
   }
  ]
 }

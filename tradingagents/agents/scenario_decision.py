@@ -399,8 +399,8 @@ def retry_feedback(state, replayed) -> str:
             f"Your stock_view is Fair, the caller holds the position at its standard weight, and your rating is "
             f"{state.get('final_rating')}. On the caller's scale a Fair stock at its standard weight is a Hold. "
             "Resubmit the complete decision: rate Hold, or keep your rating and name in rating_basis_reason the "
-            "portfolio reason with its figure (for example the combined weight of related holdings, or a loss-budget "
-            "breach). Restating the valuation is not a portfolio reason. If you have already named one, resubmit "
+            "portfolio reason (for example concentration in related holdings, or a loss-budget breach). State it in "
+            "words: a sentence with a figure of the caller's portfolio is not published. Restating the valuation is not a portfolio reason. If you have already named one, resubmit "
             "unchanged. Do not change the stock view to fit.")
     elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "action_against_view":
         parts.append(
@@ -479,7 +479,7 @@ def render_cases_for_manager(cases, required=None) -> str:
           "view that differs needs stock_view_reason. The rating is the position action for this caller's position "
           "and portfolio. The two may differ (an attractive stock held too large is still a trim); then say why in "
           "rating_basis_reason. A Fair stock held at its standard weight is a Hold; a "
-          "trim or an addition there needs a named portfolio reason with its figure."
+          "trim or an addition there needs a named portfolio reason, in words."
         + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
           "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
           "moves the weight. A general sense that the downside matters more, or that the base case is the central "
