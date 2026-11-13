@@ -74,3 +74,14 @@ def test_the_note_says_whether_the_measured_group_supports_the_trim():
     none["portfolio_inputs"]["related"] = {**related, "limit": None}
     assert "15.5% of the portfolio after this action; you have set no sector limit" in "\n".join(render(summarize(none, _three())))
     assert "of the portfolio after this action" not in "\n".join(render(summarize(_with("Underweight", 50, reason="x"), _three())))
+
+
+def test_a_trim_against_the_view_states_where_the_position_stands_even_if_the_reason_is_withheld():
+    """Seen 2026-11-12 (DOCN, scored 6.4): the manager's reason quoted portfolio figures, the published record
+    withheld those sentences, and the report showed no portfolio reason for trimming an Attractive stock."""
+    large = summarize(_with("Underweight", 400, stock_view="Attractive", reason="It is 40% of the portfolio."), _three())
+    assert "Code note: the position is above its standard weight" in "\n".join(render(large))
+    agree = summarize(_with("Underweight", 400, stock_view="Unattractive"), _three())
+    assert "Code note: the position is" not in "\n".join(render(agree))
+    cases = with_value_today(priced_cases(_three()), {"trade_date": "2026-11-10", "required_return": RETURN})
+    assert "figures of the caller's portfolio are not published" in render_cases_for_manager(cases, RETURN)

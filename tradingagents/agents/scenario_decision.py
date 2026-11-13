@@ -356,8 +356,9 @@ def summarize(state, replayed) -> dict:
                                  "explained" if summary["stock_view_reason"] else "unexplained")
         contrary = rating in _ACTION_SIDE and _ACTION_SIDE[rating] != _VIEW_SIDE[view]
         summary["contrary_basis"] = "action_against_view" if contrary else None
+        summary["standing"] = _standing(state) if contrary else None
         # One case named for what it is: a Fair stock held at its standard weight, and an action other than Hold.
-        if contrary and view == "Fair" and _standing(state) == "at":
+        if contrary and view == "Fair" and summary["standing"] == "at":
             summary["contrary_basis"] = "fair_at_standard"
             summary["group_note"] = _group_note(state)
     summary["consistency"] = ("consistent" if not contrary else
@@ -495,8 +496,8 @@ def render_cases_for_manager(cases, required=None) -> str:
           "Fair or Unattractive against the required return; code prints its reading of your scenarios beside it, and a "
           "view that differs needs stock_view_reason. The rating is the position action for this caller's position "
           "and portfolio. The two may differ (an attractive stock held too large is still a trim); then say why in "
-          "rating_basis_reason. A Fair stock held at its standard weight is a Hold; a "
-          "trim or an addition there needs a named portfolio reason, in words."
+          "rating_basis_reason, in words: figures of the caller's portfolio are not published. A Fair stock held "
+          "at its standard weight is a Hold; a trim or an addition there needs a named portfolio reason."
         + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
           "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
           "moves the weight. A general sense that the downside matters more, or that the base case is the central "
@@ -582,7 +583,9 @@ def render(summary) -> list[str]:
             + (" Code note: the holding is at its standard weight and the stock view is Fair, so the action that "
                "follows from the scale is Hold; the reason above is what the manager gives for departing from it."
                + (summary.get("group_note") or "")
-               if summary.get("contrary_basis") == "fair_at_standard" else ""))
+               if summary.get("contrary_basis") == "fair_at_standard" else
+               f" Code note: the position is {summary['standing']} its standard weight; the figures are in the Position "
+               "and sizing block." if against and summary.get("standing") else ""))
     if summary.get("conditional_hold"):
         band = summary["hold_band"]
         lines.append(
