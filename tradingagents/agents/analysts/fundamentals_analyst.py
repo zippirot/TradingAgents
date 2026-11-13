@@ -225,7 +225,14 @@ SHARED_VALUATION_INPUTS = (
     '"forecast":{"value":"<forecast diluted EPS>","unit":"USD/shares","period_start":"YYYY-MM-DD","period_end":"YYYY-MM-DD",'
     '"basis":"US-GAAP","kind":"analyst_forecast","rationale":"<evidence and assumption, including any change in share count>"},'
     '"multiple":"<price to earnings multiple>","multiple_assumption_date":"<analysis date>",'
-    '"multiple_rationale":"<why this multiple: own history, named peers, growth and risk>"}}.'
+    '"multiple_rationale":"<why this multiple: own history, named peers, growth and risk>",'
+    '"build":{"revenue":"<forecast revenue for the period>","net_margin":"<net income over revenue, a fraction>",'
+    '"diluted_shares":"<forecast weighted-average diluted shares>","revenue_reason":"<why>","margin_reason":"<why>","shares_reason":"<why>"}}}.'
+    " Build every earnings forecast: start from the filed annual Revenue, Net Income and Weighted Average Diluted Shares of the baseline year,"
+    " state the forecast period's revenue, net margin and diluted share count with a reason for each change, and make the forecast value"
+    " equal revenue times net margin over diluted shares (when filed diluted EPS differs from filed net income per diluted share, scale by that filed ratio)."
+    " Code recomputes it, refuses a case whose build misses its forecast by more than 3%, and prints each input beside the filed year."
+    " The cases must differ in their builds, not only in the multiple."
     " An earnings case has no capital block: earnings are after interest, so code nets no cash or debt. Its forecast is one explicit annual period ending after the analysis date."
     " Code prints beside each earnings case how its forecast compares with the filed prior-year Diluted EPS, with the quarters of the forecast period already filed, and with the vendor's estimate range when one was retrieved. Before submitting, make those comparisons yourself from the facts you were given and say in each forecast rationale what growth over the filed figures the forecast assumes and why; a forecast outside the vendor range needs its reason stated. When the valuation reference points show the company's own price-to-earnings history, say in each multiple_rationale where your multiple sits against those points and against the multiple the latest close already pays, and why."
     " Only revenue_case with explicit capital, or earnings_case, can supply a decision-card value. Legacy P/E remains separately assessed diagnostic arithmetic. All entries MUST use the same method; do not mix revenue cases and earnings cases even as a secondary check."

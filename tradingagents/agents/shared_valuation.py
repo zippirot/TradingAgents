@@ -509,6 +509,13 @@ def _prepare(state, requests):
         placed = multiple_reference(row["request"], own.get("earnings_history"))
         if anchor or placed:
             row["earnings_anchor"] = {**(anchor or {}), "lines": [*((anchor or {}).get("lines") or ()), *([placed] if placed else ())]}
+        if row["request"].get("method") == "earnings_case":
+            from tradingagents.agents.valuation_cases import earnings_build_parts
+            try:
+                built = earnings_build_parts(EarningsCase.model_validate(row["request"]), package)
+            except (ValueError, TypeError, ArithmeticError):
+                built = None
+            row["earnings_build"] = built or {"status": "none"}
     priced = [row for row in rows if row["result"]["method"] == "revenue_case"]
     for row in priced:
         row["reference_position"] = reference_position(row, state)

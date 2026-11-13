@@ -84,6 +84,8 @@ def priced_cases(replayed) -> list[dict]:
                       "forecast_eps": forecast.get("value") if result["method"] == "earnings_case" else None,
                       "multiple": result.get("multiple"),
                       "filed_eps": (baselines.get(request.get("eps_fact_id")) or {}).get("value"),
+                      "earnings_build": ({**row["earnings_build"], "net_margin": (request.get("build") or {}).get("net_margin")}
+                                         if isinstance(row.get("earnings_build"), dict) else None),
                       "filed_eps_period_end": (baselines.get(request.get("eps_fact_id")) or {}).get("period_end"),
                       "multiple_basis": request.get("multiple_basis"), "net_obligations": result.get("net_obligations"),
                       "closing_shares": result.get("shares_outstanding"),
@@ -678,6 +680,19 @@ def render_return_parts(summary) -> list[str]:
     return lines
 
 
+def _build_note(build) -> str:
+    """How the case's earnings figure was reached; nothing for a case saved before builds were recorded."""
+    if not isinstance(build, dict):
+        return ""
+    if build.get("status") == "none":
+        return " The earnings figure is stated, not built from revenue, net margin and share count."
+    if build.get("status") != "checked" or _decimal(build.get("net_margin")) is None:
+        return " The earnings figure is built from revenue, net margin and share count; the filed year gives nothing to set it beside."
+    return (f" Earnings built from revenue {Decimal(build['revenue_change_percent']):+.1f}%, net margin "
+            f"{Decimal(build['filed_margin']) * 100:.1f}% to {Decimal(build['net_margin']) * 100:.1f}%, diluted shares "
+            f"{Decimal(build['shares_change_percent']):+.1f}%, against the filed year.")
+
+
 def _render_earnings_parts(summary) -> list[str]:
     """Per share, how much of each earnings case's change from the close is earnings and how much the multiple."""
     rows = [case for case in summary["cases"] if case.get("return_parts_earnings")]
@@ -696,7 +711,7 @@ def _render_earnings_parts(summary) -> list[str]:
                      f"{Decimal(parts['multiple_today']):.1f}x to {Decimal(parts['multiple_case']):.1f}x: "
                      f"{Decimal(parts['multiple_effect']):+.2f}; total {Decimal(parts['total']):+.2f} to "
                      f"{_money(case['price'], case['unit'])}. The close is {Decimal(parts['multiple_forward']):.1f}x this "
-                     "case's own forecast.")
+                     "case's own forecast." + _build_note(case.get("earnings_build")))
     return lines
 
 

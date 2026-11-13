@@ -129,6 +129,16 @@ class RevenueCase(_Record):
     capital: CaseCapital
 
 
+class EarningsBuild(_Record):
+    """The three inputs an earnings forecast is built from, for the forecast period."""
+    revenue: Decimal = Field(gt=0, max_digits=40)
+    net_margin: Decimal = Field(gt=0, lt=1, max_digits=20)
+    diluted_shares: Decimal = Field(gt=0, max_digits=40)
+    revenue_reason: str = Field(min_length=1, max_length=400)
+    margin_reason: str = Field(min_length=1, max_length=400)
+    shares_reason: str = Field(min_length=1, max_length=400)
+
+
 class EarningsCase(_Record):
     """Forecast diluted earnings per share times a stated multiple, for a company with positive filed earnings."""
     method: Literal["earnings_case"]
@@ -137,6 +147,79 @@ class EarningsCase(_Record):
     multiple: Decimal = Field(gt=0, max_digits=20)
     multiple_assumption_date: date
     multiple_rationale: str = Field(min_length=1, max_length=1200)
+    # Optional so cases saved before the build still replay; a case without one says it is not built.
+    build: EarningsBuild | None = None
+
+    @model_serializer(mode="wrap")
+    def _absent_build_stays_absent(self, handler):
+        data = handler(self)
+        if data.get("build") is None:
+            data.pop("build", None)
+        return data
+
+
+BUILD_TOLERANCE = Decimal("0.03")
+
+
+def earnings_build_parts(request: EarningsCase, package) -> dict | None:
+    """What the build gives a share and how each input moves it from the filed year; None without a build.
+
+    Filed EPS is not always net income over diluted shares (preferred dividends, participating securities), so
+    the filed ratio between the two is carried into the built figure. The three effects are applied in order,
+    revenue, margin, shares, and sum exactly to the built figure less the filed EPS.
+    """
+    build = request.build
+    if build is None:
+        return None
+    filed = _fact(package, request.eps_fact_id)
+
+    def one(metric):
+        found = {f.value for f in package.facts if f.metric == metric and f.value is not None and f.origin == "reported"
+                 and (f.period_start, f.period_end) == (filed.period_start, filed.period_end)}
+        return next(iter(found)) if len(found) == 1 else None
+
+    revenue, income, shares = one("Revenue"), one("Net Income"), one("Weighted Average Diluted Shares")
+    with localcontext() as context:
+        context.prec = 60
+        raw = build.revenue * build.net_margin / build.diluted_shares
+        if None in (revenue, income, shares) or min(revenue, income, shares) <= 0 or filed.value <= 0:
+            return {"status": "unchecked", "built_eps": str(raw), "ratio": "1"}
+        ratio = filed.value / (income / shares)
+        margin = income / revenue
+        after_revenue = filed.value * build.revenue / revenue
+        after_margin = after_revenue * build.net_margin / margin
+        built = after_margin * shares / build.diluted_shares
+        return {"status": "checked", "built_eps": str(built), "ratio": str(ratio),
+                "filed_revenue": str(revenue), "filed_margin": str(margin), "filed_shares": str(shares),
+                "revenue_change_percent": str((build.revenue / revenue - 1) * 100),
+                "margin_change_points": str((build.net_margin - margin) * 100),
+                "shares_change_percent": str((build.diluted_shares / shares - 1) * 100),
+                "revenue_effect": str(after_revenue - filed.value), "margin_effect": str(after_margin - after_revenue),
+                "shares_effect": str(built - after_margin)}
+
+
+def _build_lines(request: EarningsCase, package) -> tuple[str, ...]:
+    parts = earnings_build_parts(request, package)
+    if parts is None:
+        return ("build: none. The earnings figure is stated, not built from revenue, net margin and share count.",)
+    build, built, stated = request.build, Decimal(parts["built_eps"]), request.forecast.value
+    if abs(built / stated - 1) > BUILD_TOLERANCE:
+        raise ValueError(f"The build gives {built:.2f} a share, not the stated forecast {stated:.2f}; revenue times net "
+                         "margin over diluted shares must reproduce the forecast")
+    if parts["status"] == "unchecked":
+        return (f"build: revenue {build.revenue}, net margin {build.net_margin * 100:.1f}%, diluted shares "
+                f"{build.diluted_shares} give {built:.2f} a share. Not set beside the filings: filed net income or "
+                "diluted shares for the earnings year are unavailable.",)
+    ratio = Decimal(parts["ratio"])
+    carried = ("" if abs(ratio - 1) < Decimal("0.005") else
+               f" Filed earnings per share were {ratio:.2f} of filed net income per diluted share, and that ratio is kept.")
+    return (f"build: revenue {build.revenue} ({Decimal(parts['revenue_change_percent']):+.1f}% on the filed "
+            f"{Decimal(parts['filed_revenue']):f}), net margin {build.net_margin * 100:.1f}% (filed "
+            f"{Decimal(parts['filed_margin']) * 100:.1f}%), diluted shares {build.diluted_shares} "
+            f"({Decimal(parts['shares_change_percent']):+.1f}% on the filed {Decimal(parts['filed_shares']):f}) give "
+            f"{built:.2f} a share.{carried}",
+            f"build effects on earnings per share from the filed year: revenue {Decimal(parts['revenue_effect']):+.2f}, "
+            f"margin {Decimal(parts['margin_effect']):+.2f}, share count {Decimal(parts['shares_effect']):+.2f}.")
 
 
 def price_earnings_case(request: EarningsCase, package, outlooks):
@@ -172,6 +255,7 @@ def price_earnings_case(request: EarningsCase, package, outlooks):
                       f"the period ended {latest.period_end}; no split since the earnings year.")
     balances = [f.period_end for f in package.facts if f.metric == "Cash and Equivalents" and f.value is not None
                 and f.period_start is None]
+    build_lines = _build_lines(request, package)
     expected = request.forecast.value
     with localcontext() as context:
         context.prec = 60
@@ -185,6 +269,7 @@ def price_earnings_case(request: EarningsCase, package, outlooks):
         "no net-debt bridge: earnings are after interest, so cash and borrowings are not netted; a change in the "
         "share count enters only through the analyst's per-share forecast.",
         share_note,
+        *build_lines,
     )
     result = TargetResult(
         status="supported", method="earnings_case", target=target, unit=filed.unit, input_fact_ids=(filed.fact_id,),
