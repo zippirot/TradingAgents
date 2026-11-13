@@ -194,6 +194,16 @@ _VIEW_SIDE = {"Attractive": 1, "Fair": 0, "Unattractive": -1}
 _ACTION_SIDE = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -1}
 
 
+def _standing(state) -> str | None:
+    """Where the holding sits against its standard weight ('at', 'above', 'below'), or None without sizing inputs."""
+    from tradingagents.portfolio import sizing_from_state
+
+    try:
+        return sizing_from_state(state).get("standing")
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        return None
+
+
 def valuation_reading(gap, band) -> str | None:
     """Code's reading of the accepted scenarios: their yearly return against the required return, with the band as Fair."""
     if gap is None or band is None:
@@ -330,6 +340,9 @@ def summarize(state, replayed) -> dict:
                                  "explained" if summary["stock_view_reason"] else "unexplained")
         contrary = rating in _ACTION_SIDE and _ACTION_SIDE[rating] != _VIEW_SIDE[view]
         summary["contrary_basis"] = "action_against_view" if contrary else None
+        # One case named for what it is: a Fair stock held at its standard weight, and an action other than Hold.
+        if contrary and view == "Fair" and _standing(state) == "at":
+            summary["contrary_basis"] = "fair_at_standard"
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     # A reason may argue against the code's return figure, but it may not restate it backwards.
@@ -381,6 +394,13 @@ def retry_feedback(state, replayed) -> str:
             f"{Decimal(summary['return_gap_points']):+.1f} points. Resubmit the complete decision and either state "
             "in rating_basis_reason, with figures, why the rating still stands, or revise the rating or the "
             "scenario_view.")
+    elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "fair_at_standard":
+        parts.append(
+            f"Your stock_view is Fair, the caller holds the position at its standard weight, and your rating is "
+            f"{state.get('final_rating')}. On the caller's scale a Fair stock at its standard weight is a Hold. "
+            "Resubmit the complete decision: rate Hold, or keep your rating and name in rating_basis_reason the "
+            "portfolio reason with its figure (for example the combined weight of related holdings, or a loss-budget "
+            "breach). Restating the valuation is not a portfolio reason. Do not change the stock view to fit.")
     elif summary.get("consistency") == "unexplained" and summary.get("contrary_basis") == "action_against_view":
         parts.append(
             f"Your stock_view is {summary['stock_view']} and your rating, the position action, is "
@@ -457,7 +477,8 @@ def render_cases_for_manager(cases, required=None) -> str:
           "Fair or Unattractive against the required return; code prints its reading of your scenarios beside it, and a "
           "view that differs needs stock_view_reason. The rating is the position action for this caller's position "
           "and portfolio. The two may differ (an attractive stock held too large is still a trim); then say why in "
-          "rating_basis_reason."
+          "rating_basis_reason. A Fair stock held at its standard weight is a Hold; a "
+          "trim or an addition there needs a named portfolio reason with its figure."
         + " Start from equal weights across the cases you accept. Move a weight away from equal only for evidence "
           "specific to this company, and state in weight_basis, case by case, what that evidence is and how far it "
           "moves the weight. A general sense that the downside matters more, or that the base case is the central "
@@ -533,13 +554,16 @@ def render(summary) -> list[str]:
             + (f" Why it differs from that reading (unvalidated): {summary['stock_view_reason']}"
                if summary.get("view_check") == "explained" else
                " It differs from that reading and no reason was given." if summary.get("view_check") == "unexplained" else ""))
-        against = summary.get("contrary_basis") == "action_against_view"
+        against = summary.get("contrary_basis") in ("action_against_view", "fair_at_standard")
         lines.append(
             f"Position action: {summary.get('position_action') or 'not recorded'} (what to do with the caller's position; "
             "sizes are in the Position and sizing block)."
             + (f" Why it differs from the stock view (unvalidated): {summary['rating_basis_reason']}"
                if against and summary.get("rating_basis_reason") else
-               " It points a different way from the stock view and no reason was given." if against else ""))
+               " It points a different way from the stock view and no reason was given." if against else "")
+            + (" Code note: the holding is at its standard weight and the stock view is Fair, so the action that "
+               "follows from the scale is Hold; the reason above is what the manager gives for departing from it."
+               if summary.get("contrary_basis") == "fair_at_standard" else ""))
     if summary.get("conditional_hold"):
         band = summary["hold_band"]
         lines.append(
