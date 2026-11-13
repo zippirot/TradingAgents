@@ -543,3 +543,8 @@ Done: a filer's own line whose whole name is its finance or operating lease liab
 
 ### Installed 7d5e39a7 (user: "install", 2026-11-13)
 Bank and insurer price-anchor fix and the DOCN lease-label step. Staging fast-forwarded 2fc4f1ec -> 7d5e39a7, CI green first run (43495070648). Launcher on `claude/installed-7d5e39a7`, 16 focused tests pass, CLI starts. Production stays 268ffcf3.
+
+### The outcome check as one command (user: "yes go ahead with 1 and 2", 2026-11-13; bench 96f11cf3, NOT installed)
+`scripts/outcome_check.py run --label NAME` and `report --label NAME [--against OTHER]`; fixed set in `docs/loop/outcome_set.json`: 25 companies (the eight plus V PEP MCD NKE DIS VZ BA HON UPS LOW SBUX ADBE CRM NFLX QCOM PFE DE, all known to pass the source checks today) at 2026-05-01, 06-01, 07-01, 08-03; market and fundamentals analysts; standard made-up portfolio; results under `logs-oc-<label>-<date>`; a saved run is not repeated, so the same command resumes. Suite 4,877.
+The 32-run with-A set is linked as label `prev` (`logs-oc-prev-*` -> `logs-oa*`).
+Wider baseline started: label `base`, 100 runs, 4 at a time, from `~/Worktrees/outcome-baseline` at 96f11cf3 (the installed code plus this script). Read with `report --label base`.
