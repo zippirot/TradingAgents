@@ -540,3 +540,6 @@ Confirmed in three fresh runs on the plan (`logs-c1`, `logs-c2`): JPM x2 on the 
 ### DOCN and CVX on past dates (diagnosed 2026-11-13; one step on the bench, 6035502b)
 Required checks that stop them, from the `logs-ob*` states: DOCN, all four dates: obligation perimeter ("a debt-like face line is not classified: docn:FinanceLeaseLiabilities") and cash-flow perimeter (equipment acquisition payments lack a verified gross acquisition/proceeds bridge). CVX, all four dates: disclosure coverage (0000093410-26-000108: earnings exhibit unavailable). CAT as of 2026-05-01: equity movement, obligation perimeter, cash-flow perimeter.
 Done: a filer's own line whose whole name is its finance or operating lease liability is classified as a lease (test first; other own debt-like lines still stop). Suite 4,874. NOT yet shown to clear DOCN's obligation perimeter in a run; the cash-flow perimeter and CVX's exhibit are untouched. Any change that loosens a required check goes to the user first.
+
+### Installed 7d5e39a7 (user: "install", 2026-11-13)
+Bank and insurer price-anchor fix and the DOCN lease-label step. Staging fast-forwarded 2fc4f1ec -> 7d5e39a7, CI green first run (43495070648). Launcher on `claude/installed-7d5e39a7`, 16 focused tests pass, CLI starts. Production stays 268ffcf3.
