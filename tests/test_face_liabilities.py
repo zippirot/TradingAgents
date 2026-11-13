@@ -335,3 +335,16 @@ def test_shares_come_from_the_balance_date_as_the_filing_states_them():
                                          cik=CIK, period_end=END, as_of=CUT, source_ids=("s",), locator="us-gaap/x"))
     kept, _ = _widen(held, extra=UNIT + _share_fact("us-gaap:CommonStockSharesOutstanding", 900))
     assert [f.value for f in kept.facts if f.metric == "Common Shares Outstanding"] == [7]
+
+
+def test_a_filers_own_line_named_only_for_its_leases_is_a_lease():
+    """DOCN's filings before mid-2026 state `docn:FinanceLeaseLiabilities`; every past-date DOCN run stopped at
+    REVIEW on it (2026-11-13). Boundary: the whole name must be the lease liability, singular or plural, with an
+    optional Current or Noncurrent; any other own debt-like line still stops the derivation."""
+    from tradingagents.dataflows.face_liabilities import classify
+
+    for name in ("docn:FinanceLeaseLiabilities", "abc:FinanceLeaseLiabilitiesCurrent", "abc:OperatingLeaseLiabilitiesNoncurrent",
+                 "abc:FinanceLeaseLiability"):
+        assert classify(name) == "lease", name
+    assert classify("abc:FinanceLeaseAndOtherFinancingLiabilities") == "unclassified"
+    assert classify("abc:EquipmentFinancingLiabilities") == "unclassified"
