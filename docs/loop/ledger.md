@@ -493,3 +493,12 @@ Consequences: every plan run before this is degraded and is NOT evidence: MSFT `
 
 ### A3 peers on earnings and book value (bench 5c8562da)
 Each peer and the company also carry price over the latest filed annual diluted EPS, market value over the latest filed stockholders' equity, and filed annual net income over that equity; each only when its filed input exists once and is positive. Reference record version 4; records at 1 to 3 replay to what they retained (checked on saved MSFT, JPM, WMT). Replayed on saved data: MSFT 29.1x earnings, 8.3x book, 28.4% return on equity, peers 21.8x to 37.3x; JPM peers 13.3x and 13.7x earnings, 1.2x and 1.5x book. Suite 4,866.
+
+### Installed c8ad5325: the ChatGPT-plan fix alone (user: "1 install", 2026-11-13)
+Confirmed first in two full runs with A (`a3m1` MSFT, `a3w1` WMT): 27 of 27 tool calls succeed in each (was about 8 of 45); builds supplied and checked in all six cases; WMT, which had returned no cases under the fault, gives three. Staging fast-forwarded dcf0d7eb -> c8ad5325 (dcf0d7eb plus the cherry-picked fix), CI green first run (43472800984). Launcher on `claude/installed-c8ad5325`, 20 provider tests pass, CLI starts. Production stays 268ffcf3. NOTE: staging is now on a side line from the bench (the bench carries the same change as 412bec72); merge origin/staging into the bench before the next push.
+
+### C sizing ceilings (user: "2 approve the sizing rule"; bench e18ddef7, NOT installed)
+`limit_size`: the size the final rating calls for is cut to the smaller of (loss budget over the fall to the lowest accepted case) and (sector limit less the sector's other holdings), only when that is below it; the block prints "Size after your limits" with which limit bound. Rating and stock view untouched; a limit never raises a size; no budget, no accepted case below the close and no sector limit means no change. Suite 4,870.
+Free replay over about 330 saved runs on the made-up portfolios: cut in 32, all MSFT (Hold 5.0% to 3.1% in 7 runs, Overweight 6.2% to 4.0% in 25, bound by the 1% loss budget); never on an Underweight or Sell; no errors.
+
+### Measurement queue (running): 12 runs with A (`a41..a43`, 412bec72) against 12 without (`b41..b43`, c8ad5325), MSFT WMT CAT standard portfolio and JPM bank portfolio; then the B baseline, 32 past-date runs on c8ad5325 (`ob2026*`).
