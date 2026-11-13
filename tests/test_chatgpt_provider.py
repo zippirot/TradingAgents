@@ -243,3 +243,21 @@ def test_the_chatgpt_plan_is_the_only_provider_signed_in_to():
     # second signed-in provider needs its own sign-in wired into them first.
     from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
     assert SIGNED_IN_PROVIDERS == ("chatgpt",)
+
+
+def test_tools_are_asked_for_one_at_a_time_on_the_plan(signed_in):
+    """Measured 2026-11-13: when the plan's model asks for two tools in one reply, the stream carries no
+    arguments for either, and 36 to 38 of about 45 tool calls failed in every run on the plan (none on OpenRouter).
+    One call per reply arrives whole. Boundary: the ChatGPT plan only, and only when tools are bound."""
+    from langchain_core.tools import tool
+
+    @tool
+    def get_price(ticker: str) -> str:
+        """Close for a ticker."""
+        return ticker
+
+    llm = _llm()
+    bound = llm.bind_tools([get_price])
+    payload = llm._get_request_payload([HumanMessage("Hi")], **bound.kwargs)
+    assert payload["parallel_tool_calls"] is False
+    assert "parallel_tool_calls" not in llm._get_request_payload([HumanMessage("Hi")])

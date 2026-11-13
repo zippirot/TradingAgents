@@ -199,6 +199,9 @@ class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
         for item in payload.get("input") or []:
             if isinstance(item, dict) and item.get("role") == "system":
                 item["role"] = "developer"
+        if payload.get("tools"):
+            # Two tool calls in one reply stream with no arguments on the plan; one call per reply arrives whole.
+            payload["parallel_tool_calls"] = False
         return payload
 
 
