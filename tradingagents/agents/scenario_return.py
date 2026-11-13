@@ -140,3 +140,27 @@ def return_parts(case, implied, close) -> dict | None:
                 "revenue_today": str(revenue_now), "revenue_case": str(revenue),
                 "revenue_effect": str(after_revenue - close), "multiple_effect": str(after_multiple - after_revenue),
                 "capital_effect": str(value - after_multiple), "total": str(value - close)}
+
+
+def earnings_parts(case, close) -> dict | None:
+    """Split one earnings case's change from the close into earnings and the multiple.
+
+    Per share, applied in that order from today's price, so the two parts sum exactly to the case value less
+    the close. Today's multiple is the close over the filed annual diluted EPS the case builds on.
+    """
+    if case.get("method") != "earnings_case" or case.get("unit") != "USD/shares":
+        return None
+    close, value = _decimal(close), _decimal(case.get("price"))
+    filed, forecast, multiple = (_decimal(case.get(key)) for key in ("filed_eps", "forecast_eps", "multiple"))
+    if None in (close, value, filed, forecast, multiple) or min(close, filed, forecast, multiple) <= 0:
+        return None
+    with localcontext() as ctx:
+        ctx.prec = 40
+        if abs(forecast * multiple - value) > Decimal("0.005"):
+            return None   # the case was not priced by this construction; say nothing rather than misattribute
+        multiple_now = close / filed
+        after_earnings = forecast * multiple_now
+        return {"multiple_today": str(multiple_now), "multiple_case": str(multiple), "multiple_forward": str(close / forecast),
+                "eps_filed": str(filed), "eps_filed_period_end": case.get("filed_eps_period_end"), "eps_case": str(forecast),
+                "earnings_effect": str(after_earnings - close), "multiple_effect": str(value - after_earnings),
+                "total": str(value - close)}

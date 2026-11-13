@@ -24,6 +24,7 @@ from tradingagents.agents.required_return import (
 )
 from tradingagents.agents.scenario_return import (
     annual_return,
+    earnings_parts,
     return_parts,
     short_period,
     sturdiness,
@@ -67,6 +68,7 @@ def priced_cases(replayed) -> list[dict]:
     that reply would void the weights given in it.
     """
     cases = []
+    baselines = (replayed or {}).get("earnings_baselines") if isinstance((replayed or {}).get("earnings_baselines"), dict) else {}
     for row in (replayed or {}).get("rows") or ():
         result = row.get("result") if isinstance(row, dict) else None
         if (not isinstance(result, dict) or result.get("method") not in ("revenue_case", "earnings_case")
@@ -81,6 +83,8 @@ def priced_cases(replayed) -> list[dict]:
                       "forecast_revenue": forecast.get("value") if result["method"] == "revenue_case" else None,
                       "forecast_eps": forecast.get("value") if result["method"] == "earnings_case" else None,
                       "multiple": result.get("multiple"),
+                      "filed_eps": (baselines.get(request.get("eps_fact_id")) or {}).get("value"),
+                      "filed_eps_period_end": (baselines.get(request.get("eps_fact_id")) or {}).get("period_end"),
                       "multiple_basis": request.get("multiple_basis"), "net_obligations": result.get("net_obligations"),
                       "closing_shares": result.get("shares_outstanding"),
                       "role": _text(row.get("scenario_role"), 40) or "unlabelled", "price": str(_decimal(result["target"])),
@@ -280,6 +284,9 @@ def summarize(state, replayed) -> dict:
         parts = return_parts(row, state.get("price_implied_valuation"), reference["close"])
         if parts is not None:
             row["return_parts"] = parts
+        parts = earnings_parts(row, reference["close"])
+        if parts is not None:
+            row["return_parts_earnings"] = parts
     summary = {"status": "addressed", "cases": rows, "problems": [], "range": None, "weighted_value": None,
                "close": None, "session_date": None, "direction": None, "consistency": "not_checked",
                "rating_basis_reason": _text(structured.get("rating_basis_reason"), 1200),
@@ -654,7 +661,7 @@ def render_return_parts(summary) -> list[str]:
     """Per share, where each case's change from the close comes from."""
     rows = [case for case in summary["cases"] if case.get("return_parts")]
     if not rows:
-        return []
+        return _render_earnings_parts(summary)
     first = rows[0]["return_parts"]
     lines = [f"Where each case's value comes from, per share, from the {rows[0]['quote']['session_date']} close, applied in "
              f"order: revenue, then the multiple, then shares and net obligations. Today's price is "
@@ -668,6 +675,28 @@ def render_return_parts(summary) -> list[str]:
                      f"{Decimal(parts['multiple_case']):.2f}x: {Decimal(parts['multiple_effect']):+.2f}; shares and net "
                      f"obligations: {Decimal(parts['capital_effect']):+.2f}; total {Decimal(parts['total']):+.2f} "
                      f"to {_money(case['price'], case['unit'])}.")
+    return lines
+
+
+def _render_earnings_parts(summary) -> list[str]:
+    """Per share, how much of each earnings case's change from the close is earnings and how much the multiple."""
+    rows = [case for case in summary["cases"] if case.get("return_parts_earnings")]
+    if not rows:
+        return []
+    first = rows[0]["return_parts_earnings"]
+    year = f" for the year to {first['eps_filed_period_end']}" if first.get("eps_filed_period_end") else ""
+    lines = [f"What each case assumes, per share, from the {rows[0]['quote']['session_date']} close, applied in order: "
+             f"earnings, then the multiple. Today's price is {Decimal(first['multiple_today']):.1f}x the diluted EPS of "
+             f"{Decimal(first['eps_filed']):.2f} filed{year}. Code states the split; it does not judge either assumption."]
+    for case in rows:
+        parts = case["return_parts_earnings"]
+        growth = (Decimal(parts["eps_case"]) / Decimal(parts["eps_filed"]) - 1) * 100
+        lines.append(f"- {case['role']} — earnings {Decimal(parts['eps_filed']):.2f} to {Decimal(parts['eps_case']):.2f} "
+                     f"({growth:+.1f}%): {Decimal(parts['earnings_effect']):+.2f}; multiple "
+                     f"{Decimal(parts['multiple_today']):.1f}x to {Decimal(parts['multiple_case']):.1f}x: "
+                     f"{Decimal(parts['multiple_effect']):+.2f}; total {Decimal(parts['total']):+.2f} to "
+                     f"{_money(case['price'], case['unit'])}. The close is {Decimal(parts['multiple_forward']):.1f}x this "
+                     "case's own forecast.")
     return lines
 
 

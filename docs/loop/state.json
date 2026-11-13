@@ -2500,6 +2500,17 @@
    "tag": "br-d1",
    "run_dir": "/Users/zipp/.tradingagents/loop/logs-br-d1/DOCN/2026-11-12/183359-6a4fb45f",
    "log": "/Users/zipp/.tradingagents/loop/logs-br-d1/loop_run_DOCN_2026-11-12T183354.log"
+  },
+  {
+   "cycle": 5,
+   "ticker": "BTC-USD",
+   "date": "2026-11-13",
+   "exit": 1,
+   "cost": null,
+   "started": "2026-11-13T08:12:03",
+   "tag": "btc1",
+   "run_dir": null,
+   "log": "/Users/zipp/.tradingagents/loop/logs-btc1/loop_run_BTC-USD_2026-11-13T081203.log"
   }
  ]
 }
