@@ -435,3 +435,6 @@ Total paid spend to date: about 235 dollars.
 ### Blanked reason for the position action (map 2b-15; user approved 2026-11-12; bench `576a1b76`)
 Fix, test first (suite 4,851): the manager is told to give the reason in words (portfolio figures are not published), and when the action points against the stock view code states where the position stands against its standard weight. Five paid runs (DOCN x3 from an Attractive starting point on the concentrated portfolio, MSFT x2 from a Fair one; about 5 dollars): the portfolio reason is visible in the published report in 5 of 5; actions unchanged (Underweight x5). Not scored; the defect and its fix are read directly off the report.
 User approved installing the related-holdings build and this fix together. Total paid spend to date: about 240 dollars.
+
+### INSTALLED (user approved 2026-11-12): staging and launcher at 268ffcf3
+Related holdings measured together, Fair-at-standard rule, and the blanked-reason fix. CI green on first run (268ffcf3). Launcher on `claude/installed-268ffcf3`; 98 focused tests pass there; CLI starts. Production unchanged at 55edfd7e.
