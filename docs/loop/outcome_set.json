@@ -1,0 +1,6 @@
+{
+ "note": "The fixed set for the outcome check. Dates are past the model's knowledge (about early 2026) and early enough for 63 trading sessions to have passed. Change it only by agreement, and re-run the baseline when it changes.",
+ "dates": ["2026-05-01", "2026-06-01", "2026-07-01", "2026-08-03"],
+ "tickers": ["MSFT", "WMT", "CAT", "UNH", "JPM", "PGR", "DOCN", "CVX",
+             "V", "PEP", "MCD", "NKE", "DIS", "VZ", "BA", "HON", "UPS", "LOW", "SBUX", "ADBE", "CRM", "NFLX", "QCOM", "PFE", "DE"]
+}
