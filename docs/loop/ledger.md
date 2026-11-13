@@ -502,3 +502,17 @@ Confirmed first in two full runs with A (`a3m1` MSFT, `a3w1` WMT): 27 of 27 tool
 Free replay over about 330 saved runs on the made-up portfolios: cut in 32, all MSFT (Hold 5.0% to 3.1% in 7 runs, Overweight 6.2% to 4.0% in 25, bound by the 1% loss budget); never on an Underweight or Sell; no errors.
 
 ### Measurement queue (running): 12 runs with A (`a41..a43`, 412bec72) against 12 without (`b41..b43`, c8ad5325), MSFT WMT CAT standard portfolio and JPM bank portfolio; then the B baseline, 32 past-date runs on c8ad5325 (`ob2026*`).
+
+### A measured: 12 runs with the valuation build against 12 without (2026-11-13; ChatGPT plan, gpt-6.1-terra, fresh runs; evaluator Claude helper TAE-1.1, one fresh agent per run)
+Runs: `a41..a43` on 412bec72 (A: earnings build, dividend in the return; the peer earnings and book figures are in this commit too) and `b41..b43` on c8ad5325 (installed code plus the plan fix). MSFT, WMT, CAT on the standard made-up portfolio, JPM on the bank one. All 24 completed with zero failed tool calls; a checked or stated build in all 36 cases with A (CAT printed "unchecked" until 8ed6a55e).
+| company | Decision without | with | D1 without | with | R3 without | with | D4 without | with |
+|---|---|---|---|---|---|---|---|---|
+| MSFT | 6.47 (6.9, 6.3, 6.2) | 6.53 (6.6, 6.4, 6.6) | 6.30 | 6.67 | 6.30 | 6.87 | 5.73 | 5.87 |
+| WMT | 7.10 (7.0, 7.3, 7.0) | 7.20 (6.9, 7.0, 7.7) | 7.03 | 6.97 | 6.57 | 6.63 | 6.73 | 7.03 |
+| CAT | 6.93 (7.0, 6.6, 7.2) | 6.80 (7.0, 6.6, 6.8) | 6.47 | 6.30 | 6.17 | 6.40 | 6.80 | 6.67 |
+| JPM | 6.63 (6.6, 6.4, 6.9) | 6.40 (6.6, 6.1, 6.5) | 6.17 | 6.03 | 5.93 | 6.37 | 6.67 | 6.10 |
+| all 12 | 6.78 | 6.73 | 6.49 | 6.49 | 6.24 | 6.57 | 6.48 | 6.42 |
+Verdict on score: NO measurable gain. Decision is flat (line to beat: 0.5), D1 identical, R3 up 0.33 on every company but well inside its 1.0 line. Ratings: MSFT Overweight x3 with against Hold, Overweight x2 without; WMT Underweight x6; CAT Underweight x3 with against Hold, Underweight x2 without; JPM Underweight x2 and one Overweight-on-Unattractive with, Underweight x3 without.
+What did change, read from the evaluators' own top weakness: without A, 7 of 12 lead with the cases being asserted or unbuilt EPS figures; with A, none does. With A the lead complaint is the unsupported multiple and default equal weights (5 of 12), and on MSFT the Overweight size breaking the 1% loss budget (3 of 3 with, 2 of 3 without), which the sizing ceilings (not in these runs) remove. So the build closed the half of the valuation complaint it was aimed at, and the score now rests on the other half: how the multiple and the weights are chosen.
+JPM a42: Overweight while calling the stock Unattractive, on a 39% holding; code could not flag it because bank cards carry no comparison with price (map 2b-14).
+Baseline for B on c8ad5325, 32 runs as of 2026-05-01, 06-01, 07-01, 08-03 (`logs-ob*`): 23 rated. At 63 sessions against SPY: Attractive +13.2 (4, none below the market), Fair +4.7 (4), Unattractive -4.5 (15, 10 below). Directional calls right 14 of 19 (11 of 19 at 21 sessions); rank correlation of valuation with later excess return 0.77 (0.26 at 21). Third independent set with the same picture. The same 32 with A (`logs-oa*`) are running.
