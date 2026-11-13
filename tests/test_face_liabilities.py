@@ -348,3 +348,17 @@ def test_a_filers_own_line_named_only_for_its_leases_is_a_lease():
         assert classify(name) == "lease", name
     assert classify("abc:FinanceLeaseAndOtherFinancingLiabilities") == "unclassified"
     assert classify("abc:EquipmentFinancingLiabilities") == "unclassified"
+
+
+def test_a_filers_own_line_combining_finance_leases_and_equipment_financing_is_not_a_borrowing():
+    """DOCN's filings before mid-2026 (user decision 2026-11-13) state
+    `docn:FinanceLeaseLiabilitiesAndEquipmentFinancingObligationsNoncurrent`. It is leases and equipment
+    financing, not borrowings, so borrowings can be derived from the other lines. Boundary: the whole name must
+    be exactly that pair, with an optional Current or Noncurrent."""
+    from tradingagents.dataflows.face_liabilities import classify
+
+    for name in ("docn:FinanceLeaseLiabilitiesAndEquipmentFinancingObligationsNoncurrent",
+                 "docn:FinanceLeaseLiabilitiesAndEquipmentFinancingObligationsCurrent",
+                 "abc:FinanceLeaseLiabilityAndEquipmentFinancingObligations"):
+        assert classify(name) == "lease", name
+    assert classify("abc:DebtAndEquipmentFinancingObligations") == "unclassified"

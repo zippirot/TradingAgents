@@ -582,3 +582,11 @@ Cause: filing 0000093410-26-000108 (2026-04-09) is an Item 2.02 report with its 
 The six Holds with no view are left alone: Visa files no single per-share figure (several share classes at different conversion rates: no Diluted EPS, diluted shares or shares outstanding fact in the package); Honeywell was separating in 2026 and the analyst declined to value it without stand-alone figures.
 Remaining stopped runs, each needing the user before anything is changed: MCD x3 (declared financing sum misses by 1,000,000 on figures filed in millions); DOCN x4 (own combined line `docn:FinanceLeaseLiabilitiesAndEquipmentFinancingObligationsNoncurrent`, then the equipment payments bridge); PFE x4 (face lines do not add up to total liabilities; cause not known); BA x1 (structured data not retrieved that day); CAT x1 (three checks on 2026-05-01).
 Coverage so far in cycle 1: 9 of the 22 stopped runs now reach a rating (ADBE 2, NKE 2, HON 1, CVX 4).
+
+### Installed 99eba854: Chevron fix (user: "3 install now", 2026-11-13)
+Staging fast-forwarded b4c140e7 -> 99eba854, CI green first run (43522008082). Launcher on `claude/installed-99eba854`, CLI starts. Production stays 268ffcf3.
+
+### Cycle 1, coverage: McDonald's and DOCN (user: "1 yes 2 yes"; bench, NOT installed)
+McDonald's: its cash-flow figures are tagged decimals -5 and stated in whole millions; the financing total is -1,225,000,000 and its seven lines sum to -1,226,000,000. `rounding_allowance`: one unit of the unit the figures are really stated in, only when every figure is tagged as rounded (decimals below zero); nothing for figures tagged to the dollar or with no stated precision. Applied in the declared-sum check and where the financing lines are set against the total. Tests first; an existing test with round figures tagged to the dollar still stops, as it should. Read live: seven lines, allowance 1,000,000. Suite 4,883.
+DOCN: its own combined line `FinanceLeaseLiabilitiesAndEquipmentFinancingObligations(Current|Noncurrent)` is classified with the leases, so borrowings can be derived from the other lines. Test first. Whether that clears the obligation perimeter, and the equipment payments bridge, are not yet shown.
+Confirming runs started (label `c1`): MCD 05-01, 06-01, 07-01; DOCN 06-01; BA 05-01 (re-run of a failed fetch).

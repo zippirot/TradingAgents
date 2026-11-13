@@ -53,7 +53,8 @@ _BORROWING_WITH_FINANCE_LEASES = frozenset({
 # A filer's own line whose whole name says debt together with finance leases (Tesla), and nothing else.
 _OWN_DEBT_WITH_FINANCE_LEASES = re.compile(r"^(?:LongTerm)?DebtAndFinanceLeases(?:Current|Noncurrent)?$")
 # A filer's own line whose whole name is its finance or operating lease liability (DOCN before mid-2026).
-_OWN_LEASE = re.compile(r"^(?:Finance|Operating)LeaseLiabilit(?:y|ies)(?:Current|Noncurrent)?$")
+_OWN_LEASE = re.compile(r"^(?:Finance|Operating)LeaseLiabilit(?:y|ies)(?:AndEquipmentFinancingObligations?)?"
+                        r"(?:Current|Noncurrent)?$")
 _LEASES = {
     "finance": ("FinanceLeaseLiability", "FinanceLeaseLiabilityCurrent", "FinanceLeaseLiabilityNoncurrent"),
     "operating": ("OperatingLeaseLiability", "OperatingLeaseLiabilityCurrent", "OperatingLeaseLiabilityNoncurrent"),
