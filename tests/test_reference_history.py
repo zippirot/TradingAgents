@@ -11,12 +11,13 @@ ENDS = ("2025-12-31", "2026-03-31", "2026-06-30", "2026-09-30")
 NOW = "2026-11-05T22:00:00+00:00"
 
 
-def install(monkeypatch, *, now=NOW, split_date=None, split_ratio=2, missing=(), metadata=None):
+def install(monkeypatch, *, now=NOW, split_date=None, split_ratio=2, missing=(), metadata=None, blank=()):
     calls = []
     dates = pd.bdate_range("2025-12-24", "2026-11-05", tz="America/New_York")
     dates = [day for day in dates if day.date().isoformat() not in missing]
     splits = [split_ratio if day.date().isoformat() == split_date else 0 for day in dates]
-    frame = pd.DataFrame({"Close": [20] * len(dates), "Stock Splits": splits}, index=dates)
+    closes = [float("nan") if day.date().isoformat() in blank else 20 for day in dates]
+    frame = pd.DataFrame({"Close": closes, "Stock Splits": splits}, index=dates)
     meta = {"symbol": "DOCN", "currency": "USD", "exchangeTimezoneName": "America/New_York",
             "currentTradingPeriod": {"regular": {"end": datetime(2026, 11, 5, 21, tzinfo=UTC)}}}
     if metadata:
@@ -110,4 +111,20 @@ def test_duplicate_nonfinite_or_wrong_instrument_is_unavailable(monkeypatch):
         monkeypatch.setattr(reference_history.yf, "Ticker", broken(frame))
         assert reference_history.get_reference_history("DOCN", "2026-11-05", ENDS)["status"] == "unavailable"
     install(monkeypatch, metadata={"symbol": "AAPL"})
+    assert reference_history.get_reference_history("DOCN", "2026-11-05", ENDS)["status"] == "unavailable"
+
+
+@pytest.mark.unit
+def test_an_empty_close_on_the_latest_bar_does_not_cost_the_whole_history(monkeypatch):
+    """Seen 2026-11-12 evening on MSFT, DOCN and JPM (14 runs): the vendor returned the latest bar with no close and
+    the whole history, with both own-history references, was dropped. Boundary: only the latest bar, only when it
+    carries no split; that bar supplies no price. An empty close anywhere else still makes the history unavailable."""
+    install(monkeypatch, blank=("2026-11-05",))
+    record = reference_history.get_reference_history("DOCN", "2026-11-05", ENDS)
+    assert record["status"] == "available", record
+    prices, _splits = reference_history.replay_reference_history(record, "DOCN", "2026-11-05", ENDS)
+    assert len(prices) == 4 and all(p["close"] == "20" for p in prices)
+    install(monkeypatch, blank=("2026-08-03",))
+    assert reference_history.get_reference_history("DOCN", "2026-11-05", ENDS)["status"] == "unavailable"
+    install(monkeypatch, blank=("2026-11-05",), split_date="2026-11-05")
     assert reference_history.get_reference_history("DOCN", "2026-11-05", ENDS)["status"] == "unavailable"

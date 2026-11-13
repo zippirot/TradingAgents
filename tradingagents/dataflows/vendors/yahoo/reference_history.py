@@ -102,8 +102,10 @@ def _project(raw):
         session = stamp.astimezone(zone).date()
         if session in by_session or not start <= session < end or session > retrieval_day:
             raise ValueError("Duplicate or out-of-window historical bar")
-        close = _number(bar["close"], positive=True)
         ratio = _number(bar["stock_splits"])
+        if bar is bars[-1] and Decimal(ratio) == 0 and str(bar["close"]).strip().lower() == "nan":
+            continue  # the vendor's latest bar can arrive with no close yet; it supplies no price
+        close = _number(bar["close"], positive=True)
         complete = session_is_complete(
             session, retrieved, str(zone), regular_end, raw["observation_cutoff"]
         )
