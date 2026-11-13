@@ -528,3 +528,7 @@ All 32 exit 0; 23 rated in both sets (DOCN and CVX stop at REVIEW on all four pa
 | rank correlation, valuation with later excess return | 0.77 | 0.80 |
 At 21 sessions: 11 of 19 and 0.26 without, 12 of 21 and 0.43 with. Views by company are the same except PGR (Attractive 1, Fair 3 without; Attractive 2, Fair 1, Unattractive 1 with).
 Verdict on A: neutral on outcomes as on scores. It neither helps nor harms how often the views are right on this sample; what it adds is that each report shows what the earnings figure rests on, the dividend in the return, and peers on earnings and book value. The outcome picture has now held in four independent sets of runs (two on Terra Pro, two on Terra).
+
+### Installed 2fc4f1ec: A and C (user: "1 install 2 yes 3 yes", 2026-11-13)
+Bench merged with origin/staging (the plan fix was on a side line), suite 4,871. Staging fast-forwarded c8ad5325 -> 2fc4f1ec, CI green first run (43493200063). Launcher on `claude/installed-2fc4f1ec`, focused tests pass, CLI starts. Production stays 268ffcf3.
+Agreed with the user the same day: changes are judged by the outcome check (the fixed 32 past-date runs, `logs-ob*` as baseline) from here, not by the evaluator score. Next targets in order: (1) the bank and insurer card gap, map 2b-14; (2) DOCN and CVX reaching a rating on past dates; (3) a wider outcome check.
