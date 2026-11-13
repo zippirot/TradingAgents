@@ -136,8 +136,13 @@ def final_request(state):
     return cached
 
 
+NOT_A_COMPANY = "Not a company: the filings-based valuation does not apply to this asset."
+
+
 def validate_final_case(state, request, cases=None):
     """Resolve final identity against freshly replayed active inputs."""
+    if _mapping(state).get("asset_type", "stock") != "stock":
+        return TargetResult(status="unsupported", reasons=(NOT_A_COMPANY,))
     try:
         package = EvidencePackage.model_validate(state.get("financial_evidence"))
         cutoff = state.get("trade_date")

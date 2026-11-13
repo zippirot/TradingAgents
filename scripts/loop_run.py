@@ -24,10 +24,13 @@ STATE = ROOT / "docs" / "loop" / "state.json"
 PORTFOLIO = Path(os.environ.get("LOOP_PORTFOLIO") or ROOT / "docs" / "loop" / "portfolio.loop.json")
 LOOP_HOME = Path.home() / ".tradingagents" / "loop"
 LAUNCHER = Path.home() / "Documents" / "ChatGPT" / "Tauric" / "TradingAgents"
-MODEL = "openai/gpt-6.1-terra-pro"
+# The user's ChatGPT plan (signed in once with `tradingagents login chatgpt`) is the default since 2026-11-13;
+# LOOP_PROVIDER=openrouter goes back to the paid key, where cost is measured.
+PROVIDER = os.environ.get("LOOP_PROVIDER") or "chatgpt"
+MODEL = "openai/gpt-6.1-terra-pro" if PROVIDER == "openrouter" else "gpt-6.1-terra"
 SETTINGS = {
-    "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
-    "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1",
+    "TRADINGAGENTS_LLM_PROVIDER": PROVIDER,
+    "TRADINGAGENTS_LLM_BACKEND_URL": "https://openrouter.ai/api/v1" if PROVIDER == "openrouter" else "https://api.openai.com/v1",
     "TRADINGAGENTS_QUICK_THINK_LLM": MODEL,
     "TRADINGAGENTS_DEEP_THINK_LLM": MODEL,
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS": "1",
@@ -82,6 +85,8 @@ def environment(home: Path = LOOP_HOME, results: str = "logs") -> dict:
 
 def provider_usage(env: dict) -> float | None:
     """Dollars the provider has billed this key so far; the difference across a run is its cost."""
+    if PROVIDER != "openrouter":
+        return None  # a subscription run bills nothing to the key
     try:
         request = urllib.request.Request("https://openrouter.ai/api/v1/key",
                                          headers={"Authorization": f"Bearer {env['OPENROUTER_API_KEY']}"})

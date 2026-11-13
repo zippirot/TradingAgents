@@ -121,6 +121,15 @@ def _decision_card(state, publication_config):
     return card
 
 
+def valuation_section_for(state, built: str) -> str:
+    """The valuation section of the decision text: as built for a stock, one plain line for any other asset."""
+    if state.get("asset_type", "stock") == "stock":
+        return built
+    return ("Valuation: not applicable. " + str(state.get("company_of_interest") or "This asset") + " is not a company, "
+            "so the filings-based valuation, scenarios, guidance comparison and price target do not apply. The rating "
+            "is a research opinion from price action, news and sentiment.")
+
+
 def enforce_publication(state: dict, *, publication_config: dict | None = None) -> dict:
     """Project new runs into canonical decisions, retaining raw prose separately.
 
@@ -245,6 +254,7 @@ def enforce_publication(state: dict, *, publication_config: dict | None = None) 
         target_text += "\n\n" + render_event_comparison(event)
     if target.status != "supported" or not target.decision_use.final_target_eligible:
         target_text = "Fundamental price target: unavailable.\n\n" + target_text
+    target_text = valuation_section_for(state, target_text)
     continuity = _thesis_update({**state, **updates})
     if continuity:
         updates.update(continuity)

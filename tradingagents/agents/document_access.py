@@ -372,6 +372,8 @@ def render_document_searches(state) -> str:
     trace = state.get("document_search_trace") or {}
     if record is None and not trace:
         return ""
+    if state.get("asset_type", "stock") != "stock" and not trace:
+        return ""  # filings search cannot exist for an asset that is not a company
     corpus = validated_document_corpus(state)
     retained_search_packages(state)
     def cell(value):

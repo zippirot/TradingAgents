@@ -71,7 +71,8 @@ def test_saved_reports_retain_qualified_prose_and_evidence_is_canonical(tmp_path
         assert "Weigh stronger demand against dilution." in text
         assert "Bull: demand strengthens." in text
         assert "Unvalidated model research" in text
-        assert "Fundamental price target: unavailable." in text
+        # A non-company report states once that the valuation does not apply (changed 2026-11-13, bitcoin).
+        assert ("Valuation: not applicable." if scope == "non-SEC" else "Fundamental price target: unavailable.") in text
         if scope_warning:
             assert scope_warning in text
     quality = json.loads((tmp_path / "quality.json").read_text())
