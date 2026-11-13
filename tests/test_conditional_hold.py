@@ -81,3 +81,10 @@ def test_outside_the_band_nothing_changes():
     assert hold["conditional_hold"] is False and "Conditional Hold" not in "\n".join(render(hold))
     plain = summarize({**_state(NEAR, rating="Hold"), "trade_date": "2026-11-10"}, _three())   # no required return
     assert plain.get("hold_band") is None and plain["conditional_hold"] is False
+
+
+def test_a_band_of_fifteen_points_is_accepted():
+    """The user chose 15 on 2026-11-13 after the outcome check showed views inside about 15 to 20 points of the
+    required return did no better or worse than the market; the file refused anything over 10."""
+    assert PortfolioContext.model_validate({"positions": [], "hold_band_points": 15}).hold_band_points == 15
+    assert hold_band({"portfolio_inputs": {"hold_band_points": 15}}) == (Decimal(15), "portfolio file")

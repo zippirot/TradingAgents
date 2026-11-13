@@ -60,7 +60,7 @@ class PortfolioContext(BaseModel):
         default=None, description="What each rating means as a multiple of the standard weight, e.g. Underweight 0.5")
     show_amounts: bool = Field(default=False, description="Show currency amounts beside percentages and units")
     hold_band_points: float | None = Field(
-        default=None, ge=0, le=10,
+        default=None, ge=0, le=25,
         description="How close to your required return, in points of yearly return, counts as a Conditional Hold. "
                     "Left out, the app uses 3.")
     required_return_premium: float | None = Field(

@@ -839,6 +839,11 @@ def unselected_for(cik: str, as_of_date: str) -> tuple[str, ...]:
     return _UNSELECTED.get((cik, as_of_date), ())
 
 
+# A report that combines results with other items (officer changes, a closing) carries three or four exhibits;
+# at two, such a report stopped the run (ADBE, NKE, HON on past dates, 2026-11-13). More than this is still a gap.
+_EXHIBITS_PER_8K = 4
+
+
 def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
     cutoff = date.fromisoformat(as_of_date)
     cik = cik_for(ticker)
@@ -945,8 +950,8 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                     if "2.02" in filing.items and not exhibits:
                         # The cover page names its exhibits in many ways. The filing's own index lists them.
                         exhibits = _indexed_exhibits(client, filing)
-                    pending.extend(exhibits[:2])
-                    if len(exhibits) > 2:
+                    pending.extend(exhibits[:_EXHIBITS_PER_8K])
+                    if len(exhibits) > _EXHIBITS_PER_8K:
                         gaps.append(f"{filing.accession}: exhibit count limit reached")
                     if "2.02" in filing.items and not exhibits:
                         gaps.append(f"{filing.accession}: earnings exhibit unavailable")

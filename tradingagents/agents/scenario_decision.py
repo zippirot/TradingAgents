@@ -238,7 +238,7 @@ def hold_band(state) -> tuple[Decimal, str]:
     """The band in points and where it came from."""
     inputs = state.get("portfolio_inputs") if isinstance(state, dict) or hasattr(state, "get") else None
     own = _decimal(inputs.get("hold_band_points")) if isinstance(inputs, dict) and inputs.get("hold_band_points") is not None else None
-    if own is not None and 0 <= own <= 10:
+    if own is not None and 0 <= own <= 25:
         return own, "portfolio file"
     return DEFAULT_HOLD_BAND, "app setting"
 
