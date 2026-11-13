@@ -555,13 +555,9 @@ def create_source_acquisition(selected_analysts):
         config = get_config()
         chain = config.get("tool_vendors", {}).get("get_stock_data") or config.get("data_vendors", {}).get("core_stock_apis", "")
         if "yfinance" in {name.strip() for name in str(chain).split(",")}:
-            dates = [date.fromisoformat(f["period_end"])
-                     for f in update.get("financial_evidence", {}).get("facts", [])
-                     if f["metric"] == "Cash and Equivalents" and f.get("value") is not None
-                     and f.get("period_start") is None]
             with completed_price_scope(state):
                 update["price_observation"] = get_price_observation(
-                    scope["ticker"], scope["as_of"], max(dates, default=None))
+                    scope["ticker"], scope["as_of"], price_anchor(update.get("financial_evidence", {}).get("facts", [])))
                 # Related holdings are measured once, here, at the run's date (portfolio file only; never published).
                 from tradingagents.portfolio import related_holdings
 
@@ -593,6 +589,22 @@ def create_source_acquisition(selected_analysts):
         return update
 
     return acquire
+
+
+def price_anchor(facts):
+    """The date the price record must reach back to: the latest filed cash balance, else the latest annual EPS year end.
+
+    A bank or an insurer files no cash balance; its earnings case is anchored on the earnings year, and a price
+    record of two weeks cannot be compared with it.
+    """
+    balances = [date.fromisoformat(f["period_end"]) for f in facts
+                if f["metric"] == "Cash and Equivalents" and f.get("value") is not None and f.get("period_start") is None]
+    if balances:
+        return max(balances)
+    years = [date.fromisoformat(f["period_end"]) for f in facts
+             if f["metric"] == "Diluted EPS" and f.get("value") is not None and f.get("period_start")
+             and 350 <= (date.fromisoformat(f["period_end"]) - date.fromisoformat(f["period_start"])).days + 1 <= 380]
+    return max(years, default=None)
 
 
 def create_evidence_gate(selected_analysts):
