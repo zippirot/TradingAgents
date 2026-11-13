@@ -117,6 +117,13 @@ class PortfolioContext(BaseModel):
                      "positions": {"__all__": {"standard_weight", "sector"}}})
         return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
+    def grouping(self) -> dict:
+        """What a run needs to measure related holdings: the file's own sectors and sector limit. {} when it has neither."""
+        sectors = {p.ticker.strip().upper(): p.sector for p in self.positions if p.sector}
+        limit = self.limits.max_sector_weight if self.limits else None
+        found = {**({"sectors": sectors} if sectors else {}), **({"sector_limit": limit} if limit else {})}
+        return {"grouping": found} if found else {}
+
     def inputs(self) -> dict:
         """The book as run state: read locally, shown to this run's agents, never written to a publication."""
         return {**self.model_dump(mode="json", exclude=_REVIEW_ONLY), "fingerprint": self.fingerprint()}
@@ -139,7 +146,83 @@ def average_daily_move(closes) -> Decimal | None:
     return sum(abs(b / a - 1) for a, b in zip(recent, recent[1:], strict=False)) / RANGE_SESSIONS
 
 
-def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | None = None) -> dict:
+def vendor_quote(ticker: str, as_of: str) -> dict:
+    """A holding's dated close; one holding's failure is reported, never raised."""
+    from tradingagents.dataflows.vendors.yahoo.price_observation import get_price_observation
+
+    try:
+        return get_price_observation(ticker, as_of)
+    except Exception as exc:  # noqa: BLE001 - one holding's price must not stop the run
+        return {"status": "unavailable", "reason": f"price fetch failed ({type(exc).__name__})"}
+
+
+def vendor_sector(ticker: str) -> str | None:
+    from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
+
+    try:
+        sector = get_company_profile(ticker).get("sector")
+    except Exception:  # noqa: BLE001 - an unknown sector is reported, not fatal
+        return None
+    return sector if isinstance(sector, str) and sector.strip() else None
+
+
+def related_holdings(inputs, ticker: str, as_of: str, *, quote=None, sector=None) -> dict | None:
+    """The caller's other holdings in this stock's sector, as a share of the portfolio at the run's date.
+
+    None when there is no portfolio value or no other holding: nothing is built and the run reads as before.
+    A holding whose sector or price cannot be found is left out and named; nothing is assumed for it.
+    """
+    if not isinstance(inputs, dict) or _number(inputs.get("portfolio_value")) is None:
+        return None
+    name = ticker.strip().upper()
+    others = [p for p in inputs.get("positions") or () if p["ticker"].strip().upper() != name and _number(p.get("quantity"))]
+    if not others:
+        return None
+    quote, sector = quote or vendor_quote, sector or vendor_sector
+    grouping = inputs.get("grouping") or {}
+    own = grouping.get("sectors") or {}
+
+    def sector_of(symbol):
+        found = own.get(symbol) or sector(symbol)
+        return found.strip() if isinstance(found, str) and found.strip() else None
+    mine = sector_of(name)
+    if not mine:
+        return {"status": "unavailable", "reason": f"the sector of {name} was not found"}
+    value, currency = _number(inputs["portfolio_value"]), inputs.get("currency")
+    weight, count, left_out = Decimal(0), 0, []
+    for position in others:
+        symbol = position["ticker"].strip().upper()
+        theirs = sector_of(symbol)
+        if theirs is None:
+            left_out.append(symbol)
+            continue
+        if theirs.lower() != mine.lower():
+            continue
+        seen = quote(symbol, as_of)
+        close = _number(seen.get("close")) if isinstance(seen, dict) else None
+        foreign = currency and isinstance(seen, dict) and seen.get("currency") and currency.upper() != str(seen["currency"]).upper()
+        if close is None or close <= 0 or foreign:
+            left_out.append(symbol)
+            continue
+        weight += _number(position["quantity"]) * close / value
+        count += 1
+    return {"status": "available", "sector": mine, "others_weight": str(weight), "count": count, "left_out": left_out,
+            "limit": grouping.get("sector_limit")}
+
+
+def group_downside(result, rule) -> dict | None:
+    """The sector group, at its size after the action, falling as far as this stock's lowest accepted case."""
+    group = result.get("group") if isinstance(result, dict) else None
+    budget = _number((result.get("loss") or {}).get("budget")) if group else None
+    fall = _number(rule.get("fall")) if isinstance(rule, dict) and rule.get("status") == "available" else None
+    weight = _number(group.get("after") or group.get("now")) if group else None
+    if None in (budget, fall, weight) or fall <= 0 or weight <= 0:
+        return None
+    return {"fall": str(fall), "weight": str(weight), "loss": str(weight * fall), "budget": str(budget),
+            "inside": weight * fall <= budget}
+
+
+def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | None = None, related=None) -> dict:
     """Arithmetic on the caller's inputs at a dated close. No judgment and no order.
 
     ``inputs`` is ``PortfolioContext.inputs()`` as kept in run state. Whatever an
@@ -207,6 +290,14 @@ def sizing(inputs, ticker: str, quote, *, levels=(), closes=(), rating: str | No
                 row["inside"] = Decimal(row["loss"]) <= budget
             result["loss"]["target"] = {"rating": final["rating"], "weight": str(weight_at_target), "rows": at,
                                         "budget_fall": str(budget / weight_at_target) if budget < weight_at_target else None}
+    if isinstance(related, dict) and related.get("status") == "available" and (related["count"] or related["left_out"]):
+        others, final = Decimal(related["others_weight"]), result["final"]
+        limit = _number(related.get("limit"))
+        after = others + Decimal(final["target_weight"]) if final else None
+        result["group"] = {"sector": related["sector"], "count": related["count"], "left_out": list(related["left_out"]),
+                           "now": str(others + weight), "after": str(after) if after is not None else None,
+                           "rating": final["rating"] if final else None, "limit": str(limit) if limit is not None else None,
+                           "over_limit": (after if after is not None else others + weight) > limit if limit is not None else None}
     return result
 
 
@@ -322,6 +413,28 @@ def render_sizing(result, *, final: bool = False) -> list[str]:
                      f"budget; that case allows at most {_percent(test['ceiling'])} at this budget. The rating is the "
                      "view of the stock and is not changed by this; the budget bears on the size. This is this "
                      "position alone; the case is the report's own, not a forecast of the worst outcome.")
+    group = result.get("group")
+    if group:
+        n = group["count"]
+        text = (f"- Related holdings (same sector, {group['sector']}): this position and {n} other holding"
+                f"{'' if n == 1 else 's'} are {_percent(group['now'])} of the portfolio now")
+        if group["after"] is not None and final:
+            text += f", {_percent(group['after'])} after the {group['rating']} action"
+        text += "."
+        if group["limit"] is not None:
+            text += (f" That is {'OVER' if group['over_limit'] else 'inside'} your sector limit of "
+                     f"{_percent(group['limit'])}.")
+        fallen = group.get("downside") if final else None
+        if fallen:
+            text += (f" If the whole group fell as far as this stock's lowest accepted case ({_percent(fallen['fall'])}), it "
+                     f"would lose {_percent(fallen['loss'], 2)} of the portfolio, "
+                     f"{'inside' if fallen['inside'] else 'OUTSIDE'} the {_percent(fallen['budget'], 2)} budget; holdings "
+                     "do not all fall together or by the same amount, so this is a stress, not a forecast.")
+        if group["left_out"]:
+            text += f" Left out (price or sector not found): {', '.join(group['left_out'])}; the figure is partial."
+        lines = [line.replace("Other holdings are not included, and", "Related holdings are in the line below, and")
+                 for line in lines]
+        lines.append(text + " Code states the figures; it does not change the rating or the size.")
     return lines
 
 
@@ -339,10 +452,14 @@ def sizing_from_state(state, *, final: bool = False) -> dict:
     closes = [bar.get("close") for bar in bars or () if isinstance(bar, dict)
               and str(bar.get("timestamp", ""))[:10] <= session]
     result = sizing(inputs, state.get("company_of_interest", ""), quote, levels=levels, closes=closes,
-                    rating=state.get("final_rating") if final else None)
+                    rating=state.get("final_rating") if final else None, related=inputs.get("related"))
     card = state.get("decision_context") if final else None
     basis = card.get("scenario_decision") if isinstance(card, dict) else None
-    test = downside_test(result, basis.get("sizing_rule") if isinstance(basis, dict) else None)
+    rule = basis.get("sizing_rule") if isinstance(basis, dict) else None
+    fallen = group_downside(result, rule)
+    if fallen:
+        result["group"]["downside"] = fallen
+    test = downside_test(result, rule)
     return {**result, "downside": test} if test else result
 
 

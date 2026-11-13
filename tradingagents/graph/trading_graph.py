@@ -566,7 +566,7 @@ class TradingAgentsGraph:
         )
 
         if portfolio is not None:
-            state["portfolio_inputs"] = portfolio.inputs()
+            state["portfolio_inputs"] = {**portfolio.inputs(), **portfolio.grouping()}
         state["run_metrics"] = self._initial_run_metrics()
         state["evaluation_mode"] = self.config.get("evaluation_mode", "prospective")
         state["run_settings"] = self.run_settings()

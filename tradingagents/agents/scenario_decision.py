@@ -204,6 +204,22 @@ def _standing(state) -> str | None:
         return None
 
 
+def _group_note(state) -> str:
+    """The measured sector group beside a trim on a Fair stock at standard weight; '' when it was not measured."""
+    from tradingagents.portfolio import sizing_from_state
+
+    try:
+        group = sizing_from_state({**state, "decision_context": None}, final=True).get("group")
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        return ""
+    if not group or group.get("after") is None:
+        return ""
+    share = f"{Decimal(group['after']) * 100:.1f}%"
+    limit = (f", {'over' if group['over_limit'] else 'inside'} your sector limit of {Decimal(group['limit']) * 100:.1f}%"
+             if group.get("limit") is not None else "; you have set no sector limit")
+    return f" Measured: this position and related holdings are {share} of the portfolio after this action{limit}."
+
+
 def valuation_reading(gap, band) -> str | None:
     """Code's reading of the accepted scenarios: their yearly return against the required return, with the band as Fair."""
     if gap is None or band is None:
@@ -343,6 +359,7 @@ def summarize(state, replayed) -> dict:
         # One case named for what it is: a Fair stock held at its standard weight, and an action other than Hold.
         if contrary and view == "Fair" and _standing(state) == "at":
             summary["contrary_basis"] = "fair_at_standard"
+            summary["group_note"] = _group_note(state)
     summary["consistency"] = ("consistent" if not contrary else
                               "explained" if summary["rating_basis_reason"] else "unexplained")
     # A reason may argue against the code's return figure, but it may not restate it backwards.
@@ -564,6 +581,7 @@ def render(summary) -> list[str]:
                " It points a different way from the stock view and no reason was given." if against else "")
             + (" Code note: the holding is at its standard weight and the stock view is Fair, so the action that "
                "follows from the scale is Hold; the reason above is what the manager gives for departing from it."
+               + (summary.get("group_note") or "")
                if summary.get("contrary_basis") == "fair_at_standard" else ""))
     if summary.get("conditional_hold"):
         band = summary["hold_band"]

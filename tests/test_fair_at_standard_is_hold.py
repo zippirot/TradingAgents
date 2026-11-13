@@ -63,3 +63,14 @@ def test_the_manager_is_asked_once_even_when_it_gave_a_reason():
     assert "a Fair stock at its standard weight is a Hold" in retry_feedback(given, _three())
     assert "standard weight is a Hold" not in retry_feedback(_with("Hold", 50), _three())
     assert "standard weight is a Hold" not in retry_feedback(_with("Underweight", 400, reason="It is 40% of the portfolio."), _three())
+
+
+def test_the_note_says_whether_the_measured_group_supports_the_trim():
+    related = {"status": "available", "sector": "Technology", "others_weight": "0.13", "count": 2, "left_out": []}
+    over = _with("Underweight", 50, reason="Related technology holdings.")
+    over["portfolio_inputs"]["related"] = {**related, "limit": 0.15}
+    assert "15.5% of the portfolio after this action, over your sector limit of 15.0%" in "\n".join(render(summarize(over, _three())))
+    none = _with("Underweight", 50, reason="Related technology holdings.")
+    none["portfolio_inputs"]["related"] = {**related, "limit": None}
+    assert "15.5% of the portfolio after this action; you have set no sector limit" in "\n".join(render(summarize(none, _three())))
+    assert "of the portfolio after this action" not in "\n".join(render(summarize(_with("Underweight", 50, reason="x"), _three())))

@@ -440,6 +440,8 @@ def test_real_cli_graph_offline_capture_and_wire_drill(tmp_path, monkeypatch, ma
     from tradingagents.dataflows.errors import VendorUnavailableError
     from tradingagents.graph import trading_graph
 
+    # The offline drill has no captured sector source, so related holdings are not measured in it.
+    monkeypatch.setattr("tradingagents.portfolio.vendor_sector", lambda ticker: None)
     date = "2026-10-19" if mapped else "2026-01-09"
     market_cutoff = "2026-10-19T22:00:00+00:00" if mapped else "2026-01-09T22:00:00+00:00"
     if mapped:

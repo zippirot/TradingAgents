@@ -562,6 +562,12 @@ def create_source_acquisition(selected_analysts):
             with completed_price_scope(state):
                 update["price_observation"] = get_price_observation(
                     scope["ticker"], scope["as_of"], max(dates, default=None))
+                # Related holdings are measured once, here, at the run's date (portfolio file only; never published).
+                from tradingagents.portfolio import related_holdings
+
+                related = related_holdings(state.get("portfolio_inputs"), scope["ticker"], str(scope["as_of"]))
+                if related:
+                    update["portfolio_inputs"] = {**state["portfolio_inputs"], "related": related}
         else:
             update["price_observation"] = {"status": "unavailable",
                 "reason": "No supported dated-close provider is configured; no additional vendor was used"}
