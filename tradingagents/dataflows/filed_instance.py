@@ -244,6 +244,27 @@ def _tolerance(parent, children):
     return Decimal(10) ** -min(known) * (len(children) + 1) / 2
 
 
+def stated_unit(amounts) -> Decimal:
+    """The unit the figures are really stated in: the largest power of ten that divides every nonzero one."""
+    unit, amounts = Decimal(1), [abs(Decimal(value)) for value in amounts if value]
+    while amounts and unit < 10**9 and all(value % (unit * 10) == 0 for value in amounts):
+        unit *= 10
+    return unit
+
+
+def rounding_allowance(amounts, decimals) -> Decimal:
+    """One unit of the figures' real rounding, and only for figures the filer tags as rounded.
+
+    McDonald's tags its cash flows to the hundred thousand and states them in whole millions; a total can then
+    miss its lines by a million. Figures tagged to the dollar, or with no stated precision, get nothing.
+    """
+    decimals = list(decimals)
+    if not decimals or any(places is None or places >= 0 for places in decimals):
+        return Decimal(0)
+    unit = stated_unit(amounts)
+    return unit if unit > 1 else Decimal(0)
+
+
 def liability_lines(facts, calculation, end: date) -> tuple[tuple[Line, ...], Decimal]:
     """Every liability line the filer declares on its balance sheet at ``end``, and their total.
 
@@ -302,7 +323,11 @@ def _check(values, parent, children):
         return
     stated = values[parent]
     residual = sum((fact.value * weight for fact, weight in present), Decimal(0)) - stated.value
-    if abs(residual) > _tolerance(stated, [fact for fact, _ in present]):
+    # Figures tagged finer than they are stated (McDonald's: tagged to the hundred thousand, stated in whole
+    # millions) round at the unit they are stated in; one such unit is allowed, and none for figures to the dollar.
+    allowed = rounding_allowance([stated.value, *(fact.value for fact, _ in present)],
+                                 [stated.decimals, *(fact.decimals for fact, _ in present)])
+    if abs(residual) > max(_tolerance(stated, [fact for fact, _ in present]), allowed):
         raise InstanceError(f"declared sum for {parent} does not hold at the filed figures (residual {residual})")
 
 

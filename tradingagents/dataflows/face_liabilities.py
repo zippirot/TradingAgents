@@ -18,6 +18,7 @@ from tradingagents.dataflows.filed_instance import (
     financing_lines,
     investing_lines,
     liability_lines,
+    rounding_allowance,
 )
 from tradingagents.dataflows.financial_evidence import (
     EvidencePackage,
@@ -424,7 +425,10 @@ def with_financing_lines(package: EvidencePackage, facts, calculation, *, url: s
         lines, stated = financing_lines(facts, calculation, start, end)
     except InstanceError as exc:
         return package, [f"filed financing sum not established: {exc}"]
-    if not any(f.value == stated for f in totals) or sum((line.value for line in lines), Decimal(0)) != stated:
+    # One unit of the figures' real rounding is allowed, as in the declared-sum check; none for figures to the dollar.
+    allowed = rounding_allowance([stated, *(line.value for line in lines)], [line.decimals for line in lines])
+    out = abs(sum((line.value for line in lines), Decimal(0)) - stated)
+    if not any(f.value == stated for f in totals) or out > allowed:
         return package, [f"filed financing lines do not add up to financing cash flow for {start} to {end}"]
     source_id = "sec-instance-" + hashlib.sha256(f"{url}:{content_hash}".encode()).hexdigest()
     source = SourceRecord(source_id=source_id, cik=package.cik, url=url, filed_date=filed_date,
