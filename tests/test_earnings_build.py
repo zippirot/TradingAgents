@@ -71,3 +71,14 @@ def test_a_build_with_no_filed_year_to_set_it_against_is_still_checked_against_i
     assert earnings_build_parts(_request(build=BUILD), _package(drop=("income",)))["status"] == "unchecked"
     with pytest.raises(ValueError, match="build gives"):
         price_earnings_case(_request(build={**BUILD, "net_margin": "0.10"}), _package(drop=("income",)), ())
+
+
+def test_net_income_derived_from_the_filing_counts_as_the_filed_year():
+    """Caterpillar, 2026-11-13: its parent net income is derived (profit less the minority share), and three
+    built cases were printed as "not set beside the filings"."""
+    record = _package().model_dump(mode="json")
+    for fact in record["facts"]:
+        if fact["fact_id"] == "income":
+            fact.update(origin="derived", formula_id="profit_less_noncontrolling_v1", input_fact_ids=["eps"])
+    package = EvidencePackage.model_validate(record)
+    assert earnings_build_parts(_request(build=BUILD), package)["status"] == "checked"

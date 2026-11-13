@@ -174,7 +174,8 @@ def earnings_build_parts(request: EarningsCase, package) -> dict | None:
     filed = _fact(package, request.eps_fact_id)
 
     def one(metric):
-        found = {f.value for f in package.facts if f.metric == metric and f.value is not None and f.origin == "reported"
+        # Parent net income is often derived from the filing (profit less the minority share); that is the filed year too.
+        found = {f.value for f in package.facts if f.metric == metric and f.value is not None
                  and (f.period_start, f.period_end) == (filed.period_start, filed.period_end)}
         return next(iter(found)) if len(found) == 1 else None
 
