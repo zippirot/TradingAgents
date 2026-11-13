@@ -407,3 +407,7 @@ Look-back re-run on the split (24 fresh runs, tags ls*; 17 rated; DOCN and CVX a
 | Unattractive | 14 | +0.8 | -3.7, 9 of 14 below the market |
 Directional calls right: 9 of 16 at 21 sessions, 12 of 16 at 63. Rank correlation of valuation with later excess return: 0.27 and 0.83. A second independent set of runs gave the same picture as the first (11 of 15; 0.92), which makes a fluke less likely; the sample limits are unchanged.
 Total paid spend to date: about 214 dollars.
+
+### The split INSTALLED (user approved 2026-11-12): staging and launcher at 4eaab08b
+Rides with it (all validated or default-off): equal weights as the starting point; required-return premium and Hold band settable in the portfolio file (a file without them behaves as before); look-back tools.
+CI note: the first run failed in one of six test jobs (py3.13, UTC) on 12 Yahoo data-feed tests (`tests/test_yahoo_rate_limit.py`, `tests/test_undated_tools_as_of.py`: "DID NOT RAISE VendorUnavailableError") at 00:01 UTC; the same commit passed all seven jobs on re-run, and those tests pass locally on this commit and on bf9f7fff. Not caused by this change; a flaky pre-existing test interaction worth its own look.
