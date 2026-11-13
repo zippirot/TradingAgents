@@ -470,3 +470,18 @@ Reproduced offline by replaying the saved BTC-USD state through `enforce_publica
 
 ### Installed dcf0d7eb (user: "install", 2026-11-13)
 Confirming BTC-USD run on the plan (`logs-btc3`): Underweight; none of the six fault strings present; the one "Valuation: not applicable" line prints. Staging fast-forwarded d2054424 -> dcf0d7eb, CI green first run (43453253213). Launcher on `claude/installed-dcf0d7eb`, 18 focused tests pass, CLI starts. Production stays 268ffcf3. Bench is one local ledger commit ahead.
+
+## Top-down reassessment and its three targets (user, 2026-11-13: "build the valuation, make was the rating right step, settle how size is set ... start with a but continue on to do all of it and run b alongside a")
+Reassessment: `~/Claude/2026-11-13-tradingagents-loop-reassessment.md`. From 125 evaluations the two lowest factors on every company are D1 (6.15) and R3 (6.24): the valuation is one stated EPS times one chosen multiple. Targets: A build the valuation; B outcome check as a standing step; C settle sizing (needs the user's choice of rule).
+
+### B baseline started
+Frozen copy of the installed code in `~/Worktrees/outcome-baseline` (dcf0d7eb). 32 runs on the ChatGPT plan: MSFT WMT CAT UNH JPM PGR DOCN CVX as of 2026-05-01, 06-01, 07-01, 08-03; market and fundamentals analysts; tags `ob<date>`. Read with `scripts/lookback_outcomes.py --prefix logs-ob`. The same set is re-run after A.
+
+### A1 earnings build (bench 25794708) and what the first run showed
+`EarningsCase.build` (revenue, net margin, diluted shares, a reason each), optional in the record so saved cases replay. Code computes EPS, carries the filed ratio of EPS to net income per diluted share, refuses a build more than 3% off its stated forecast, prints each input beside the filed year and the three effects on EPS; the card's "what each case assumes" line carries it. Suite 4,862.
+First run (MSFT, `logs-a1m1`): the analyst returned NO cases. Cause found by replaying its bounded fact view: annual Net Income and Weighted Average Diluted Shares were not in it (only Revenue and the two EPS figures were prioritised), so it could not start a build and fell back on "use [] if required facts are unavailable". Same gap confirmed for JPM and WMT.
+Fix (cbc5d76a): both metrics join the prioritised annual baselines (view stays under its 64,000 cap for MSFT, JPM, WMT, CAT, UNH, PGR); the instruction says never to return [] for a missing baseline.
+
+### A2 dividend in the return (bench cbc5d76a)
+New filed fact "Dividends Declared Per Share" (checked live: MSFT 3.64, WMT 0.94, CAT 5.94; JPM filed). The latest filed annual figure, held flat, as a yield on the close, is added to the gap against the required return, so code's reading of the stock includes it; values and the price comparison stay prices; the card and the manager's figures say so. No filed annual dividend: no change. Suite 4,864.
+Test runs started from a frozen copy `~/Worktrees/valuation-build-test` (cbc5d76a): MSFT, WMT, CAT on the standard portfolio, JPM on the bank one.
