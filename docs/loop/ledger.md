@@ -548,3 +548,16 @@ Bank and insurer price-anchor fix and the DOCN lease-label step. Staging fast-fo
 `scripts/outcome_check.py run --label NAME` and `report --label NAME [--against OTHER]`; fixed set in `docs/loop/outcome_set.json`: 25 companies (the eight plus V PEP MCD NKE DIS VZ BA HON UPS LOW SBUX ADBE CRM NFLX QCOM PFE DE, all known to pass the source checks today) at 2026-05-01, 06-01, 07-01, 08-03; market and fundamentals analysts; standard made-up portfolio; results under `logs-oc-<label>-<date>`; a saved run is not repeated, so the same command resumes. Suite 4,877.
 The 32-run with-A set is linked as label `prev` (`logs-oc-prev-*` -> `logs-oa*`).
 Wider baseline started: label `base`, 100 runs, 4 at a time, from `~/Worktrees/outcome-baseline` at 96f11cf3 (the installed code plus this script). Read with `report --label base`.
+
+### Wider baseline, label `base` (100 runs, installed code 7d5e39a7 plus the check script; ChatGPT plan; 2026-11-13)
+All 100 exit 0, no failed tool calls. 78 of 100 reach a rated view. Not rated: DOCN 4, CVX 4, PFE 4, MCD 3, NKE 2, ADBE 2, CAT 1, BA 1, HON 1.
+| against SPY | 21 sessions | 63 sessions |
+|---|---|---|
+| Attractive (11 views) | +4.4, 4 below the market | +5.0, 4 below |
+| Fair (8) | +1.6, 5 below | 0.0, 5 below |
+| Unattractive (53) | -1.8, 32 below | -3.7, 35 below |
+| direction right | 42 of 68 | 45 of 68 |
+| rank correlation, valuation with later excess return | 0.17 | 0.31 |
+By date at 63 sessions, Attractive / Unattractive: 05-01 +6.4 (2) / -7.7 (13); 06-01 +4.6 (3) / +0.3 (14); 07-01 +11.2 (3) / -4.9 (15); 08-03 -1.9 (3) / -2.3 (11).
+Reading: on three times as many views the picture keeps its direction and loses much of its strength. Direction right 66% (was 74% and 71% on the eight companies); the spread between Attractive and Unattractive is 8.7 points (was about 17); the rank correlation is 0.31 (was 0.77 to 0.80, which rested largely on MSFT and CAT). The August date shows no separation. 74% of views are Unattractive. So the earlier sets overstated the signal; what remains is real-looking but modest.
+Repeatability, from the 23 views shared with the earlier sets on nearly the same code: 21 of 23 identical against `prev`, 20 of 23 against `ob`; every difference is PGR. So about one view in ten changes with no change in code.
