@@ -355,6 +355,15 @@ def _history(state, raw, subject):
     return result
 
 
+def _without(value, key, keep=()):
+    """A copy with every ``key`` removed, leaving the subtrees named in ``keep`` untouched."""
+    if isinstance(value, dict):
+        return {k: (v if k in keep else _without(v, key, keep)) for k, v in value.items() if k != key}
+    if isinstance(value, list):
+        return [_without(item, key, keep) for item in value]
+    return value
+
+
 def _assemble(state, record):
     """Recompute projections from retained source inputs; no network or model."""
     from copy import deepcopy
@@ -370,6 +379,9 @@ def _assemble(state, record):
     result["peers"] = _peer_set(result["selection"], state, result["raw_sources"]["peers"],
                                         include_quality=result.get("schema_version", 1) >= 2,
                                         minimum_range_peers=3 if result.get("schema_version", 1) >= 3 else 1)
+    if result.get("schema_version", 1) < 4:
+        # Records made before the earnings and book figures were added replay to what they retained.
+        result = _without(result, "earnings_and_book", keep=("raw_sources",))
     old = [row["ticker"] for row in result["default_peers"]["requested"]]
     new = [row["ticker"] for row in result["peers"]["requested"]]
     result["changes"] = {"added": [t for t in new if t not in old], "removed": [t for t in old if t not in new]}
@@ -378,7 +390,7 @@ def _assemble(state, record):
 
 def replay_valuation_reference(state, record):
     """Reject altered scope, derived values or flattened historical projections."""
-    if not isinstance(record, dict) or record.get("schema_version") not in {1, 2, 3} or record.get("scope") != _scope(state):
+    if not isinstance(record, dict) or record.get("schema_version") not in {1, 2, 3, 4} or record.get("scope") != _scope(state):
         raise ValueError("Retained valuation reference differs from run scope")
     try:
         replay = _assemble(state, record)
@@ -423,7 +435,7 @@ def acquire_reference_inputs(state, config):
                  config.get("analysis_timezone", "America/Denver")) if configured else
                  VendorExpectations(status="unavailable", ticker=scope["ticker"], requested_as_of=scope["as_of"],
                                     reason="Configured Yahoo expectations provider unavailable"))
-    record = {"schema_version": 3, "scope": scope, "status": "available", "phase": "preanalyst",
+    record = {"schema_version": 4, "scope": scope, "status": "available", "phase": "preanalyst",
               "default_selection": selection, "selection": selection, "configured_yahoo": configured,
               "raw_sources": {"history": history, "peers": sources}}
     record = _assemble(state, record)
@@ -469,6 +481,7 @@ def _number(value):
 
 def render_valuation_reference(record):
     """Compact, independently available reference rows; full lineage stays retained."""
+    from tradingagents.agents.valuation_reference import render_earnings_and_book
     lines = ["#### Valuation reference points", ""]
     if record.get("status") in {"not_applicable", "unavailable"}:
         return "\n".join(lines + ["Unavailable: " + _cell(record.get("reason"))])
@@ -477,6 +490,8 @@ def render_valuation_reference(record):
         lines.append(f"Current equity value / trailing revenue: {_number(subject['multiple'])}×; "
                      f"completed close {_cell(subject['price_session'])}; shares measured {_cell(subject['share_date'])}; "
                      f"revenue {_cell(subject['revenue_fact']['period_start'])} to {_cell(subject['revenue_fact']['period_end'])}.")
+        if render_earnings_and_book(subject.get("earnings_and_book")):
+            lines.append(render_earnings_and_book(subject.get("earnings_and_book")))
     else:
         lines.append("Current equity value / trailing revenue unavailable: " + _cell(subject["reason"]))
     if history["status"] == "available":
@@ -525,6 +540,8 @@ def render_valuation_reference(record):
                      f"gross margin {margin_text}; completed close {stats['price_session']}; "
                      f"share date {stats['share_date']}; revenue {stats['revenue_fact']['period_start']} to {stats['revenue_fact']['period_end']}.")
         lines.append("  Revenue definition: " + _cell(stats.get("revenue_definition", "See retained source tags")) + ".")
+        if render_earnings_and_book(stats.get("earnings_and_book")):
+            lines.append("  " + render_earnings_and_book(stats.get("earnings_and_book")))
         for gap in stats.get("evidence_gaps", []):
             lines.append("  Evidence gap: " + _cell(gap) + ".")
         if stats.get("share_quality") in {"lower_quality_dated_cover", "lower_quality_dated_statement"}:

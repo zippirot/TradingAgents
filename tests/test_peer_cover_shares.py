@@ -225,7 +225,7 @@ def test_peer_fetch_and_replay_keep_cover_dates_conditional(monkeypatch, missing
     state["financial_claim_validation"] = {"raw_report": block('[{"ticker":"NET","reason":"Network infrastructure"}]')}
     updated = flow.finalize_peer_reference(state, config)
     record = updated["valuation_reference"]
-    assert record["schema_version"] == 3
+    assert record["schema_version"] == 4  # 4 since 2026-11-13: earnings and book figures joined the record
     assert requested_dates == ["2026-10-15"]
     if missing_price:
         assert not record["peers"]["accepted"] and not record["peers"]["rejected"]

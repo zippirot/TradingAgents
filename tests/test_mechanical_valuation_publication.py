@@ -18,7 +18,7 @@ def test_new_small_peer_set_has_individuals_without_pooled_range_and_legacy_repl
     from tradingagents.agents import valuation_reference_flow as flow
     state = prepared_state(monkeypatch)
     record = state["valuation_reference"]
-    assert record["schema_version"] == 3
+    assert record["schema_version"] == 4  # 4 since 2026-11-13: earnings and book figures joined the record
     assert len(record["peers"]["accepted"]) == 1
     assert record["peers"]["range"]["status"] == "unavailable"
     text = flow.render_valuation_reference(record)

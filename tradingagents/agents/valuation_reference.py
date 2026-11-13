@@ -278,6 +278,57 @@ def calculate_own_history(package, issuer_identity: dict, prices, split_history,
         return _unavailable(str(exc))
 
 
+def earnings_and_book(facts, close, shares, session) -> dict:
+    """Price over filed annual diluted EPS, market value over filed equity, and filed net income over that equity.
+
+    Each figure is stated only when its filed input exists once and is positive; the rest stay None.
+    """
+    def annual(metric):
+        found = {}
+        for f in facts:
+            if (f.metric == metric and f.value is not None and f.origin == "reported" and f.period_start is not None
+                    and 350 <= (f.period_end - f.period_start).days + 1 <= 380 and f.period_end <= session):
+                found.setdefault(f.period_end, set()).add(f.value)
+        if not found:
+            return None, None
+        end = max(found)
+        return (next(iter(found[end])), end) if len(found[end]) == 1 else (None, None)
+
+    balances = {}
+    for f in facts:
+        if f.metric == "Stockholders Equity" and f.value is not None and f.period_start is None and f.period_end <= session:
+            balances.setdefault(f.period_end, set()).add(f.value)
+    equity_date = max(balances, default=None)
+    equity = next(iter(balances[equity_date])) if equity_date and len(balances[equity_date]) == 1 else None
+    eps, eps_end = annual("Diluted EPS")
+    income, _income_end = annual("Net Income")
+    result = {"price_to_earnings": None, "eps_period_end": None, "price_to_book": None, "equity_date": None,
+              "return_on_equity_percent": None}
+    with localcontext() as ctx:
+        ctx.prec = 60
+        if eps is not None and eps > 0:
+            result.update(price_to_earnings=_number(close / eps), eps_period_end=str(eps_end))
+        if equity is not None and equity > 0:
+            result.update(price_to_book=_number(close * shares / equity), equity_date=str(equity_date))
+            if income is not None and income > 0:
+                result["return_on_equity_percent"] = _number(100 * income / equity)
+    return result
+
+
+def render_earnings_and_book(found) -> str:
+    """One sentence of whichever of the three figures exist; empty when none does."""
+    if not isinstance(found, dict):
+        return ""
+    parts = []
+    if found.get("price_to_earnings"):
+        parts.append(f"{Decimal(found['price_to_earnings']):.1f}× filed annual diluted EPS (year to {found['eps_period_end']})")
+    if found.get("price_to_book"):
+        parts.append(f"{Decimal(found['price_to_book']):.1f}× book value ({found['equity_date']})")
+    if found.get("return_on_equity_percent"):
+        parts.append(f"return on equity {Decimal(found['return_on_equity_percent']):.1f}%")
+    return "On earnings and book value: " + "; ".join(parts) + "." if parts else ""
+
+
 def calculate_peer_statistics(package, issuer_identity: dict, price_observation, *, ticker: str, completed_cutoff: date, peer_cover_shares=None, include_quality=False) -> dict:
     """Current peer equity/revenue; growth and margin fail independently."""
     try:
@@ -372,6 +423,7 @@ def calculate_peer_statistics(package, issuer_identity: dict, price_observation,
             ) else "Reported revenue; retained source tags define the accounting basis"),
             "revenue_fact": _lineage(package, ttm), "equity_value": _number(equity),
             "multiple": _number(multiple), "equity_value_unit": currency, "trailing_revenue_growth": growth, "gross_margin": margin,
+            "earnings_and_book": earnings_and_book(package.facts, close, share_value, session),
             "evidence_gaps": [warning for warning in package.warnings
                               if warning.endswith("; not used for peer statistics")],
         }
