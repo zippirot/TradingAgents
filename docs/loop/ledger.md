@@ -419,3 +419,15 @@ Scores on version 3 (follow-up runs from one Fair starting point): Decision 6.0,
 Also seen: fresh MSFT runs came out Attractive/Overweight in 2 of 3 (+15.0%, +17.0% a year), Fair in 1; the view depends on the fresh scenarios. DOCN on the concentrated portfolio x3 (version 1): Underweight x3, view matches the reading, unchanged.
 Verdict: the stated reason is now a real portfolio reason, but no score gain. Not proposed for install on its own. What would clear CF3 is measuring combined exposure of related holdings (2b-4, parked by the user).
 Total paid spend to date: about 226 dollars.
+
+### Related holdings measured together (map 2b-4; user approved plan 2026-11-12, R1 same sector, R2 sector limit enters a run, R3 rides with the Fair-at-standard fix; bench `cafa1196`, NOT installed)
+Built tests first (suite 4,850; `tests/test_related_holdings.py`): at the price step the run looks up sector and dated close of each other holding; the Position and sizing block gains one line: the sector group's share now, after the action, against `limits.max_sector_weight` when set, and its loss if the whole group fell as far as this stock's lowest accepted case, against the loss budget. Shown to the manager before it decides (current share only). Code changes no rating or size. Unfound price or sector: left out, named, figure called partial. Kept inside `portfolio_inputs`, so it is never published beyond the block. One offline drill test needed its missing sector source declared (it correctly blocked the new lookups).
+Validation, 9 paid runs (about 9 dollars), fresh evaluators:
+| company, portfolio | line printed | action | Decision before | after |
+|---|---|---|---|---|
+| MSFT, standard, from one Fair starting point | 19.4% now, 16.6% after, inside the 30% limit; group stress 5.39% vs 1% budget | Underweight x3 | 6.0 (bench fix alone) / 6.10 | 6.10 (6.3, 6.0, 6.0) |
+| DOCN, concentrated | 70.3% now, 36.3% after; stress 15 to 22% vs 15% budget | Underweight x3 | 7.13 | 6.80 (7.0, 6.4, 7.0) |
+| JPM, bank-concentrated | none (no other holding in the sector: correct) | Underweight x3 | 6.57 | 6.20 (6.0, 6.3, 6.3) |
+Reading: the "other holdings are not measured" complaint (CF5) is gone on MSFT in 2 of 3 and partial in 1. CF3 stays on 3 of 3 for a new, substantive cause: the measured figures show the trim is inside the sector limit, so evaluators call the manager's concentration reason weak; the manager itself now writes "a discretionary portfolio-risk choice". No score gain.
+DOCN and JPM are each about 0.35 lower, at the edge of run-to-run noise. Not traced to this change: the JPM path prints nothing new and its fresh scenarios came out Unattractive x3 (earlier set Fair x3); the DOCN 6.4 run is an Attractive view with Underweight where the manager's reason carried portfolio figures and was withheld from the published record (the withholding rule; the split is what asks for that reason, so this is a gap in the installed split, map 2b-15).
+Total paid spend to date: about 235 dollars.
