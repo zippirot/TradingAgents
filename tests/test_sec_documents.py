@@ -719,3 +719,32 @@ def test_crowded_package_preserves_statements_and_latest_release_guidance(monkey
     assert sum(len(block.text) for doc in package.documents for block in doc.blocks) <= 120000
     assert len(package.documents) <= 8
     assert any("limit" in gap.lower() for gap in package.gaps)
+
+
+def test_a_results_report_whose_own_index_lists_no_exhibit_is_not_missing_one():
+    """Chevron's interim update (0000093410-26-000108) is an Item 2.02 report with its text in the report itself
+    and no exhibit; it was counted as "earnings exhibit unavailable" and stopped every past-date run (2026-11-13).
+    Boundary: only when the filing's own index was read and lists no other page. An index that cannot be read
+    still leaves the exhibit unaccounted for."""
+    import json
+    from types import SimpleNamespace
+
+    filing = SimpleNamespace(url="https://www.sec.gov/Archives/edgar/data/93410/000009341026000108/cvx-20260409.htm")
+
+    class Listed:
+        def fetch(self, url):
+            return {"text": json.dumps({"directory": {"item": [
+                {"name": "cvx-20260409.htm"}, {"name": "0000093410-26-000108-index.html"}, {"name": "R1.htm"},
+                {"name": "cvx-20260409_htm.xml"}, {"name": "FilingSummary.xml"}]}})}
+
+    class WithRelease(Listed):
+        def fetch(self, url):
+            return {"text": json.dumps({"directory": {"item": [{"name": "cvx-20260409.htm"}, {"name": "ex991release.htm"}]}})}
+
+    class Unreadable:
+        def fetch(self, url):
+            raise VendorUnavailableError("index unavailable")
+
+    assert docs._indexed_exhibits(Listed(), filing) == []
+    assert docs._indexed_exhibits(WithRelease(), filing) == [filing.url.rsplit("/", 1)[0] + "/ex991release.htm"]
+    assert docs._indexed_exhibits(Unreadable(), filing) is None

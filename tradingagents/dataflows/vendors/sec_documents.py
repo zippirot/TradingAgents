@@ -810,7 +810,7 @@ def _model_package_gap(gap: str) -> str:
     return gap
 
 
-def _indexed_exhibits(client, filing) -> list[str]:
+def _indexed_exhibits(client, filing) -> list[str] | None:
     """Exhibit documents of an 8-K from its filing index: every page in the submission but the cover.
 
     An 8-K submission holds its cover page and its exhibits. Release-like names come first so the
@@ -821,7 +821,7 @@ def _indexed_exhibits(client, filing) -> list[str]:
     try:
         items = json.loads(client.fetch(f"{base}/index.json")["text"])["directory"]["item"]
     except (VendorUnavailableError, ValueError, KeyError, TypeError):
-        return []
+        return None   # the index could not be read: an exhibit may exist
     names = [item.get("name", "") for item in items if isinstance(item, dict)]
     pages = [name for name in names if name.lower().endswith((".htm", ".html")) and name != cover
              and not re.fullmatch(r"R\d+\.htm", name) and "-index" not in name]
@@ -947,13 +947,17 @@ def get_filing_evidence(ticker: str, as_of_date: str) -> DisclosurePackage:
                     exhibits = list(dict.fromkeys(
                         url for url, _, _ in exhibit_links if url and url != filing.url
                     ))
+                    none_filed = False
                     if "2.02" in filing.items and not exhibits:
                         # The cover page names its exhibits in many ways. The filing's own index lists them.
-                        exhibits = _indexed_exhibits(client, filing)
+                        listed = _indexed_exhibits(client, filing)
+                        # An index that lists no other page: the report itself carries the results (Chevron's
+                        # interim update), so no exhibit is missing.
+                        exhibits, none_filed = listed or [], listed == []
                     pending.extend(exhibits[:_EXHIBITS_PER_8K])
                     if len(exhibits) > _EXHIBITS_PER_8K:
                         gaps.append(f"{filing.accession}: exhibit count limit reached")
-                    if "2.02" in filing.items and not exhibits:
+                    if "2.02" in filing.items and not exhibits and not none_filed:
                         gaps.append(f"{filing.accession}: earnings exhibit unavailable")
             except VendorUnavailableError as exc:
                 gaps.append(f"{filing.accession}: {exc}")
